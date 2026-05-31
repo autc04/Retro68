@@ -1,8 +1,7 @@
 /* PR middle-end/91647 - missing -Warray-bounds accessing a zero-length array
    of a declared object
    { dg-do "compile" }
-   { dg-options "-O2 -Wall -fno-tree-vectorize" }
-   { dg-require-effective-target alloca } */
+   { dg-options "-O2 -Wall -fno-tree-vectorize" } */
 
 typedef __INT16_TYPE__ int16_t;
 typedef __INT32_TYPE__ int32_t;
@@ -238,15 +237,17 @@ static void warn_a1_init (struct A1 *p)
 
 static void warn_a1_local_buf (struct A1 *p)
 {
-  p->a1[0] = 0; p->a1[1] = 1; p->a1[2] = 2; p->a1[3] = 3;
+  p->a1[0] = 0; p->a1[1] = 1; p->a1[2] = 2;
 
+  p->a1[3] = 3;	    // { dg-warning "\\\[-Warray-bounds" "" { target default_packed } }
   p->a1[4] = 4;     // { dg-warning "\\\[-Warray-bounds" }
 }
 
 static void warn_a1_extern_buf (struct A1 *p)
 {
-  p->a1[0] = 0; p->a1[1] = 1; p->a1[2] = 2; p->a1[3] = 3; p->a1[4] = 4;
+  p->a1[0] = 0; p->a1[1] = 1; p->a1[2] = 2; p->a1[3] = 3;
 
+  p->a1[4] = 4;	    // { dg-warning "\\\[-Warray-bounds" "" { target default_packed } }
   p->a1[5] = 5;     // { dg-warning "\\\[-Warray-bounds" }
 }
 

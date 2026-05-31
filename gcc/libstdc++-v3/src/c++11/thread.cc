@@ -1,6 +1,6 @@
 // thread -*- C++ -*-
 
-// Copyright (C) 2008-2022 Free Software Foundation, Inc.
+// Copyright (C) 2008-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -24,16 +24,19 @@
 
 
 #define _GLIBCXX_THREAD_ABI_COMPAT 1
+#define _GLIBCXX_THREAD_IMPL 1
 #include <memory> // include this first so <thread> can use shared_ptr
 #include <thread>
 #include <system_error>
 #include <cerrno>
 #include <cxxabi_forced.h>
+#include <bits/functexcept.h>
 
 #ifndef _GLIBCXX_USE_NANOSLEEP
 # ifdef _GLIBCXX_HAVE_SLEEP
 #  include <unistd.h>
-# elif defined(_GLIBCXX_HAVE_WIN32_SLEEP)
+# elif defined(_GLIBCXX_USE_WIN32_SLEEP)
+#  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
 # elif defined _GLIBCXX_NO_SLEEP && defined _GLIBCXX_HAS_GTHREADS
 // We expect to be able to sleep for targets that support multiple threads:
@@ -61,12 +64,32 @@ static inline int get_nprocs()
  return 0;
 }
 # define _GLIBCXX_NPROCS get_nprocs()
+#elif defined(_GLIBCXX_USE_GET_NPROCS_WIN32)
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+static inline int get_nprocs()
+{
+  SYSTEM_INFO sysinfo;
+  GetSystemInfo (&sysinfo);
+  return (int)sysinfo.dwNumberOfProcessors;
+}
+# define _GLIBCXX_NPROCS get_nprocs()
 #elif defined(_GLIBCXX_USE_SC_NPROCESSORS_ONLN)
 # include <unistd.h>
 # define _GLIBCXX_NPROCS sysconf(_SC_NPROCESSORS_ONLN)
 #elif defined(_GLIBCXX_USE_SC_NPROC_ONLN)
 # include <unistd.h>
 # define _GLIBCXX_NPROCS sysconf(_SC_NPROC_ONLN)
+#elif defined(_WIN32)
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
+static inline int get_nprocs()
+{
+  SYSTEM_INFO sysinfo;
+  GetSystemInfo(&sysinfo);
+  return (int) sysinfo.dwNumberOfProcessors;
+}
+# define _GLIBCXX_NPROCS get_nprocs()
 #else
 # define _GLIBCXX_NPROCS 0
 #endif
@@ -132,8 +155,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   }
 
   void
-  thread::_M_start_thread(_State_ptr state, void (*)())
+  thread::_M_start_thread(_State_ptr state, void (*depend)())
   {
+    // Make sure it's not optimized out, not even with LTO.
+    asm ("" : : "rm" (depend));
+
     if (!__gthread_active_p())
       {
 #if __cpp_exceptions
@@ -168,8 +194,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   }
 
   void
-  thread::_M_start_thread(__shared_base_type __b, void (*)())
+  thread::_M_start_thread(__shared_base_type __b, void (*depend)())
   {
+    // Make sure it's not optimized out, not even with LTO.
+    asm ("" : : "rm" (depend));
+
     auto ptr = __b.get();
     // Create a reference cycle that will be broken in the new thread.
     ptr->_M_this_ptr = std::move(__b);
@@ -203,10 +232,30 @@ namespace std _GLIBCXX_VISIBILITY(default)
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 namespace this_thread
 {
+namespace
+{
+  // returns min(s, Dur::max())
+  template<typename Dur>
+    inline chrono::seconds
+    limit(chrono::seconds s)
+    {
+      static_assert(ratio_equal<typename Dur::period, ratio<1>>::value,
+		    "period must be seconds to avoid potential overflow");
+
+      if (s > Dur::max()) [[__unlikely__]]
+	s = chrono::duration_cast<chrono::seconds>(Dur::max());
+      return s;
+    }
+}
+
   void
   __sleep_for(chrono::seconds __s, chrono::nanoseconds __ns)
   {
 #ifdef _GLIBCXX_USE_NANOSLEEP
+#pragma GCC diagnostic ignored "-Wc++17-extensions"
+    if constexpr (is_integral<time_t>::value) // POSIX.1-2001 allows floating
+      __s = limit<chrono::duration<time_t>>(__s);
+
     struct ::timespec __ts =
       {
 	static_cast<std::time_t>(__s.count()),
@@ -218,6 +267,8 @@ namespace this_thread
     const auto target = chrono::steady_clock::now() + __s + __ns;
     while (true)
       {
+	__s = limit<chrono::duration<unsigned>>(__s);
+
 	unsigned secs = __s.count();
 	if (__ns.count() > 0)
 	  {
@@ -243,12 +294,28 @@ namespace this_thread
 	  break;
 	__s = chrono::duration_cast<chrono::seconds>(target - now);
 	__ns = chrono::duration_cast<chrono::nanoseconds>(target - (now + __s));
-    }
-#elif defined(_GLIBCXX_HAVE_WIN32_SLEEP)
-    unsigned long ms = __ns.count() / 1000000;
-    if (__ns.count() > 0 && ms == 0)
-      ms = 1;
-    ::Sleep(chrono::milliseconds(__s).count() + ms);
+      }
+#elif defined(_GLIBCXX_USE_WIN32_SLEEP)
+
+    // Can't use limit<chrono::milliseconds>(__s) here because it would
+    // multiply __s by 1000 which could overflow.
+    // Limit to milliseconds::max() and truncate to seconds:
+    chrono::milliseconds ms = chrono::milliseconds::max();
+    if (__s < chrono::duration_cast<chrono::seconds>(ms))
+      {
+	ms = __s;
+	ms += chrono::__detail::ceil<chrono::milliseconds>(__ns);
+      }
+
+    // Use Sleep(DWORD millis) where DWORD is uint32_t.
+    constexpr chrono::milliseconds max_sleep(INFINITE - 1u);
+    while (ms > max_sleep)
+      {
+	::Sleep(max_sleep.count());
+	ms -= max_sleep;
+      }
+
+    ::Sleep(ms.count());
 #endif
   }
 }

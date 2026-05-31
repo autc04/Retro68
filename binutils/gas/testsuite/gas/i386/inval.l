@@ -87,19 +87,22 @@
 .*:97: Error: .*shl.*
 .*:98: Error: .*rol.*
 .*:99: Error: .*rcl.*
-.*:102: Error: .*
-.*:104: Error: .*
+.*:101: Error: .*extrq.*
+.*:102: Error: .*insertq.*
 .*:105: Error: .*
-.*:106: Error: .*
+.*:107: Error: .*
 .*:108: Error: .*
 .*:109: Error: .*
-.*:110: Error: .*
+.*:111: Error: .*
 .*:112: Error: .*
 .*:113: Error: .*
-.*:114: Error: .*
-GAS LISTING .*
-
-
+.*:115: Error: .*
+.*:116: Error: .*
+.*:117: Error: .*
+.*:119: Error: .*
+.*:120: Error: .*
+.*:121: Error: .*
+.*:122: Error: .*
 [ 	]*1[ 	]+\.text
 [ 	]*2[ 	]+\.allow_index_reg
 [ 	]*3[ 	]+\# All the following should be illegal
@@ -157,9 +160,6 @@ GAS LISTING .*
 [ 	]*55[ 	]+fnstsw %al
 [ 	]*56[ 	]+fstsw %eax
 [ 	]*57[ 	]+fstsw %al
-GAS LISTING .*
-
-
 [ 	]*58[ 	]+
 [ 	]*59[ 	]+movnti %ax, \(%eax\)
 [ 	]*60[ 	]+movntiw %ax, \(%eax\)
@@ -203,6 +203,9 @@ GAS LISTING .*
 [ 	]*[1-9][0-9]*[ 	]+rol \[ecx\], 2
 [ 	]*[1-9][0-9]*[ 	]+rcl \[edx\], cl
 [ 	]*[1-9][0-9]*[ 	]+
+[ 	]*[1-9][0-9]*[ 	]+extrq 1, 2, xmm3
+[ 	]*[1-9][0-9]*[ 	]+insertq 1, 2, xmm3, xmm4
+[ 	]*[1-9][0-9]*[ 	]+
 [ 	]*[1-9][0-9]*[ 	]+\.att_syntax prefix
 [ 	]*[1-9][0-9]*[ 	]+movsd \(%esi\), %ss:\(%edi\), %ss:\(%eax\)
 [ 	]*[1-9][0-9]*[ 	]+
@@ -217,6 +220,9 @@ GAS LISTING .*
 [ 	]*[1-9][0-9]*[ 	]+inb	%dx, %ax
 [ 	]*[1-9][0-9]*[ 	]+outb	%ax, %dx
 [ 	]*[1-9][0-9]*[ 	]+movb	%ax, %bx
-GAS LISTING .*
-
-
+[ 	]*[1-9][0-9]*[ 	]+
+[ 	]*[1-9][0-9]*[ 	]+incl	\(%dx\)
+[ 	]*[1-9][0-9]*[ 	]+incw	\(%dx\)
+[ 	]*[1-9][0-9]*[ 	]+mov	\(%dx\), %ax
+[ 	]*[1-9][0-9]*[ 	]+mov	%ax, \(%dx\)
+#pass

@@ -1,40 +1,40 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: bad type in SIMD instruction -- `vmaxv.u64 r0,q1'
-[^:]*:11: Error: bad type in SIMD instruction -- `vmaxv.f16 r0,q1'
-[^:]*:12: Error: bad type in SIMD instruction -- `vminv.s64 r0,q1'
-[^:]*:13: Error: bad type in SIMD instruction -- `vminv.f32 r0,q1'
-[^:]*:14: Error: bad type in SIMD instruction -- `vmaxav.u16 r0,q1'
-[^:]*:15: Error: bad type in SIMD instruction -- `vmaxav.f32 r0,q1'
-[^:]*:16: Error: bad type in SIMD instruction -- `vminav.u32 r0,q1'
-[^:]*:17: Error: bad type in SIMD instruction -- `vminav.f16 r0,q1'
-[^:]*:18: Warning: instruction is UNPREDICTABLE with SP operand
-[^:]*:19: Warning: instruction is UNPREDICTABLE with PC operand
-[^:]*:20: Warning: instruction is UNPREDICTABLE with PC operand
-[^:]*:21: Warning: instruction is UNPREDICTABLE with SP operand
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:22: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Error: bad type in SIMD instruction -- `vmaxv.u64 r0,q1'
+[^:]*:5: Error: bad type in SIMD instruction -- `vmaxv.f16 r0,q1'
+[^:]*:6: Error: bad type in SIMD instruction -- `vminv.s64 r0,q1'
+[^:]*:7: Error: bad type in SIMD instruction -- `vminv.f32 r0,q1'
+[^:]*:8: Error: bad type in SIMD instruction -- `vmaxav.u16 r0,q1'
+[^:]*:9: Error: bad type in SIMD instruction -- `vmaxav.f32 r0,q1'
+[^:]*:10: Error: bad type in SIMD instruction -- `vminav.u32 r0,q1'
+[^:]*:11: Error: bad type in SIMD instruction -- `vminav.f16 r0,q1'
+[^:]*:12: Warning: instruction is UNPREDICTABLE with SP operand
+[^:]*:13: Warning: instruction is UNPREDICTABLE with PC operand
+[^:]*:14: Warning: instruction is UNPREDICTABLE with PC operand
+[^:]*:15: Warning: instruction is UNPREDICTABLE with SP operand
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:21: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:27: Error: syntax error -- `vmaxveq.s32 r0,q1'
 [^:]*:28: Error: syntax error -- `vmaxveq.s32 r0,q1'
 [^:]*:30: Error: syntax error -- `vmaxveq.s32 r0,q1'

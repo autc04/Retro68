@@ -1,6 +1,6 @@
 // { dg-do compile }
 // { dg-additional-options "-fdump-tree-gimple" }
-
+// { dg-additional-options "-Wno-deprecated-openmp" }
 // Test implicit marking of declare target to.
 
 int foo () { return 1; }
@@ -22,10 +22,10 @@ int *g = &f;	// Explicitly marked
 // { dg-final { scan-tree-dump "__attribute__\\\(\\\(omp declare target\\\)\\\)\\\nint bar \\\(\\\)" "gimple" } }
 // { dg-final { scan-tree-dump "__attribute__\\\(\\\(omp declare target\\\)\\\)\\\nint baz \\\(\\\)" "gimple" } }
 // { dg-final { scan-tree-dump "__attribute__\\\(\\\(omp declare target\\\)\\\)\\\nint qux \\\(\\\)" "gimple" } }
-// { dg-final { scan-assembler-not "\\\.offload_var_table:\\n.+\\\.quad\\s+a" { target { offloading_enabled } } } }
-// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.quad\\s+b" { target { offloading_enabled } } } }
-// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.quad\\s+c" { target { offloading_enabled } } } }
-// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.quad\\s+d" { target { offloading_enabled } } } }
-// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.quad\\s+e" { target { offloading_enabled } } } }
-// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.quad\\s+f" { target { offloading_enabled } } } }
-// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.quad\\s+g" { target { offloading_enabled } } } }
+// { dg-final { scan-assembler-not "\\\.offload_var_table:\\n.+\\\.(quad|long)\\s+a" { target { offloading_enabled } } } }
+// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.(quad|long)\\s+b" { target { offloading_enabled } } } }
+// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.(quad|long)\\s+c" { target { offloading_enabled } } } }
+// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.(quad|long)\\s+d" { target { offloading_enabled } } } }
+// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.(quad|long)\\s+e" { target { offloading_enabled } } } }
+// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.(quad|long)\\s+f" { target { offloading_enabled } } } }
+// { dg-final { scan-assembler "\\\.offload_var_table:\\n.+\\\.(quad|long)\\s+g" { target { offloading_enabled } } } }

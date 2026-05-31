@@ -1,4 +1,5 @@
 #source: x86-64-notrack.s
+#as: -march=+mpx
 #objdump: -dw -Mintel
 #name: x86-64 NOTRACK prefix (Intel disassembly)
 

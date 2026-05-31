@@ -8,8 +8,8 @@ static int k;
 static int l = 1;
 static char ab[] = "This is a string constant";
 
-extern int fn1 ();
-extern int fn2 ();
+extern int fn1 (char *);
+extern int fn2 (char *);
 
 int
 main ()

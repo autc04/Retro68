@@ -2,8 +2,10 @@
 module m
 contains
    subroutine s
-      print *, (erfc) ! { dg-error "not a floating constant" "" { target i?86-*-* x86_64-*-* sparc*-*-* cris-*-* } }
-   end ! { dg-error "not a floating constant" "" { target { ! "i?86-*-* x86_64-*-* sparc*-*-* cris-*-*" } } }
+      print *, (erfc)
+   end
    function erfc()
    end
 end
+! The actual line number is target dependent, allow any
+! { dg-error "not a floating constant" "" { target *-*-* } 0 }

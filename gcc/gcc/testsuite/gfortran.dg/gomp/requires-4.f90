@@ -9,14 +9,14 @@ end module m
 subroutine foo
   !$omp target
   !$omp end target
-! { dg-error "OpenMP device constructs/routines but does not set !.OMP REQUIRES REVERSE_OFFSET but other program units do" "" { target *-*-* } 9 }
+! { dg-error "OpenMP device constructs/routines but does not set !.OMP REQUIRES REVERSE_OFFLOAD but other program units do" "" { target *-*-* } 9 }
 ! { dg-error "OpenMP device constructs/routines but does not set !.OMP REQUIRES UNIFIED_ADDRESS but other program units do" "" { target *-*-* } 9 }
 ! { dg-error "OpenMP device constructs/routines but does not set !.OMP REQUIRES UNIFIED_SHARED_MEMORY but other program units do" "" { target *-*-* } 9 }
 end
 
 subroutine foobar
 i = 5  ! < execution statement
-!$omp requires atomic_default_mem_order(seq_cst) ! { dg-error "Unexpected ..OMP REQUIRES statement" }
+!$omp requires atomic_default_mem_order(seq_cst) ! { dg-error "\\!\\\$OMP REQUIRES statement at \\(1\\) cannot appear after executable statements" }
 end
 
 program main
@@ -33,4 +33,3 @@ contains
     !$omp requires unified_address ! { dg-error "must appear in the specification part of a program unit" }
   end subroutine bar
 end
-! { dg-prune-output "not yet supported" }

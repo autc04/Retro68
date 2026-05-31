@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,10 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do compile { target c++2a } }
+// { dg-do compile { target c++20 } }
+// { dg-require-effective-target gthreads { target { ! *-*-linux* } } }
+// { dg-require-effective-target hosted }
+// { dg-add-options no_pch }
 
 #include <semaphore>
 
@@ -25,3 +27,25 @@
 #elif __cpp_lib_semaphore != 201907L
 # error "Feature-test macro for semaphore has wrong value in <semaphore>"
 #endif
+
+static_assert(std::is_same_v<std::counting_semaphore<1>,
+			     std::binary_semaphore>);
+
+static_assert(! std::is_same_v<std::counting_semaphore<2>,
+			       std::binary_semaphore>);
+
+static_assert(! std::is_same_v<std::counting_semaphore<>,
+			       std::binary_semaphore>);
+
+// The standard permits max() to be greater than the template argument,
+// but for the current libstdc++ implementation it's always equal to it.
+static_assert(std::binary_semaphore::max() == 1);
+static_assert(std::counting_semaphore<0>::max() == 0);
+static_assert(std::counting_semaphore<2>::max() == 2);
+
+#include <limits.h>
+
+static_assert(std::counting_semaphore<INT_MAX>::max() == INT_MAX);
+static_assert(std::counting_semaphore<INT_MAX-1>::max() == INT_MAX-1);
+static_assert(std::counting_semaphore<PTRDIFF_MAX>::max() == PTRDIFF_MAX);
+static_assert(std::counting_semaphore<PTRDIFF_MAX-3>::max() == PTRDIFF_MAX-3);

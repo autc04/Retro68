@@ -1,13 +1,14 @@
 /* REQUIRED_ARGS: -preview=dip1000
    TEST_OUTPUT:
 ---
-fail_compilation/test18282.d(25): Error: scope variable `aa` may not be returned
-fail_compilation/test18282.d(34): Error: copying `& i` into allocated memory escapes a reference to local variable `i`
-fail_compilation/test18282.d(35): Error: copying `& i` into allocated memory escapes a reference to local variable `i`
-fail_compilation/test18282.d(36): Error: scope variable `staa` may not be returned
-fail_compilation/test18282.d(44): Error: copying `S2000(& i)` into allocated memory escapes a reference to local variable `i`
-fail_compilation/test18282.d(53): Error: copying `& i` into allocated memory escapes a reference to local variable `i`
-fail_compilation/test18282.d(53): Error: copying `& c` into allocated memory escapes a reference to local variable `c`
+fail_compilation/test18282.d(26): Error: returning scope variable `aa` is not allowed in a `@safe` function
+fail_compilation/test18282.d(35): Error: escaping a reference to local variable `i` by copying `& i` into allocated memory is not allowed in a `@safe` function
+fail_compilation/test18282.d(36): Error: escaping a reference to local variable `i` by copying `& i` into allocated memory is not allowed in a `@safe` function
+fail_compilation/test18282.d(37): Error: returning scope variable `staa` is not allowed in a `@safe` function
+fail_compilation/test18282.d(34):        `staa` inferred `scope` because of `staa = [& i]`
+fail_compilation/test18282.d(45): Error: escaping a reference to local variable `i` by copying `S2000(& i)` into allocated memory is not allowed in a `@safe` function
+fail_compilation/test18282.d(54): Error: escaping a reference to local variable `i` by copying `& i` into allocated memory is not allowed in a `@safe` function
+fail_compilation/test18282.d(54): Error: escaping a reference to local variable `c` by copying `& c` into allocated memory is not allowed in a `@safe` function
 ---
  */
 
@@ -15,7 +16,7 @@ fail_compilation/test18282.d(53): Error: copying `& c` into allocated memory esc
 
 string* f() @safe
 {
-    scope string*[] ls;
+    scope string*[] ls = [null];
     return ls[0];
 }
 
@@ -57,10 +58,10 @@ void bar3()
 /******************************
 TEST_OUTPUT:
 ---
-fail_compilation/test18282.d(1007): Error: copying `& foo` into allocated memory escapes a reference to local variable `foo`
-fail_compilation/test18282.d(1008): Error: copying `& foo` into allocated memory escapes a reference to local variable `foo`
-fail_compilation/test18282.d(1009): Error: copying `& foo` into allocated memory escapes a reference to local variable `foo`
-fail_compilation/test18282.d(1016): Error: copying `&this` into allocated memory escapes a reference to parameter variable `this`
+fail_compilation/test18282.d(1007): Error: escaping a reference to local variable `foo` by copying `& foo` into allocated memory is not allowed in a `@safe` function
+fail_compilation/test18282.d(1008): Error: escaping a reference to local variable `foo` by copying `& foo` into allocated memory is not allowed in a `@safe` function
+fail_compilation/test18282.d(1009): Error: escaping a reference to local variable `foo` by copying `& foo` into allocated memory is not allowed in a `@safe` function
+fail_compilation/test18282.d(1016): Error: escaping a reference to parameter `this` by copying `&this` into allocated memory is not allowed in a `@safe` function
 ---
 */
 

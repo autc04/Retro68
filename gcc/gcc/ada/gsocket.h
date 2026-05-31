@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *         Copyright (C) 2004-2022, Free Software Foundation, Inc.          *
+ *         Copyright (C) 2004-2026, Free Software Foundation, Inc.          *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -64,6 +64,12 @@
 #include <ioLib.h>
 #include <hostLib.h>
 
+#if __has_include ("strings.h")
+/* On VxWorks6, FD_ZERO uses bzero, but since it's not a standard header, don't
+   require it.  */
+#include "strings.h"
+#endif
+
 #define SHUT_RD		0
 #define SHUT_WR		1
 #define SHUT_RDWR	2
@@ -80,12 +86,6 @@
 #define FD_SETSIZE 1024
 
 #ifdef __MINGW32__
-/* winsock2.h allows WSAPoll related definitions only when
- * _WIN32_WINNT >= 0x0600 */
-#if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0600
-#define _WIN32_WINNT 0x0600
-#endif
-
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <versionhelpers.h>
@@ -173,6 +173,7 @@
 
 #endif
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 #elif defined(VMS)

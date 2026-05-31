@@ -1,5 +1,5 @@
 #source: loadaddr.s
-#ld: -T loadaddr2.t -T loadaddr.t -z max-page-size=0x200000 -z noseparate-code
+#ld: -T loadaddr2.t -T loadaddr.t -z max-page-size=0x200000 -z noseparate-code --no-warn-rwx-segments
 #readelf: -l --wide
 #target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
 #xfail: h8300-*-* rx-*-linux*

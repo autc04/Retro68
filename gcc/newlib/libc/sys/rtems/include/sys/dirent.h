@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dirent.h	8.3 (Berkeley) 8/10/94
- * $FreeBSD: head/sys/sys/dirent.h 335494 2018-06-21 16:40:07Z bdrewery $
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_DIRENT_H_
@@ -47,6 +47,11 @@ typedef	__ino_t		ino_t;
 #ifndef _OFF_T_DECLARED
 typedef	__off_t		off_t;
 #define	_OFF_T_DECLARED
+#endif
+
+#ifndef _SSIZE_T_DECLARED
+typedef _ssize_t ssize_t;
+#define	_SSIZE_T_DECLARED
 #endif
 
 typedef struct _dirdesc {
@@ -94,7 +99,7 @@ struct dirent {
 
 #define	__dirfd(dp)	((dp)->dd_fd)
 
-#if __BSD_VISIBLE
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 202405
 
 /*
  * File types

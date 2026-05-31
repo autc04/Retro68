@@ -269,8 +269,7 @@
 /* Use standard DWARF numbering for DWARF debugging information.  */
 #define RS6000_USE_DWARF_NUMBERING
 #define DWARF2_DEBUGGING_INFO 1
-//#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
-#define PREFERRED_DEBUGGING_TYPE XCOFF_DEBUG
+#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
 #define DEBUG_INFO_SECTION	"0x10000"
 #define DEBUG_LINE_SECTION	"0x20000"
 #define DEBUG_PUBNAMES_SECTION	"0x30000"
@@ -283,8 +282,6 @@
 #define DEBUG_FRAME_SECTION	"0xA0000"
 #define DEBUG_MACINFO_SECTION	"0xB0000"
 #define DEBUG_MACRO_SECTION	"0xB0000"
-
-
 
 #define SIG_ATOMIC_TYPE "int"
 
@@ -318,3 +315,10 @@
 #define INTPTR_TYPE "long int"
 #define UINTPTR_TYPE "long unsigned int"
 
+// binutils for PPC doesn't seem to support version 5 yet
+#define SUBTARGET_OVERRIDE_OPTIONS \
+do {									\
+  if (!OPTION_SET_P (dwarf_version))					\
+    /* AIX only supports DWARF 4.  */					\
+    dwarf_version = 4;							\
+} while (0)

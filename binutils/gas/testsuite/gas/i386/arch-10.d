@@ -1,4 +1,4 @@
-#as: -march=i686+mmx+avx+vmx+smx+xsave+xsaveopt+aes+pclmul+fma+movbe+ept+clflush+nop+syscall+rdtscp+3dnowa+sse4a+svme+abm+padlock+bmi+tbm
+#as: -march=i686+mmx+avx+vmx+smx+xsave+xsaveopt+aes+pclmul+fma+movbe+ept+clflush+nop+syscall+monitor+rdtscp+3dnowa+sse4a+svme+abm+padlock+bmi+tbm
 #objdump: -dw
 #name: i386 arch 10
 
@@ -38,4 +38,5 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 1f 00             	nopl   \(%eax\)
 [ 	]*[a-f0-9]+:	c4 e2 60 f3 c9       	blsr   %ecx,%ebx
 [ 	]*[a-f0-9]+:	8f e9 60 01 c9       	blcfill %ecx,%ebx
+[ 	]*[a-f0-9]+:	0f 01 c8             	monitor( .*)
 #pass

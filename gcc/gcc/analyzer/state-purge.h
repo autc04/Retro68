@@ -1,5 +1,5 @@
 /* Classes for purging state at function_points.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -20,53 +20,6 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifndef GCC_ANALYZER_STATE_PURGE_H
 #define GCC_ANALYZER_STATE_PURGE_H
-
-/* Hash traits for function_point.  */
-
-template <> struct default_hash_traits<function_point>
-: public pod_hash_traits<function_point>
-{
-  static const bool empty_zero_p = false;
-};
-
-template <>
-inline hashval_t
-pod_hash_traits<function_point>::hash (value_type v)
-{
-  return v.hash ();
-}
-
-template <>
-inline bool
-pod_hash_traits<function_point>::equal (const value_type &existing,
-                                 const value_type &candidate)
-{
-  return existing == candidate;
-}
-template <>
-inline void
-pod_hash_traits<function_point>::mark_deleted (value_type &v)
-{
-  v = function_point::deleted ();
-}
-template <>
-inline void
-pod_hash_traits<function_point>::mark_empty (value_type &v)
-{
-  v = function_point::empty ();
-}
-template <>
-inline bool
-pod_hash_traits<function_point>::is_deleted (value_type v)
-{
-  return v.get_kind () == PK_DELETED;
-}
-template <>
-inline bool
-pod_hash_traits<function_point>::is_empty (value_type v)
-{
-  return v.get_kind () == PK_EMPTY;
-}
 
 namespace ana {
 
@@ -109,10 +62,11 @@ public:
 	= const_cast <decl_map_t&> (m_decl_map).get (decl))
       return *slot;
     else
-      return NULL;
+      return nullptr;
   }
 
-  state_purge_per_decl &get_or_create_data_for_decl (function *fun, tree decl);
+  state_purge_per_decl &
+  get_or_create_data_for_decl (const function &fun, tree decl);
 
   const supergraph &get_sg () const { return m_sg; }
 
@@ -121,6 +75,10 @@ public:
 
   decl_iterator begin_decls () const { return m_decl_map.begin (); }
   decl_iterator end_decls () const { return m_decl_map.end (); }
+
+  void
+  on_duplicated_node (const supernode &old_snode,
+		      const supernode &new_snode);
 
 private:
   DISABLE_COPY_AND_ASSIGN (state_purge_map);
@@ -135,19 +93,19 @@ private:
 class state_purge_per_tree
 {
 public:
-  function *get_function () const { return m_fun; }
-  tree get_fndecl () const { return m_fun->decl; }
+  const function &get_function () const { return m_fun; }
+  tree get_fndecl () const { return m_fun.decl; }
 
 protected:
-  typedef hash_set<function_point> point_set_t;
+  typedef hash_set<const supernode *> point_set_t;
 
-  state_purge_per_tree (function *fun)
+  state_purge_per_tree (const function &fun)
   : m_fun (fun)
   {
   }
 
 private:
-  function *m_fun;
+  const function &m_fun;
 };
 
 /* The part of a state_purge_map relating to a specific SSA name.
@@ -162,23 +120,24 @@ class state_purge_per_ssa_name : public state_purge_per_tree
 public:
   state_purge_per_ssa_name (const state_purge_map &map,
 			    tree name,
-			    function *fun);
+			    const function &fun);
 
-  bool needed_at_point_p (const function_point &point) const;
+  bool needed_at_supernode_p (const supernode *snode) const;
+
+  void
+  on_duplicated_node (const supernode &old_snode,
+		      const supernode &new_snode);
 
 private:
-  static function_point before_use_stmt (const state_purge_map &map,
-					 const gimple *use_stmt);
-
-  void add_to_worklist (const function_point &point,
-			auto_vec<function_point> *worklist,
+  void add_to_worklist (const supernode &node,
+			auto_vec<const supernode *> *worklist,
 			logger *logger);
 
-  void process_point (const function_point &point,
-		      auto_vec<function_point> *worklist,
-		      const state_purge_map &map);
+  void process_supernode (const supernode &node,
+			  auto_vec<const supernode *> *worklist,
+			  const state_purge_map &map);
 
-  point_set_t m_points_needing_name;
+  point_set_t m_snodes_needing_name;
   tree m_name;
 };
 
@@ -194,36 +153,40 @@ class state_purge_per_decl : public state_purge_per_tree
 public:
   state_purge_per_decl (const state_purge_map &map,
 			tree decl,
-			function *fun);
+			const function &fun);
 
-  bool needed_at_point_p (const function_point &point) const;
+  bool needed_at_supernode_p (const supernode *snode) const;
 
-  void add_needed_at (const function_point &point);
-  void add_pointed_to_at (const function_point &point);
+  void add_needed_at (const supernode &snode);
+  void add_pointed_to_at (const supernode &snode);
   void process_worklists (const state_purge_map &map,
 			  region_model_manager *mgr);
 
+  void
+  on_duplicated_node (const supernode &old_snode,
+		      const supernode &new_snode);
+
 private:
-  static function_point before_use_stmt (const state_purge_map &map,
+  static const supernode * before_use_stmt (const state_purge_map &map,
 					 const gimple *use_stmt);
 
-  void add_to_worklist (const function_point &point,
-			auto_vec<function_point> *worklist,
+  void add_to_worklist (const supernode &node,
+			auto_vec<const supernode *> *worklist,
 			point_set_t *seen,
 			logger *logger);
 
-  void process_point_backwards (const function_point &point,
-				auto_vec<function_point> *worklist,
-				point_set_t *seen,
-				const state_purge_map &map,
-				const region_model &model);
-  void process_point_forwards (const function_point &point,
-			       auto_vec<function_point> *worklist,
-			       point_set_t *seen,
-			       const state_purge_map &map);
+  void process_supernode_backwards (const supernode &snode,
+				    auto_vec<const supernode *> *worklist,
+				    point_set_t *seen,
+				    const state_purge_map &map,
+				    const region_model &model);
+  void process_supernode_forwards (const supernode &snode,
+				   auto_vec<const supernode *> *worklist,
+				   point_set_t *seen,
+				   const state_purge_map &map);
 
-  point_set_t m_points_needing_decl;
-  point_set_t m_points_taking_address;
+  point_set_t m_snodes_needing_decl;
+  point_set_t m_snodes_taking_address;
   tree m_decl;
 };
 
@@ -235,18 +198,11 @@ class state_purge_annotator : public dot_annotator
 public:
   state_purge_annotator (const state_purge_map *map) : m_map (map) {}
 
-  bool add_node_annotations (graphviz_out *gv, const supernode &n, bool)
-    const FINAL OVERRIDE;
-
-  void add_stmt_annotations (graphviz_out *gv, const gimple *stmt,
-			     bool within_row)
-    const FINAL OVERRIDE;
+  void
+  add_node_annotations (graphviz_out *gv,
+			const supernode &n) const final override;
 
 private:
-  void print_needed (graphviz_out *gv,
-		     const function_point &point,
-		     bool within_table) const;
-
   const state_purge_map *m_map;
 };
 

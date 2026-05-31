@@ -1,5 +1,5 @@
 /* Generate CTF.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -107,6 +107,9 @@ ctf_dtu_d_union_selector (ctf_dtdef_ref ctftype)
       return CTF_DTU_D_ARGUMENTS;
     case CTF_K_SLICE:
       return CTF_DTU_D_SLICE;
+    case CTF_K_DECL_TAG:
+    case CTF_K_TYPE_TAG:
+      return CTF_DTU_D_TAG;
     default:
       /* The largest member as default.  */
       return CTF_DTU_D_ARRAY;
@@ -289,7 +292,7 @@ ctfc_strtable_add_str (ctf_strtable_t * str_table, const char * name,
      not add null strings, return the offset to the empty string for them.  */
   if ((!name || (name != NULL && !strcmp (name, ""))) && str_offset)
     {
-      ctf_string = CONST_CAST (char *, str_table->ctstab_estr);
+      ctf_string = const_cast<char *> (str_table->ctstab_estr);
       str_offset = 0;
     }
   else
@@ -297,7 +300,7 @@ ctfc_strtable_add_str (ctf_strtable_t * str_table, const char * name,
       gcc_assert (name);
       /* Add null-terminated strings to the string table.  */
       len = strlen (name) + 1;
-      ctf_string = CONST_CAST (char *, ggc_strdup (name));
+      ctf_string = const_cast<char *> (ggc_strdup (name));
 
       ctfc_strtable_append_str (str_table, ctf_string);
       /* Add string to the string table.  Keep number of strings updated.  */
@@ -324,7 +327,7 @@ ctf_add_string (ctf_container_ref ctfc, const char * name,
   return ctfc_strtable_add_str (str_table, name, name_offset);
 }
 
-/* Add the compilation unit (CU) name string to the the CTF string table.  The
+/* Add the compilation unit (CU) name string to the CTF string table.  The
    CU name has a prepended pwd string if it is a relative path.  Also set the
    CU name offset in the CTF container.  */
 
@@ -354,7 +357,7 @@ ctf_add_cuname (ctf_container_ref ctfc, const char * filename)
     }
   else
     /* Filename is an absolute path.  */
-    cuname = CONST_CAST (char *, ggc_strdup (filename));
+    cuname = const_cast<char *> (ggc_strdup (filename));
 
   ctf_add_string (ctfc, cuname, &(ctfc->ctfc_cuname_offset));
   /* Add 1 as CTF strings in the CTF string table are null-terminated
@@ -373,9 +376,9 @@ ctf_add_cuname (ctf_container_ref ctfc, const char * filename)
    ctf_dvd_lookup, as applicable, to ascertain that the CTF type or the CTF
    variable respectively does not already exist, and then add it.  */
 
-static ctf_id_t
+static ctf_dtdef_ref
 ctf_add_generic (ctf_container_ref ctfc, uint32_t flag, const char * name,
-		 ctf_dtdef_ref * rp, dw_die_ref die)
+		 dw_die_ref die)
 {
   ctf_dtdef_ref dtd;
   ctf_id_t type;
@@ -397,18 +400,16 @@ ctf_add_generic (ctf_container_ref ctfc, uint32_t flag, const char * name,
 
   ctf_dtd_insert (ctfc, dtd);
 
-  *rp = dtd;
-  return type;
+  return dtd;
 }
 
-static ctf_id_t
+static ctf_dtdef_ref
 ctf_add_encoded (ctf_container_ref ctfc, uint32_t flag, const char * name,
 		 const ctf_encoding_t * ep, uint32_t kind, dw_die_ref die)
 {
   ctf_dtdef_ref dtd;
-  ctf_id_t type;
 
-  type = ctf_add_generic (ctfc, flag, name, &dtd, die);
+  dtd = ctf_add_generic (ctfc, flag, name, die);
 
   dtd->dtd_data.ctti_info = CTF_TYPE_INFO (kind, flag, 0);
 
@@ -424,83 +425,141 @@ ctf_add_encoded (ctf_container_ref ctfc, uint32_t flag, const char * name,
 
   ctfc->ctfc_num_stypes++;
 
-  return type;
+  return dtd;
 }
 
-ctf_id_t
-ctf_add_reftype (ctf_container_ref ctfc, uint32_t flag, ctf_id_t ref,
+ctf_dtdef_ref
+ctf_add_reftype (ctf_container_ref ctfc, uint32_t flag, ctf_dtdef_ref ref,
 		 uint32_t kind, dw_die_ref die)
 {
   ctf_dtdef_ref dtd;
-  ctf_id_t type;
 
-  gcc_assert (ref <= CTF_MAX_TYPE);
+  gcc_assert (ref != NULL);
 
-  type = ctf_add_generic (ctfc, flag, NULL, &dtd, die);
+  dtd = ctf_add_generic (ctfc, flag, NULL, die);
   dtd->dtd_data.ctti_info = CTF_TYPE_INFO (kind, flag, 0);
   /* Caller of this API must guarantee that a CTF type with id = ref already
      exists.  This will also be validated for us at link-time.  */
-  dtd->dtd_data.ctti_type = (uint32_t) ref;
+  dtd->dtd_data.ctti_type = (uint32_t) ref->dtd_type;
+  dtd->ref_type = ref;
 
   ctfc->ctfc_num_stypes++;
 
-  return type;
+  return dtd;
 }
 
-ctf_id_t
+ctf_dtdef_ref
+ctf_add_type_tag (ctf_container_ref ctfc, uint32_t flag, const char *value,
+		  ctf_dtdef_ref ref_dtd)
+{
+  ctf_dtdef_ref dtd;
+   /* Create a DTD for the tag, but do not place it in the regular types list;
+      CTF format does not (yet) encode tags.  */
+  dtd = ggc_cleared_alloc<ctf_dtdef_t> ();
+
+  dtd->dtd_name = ctf_add_string (ctfc, value, &(dtd->dtd_data.ctti_name),
+				  CTF_AUX_STRTAB);
+  /* A single DW_TAG_GNU_annotation DIE may be referenced by multiple DIEs,
+     e.g. when multiple distinct types specify the same type tag.  We will
+     synthesize multiple CTF DTD records in that case, so we cannot tie them
+     all to the same key (the DW_TAG_GNU_annotation DIE) in ctfc_types.  */
+  dtd->dtd_key = NULL;
+  dtd->ref_type = ref_dtd;
+  dtd->dtd_data.ctti_info = CTF_TYPE_INFO (CTF_K_TYPE_TAG, flag, 0);
+  dtd->dtd_u.dtu_tag.ref_var = NULL; /* Not used for type tags.  */
+  dtd->dtd_u.dtu_tag.component_idx = 0; /* Not used for type tags.  */
+
+  /* Insert tag directly into the tag list.  Type ID will be assigned later.  */
+  vec_safe_push (ctfc->ctfc_tags, dtd);
+
+  /* Keep ctfc_aux_strlen updated.  */
+  if ((value != NULL) && strcmp (value, ""))
+    ctfc->ctfc_aux_strlen += strlen (value) + 1;
+
+  return dtd;
+}
+
+ctf_dtdef_ref
+ctf_add_decl_tag (ctf_container_ref ctfc, uint32_t flag, const char *value,
+		  ctf_dtdef_ref ref_dtd, uint32_t comp_idx)
+{
+   ctf_dtdef_ref dtd;
+   /* Create a DTD for the tag, but do not place it in the regular types list;
+      ctf format does not (yet) encode tags.  */
+  dtd = ggc_cleared_alloc<ctf_dtdef_t> ();
+
+  dtd->dtd_name = ctf_add_string (ctfc, value, &(dtd->dtd_data.ctti_name),
+				  CTF_AUX_STRTAB);
+  /* A single DW_TAG_GNU_annotation DIE may be referenced by multiple DIEs,
+     e.g. when multiple distinct declarations specify the same decl tag.
+     We will synthesize multiple CTF DTD records in that case, so we cannot tie
+     them all to the same key (the DW_TAG_GNU_annotation DIE) in ctfc_types.  */
+  dtd->dtd_key = NULL;
+  dtd->ref_type = ref_dtd;
+  dtd->dtd_data.ctti_info = CTF_TYPE_INFO (CTF_K_DECL_TAG, flag, 0);
+  dtd->dtd_u.dtu_tag.ref_var = NULL;
+  dtd->dtd_u.dtu_tag.component_idx = comp_idx;
+
+  /* Insert tag directly into the tag list.  Type ID will be assigned later.  */
+  vec_safe_push (ctfc->ctfc_tags, dtd);
+
+  /* Keep ctfc_aux_strlen updated.  */
+  if ((value != NULL) && strcmp (value, ""))
+    ctfc->ctfc_aux_strlen += strlen (value) + 1;
+
+  return dtd;
+}
+
+ctf_dtdef_ref
 ctf_add_forward (ctf_container_ref ctfc, uint32_t flag, const char * name,
 		 uint32_t kind, dw_die_ref die)
 {
   ctf_dtdef_ref dtd;
-  ctf_id_t type = 0;
 
-  type = ctf_add_generic (ctfc, flag, name, &dtd, die);
+  dtd = ctf_add_generic (ctfc, flag, name, die);
 
   dtd->dtd_data.ctti_info = CTF_TYPE_INFO (CTF_K_FORWARD, flag, 0);
   dtd->dtd_data.ctti_type = kind;
 
   ctfc->ctfc_num_stypes++;
 
-  return type;
+  return dtd;
 }
 
-ctf_id_t
+ctf_dtdef_ref
 ctf_add_typedef (ctf_container_ref ctfc, uint32_t flag, const char * name,
-		 ctf_id_t ref, dw_die_ref die)
+		 ctf_dtdef_ref ref, dw_die_ref die)
 {
   ctf_dtdef_ref dtd;
-  ctf_id_t type;
 
-  gcc_assert (ref <= CTF_MAX_TYPE);
+  gcc_assert (ref != NULL);
   /* Nameless Typedefs are not expected.  */
   gcc_assert ((name != NULL) && strcmp (name, ""));
 
-  type = ctf_add_generic (ctfc, flag, name, &dtd, die);
+  dtd = ctf_add_generic (ctfc, flag, name, die);
   dtd->dtd_data.ctti_info = CTF_TYPE_INFO (CTF_K_TYPEDEF, flag, 0);
-  /* Caller of this API must guarantee that a CTF type with id = ref already
-     exists.  This will also be validated for us at link-time.  */
-  dtd->dtd_data.ctti_type = (uint32_t) ref;
+  dtd->dtd_data.ctti_type = (uint32_t) ref->dtd_type;
+  dtd->ref_type = ref;
 
   gcc_assert (dtd->dtd_type != dtd->dtd_data.ctti_type);
 
   ctfc->ctfc_num_stypes++;
 
-  return type;
+  return dtd;
 }
 
-ctf_id_t
-ctf_add_slice (ctf_container_ref ctfc, uint32_t flag, ctf_id_t ref,
+ctf_dtdef_ref
+ctf_add_slice (ctf_container_ref ctfc, uint32_t flag, ctf_dtdef_ref ref,
 	       uint32_t bit_offset, uint32_t bit_size, dw_die_ref die)
 {
   ctf_dtdef_ref dtd;
-  ctf_id_t type;
   uint32_t roundup_nbytes;
 
   gcc_assert ((bit_size <= 255) && (bit_offset <= 255));
 
-  gcc_assert (ref <= CTF_MAX_TYPE);
+  gcc_assert (ref != NULL);
 
-  type = ctf_add_generic (ctfc, flag, NULL, &dtd, die);
+  dtd = ctf_add_generic (ctfc, flag, NULL, die);
 
   dtd->dtd_data.ctti_info = CTF_TYPE_INFO (CTF_K_SLICE, flag, 0);
 
@@ -512,51 +571,48 @@ ctf_add_slice (ctf_container_ref ctfc, uint32_t flag, ctf_id_t ref,
   dtd->dtd_data.ctti_size = roundup_nbytes ? (1 << ceil_log2 (roundup_nbytes))
 					   : 0;
 
-  /* Caller of this API must guarantee that a CTF type with id = ref already
-     exists.  This will also be validated for us at link-time.  */
-  dtd->dtd_u.dtu_slice.cts_type = (uint32_t) ref;
+  dtd->dtd_u.dtu_slice.cts_type = ref;
   dtd->dtd_u.dtu_slice.cts_bits = bit_size;
   dtd->dtd_u.dtu_slice.cts_offset = bit_offset;
 
   ctfc->ctfc_num_stypes++;
 
-  return type;
+  return dtd;
 }
 
-ctf_id_t
+ctf_dtdef_ref
 ctf_add_float (ctf_container_ref ctfc, uint32_t flag,
 	       const char * name, const ctf_encoding_t * ep, dw_die_ref die)
 {
   return (ctf_add_encoded (ctfc, flag, name, ep, CTF_K_FLOAT, die));
 }
 
-ctf_id_t
+ctf_dtdef_ref
 ctf_add_integer (ctf_container_ref ctfc, uint32_t flag,
 		 const char * name, const ctf_encoding_t * ep, dw_die_ref die)
 {
   return (ctf_add_encoded (ctfc, flag, name, ep, CTF_K_INTEGER, die));
 }
 
-ctf_id_t
+ctf_dtdef_ref
 ctf_add_unknown (ctf_container_ref ctfc, uint32_t flag,
 		 const char * name, const ctf_encoding_t * ep, dw_die_ref die)
 {
   return (ctf_add_encoded (ctfc, flag, name, ep, CTF_K_UNKNOWN, die));
 }
 
-ctf_id_t
-ctf_add_pointer (ctf_container_ref ctfc, uint32_t flag, ctf_id_t ref,
+ctf_dtdef_ref
+ctf_add_pointer (ctf_container_ref ctfc, uint32_t flag, ctf_dtdef_ref ref,
 		 dw_die_ref die)
 {
   return (ctf_add_reftype (ctfc, flag, ref, CTF_K_POINTER, die));
 }
 
-ctf_id_t
+ctf_dtdef_ref
 ctf_add_array (ctf_container_ref ctfc, uint32_t flag, const ctf_arinfo_t * arp,
 	       dw_die_ref die)
 {
   ctf_dtdef_ref dtd;
-  ctf_id_t type;
 
   gcc_assert (arp);
 
@@ -564,7 +620,7 @@ ctf_add_array (ctf_container_ref ctfc, uint32_t flag, const ctf_arinfo_t * arp,
      arp->ctr_index are already added.  This will also be validated for us at
      link-time.  */
 
-  type = ctf_add_generic (ctfc, flag, NULL, &dtd, die);
+  dtd = ctf_add_generic (ctfc, flag, NULL, die);
 
   dtd->dtd_data.ctti_info = CTF_TYPE_INFO (CTF_K_ARRAY, flag, 0);
   dtd->dtd_data.ctti_size = 0;
@@ -572,15 +628,14 @@ ctf_add_array (ctf_container_ref ctfc, uint32_t flag, const ctf_arinfo_t * arp,
 
   ctfc->ctfc_num_stypes++;
 
-  return type;
+  return dtd;
 }
 
-ctf_id_t
+ctf_dtdef_ref
 ctf_add_enum (ctf_container_ref ctfc, uint32_t flag, const char * name,
-	      HOST_WIDE_INT size, dw_die_ref die)
+	      HOST_WIDE_INT size, bool eunsigned, dw_die_ref die)
 {
   ctf_dtdef_ref dtd;
-  ctf_id_t type;
 
   /* In the compiler, no need to handle the case of promoting forwards to
      enums.  This comment is simply to note a divergence from libctf.  */
@@ -595,7 +650,7 @@ ctf_add_enum (ctf_container_ref ctfc, uint32_t flag, const char * name,
 	= CTF_TYPE_INFO (CTF_K_FORWARD, CTF_ADD_NONROOT, 0);
     }
 
-  type = ctf_add_generic (ctfc, flag, name, &dtd, die);
+  dtd = ctf_add_generic (ctfc, flag, name, die);
 
   dtd->dtd_data.ctti_info = CTF_TYPE_INFO (CTF_K_ENUM, flag, 0);
 
@@ -604,24 +659,25 @@ ctf_add_enum (ctf_container_ref ctfc, uint32_t flag, const char * name,
   gcc_assert (size <= CTF_MAX_SIZE);
 
   dtd->dtd_data.ctti_size = size;
+  dtd->dtd_enum_unsigned = eunsigned;
 
   ctfc->ctfc_num_stypes++;
 
-  return type;
+  return dtd;
 }
 
 int
-ctf_add_enumerator (ctf_container_ref ctfc, ctf_id_t enid, const char * name,
-		    HOST_WIDE_INT value, dw_die_ref die)
+ctf_add_enumerator (ctf_container_ref ctfc, ctf_dtdef_ref enum_dtd,
+		    const char * name, HOST_WIDE_INT value, dw_die_ref die)
 {
   ctf_dmdef_t * dmd;
   uint32_t kind, vlen, root;
 
-  /* Callers of this API must make sure that CTF_K_ENUM with enid has been
-     addded.  This will also be validated for us at link-time.  */
+  /* The associated CTF type of kind CTF_K_ENUM must already exist.
+     This will also be validated for us at link-time.  */
   ctf_dtdef_ref dtd = ctf_dtd_lookup (ctfc, die);
   gcc_assert (dtd);
-  gcc_assert (dtd->dtd_type == enid);
+  gcc_assert (dtd == enum_dtd);
   gcc_assert (name);
 
   kind = CTF_V2_INFO_KIND (dtd->dtd_data.ctti_info);
@@ -630,10 +686,12 @@ ctf_add_enumerator (ctf_container_ref ctfc, ctf_id_t enid, const char * name,
 
   gcc_assert (kind == CTF_K_ENUM && vlen < CTF_MAX_VLEN);
 
-  /* Enum value is of type HOST_WIDE_INT in the compiler, dmd_value is int32_t
-     on the other hand.  Check bounds and skip adding this enum value if out of
-     bounds.  */
-  if ((value > INT_MAX) || (value < INT_MIN))
+  /* Enum value is of type HOST_WIDE_INT in the compiler, CTF enumerators
+     values in ctf_enum_t is limited to int32_t, BTF supports signed and
+     unsigned enumerators values of 32 and 64 bits, for both debug formats
+     we use ctf_dmdef_t.dmd_value entry of HOST_WIDE_INT type. So check
+     CTF bounds and skip adding this enum value if out of bounds.  */
+  if (!btf_debuginfo_p() && ((value > INT_MAX) || (value < INT_MIN)))
     {
       /* FIXME - Note this TBD_CTF_REPRESENTATION_LIMIT.  */
       return (1);
@@ -643,7 +701,7 @@ ctf_add_enumerator (ctf_container_ref ctfc, ctf_id_t enid, const char * name,
 
   /* Buffer the strings in the CTF string table.  */
   dmd->dmd_name = ctf_add_string (ctfc, name, &(dmd->dmd_name_offset));
-  dmd->dmd_type = CTF_NULL_TYPEID;
+  dmd->dmd_type = NULL;
   dmd->dmd_offset = 0;
 
   dmd->dmd_value = value;
@@ -659,7 +717,7 @@ ctf_add_enumerator (ctf_container_ref ctfc, ctf_id_t enid, const char * name,
 
 int
 ctf_add_member_offset (ctf_container_ref ctfc, dw_die_ref sou,
-		       const char * name, ctf_id_t type,
+		       const char * name, ctf_dtdef_ref type,
 		       uint64_t bit_offset)
 {
   ctf_dtdef_ref dtd = ctf_dtd_lookup (ctfc, sou);
@@ -698,12 +756,12 @@ ctf_add_member_offset (ctf_container_ref ctfc, dw_die_ref sou,
   return 0;
 }
 
-int
-ctf_add_variable (ctf_container_ref ctfc, const char * name, ctf_id_t ref,
+ctf_dvdef_ref
+ctf_add_variable (ctf_container_ref ctfc, const char * name, ctf_dtdef_ref ref,
 		  dw_die_ref die, unsigned int external_vis,
 		  dw_die_ref die_var_decl)
 {
-  ctf_dvdef_ref dvd, dvd_ignore;
+  ctf_dvdef_ref dvd = NULL, dvd_ignore;
 
   gcc_assert (name);
 
@@ -739,21 +797,21 @@ ctf_add_variable (ctf_container_ref ctfc, const char * name, ctf_id_t ref,
 	ctfc->ctfc_strlen += strlen (name) + 1;
     }
 
-  return 0;
+  return dvd;
 }
 
 int
 ctf_add_function_arg (ctf_container_ref ctfc, dw_die_ref func,
-		      const char * name, ctf_id_t type)
+		      const char * name, ctf_dtdef_ref arg_dtd)
 {
-  ctf_dtdef_ref dtd = ctf_dtd_lookup (ctfc, func);
+  ctf_dtdef_ref func_dtd = ctf_dtd_lookup (ctfc, func);
   ctf_func_arg_t * farg;
   uint32_t vlen;
 
   /* The function to which argument is being added must already exist.  */
-  gcc_assert (dtd);
+  gcc_assert (func_dtd);
   /* The number of args must have been non-zero.  */
-  vlen = CTF_V2_INFO_VLEN (dtd->dtd_data.ctti_info);
+  vlen = CTF_V2_INFO_VLEN (func_dtd->dtd_data.ctti_info);
   gcc_assert (vlen);
 
   farg = ggc_cleared_alloc<ctf_func_arg_t> ();
@@ -763,9 +821,9 @@ ctf_add_function_arg (ctf_container_ref ctfc, dw_die_ref func,
      these strings to avoid unnecessary bloat in CTF section in CTF V3.  */
   farg->farg_name = ctf_add_string (ctfc, name, &(farg->farg_name_offset),
 				    CTF_AUX_STRTAB);
-  farg->farg_type = type;
+  farg->farg_type = arg_dtd;
 
-  ctf_farg_list_append (&dtd->dtd_u.dtu_argv, farg);
+  ctf_farg_list_append (&func_dtd->dtd_u.dtu_argv, farg);
 
   /* For aux_str, keep ctfc_aux_strlen updated for debugging.  */
   if ((name != NULL) && strcmp (name, ""))
@@ -774,13 +832,12 @@ ctf_add_function_arg (ctf_container_ref ctfc, dw_die_ref func,
   return 0;
 }
 
-ctf_id_t
+ctf_dtdef_ref
 ctf_add_function (ctf_container_ref ctfc, uint32_t flag, const char * name,
 		  const ctf_funcinfo_t * ctc, dw_die_ref die,
-		  bool from_global_func)
+		  bool from_global_func, int linkage)
 {
   ctf_dtdef_ref dtd;
-  ctf_id_t type;
   uint32_t vlen;
 
   gcc_assert (ctc);
@@ -788,26 +845,27 @@ ctf_add_function (ctf_container_ref ctfc, uint32_t flag, const char * name,
   vlen = ctc->ctc_argc;
   gcc_assert (vlen <= CTF_MAX_VLEN);
 
-  type = ctf_add_generic (ctfc, flag, name, &dtd, die);
+  dtd = ctf_add_generic (ctfc, flag, name, die);
 
   dtd->from_global_func = from_global_func;
+  dtd->linkage = linkage;
   dtd->dtd_data.ctti_info = CTF_TYPE_INFO (CTF_K_FUNCTION, flag, vlen);
+  dtd->ref_type = ctc->ctc_return;
   /* Caller must make sure CTF types for ctc->ctc_return are already added.  */
-  dtd->dtd_data.ctti_type = (uint32_t) ctc->ctc_return;
+  dtd->dtd_data.ctti_type = (uint32_t) ctc->ctc_return->dtd_type;
   /* Caller must make sure CTF types for function arguments are already added
      via ctf_add_function_arg () API.  */
 
   ctfc->ctfc_num_stypes++;
 
-  return type;
+  return dtd;
 }
 
-ctf_id_t
+ctf_dtdef_ref
 ctf_add_sou (ctf_container_ref ctfc, uint32_t flag, const char * name,
-	     uint32_t kind, size_t size, dw_die_ref die)
+	     uint32_t kind, unsigned HOST_WIDE_INT size, dw_die_ref die)
 {
   ctf_dtdef_ref dtd;
-  ctf_id_t type = 0;
 
   gcc_assert ((kind == CTF_K_STRUCT) || (kind == CTF_K_UNION));
 
@@ -824,7 +882,7 @@ ctf_add_sou (ctf_container_ref ctfc, uint32_t flag, const char * name,
 	= CTF_TYPE_INFO (CTF_K_FORWARD, CTF_ADD_NONROOT, 0);
     }
 
-  type = ctf_add_generic (ctfc, flag, name, &dtd, die);
+  dtd = ctf_add_generic (ctfc, flag, name, die);
 
   dtd->dtd_data.ctti_info = CTF_TYPE_INFO (kind, flag, 0);
 
@@ -841,32 +899,32 @@ ctf_add_sou (ctf_container_ref ctfc, uint32_t flag, const char * name,
       ctfc->ctfc_num_stypes++;
     }
 
-  return type;
+  return dtd;
 }
 
-/* Given a TREE_TYPE node, return the CTF type ID for that type.  */
+/* Given a TREE_TYPE node, return the CTF type object for that type.  */
 
-ctf_id_t
+ctf_dtdef_ref
 ctf_lookup_tree_type (ctf_container_ref ctfc, const tree type)
 {
   dw_die_ref die = lookup_type_die (type);
   if (die == NULL)
-    return CTF_NULL_TYPEID;
+    return NULL;
 
   ctf_dtdef_ref dtd = ctf_dtd_lookup (ctfc, die);
   if (dtd == NULL)
-    return CTF_NULL_TYPEID;
+    return NULL;
 
-  return dtd->dtd_type;
+  return dtd;
 }
 
 /* Check if CTF for TYPE has already been generated.  Mainstay for
    de-duplication.  If CTF type already exists, returns TRUE and updates
-   the TYPE_ID for the caller.  */
+   the CTF type object DTD for the caller.  */
 
 bool
 ctf_type_exists (ctf_container_ref ctfc, dw_die_ref type,
-		 ctf_id_t * type_id)
+		 ctf_dtdef_ref * dtd)
 {
   bool exists = false;
   ctf_dtdef_ref ctf_type_seen = ctf_dtd_lookup (ctfc, type);
@@ -875,7 +933,7 @@ ctf_type_exists (ctf_container_ref ctfc, dw_die_ref type,
     {
       exists = true;
       /* CTF type for this type exists.  */
-      *type_id = ctf_type_seen->dtd_type;
+      *dtd = ctf_type_seen;
     }
 
   return exists;
@@ -916,7 +974,7 @@ ctfc_get_dvd_srcloc (ctf_dvdef_ref dvd, ctf_srcloc_ref loc)
 /* Initialize the CTF string table.
    The first entry in the CTF string table (empty string) is added.  */
 
-static void
+void
 init_ctf_strtable (ctf_strtable_t * strtab)
 {
   strtab->ctstab_head = NULL;
@@ -955,6 +1013,10 @@ new_ctf_container (void)
     = hash_table<ctfc_dvd_hasher>::create_ggc (100);
   tu_ctfc->ctfc_ignore_vars
     = hash_table<ctfc_dvd_hasher>::create_ggc (10);
+
+  vec_alloc (tu_ctfc->ctfc_tags, 100);
+  tu_ctfc->ctfc_type_tags_map
+    = hash_map<ctf_dtdef_ref, ctf_dtdef_ref>::create_ggc (100);
 
   return tu_ctfc;
 }
@@ -1009,6 +1071,11 @@ ctfc_delete_container (ctf_container_ref ctfc)
 
       ctfc->ctfc_ignore_vars->empty ();
       ctfc->ctfc_ignore_vars = NULL;
+
+      ctfc->ctfc_tags = NULL;
+
+      ctfc->ctfc_type_tags_map->empty ();
+      ctfc->ctfc_type_tags_map = NULL;
 
       ctfc_delete_strtab (&ctfc->ctfc_strtable);
       ctfc_delete_strtab (&ctfc->ctfc_aux_strtable);

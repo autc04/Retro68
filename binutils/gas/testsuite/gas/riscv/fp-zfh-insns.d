@@ -9,7 +9,19 @@ Disassembly of section .text:
 
 0+000 <.text>:
 [ 	]+[0-9a-f]+:[ 	]+00059507[ 	]+flh[ 	]+fa0,0\(a1\)
+[ 	]+[0-9a-f]+:[ 	]+00000297[ 	]+auipc[ 	]+t0,0x0
+[ 	]+[0-9a-f]+:[ 	]+R_RISCV_PCREL_HI20[ 	]+hval
+[ 	]+[0-9a-f]+:[ 	]+R_RISCV_RELAX.*
+[ 	]+[0-9a-f]+:[ 	]+00029507[ 	]+flh[ 	]+fa0,0\(t0\) # [0-9a-f]+( <.*>)?
+[ 	]+[0-9a-f]+:[ 	]+R_RISCV_PCREL_LO12_I[ 	].*
+[ 	]+[0-9a-f]+:[ 	]+R_RISCV_RELAX.*
 [ 	]+[0-9a-f]+:[ 	]+00a59027[ 	]+fsh[ 	]+fa0,0\(a1\)
+[ 	]+[0-9a-f]+:[ 	]+00000297[ 	]+auipc[ 	]+t0,0x0
+[ 	]+[0-9a-f]+:[ 	]+R_RISCV_PCREL_HI20[ 	]+hval
+[ 	]+[0-9a-f]+:[ 	]+R_RISCV_RELAX.*
+[ 	]+[0-9a-f]+:[ 	]+00a29027[ 	]+fsh[ 	]+fa0,0\(t0\) # [0-9a-f]+( <.*>)?
+[ 	]+[0-9a-f]+:[ 	]+R_RISCV_PCREL_LO12_S[ 	].*
+[ 	]+[0-9a-f]+:[ 	]+R_RISCV_RELAX.*
 [ 	]+[0-9a-f]+:[ 	]+24b58553[ 	]+fmv.h[ 	]+fa0,fa1
 [ 	]+[0-9a-f]+:[ 	]+24b59553[ 	]+fneg.h[ 	]+fa0,fa1
 [ 	]+[0-9a-f]+:[ 	]+24b5a553[ 	]+fabs.h[ 	]+fa0,fa1

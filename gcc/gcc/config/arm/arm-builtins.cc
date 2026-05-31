@@ -1,5 +1,5 @@
 /* Description of builtins used by the ARM backend.
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -45,6 +45,10 @@
 #include "arm-builtins.h"
 #include "stringpool.h"
 #include "attribs.h"
+#include "basic-block.h"
+#include "gimple.h"
+#include "ssa.h"
+#include "regs.h"
 
 #define SIMD_MAX_BUILTIN_ARGS 7
 
@@ -97,7 +101,7 @@ arm_binop_imm_qualifiers[SIMD_MAX_BUILTIN_ARGS]
 /* T (T, unsigned immediate).  */
 static enum arm_type_qualifiers
 arm_sat_binop_imm_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_none, qualifier_unsigned_immediate };
+  = { qualifier_none, qualifier_none, qualifier_unsigned_immediate };
 #define SAT_BINOP_UNSIGNED_IMM_QUALIFIERS \
   (arm_sat_binop_imm_qualifiers)
 
@@ -385,6 +389,19 @@ arm_unop_unone_imm_qualifiers[SIMD_MAX_BUILTIN_ARGS]
   (arm_unop_unone_imm_qualifiers)
 
 static enum arm_type_qualifiers
+arm_unop_pred_unone_qualifiers[SIMD_MAX_BUILTIN_ARGS]
+  = { qualifier_predicate, qualifier_unsigned };
+#define UNOP_PRED_UNONE_QUALIFIERS \
+  (arm_unop_pred_unone_qualifiers)
+
+static enum arm_type_qualifiers
+arm_unop_pred_pred_qualifiers[SIMD_MAX_BUILTIN_ARGS]
+  = { qualifier_predicate, qualifier_predicate };
+#define UNOP_PRED_PRED_QUALIFIERS \
+  (arm_unop_pred_pred_qualifiers)
+
+
+static enum arm_type_qualifiers
 arm_binop_none_none_none_qualifiers[SIMD_MAX_BUILTIN_ARGS]
   = { qualifier_none, qualifier_none, qualifier_none };
 #define BINOP_NONE_NONE_NONE_QUALIFIERS \
@@ -427,6 +444,12 @@ arm_binop_pred_unone_unone_qualifiers[SIMD_MAX_BUILTIN_ARGS]
   (arm_binop_pred_unone_unone_qualifiers)
 
 static enum arm_type_qualifiers
+arm_binop_pred_unone_pred_qualifiers[SIMD_MAX_BUILTIN_ARGS]
+  = { qualifier_predicate, qualifier_unsigned, qualifier_predicate };
+#define BINOP_PRED_UNONE_PRED_QUALIFIERS \
+  (arm_binop_pred_unone_pred_qualifiers)
+
+static enum arm_type_qualifiers
 arm_binop_unone_none_imm_qualifiers[SIMD_MAX_BUILTIN_ARGS]
   = { qualifier_unsigned, qualifier_none, qualifier_immediate };
 #define BINOP_UNONE_NONE_IMM_QUALIFIERS \
@@ -456,19 +479,6 @@ arm_ternop_unone_unone_none_none_qualifiers[SIMD_MAX_BUILTIN_ARGS]
   = { qualifier_unsigned, qualifier_unsigned, qualifier_none, qualifier_none };
 #define TERNOP_UNONE_UNONE_NONE_NONE_QUALIFIERS \
   (arm_ternop_unone_unone_none_none_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ternop_unone_none_unone_imm_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_none, qualifier_unsigned,
-      qualifier_immediate };
-#define TERNOP_UNONE_NONE_UNONE_IMM_QUALIFIERS \
-  (arm_ternop_unone_none_unone_imm_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ternop_none_none_unone_imm_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_none, qualifier_none, qualifier_unsigned, qualifier_immediate };
-#define TERNOP_NONE_NONE_UNONE_IMM_QUALIFIERS \
-  (arm_ternop_none_none_unone_imm_qualifiers)
 
 static enum arm_type_qualifiers
 arm_ternop_unone_unone_none_imm_qualifiers[SIMD_MAX_BUILTIN_ARGS]
@@ -605,200 +615,6 @@ arm_quadop_unone_unone_unone_none_pred_qualifiers[SIMD_MAX_BUILTIN_ARGS]
   (arm_quadop_unone_unone_unone_none_pred_qualifiers)
 
 static enum arm_type_qualifiers
-arm_strs_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_pointer, qualifier_none };
-#define STRS_QUALIFIERS (arm_strs_qualifiers)
-
-static enum arm_type_qualifiers
-arm_stru_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_pointer, qualifier_unsigned };
-#define STRU_QUALIFIERS (arm_stru_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strss_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_pointer, qualifier_unsigned,
-      qualifier_none};
-#define STRSS_QUALIFIERS (arm_strss_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strsu_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_pointer, qualifier_unsigned,
-      qualifier_unsigned};
-#define STRSU_QUALIFIERS (arm_strsu_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strsbs_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_unsigned, qualifier_immediate, qualifier_none};
-#define STRSBS_QUALIFIERS (arm_strsbs_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strsbu_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_unsigned, qualifier_immediate,
-      qualifier_unsigned};
-#define STRSBU_QUALIFIERS (arm_strsbu_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strs_p_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_pointer, qualifier_none, qualifier_predicate};
-#define STRS_P_QUALIFIERS (arm_strs_p_qualifiers)
-
-static enum arm_type_qualifiers
-arm_stru_p_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_pointer, qualifier_unsigned,
-      qualifier_predicate};
-#define STRU_P_QUALIFIERS (arm_stru_p_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strsu_p_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_pointer, qualifier_unsigned,
-      qualifier_unsigned, qualifier_predicate};
-#define STRSU_P_QUALIFIERS (arm_strsu_p_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strss_p_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_pointer, qualifier_unsigned,
-      qualifier_none, qualifier_predicate};
-#define STRSS_P_QUALIFIERS (arm_strss_p_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strsbs_p_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_unsigned, qualifier_immediate,
-      qualifier_none, qualifier_predicate};
-#define STRSBS_P_QUALIFIERS (arm_strsbs_p_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strsbu_p_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_void, qualifier_unsigned, qualifier_immediate,
-      qualifier_unsigned, qualifier_predicate};
-#define STRSBU_P_QUALIFIERS (arm_strsbu_p_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgu_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_pointer, qualifier_unsigned};
-#define LDRGU_QUALIFIERS (arm_ldrgu_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgs_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_none, qualifier_pointer, qualifier_unsigned};
-#define LDRGS_QUALIFIERS (arm_ldrgs_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrs_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_none, qualifier_pointer};
-#define LDRS_QUALIFIERS (arm_ldrs_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldru_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_pointer};
-#define LDRU_QUALIFIERS (arm_ldru_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgbs_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_none, qualifier_unsigned, qualifier_immediate};
-#define LDRGBS_QUALIFIERS (arm_ldrgbs_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgbu_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_immediate};
-#define LDRGBU_QUALIFIERS (arm_ldrgbu_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgbs_z_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_none, qualifier_unsigned, qualifier_immediate,
-      qualifier_predicate};
-#define LDRGBS_Z_QUALIFIERS (arm_ldrgbs_z_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgbu_z_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_immediate,
-      qualifier_predicate};
-#define LDRGBU_Z_QUALIFIERS (arm_ldrgbu_z_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgs_z_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_none, qualifier_pointer, qualifier_unsigned,
-      qualifier_predicate};
-#define LDRGS_Z_QUALIFIERS (arm_ldrgs_z_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgu_z_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_pointer, qualifier_unsigned,
-      qualifier_predicate};
-#define LDRGU_Z_QUALIFIERS (arm_ldrgu_z_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrs_z_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_none, qualifier_pointer, qualifier_predicate};
-#define LDRS_Z_QUALIFIERS (arm_ldrs_z_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldru_z_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_pointer, qualifier_predicate};
-#define LDRU_Z_QUALIFIERS (arm_ldru_z_qualifiers)
-
-static enum arm_type_qualifiers
-arm_quinop_unone_unone_unone_unone_imm_pred_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_unsigned,
-      qualifier_unsigned, qualifier_immediate, qualifier_predicate };
-#define QUINOP_UNONE_UNONE_UNONE_UNONE_IMM_PRED_QUALIFIERS \
-  (arm_quinop_unone_unone_unone_unone_imm_pred_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgbwbxu_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_immediate};
-#define LDRGBWBXU_QUALIFIERS (arm_ldrgbwbxu_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgbwbxu_z_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_immediate,
-      qualifier_predicate};
-#define LDRGBWBXU_Z_QUALIFIERS (arm_ldrgbwbxu_z_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgbwbs_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_none, qualifier_unsigned, qualifier_immediate};
-#define LDRGBWBS_QUALIFIERS (arm_ldrgbwbs_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgbwbu_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_immediate};
-#define LDRGBWBU_QUALIFIERS (arm_ldrgbwbu_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgbwbs_z_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_none, qualifier_unsigned, qualifier_immediate,
-      qualifier_predicate};
-#define LDRGBWBS_Z_QUALIFIERS (arm_ldrgbwbs_z_qualifiers)
-
-static enum arm_type_qualifiers
-arm_ldrgbwbu_z_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_immediate,
-      qualifier_predicate};
-#define LDRGBWBU_Z_QUALIFIERS (arm_ldrgbwbu_z_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strsbwbs_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_const, qualifier_none};
-#define STRSBWBS_QUALIFIERS (arm_strsbwbs_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strsbwbu_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_const, qualifier_unsigned};
-#define STRSBWBU_QUALIFIERS (arm_strsbwbu_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strsbwbs_p_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_const,
-      qualifier_none, qualifier_predicate};
-#define STRSBWBS_P_QUALIFIERS (arm_strsbwbs_p_qualifiers)
-
-static enum arm_type_qualifiers
-arm_strsbwbu_p_qualifiers[SIMD_MAX_BUILTIN_ARGS]
-  = { qualifier_unsigned, qualifier_unsigned, qualifier_const,
-      qualifier_unsigned, qualifier_predicate};
-#define STRSBWBU_P_QUALIFIERS (arm_strsbwbu_p_qualifiers)
-
-static enum arm_type_qualifiers
 arm_lsll_qualifiers[SIMD_MAX_BUILTIN_ARGS]
   = { qualifier_unsigned, qualifier_unsigned, qualifier_none};
 #define LSLL_QUALIFIERS (arm_lsll_qualifiers)
@@ -851,6 +667,10 @@ arm_set_sat_qualifiers[SIMD_MAX_BUILTIN_ARGS]
   = { qualifier_void, qualifier_none };
 #define SET_SAT_QUALIFIERS (arm_set_sat_qualifiers)
 
+#define v2qi_UP  E_V2QImode
+#define v4bi_UP  E_V4BImode
+#define v8bi_UP  E_V8BImode
+#define v16bi_UP E_V16BImode
 #define v8qi_UP  E_V8QImode
 #define v4hi_UP  E_V4HImode
 #define v4hf_UP  E_V4HFmode
@@ -884,6 +704,13 @@ typedef struct {
   unsigned int fcode;
   enum arm_type_qualifiers *qualifiers;
 } arm_builtin_datum;
+
+constexpr insn_code CODE_FOR_neon_sdotv8qi = CODE_FOR_neon_sdotv2siv8qi;
+constexpr insn_code CODE_FOR_neon_udotv8qi = CODE_FOR_neon_udotv2siv8qi;
+constexpr insn_code CODE_FOR_neon_usdotv8qi = CODE_FOR_neon_usdotv2siv8qi;
+constexpr insn_code CODE_FOR_neon_sdotv16qi = CODE_FOR_neon_sdotv4siv16qi;
+constexpr insn_code CODE_FOR_neon_udotv16qi = CODE_FOR_neon_udotv4siv16qi;
+constexpr insn_code CODE_FOR_neon_usdotv16qi = CODE_FOR_neon_usdotv4siv16qi;
 
 #define CF(N,X) CODE_FOR_neon_##N##X
 
@@ -990,252 +817,6 @@ static arm_builtin_cde_datum cde_builtin_data[] =
 
 enum arm_builtins
 {
-  ARM_BUILTIN_GETWCGR0,
-  ARM_BUILTIN_GETWCGR1,
-  ARM_BUILTIN_GETWCGR2,
-  ARM_BUILTIN_GETWCGR3,
-
-  ARM_BUILTIN_SETWCGR0,
-  ARM_BUILTIN_SETWCGR1,
-  ARM_BUILTIN_SETWCGR2,
-  ARM_BUILTIN_SETWCGR3,
-
-  ARM_BUILTIN_WZERO,
-
-  ARM_BUILTIN_WAVG2BR,
-  ARM_BUILTIN_WAVG2HR,
-  ARM_BUILTIN_WAVG2B,
-  ARM_BUILTIN_WAVG2H,
-
-  ARM_BUILTIN_WACCB,
-  ARM_BUILTIN_WACCH,
-  ARM_BUILTIN_WACCW,
-
-  ARM_BUILTIN_WMACS,
-  ARM_BUILTIN_WMACSZ,
-  ARM_BUILTIN_WMACU,
-  ARM_BUILTIN_WMACUZ,
-
-  ARM_BUILTIN_WSADB,
-  ARM_BUILTIN_WSADBZ,
-  ARM_BUILTIN_WSADH,
-  ARM_BUILTIN_WSADHZ,
-
-  ARM_BUILTIN_WALIGNI,
-  ARM_BUILTIN_WALIGNR0,
-  ARM_BUILTIN_WALIGNR1,
-  ARM_BUILTIN_WALIGNR2,
-  ARM_BUILTIN_WALIGNR3,
-
-  ARM_BUILTIN_TMIA,
-  ARM_BUILTIN_TMIAPH,
-  ARM_BUILTIN_TMIABB,
-  ARM_BUILTIN_TMIABT,
-  ARM_BUILTIN_TMIATB,
-  ARM_BUILTIN_TMIATT,
-
-  ARM_BUILTIN_TMOVMSKB,
-  ARM_BUILTIN_TMOVMSKH,
-  ARM_BUILTIN_TMOVMSKW,
-
-  ARM_BUILTIN_TBCSTB,
-  ARM_BUILTIN_TBCSTH,
-  ARM_BUILTIN_TBCSTW,
-
-  ARM_BUILTIN_WMADDS,
-  ARM_BUILTIN_WMADDU,
-
-  ARM_BUILTIN_WPACKHSS,
-  ARM_BUILTIN_WPACKWSS,
-  ARM_BUILTIN_WPACKDSS,
-  ARM_BUILTIN_WPACKHUS,
-  ARM_BUILTIN_WPACKWUS,
-  ARM_BUILTIN_WPACKDUS,
-
-  ARM_BUILTIN_WADDB,
-  ARM_BUILTIN_WADDH,
-  ARM_BUILTIN_WADDW,
-  ARM_BUILTIN_WADDSSB,
-  ARM_BUILTIN_WADDSSH,
-  ARM_BUILTIN_WADDSSW,
-  ARM_BUILTIN_WADDUSB,
-  ARM_BUILTIN_WADDUSH,
-  ARM_BUILTIN_WADDUSW,
-  ARM_BUILTIN_WSUBB,
-  ARM_BUILTIN_WSUBH,
-  ARM_BUILTIN_WSUBW,
-  ARM_BUILTIN_WSUBSSB,
-  ARM_BUILTIN_WSUBSSH,
-  ARM_BUILTIN_WSUBSSW,
-  ARM_BUILTIN_WSUBUSB,
-  ARM_BUILTIN_WSUBUSH,
-  ARM_BUILTIN_WSUBUSW,
-
-  ARM_BUILTIN_WAND,
-  ARM_BUILTIN_WANDN,
-  ARM_BUILTIN_WOR,
-  ARM_BUILTIN_WXOR,
-
-  ARM_BUILTIN_WCMPEQB,
-  ARM_BUILTIN_WCMPEQH,
-  ARM_BUILTIN_WCMPEQW,
-  ARM_BUILTIN_WCMPGTUB,
-  ARM_BUILTIN_WCMPGTUH,
-  ARM_BUILTIN_WCMPGTUW,
-  ARM_BUILTIN_WCMPGTSB,
-  ARM_BUILTIN_WCMPGTSH,
-  ARM_BUILTIN_WCMPGTSW,
-
-  ARM_BUILTIN_TEXTRMSB,
-  ARM_BUILTIN_TEXTRMSH,
-  ARM_BUILTIN_TEXTRMSW,
-  ARM_BUILTIN_TEXTRMUB,
-  ARM_BUILTIN_TEXTRMUH,
-  ARM_BUILTIN_TEXTRMUW,
-  ARM_BUILTIN_TINSRB,
-  ARM_BUILTIN_TINSRH,
-  ARM_BUILTIN_TINSRW,
-
-  ARM_BUILTIN_WMAXSW,
-  ARM_BUILTIN_WMAXSH,
-  ARM_BUILTIN_WMAXSB,
-  ARM_BUILTIN_WMAXUW,
-  ARM_BUILTIN_WMAXUH,
-  ARM_BUILTIN_WMAXUB,
-  ARM_BUILTIN_WMINSW,
-  ARM_BUILTIN_WMINSH,
-  ARM_BUILTIN_WMINSB,
-  ARM_BUILTIN_WMINUW,
-  ARM_BUILTIN_WMINUH,
-  ARM_BUILTIN_WMINUB,
-
-  ARM_BUILTIN_WMULUM,
-  ARM_BUILTIN_WMULSM,
-  ARM_BUILTIN_WMULUL,
-
-  ARM_BUILTIN_PSADBH,
-  ARM_BUILTIN_WSHUFH,
-
-  ARM_BUILTIN_WSLLH,
-  ARM_BUILTIN_WSLLW,
-  ARM_BUILTIN_WSLLD,
-  ARM_BUILTIN_WSRAH,
-  ARM_BUILTIN_WSRAW,
-  ARM_BUILTIN_WSRAD,
-  ARM_BUILTIN_WSRLH,
-  ARM_BUILTIN_WSRLW,
-  ARM_BUILTIN_WSRLD,
-  ARM_BUILTIN_WRORH,
-  ARM_BUILTIN_WRORW,
-  ARM_BUILTIN_WRORD,
-  ARM_BUILTIN_WSLLHI,
-  ARM_BUILTIN_WSLLWI,
-  ARM_BUILTIN_WSLLDI,
-  ARM_BUILTIN_WSRAHI,
-  ARM_BUILTIN_WSRAWI,
-  ARM_BUILTIN_WSRADI,
-  ARM_BUILTIN_WSRLHI,
-  ARM_BUILTIN_WSRLWI,
-  ARM_BUILTIN_WSRLDI,
-  ARM_BUILTIN_WRORHI,
-  ARM_BUILTIN_WRORWI,
-  ARM_BUILTIN_WRORDI,
-
-  ARM_BUILTIN_WUNPCKIHB,
-  ARM_BUILTIN_WUNPCKIHH,
-  ARM_BUILTIN_WUNPCKIHW,
-  ARM_BUILTIN_WUNPCKILB,
-  ARM_BUILTIN_WUNPCKILH,
-  ARM_BUILTIN_WUNPCKILW,
-
-  ARM_BUILTIN_WUNPCKEHSB,
-  ARM_BUILTIN_WUNPCKEHSH,
-  ARM_BUILTIN_WUNPCKEHSW,
-  ARM_BUILTIN_WUNPCKEHUB,
-  ARM_BUILTIN_WUNPCKEHUH,
-  ARM_BUILTIN_WUNPCKEHUW,
-  ARM_BUILTIN_WUNPCKELSB,
-  ARM_BUILTIN_WUNPCKELSH,
-  ARM_BUILTIN_WUNPCKELSW,
-  ARM_BUILTIN_WUNPCKELUB,
-  ARM_BUILTIN_WUNPCKELUH,
-  ARM_BUILTIN_WUNPCKELUW,
-
-  ARM_BUILTIN_WABSB,
-  ARM_BUILTIN_WABSH,
-  ARM_BUILTIN_WABSW,
-
-  ARM_BUILTIN_WADDSUBHX,
-  ARM_BUILTIN_WSUBADDHX,
-
-  ARM_BUILTIN_WABSDIFFB,
-  ARM_BUILTIN_WABSDIFFH,
-  ARM_BUILTIN_WABSDIFFW,
-
-  ARM_BUILTIN_WADDCH,
-  ARM_BUILTIN_WADDCW,
-
-  ARM_BUILTIN_WAVG4,
-  ARM_BUILTIN_WAVG4R,
-
-  ARM_BUILTIN_WMADDSX,
-  ARM_BUILTIN_WMADDUX,
-
-  ARM_BUILTIN_WMADDSN,
-  ARM_BUILTIN_WMADDUN,
-
-  ARM_BUILTIN_WMULWSM,
-  ARM_BUILTIN_WMULWUM,
-
-  ARM_BUILTIN_WMULWSMR,
-  ARM_BUILTIN_WMULWUMR,
-
-  ARM_BUILTIN_WMULWL,
-
-  ARM_BUILTIN_WMULSMR,
-  ARM_BUILTIN_WMULUMR,
-
-  ARM_BUILTIN_WQMULM,
-  ARM_BUILTIN_WQMULMR,
-
-  ARM_BUILTIN_WQMULWM,
-  ARM_BUILTIN_WQMULWMR,
-
-  ARM_BUILTIN_WADDBHUSM,
-  ARM_BUILTIN_WADDBHUSL,
-
-  ARM_BUILTIN_WQMIABB,
-  ARM_BUILTIN_WQMIABT,
-  ARM_BUILTIN_WQMIATB,
-  ARM_BUILTIN_WQMIATT,
-
-  ARM_BUILTIN_WQMIABBN,
-  ARM_BUILTIN_WQMIABTN,
-  ARM_BUILTIN_WQMIATBN,
-  ARM_BUILTIN_WQMIATTN,
-
-  ARM_BUILTIN_WMIABB,
-  ARM_BUILTIN_WMIABT,
-  ARM_BUILTIN_WMIATB,
-  ARM_BUILTIN_WMIATT,
-
-  ARM_BUILTIN_WMIABBN,
-  ARM_BUILTIN_WMIABTN,
-  ARM_BUILTIN_WMIATBN,
-  ARM_BUILTIN_WMIATTN,
-
-  ARM_BUILTIN_WMIAWBB,
-  ARM_BUILTIN_WMIAWBT,
-  ARM_BUILTIN_WMIAWTB,
-  ARM_BUILTIN_WMIAWTT,
-
-  ARM_BUILTIN_WMIAWBBN,
-  ARM_BUILTIN_WMIAWBTN,
-  ARM_BUILTIN_WMIAWTBN,
-  ARM_BUILTIN_WMIAWTTN,
-
-  ARM_BUILTIN_WMERGE,
-
   ARM_BUILTIN_GET_FPSCR,
   ARM_BUILTIN_SET_FPSCR,
   ARM_BUILTIN_GET_FPSCR_NZCVQC,
@@ -1382,6 +963,18 @@ static tree arm_simd_polyHI_type_node = NULL_TREE;
 static tree arm_simd_polyDI_type_node = NULL_TREE;
 static tree arm_simd_polyTI_type_node = NULL_TREE;
 
+/* Wrapper around add_builtin_function.  NAME is the name of the built-in
+   function, TYPE is the function type, CODE is the function subcode
+   (relative to ARM_BUILTIN_GENERAL), and ATTRS is the function
+   attributes.  */
+static tree
+arm_general_add_builtin_function (const char* name, tree type,
+				  unsigned int code, tree attrs = NULL_TREE)
+{
+  code = (code << ARM_BUILTIN_SHIFT) | ARM_BUILTIN_GENERAL;
+  return add_builtin_function (name, type, code, BUILT_IN_MD, NULL, attrs);
+}
+
 static const char *
 arm_mangle_builtin_scalar_type (const_tree type)
 {
@@ -1471,7 +1064,7 @@ arm_lookup_simd_builtin_type (machine_mode mode,
 			      enum arm_type_qualifiers q)
 {
   int i;
-  int nelts = sizeof (arm_simd_types) / sizeof (arm_simd_types[0]);
+  int nelts = ARRAY_SIZE (arm_simd_types);
 
   /* Non-poly scalar modes map to standard types not in the table.  */
   if (q != qualifier_poly && !VECTOR_MODE_P (mode))
@@ -1489,12 +1082,14 @@ arm_lookup_simd_builtin_type (machine_mode mode,
 }
 
 static tree
-arm_simd_builtin_type (machine_mode mode, bool unsigned_p, bool poly_p)
+arm_simd_builtin_type (machine_mode mode, arm_type_qualifiers qualifiers)
 {
-  if (poly_p)
+  if ((qualifiers & qualifier_poly) != 0)
     return arm_lookup_simd_builtin_type (mode, qualifier_poly);
-  else if (unsigned_p)
+  else if ((qualifiers & qualifier_unsigned) != 0)
     return arm_lookup_simd_builtin_type (mode, qualifier_unsigned);
+  else if ((qualifiers & qualifier_predicate) != 0)
+    return unsigned_intHI_type_node;
   else
     return arm_lookup_simd_builtin_type (mode, qualifier_none);
 }
@@ -1503,7 +1098,7 @@ static void
 arm_init_simd_builtin_types (void)
 {
   int i;
-  int nelts = sizeof (arm_simd_types) / sizeof (arm_simd_types[0]);
+  int nelts = ARRAY_SIZE (arm_simd_types);
   tree tdecl;
 
   /* Poly types are a world of their own.  In order to maintain legacy
@@ -1511,52 +1106,50 @@ arm_init_simd_builtin_types (void)
      an entry in our mangling table, consequently, they get default
      mangling.  As a further gotcha, poly8_t and poly16_t are signed
      types, poly64_t and poly128_t are unsigned types.  */
-  if (!TARGET_HAVE_MVE)
-    {
-      arm_simd_polyQI_type_node
-	= build_distinct_type_copy (intQI_type_node);
-      (*lang_hooks.types.register_builtin_type) (arm_simd_polyQI_type_node,
-						 "__builtin_neon_poly8");
-      arm_simd_polyHI_type_node
-	= build_distinct_type_copy (intHI_type_node);
-      (*lang_hooks.types.register_builtin_type) (arm_simd_polyHI_type_node,
-						 "__builtin_neon_poly16");
-      arm_simd_polyDI_type_node
-	= build_distinct_type_copy (unsigned_intDI_type_node);
-      (*lang_hooks.types.register_builtin_type) (arm_simd_polyDI_type_node,
-						 "__builtin_neon_poly64");
-      arm_simd_polyTI_type_node
-	= build_distinct_type_copy (unsigned_intTI_type_node);
-      (*lang_hooks.types.register_builtin_type) (arm_simd_polyTI_type_node,
-						 "__builtin_neon_poly128");
-      /* Init poly vector element types with scalar poly types.  */
-      arm_simd_types[Poly8x8_t].eltype = arm_simd_polyQI_type_node;
-      arm_simd_types[Poly8x16_t].eltype = arm_simd_polyQI_type_node;
-      arm_simd_types[Poly16x4_t].eltype = arm_simd_polyHI_type_node;
-      arm_simd_types[Poly16x8_t].eltype = arm_simd_polyHI_type_node;
-      /* Note: poly64x2_t is defined in arm_neon.h, to ensure it gets default
-	 mangling.  */
+  arm_simd_polyQI_type_node
+    = build_distinct_type_copy (intQI_type_node);
+  (*lang_hooks.types.register_builtin_type) (arm_simd_polyQI_type_node,
+					     "__builtin_neon_poly8");
+  arm_simd_polyHI_type_node
+    = build_distinct_type_copy (intHI_type_node);
+  (*lang_hooks.types.register_builtin_type) (arm_simd_polyHI_type_node,
+					     "__builtin_neon_poly16");
+  arm_simd_polyDI_type_node
+    = build_distinct_type_copy (unsigned_intDI_type_node);
+  (*lang_hooks.types.register_builtin_type) (arm_simd_polyDI_type_node,
+					     "__builtin_neon_poly64");
+  arm_simd_polyTI_type_node
+    = build_distinct_type_copy (unsigned_intTI_type_node);
+  (*lang_hooks.types.register_builtin_type) (arm_simd_polyTI_type_node,
+					     "__builtin_neon_poly128");
+  /* Init poly vector element types with scalar poly types.  */
+  arm_simd_types[Poly8x8_t].eltype = arm_simd_polyQI_type_node;
+  arm_simd_types[Poly8x16_t].eltype = arm_simd_polyQI_type_node;
+  arm_simd_types[Poly16x4_t].eltype = arm_simd_polyHI_type_node;
+  arm_simd_types[Poly16x8_t].eltype = arm_simd_polyHI_type_node;
+  /* Note: poly64x2_t is defined in arm_neon.h, to ensure it gets default
+     mangling.  */
 
-      /* Prevent front-ends from transforming poly vectors into string
-	 literals.  */
-      TYPE_STRING_FLAG (arm_simd_polyQI_type_node) = false;
-      TYPE_STRING_FLAG (arm_simd_polyHI_type_node) = false;
-    }
+  /* Prevent front-ends from transforming poly vectors into string
+     literals.  */
+  TYPE_STRING_FLAG (arm_simd_polyQI_type_node) = false;
+  TYPE_STRING_FLAG (arm_simd_polyHI_type_node) = false;
+
   /* Init all the element types built by the front-end.  */
-  arm_simd_types[Int8x8_t].eltype = intQI_type_node;
-  arm_simd_types[Int8x16_t].eltype = intQI_type_node;
-  arm_simd_types[Int16x4_t].eltype = intHI_type_node;
-  arm_simd_types[Int16x8_t].eltype = intHI_type_node;
-  arm_simd_types[Int32x2_t].eltype = intSI_type_node;
-  arm_simd_types[Int32x4_t].eltype = intSI_type_node;
-  arm_simd_types[Int64x2_t].eltype = intDI_type_node;
-  arm_simd_types[Uint8x8_t].eltype = unsigned_intQI_type_node;
-  arm_simd_types[Uint8x16_t].eltype = unsigned_intQI_type_node;
-  arm_simd_types[Uint16x4_t].eltype = unsigned_intHI_type_node;
-  arm_simd_types[Uint16x8_t].eltype = unsigned_intHI_type_node;
-  arm_simd_types[Uint32x2_t].eltype = unsigned_intSI_type_node;
-  arm_simd_types[Uint32x4_t].eltype = unsigned_intSI_type_node;
-  arm_simd_types[Uint64x2_t].eltype = unsigned_intDI_type_node;
+  arm_simd_types[Int8x8_t].eltype = get_typenode_from_name (INT8_TYPE);
+  arm_simd_types[Int8x16_t].eltype = get_typenode_from_name (INT8_TYPE);
+  arm_simd_types[Int16x4_t].eltype = get_typenode_from_name (INT16_TYPE);
+  arm_simd_types[Int16x8_t].eltype = get_typenode_from_name (INT16_TYPE);
+  arm_simd_types[Int32x2_t].eltype = get_typenode_from_name (INT32_TYPE);
+  arm_simd_types[Int32x4_t].eltype = get_typenode_from_name (INT32_TYPE);
+  arm_simd_types[Int64x2_t].eltype = get_typenode_from_name (INT64_TYPE);
+  arm_simd_types[Uint8x8_t].eltype = get_typenode_from_name (UINT8_TYPE);
+  arm_simd_types[Uint8x16_t].eltype = get_typenode_from_name (UINT8_TYPE);
+  arm_simd_types[Uint16x4_t].eltype = get_typenode_from_name (UINT16_TYPE);
+  arm_simd_types[Uint16x8_t].eltype = get_typenode_from_name (UINT16_TYPE);
+  arm_simd_types[Uint32x2_t].eltype = get_typenode_from_name (UINT32_TYPE);
+  arm_simd_types[Uint32x4_t].eltype = get_typenode_from_name (UINT32_TYPE);
+  arm_simd_types[Uint64x2_t].eltype = get_typenode_from_name (UINT64_TYPE);
 
   /* Note: poly64x2_t is defined in arm_neon.h, to ensure it gets default
      mangling.  */
@@ -1755,9 +1348,7 @@ arm_init_builtin (unsigned int fcode, arm_builtin_datum *d,
       else
 	{
 	  eltype
-	    = arm_simd_builtin_type (op_mode,
-				     (qualifiers & qualifier_unsigned) != 0,
-				     (qualifiers & qualifier_poly) != 0);
+	    = arm_simd_builtin_type (op_mode, qualifiers);
 	  gcc_assert (eltype != NULL);
 
 	  /* Add qualifiers.  */
@@ -1788,8 +1379,7 @@ arm_init_builtin (unsigned int fcode, arm_builtin_datum *d,
     snprintf (namebuf, sizeof (namebuf), "%s_%s",
 	      prefix, d->name);
 
-  fndecl = add_builtin_function (namebuf, ftype, fcode, BUILT_IN_MD,
-				 NULL, NULL_TREE);
+  fndecl = arm_general_add_builtin_function (namebuf, ftype, fcode);
   arm_builtin_decls[fcode] = fndecl;
 }
 
@@ -1809,7 +1399,7 @@ arm_init_bf16_types (void)
 /* Set up ACLE builtins, even builtins for instructions that are not
    in the current target ISA to allow the user to compile particular modules
    with different target specific options that differ from the command line
-   options.  Such builtins will be rejected in arm_expand_builtin.  */
+   options.  Such builtins will be rejected in arm_general_expand_builtin.  */
 
 static void
 arm_init_acle_builtins (void)
@@ -1822,9 +1412,9 @@ arm_init_acle_builtins (void)
 						 intSI_type_node,
 						 NULL);
   arm_builtin_decls[ARM_BUILTIN_SAT_IMM_CHECK]
-    = add_builtin_function ("__builtin_sat_imm_check", sat_check_fpr,
-			    ARM_BUILTIN_SAT_IMM_CHECK, BUILT_IN_MD,
-			    NULL, NULL_TREE);
+    = arm_general_add_builtin_function ("__builtin_sat_imm_check",
+					sat_check_fpr,
+					ARM_BUILTIN_SAT_IMM_CHECK);
 
   for (i = 0; i < ARRAY_SIZE (acle_builtin_data); i++, fcode++)
     {
@@ -1854,14 +1444,29 @@ arm_init_cde_builtins (void)
     }
 }
 
+/* RAII class for enabling enough features to define built-in types
+   and implement the arm_mve.h pragma.  */
+class arm_target_switcher
+{
+public:
+  arm_target_switcher (const enum isa_feature *flags);
+  ~arm_target_switcher ();
+
+private:
+  sbitmap m_old_arm_active_target_isa;
+  bool m_old_general_regs_only;
+  tree m_old_target_pragma;
+  bool m_old_have_regs_of_mode[MAX_MACHINE_MODE];
+};
+
 /* Set up all the MVE builtins mentioned in arm_mve_builtins.def file.  */
 static void
 arm_init_mve_builtins (void)
 {
-  volatile unsigned int i, fcode = ARM_BUILTIN_MVE_PATTERN_START;
+  unsigned int i, fcode = ARM_BUILTIN_MVE_PATTERN_START;
 
-  arm_init_simd_builtin_scalar_types ();
-  arm_init_simd_builtin_types ();
+  enum isa_feature mve_flags[] = { ISA_MVE_FP, isa_nobit };
+  arm_target_switcher switcher (mve_flags);
 
   /* Add support for __builtin_{get,set}_fpscr_nzcvqc, used by MVE intrinsics
      that read and/or write the carry bit.  */
@@ -1871,38 +1476,39 @@ arm_init_mve_builtins (void)
 						    intSI_type_node,
 						    NULL);
   arm_builtin_decls[ARM_BUILTIN_GET_FPSCR_NZCVQC]
-    = add_builtin_function ("__builtin_arm_get_fpscr_nzcvqc", get_fpscr_nzcvqc,
-			    ARM_BUILTIN_GET_FPSCR_NZCVQC, BUILT_IN_MD, NULL,
-			    NULL_TREE);
+    = arm_general_add_builtin_function ("__builtin_arm_get_fpscr_nzcvqc",
+					get_fpscr_nzcvqc,
+					ARM_BUILTIN_GET_FPSCR_NZCVQC);
   arm_builtin_decls[ARM_BUILTIN_SET_FPSCR_NZCVQC]
-    = add_builtin_function ("__builtin_arm_set_fpscr_nzcvqc", set_fpscr_nzcvqc,
-			    ARM_BUILTIN_SET_FPSCR_NZCVQC, BUILT_IN_MD, NULL,
-			    NULL_TREE);
+    = arm_general_add_builtin_function ("__builtin_arm_set_fpscr_nzcvqc",
+					set_fpscr_nzcvqc,
+					ARM_BUILTIN_SET_FPSCR_NZCVQC);
 
   for (i = 0; i < ARRAY_SIZE (mve_builtin_data); i++, fcode++)
     {
       arm_builtin_datum *d = &mve_builtin_data[i];
       arm_init_builtin (fcode, d, "__builtin_mve");
     }
+
+  if (in_lto_p)
+    {
+      arm_mve::handle_arm_mve_types_h ();
+      /* Under LTO, we cannot know whether
+	 __ARM_MVE_PRESERVE_USER_NAMESPACE was defined, so assume it
+	 was not.  */
+      arm_mve::handle_arm_mve_h (false);
+    }
 }
 
 /* Set up all the NEON builtins, even builtins for instructions that are not
    in the current target ISA to allow the user to compile particular modules
    with different target specific options that differ from the command line
-   options. Such builtins will be rejected in arm_expand_builtin.  */
+   options.  Such builtins will be rejected in arm_general_expand_builtin.  */
 
 static void
 arm_init_neon_builtins (void)
 {
   unsigned int i, fcode = ARM_BUILTIN_NEON_PATTERN_START;
-
-  arm_init_simd_builtin_types ();
-
-  /* Strong-typing hasn't been implemented for all AdvSIMD builtin intrinsics.
-     Therefore we need to preserve the old __builtin scalar types.  It can be
-     removed once all the intrinsics become strongly typed using the qualifier
-     system.  */
-  arm_init_simd_builtin_scalar_types ();
 
   for (i = 0; i < ARRAY_SIZE (neon_builtin_data); i++, fcode++)
     {
@@ -1929,10 +1535,10 @@ static void
 arm_init_crypto_builtins (void)
 {
   tree V16UQI_type_node
-    = arm_simd_builtin_type (V16QImode, true, false);
+    = arm_simd_builtin_type (V16QImode, qualifier_unsigned);
 
   tree V4USI_type_node
-    = arm_simd_builtin_type (V4SImode, true, false);
+    = arm_simd_builtin_type (V4SImode, qualifier_unsigned);
 
   tree v16uqi_ftype_v16uqi
     = build_function_type_list (V16UQI_type_node, V16UQI_type_node,
@@ -1983,17 +1589,14 @@ arm_init_crypto_builtins (void)
     R##_ftype_##A1##_##A2##_##A3
   #define CRYPTO1(L, U, R, A) \
     arm_builtin_decls[C (U)] \
-      = add_builtin_function (N (L), FT1 (R, A), \
-		  C (U), BUILT_IN_MD, NULL, NULL_TREE);
+      = arm_general_add_builtin_function (N (L), FT1 (R, A), C (U));
   #define CRYPTO2(L, U, R, A1, A2)  \
     arm_builtin_decls[C (U)]	\
-      = add_builtin_function (N (L), FT2 (R, A1, A2), \
-		  C (U), BUILT_IN_MD, NULL, NULL_TREE);
+      = arm_general_add_builtin_function (N (L), FT2 (R, A1, A2), C (U));
 
   #define CRYPTO3(L, U, R, A1, A2, A3) \
     arm_builtin_decls[C (U)]	   \
-      = add_builtin_function (N (L), FT3 (R, A1, A2, A3), \
-				  C (U), BUILT_IN_MD, NULL, NULL_TREE);
+      = arm_general_add_builtin_function (N (L), FT3 (R, A1, A2, A3), C (U));
   #include "crypto.def"
 
   #undef CRYPTO1
@@ -2016,8 +1619,8 @@ arm_init_crypto_builtins (void)
 	  || bitmap_bit_p (arm_active_target.isa, FLAG))		\
 	{								\
 	  tree bdecl;							\
-	  bdecl = add_builtin_function ((NAME), (TYPE), (CODE),		\
-					BUILT_IN_MD, NULL, NULL_TREE);	\
+	  bdecl  = arm_general_add_builtin_function ((NAME), (TYPE),    \
+						     (CODE));		\
 	  arm_builtin_decls[CODE] = bdecl;				\
 	}								\
     }									\
@@ -2035,115 +1638,6 @@ struct builtin_description
 
 static const struct builtin_description bdesc_2arg[] =
 {
-#define IWMMXT_BUILTIN(code, string, builtin) \
-  { isa_bit_iwmmxt, CODE_FOR_##code, \
-    "__builtin_arm_" string,			     \
-    ARM_BUILTIN_##builtin, UNKNOWN, 0 },
-
-#define IWMMXT2_BUILTIN(code, string, builtin) \
-  { isa_bit_iwmmxt2, CODE_FOR_##code, \
-    "__builtin_arm_" string,			      \
-    ARM_BUILTIN_##builtin, UNKNOWN, 0 },
-
-  IWMMXT_BUILTIN (addv8qi3, "waddb", WADDB)
-  IWMMXT_BUILTIN (addv4hi3, "waddh", WADDH)
-  IWMMXT_BUILTIN (addv2si3, "waddw", WADDW)
-  IWMMXT_BUILTIN (subv8qi3, "wsubb", WSUBB)
-  IWMMXT_BUILTIN (subv4hi3, "wsubh", WSUBH)
-  IWMMXT_BUILTIN (subv2si3, "wsubw", WSUBW)
-  IWMMXT_BUILTIN (ssaddv8qi3, "waddbss", WADDSSB)
-  IWMMXT_BUILTIN (ssaddv4hi3, "waddhss", WADDSSH)
-  IWMMXT_BUILTIN (ssaddv2si3, "waddwss", WADDSSW)
-  IWMMXT_BUILTIN (sssubv8qi3, "wsubbss", WSUBSSB)
-  IWMMXT_BUILTIN (sssubv4hi3, "wsubhss", WSUBSSH)
-  IWMMXT_BUILTIN (sssubv2si3, "wsubwss", WSUBSSW)
-  IWMMXT_BUILTIN (usaddv8qi3, "waddbus", WADDUSB)
-  IWMMXT_BUILTIN (usaddv4hi3, "waddhus", WADDUSH)
-  IWMMXT_BUILTIN (usaddv2si3, "waddwus", WADDUSW)
-  IWMMXT_BUILTIN (ussubv8qi3, "wsubbus", WSUBUSB)
-  IWMMXT_BUILTIN (ussubv4hi3, "wsubhus", WSUBUSH)
-  IWMMXT_BUILTIN (ussubv2si3, "wsubwus", WSUBUSW)
-  IWMMXT_BUILTIN (mulv4hi3, "wmulul", WMULUL)
-  IWMMXT_BUILTIN (smulv4hi3_highpart, "wmulsm", WMULSM)
-  IWMMXT_BUILTIN (umulv4hi3_highpart, "wmulum", WMULUM)
-  IWMMXT_BUILTIN (eqv8qi3, "wcmpeqb", WCMPEQB)
-  IWMMXT_BUILTIN (eqv4hi3, "wcmpeqh", WCMPEQH)
-  IWMMXT_BUILTIN (eqv2si3, "wcmpeqw", WCMPEQW)
-  IWMMXT_BUILTIN (gtuv8qi3, "wcmpgtub", WCMPGTUB)
-  IWMMXT_BUILTIN (gtuv4hi3, "wcmpgtuh", WCMPGTUH)
-  IWMMXT_BUILTIN (gtuv2si3, "wcmpgtuw", WCMPGTUW)
-  IWMMXT_BUILTIN (gtv8qi3, "wcmpgtsb", WCMPGTSB)
-  IWMMXT_BUILTIN (gtv4hi3, "wcmpgtsh", WCMPGTSH)
-  IWMMXT_BUILTIN (gtv2si3, "wcmpgtsw", WCMPGTSW)
-  IWMMXT_BUILTIN (umaxv8qi3, "wmaxub", WMAXUB)
-  IWMMXT_BUILTIN (smaxv8qi3, "wmaxsb", WMAXSB)
-  IWMMXT_BUILTIN (umaxv4hi3, "wmaxuh", WMAXUH)
-  IWMMXT_BUILTIN (smaxv4hi3, "wmaxsh", WMAXSH)
-  IWMMXT_BUILTIN (umaxv2si3, "wmaxuw", WMAXUW)
-  IWMMXT_BUILTIN (smaxv2si3, "wmaxsw", WMAXSW)
-  IWMMXT_BUILTIN (uminv8qi3, "wminub", WMINUB)
-  IWMMXT_BUILTIN (sminv8qi3, "wminsb", WMINSB)
-  IWMMXT_BUILTIN (uminv4hi3, "wminuh", WMINUH)
-  IWMMXT_BUILTIN (sminv4hi3, "wminsh", WMINSH)
-  IWMMXT_BUILTIN (uminv2si3, "wminuw", WMINUW)
-  IWMMXT_BUILTIN (sminv2si3, "wminsw", WMINSW)
-  IWMMXT_BUILTIN (iwmmxt_anddi3, "wand", WAND)
-  IWMMXT_BUILTIN (iwmmxt_nanddi3, "wandn", WANDN)
-  IWMMXT_BUILTIN (iwmmxt_iordi3, "wor", WOR)
-  IWMMXT_BUILTIN (iwmmxt_xordi3, "wxor", WXOR)
-  IWMMXT_BUILTIN (iwmmxt_uavgv8qi3, "wavg2b", WAVG2B)
-  IWMMXT_BUILTIN (iwmmxt_uavgv4hi3, "wavg2h", WAVG2H)
-  IWMMXT_BUILTIN (iwmmxt_uavgrndv8qi3, "wavg2br", WAVG2BR)
-  IWMMXT_BUILTIN (iwmmxt_uavgrndv4hi3, "wavg2hr", WAVG2HR)
-  IWMMXT_BUILTIN (iwmmxt_wunpckilb, "wunpckilb", WUNPCKILB)
-  IWMMXT_BUILTIN (iwmmxt_wunpckilh, "wunpckilh", WUNPCKILH)
-  IWMMXT_BUILTIN (iwmmxt_wunpckilw, "wunpckilw", WUNPCKILW)
-  IWMMXT_BUILTIN (iwmmxt_wunpckihb, "wunpckihb", WUNPCKIHB)
-  IWMMXT_BUILTIN (iwmmxt_wunpckihh, "wunpckihh", WUNPCKIHH)
-  IWMMXT_BUILTIN (iwmmxt_wunpckihw, "wunpckihw", WUNPCKIHW)
-  IWMMXT2_BUILTIN (iwmmxt_waddsubhx, "waddsubhx", WADDSUBHX)
-  IWMMXT2_BUILTIN (iwmmxt_wsubaddhx, "wsubaddhx", WSUBADDHX)
-  IWMMXT2_BUILTIN (iwmmxt_wabsdiffb, "wabsdiffb", WABSDIFFB)
-  IWMMXT2_BUILTIN (iwmmxt_wabsdiffh, "wabsdiffh", WABSDIFFH)
-  IWMMXT2_BUILTIN (iwmmxt_wabsdiffw, "wabsdiffw", WABSDIFFW)
-  IWMMXT2_BUILTIN (iwmmxt_avg4, "wavg4", WAVG4)
-  IWMMXT2_BUILTIN (iwmmxt_avg4r, "wavg4r", WAVG4R)
-  IWMMXT2_BUILTIN (iwmmxt_wmulwsm, "wmulwsm", WMULWSM)
-  IWMMXT2_BUILTIN (iwmmxt_wmulwum, "wmulwum", WMULWUM)
-  IWMMXT2_BUILTIN (iwmmxt_wmulwsmr, "wmulwsmr", WMULWSMR)
-  IWMMXT2_BUILTIN (iwmmxt_wmulwumr, "wmulwumr", WMULWUMR)
-  IWMMXT2_BUILTIN (iwmmxt_wmulwl, "wmulwl", WMULWL)
-  IWMMXT2_BUILTIN (iwmmxt_wmulsmr, "wmulsmr", WMULSMR)
-  IWMMXT2_BUILTIN (iwmmxt_wmulumr, "wmulumr", WMULUMR)
-  IWMMXT2_BUILTIN (iwmmxt_wqmulm, "wqmulm", WQMULM)
-  IWMMXT2_BUILTIN (iwmmxt_wqmulmr, "wqmulmr", WQMULMR)
-  IWMMXT2_BUILTIN (iwmmxt_wqmulwm, "wqmulwm", WQMULWM)
-  IWMMXT2_BUILTIN (iwmmxt_wqmulwmr, "wqmulwmr", WQMULWMR)
-  IWMMXT_BUILTIN (iwmmxt_walignr0, "walignr0", WALIGNR0)
-  IWMMXT_BUILTIN (iwmmxt_walignr1, "walignr1", WALIGNR1)
-  IWMMXT_BUILTIN (iwmmxt_walignr2, "walignr2", WALIGNR2)
-  IWMMXT_BUILTIN (iwmmxt_walignr3, "walignr3", WALIGNR3)
-
-#define IWMMXT_BUILTIN2(code, builtin) \
-  { isa_bit_iwmmxt, CODE_FOR_##code, NULL, \
-    ARM_BUILTIN_##builtin, UNKNOWN, 0 },
-
-#define IWMMXT2_BUILTIN2(code, builtin) \
-  { isa_bit_iwmmxt2, CODE_FOR_##code, NULL, \
-    ARM_BUILTIN_##builtin, UNKNOWN, 0 },
-
-  IWMMXT2_BUILTIN2 (iwmmxt_waddbhusm, WADDBHUSM)
-  IWMMXT2_BUILTIN2 (iwmmxt_waddbhusl, WADDBHUSL)
-  IWMMXT_BUILTIN2 (iwmmxt_wpackhss, WPACKHSS)
-  IWMMXT_BUILTIN2 (iwmmxt_wpackwss, WPACKWSS)
-  IWMMXT_BUILTIN2 (iwmmxt_wpackdss, WPACKDSS)
-  IWMMXT_BUILTIN2 (iwmmxt_wpackhus, WPACKHUS)
-  IWMMXT_BUILTIN2 (iwmmxt_wpackwus, WPACKWUS)
-  IWMMXT_BUILTIN2 (iwmmxt_wpackdus, WPACKDUS)
-  IWMMXT_BUILTIN2 (iwmmxt_wmacuz, WMACUZ)
-  IWMMXT_BUILTIN2 (iwmmxt_wmacsz, WMACSZ)
-
-
 #define FP_BUILTIN(L, U) \
   {isa_nobit, CODE_FOR_##L, "__builtin_arm_"#L, ARM_BUILTIN_##U, \
    UNKNOWN, 0},
@@ -2170,31 +1664,6 @@ static const struct builtin_description bdesc_2arg[] =
 
 static const struct builtin_description bdesc_1arg[] =
 {
-  IWMMXT_BUILTIN (iwmmxt_tmovmskb, "tmovmskb", TMOVMSKB)
-  IWMMXT_BUILTIN (iwmmxt_tmovmskh, "tmovmskh", TMOVMSKH)
-  IWMMXT_BUILTIN (iwmmxt_tmovmskw, "tmovmskw", TMOVMSKW)
-  IWMMXT_BUILTIN (iwmmxt_waccb, "waccb", WACCB)
-  IWMMXT_BUILTIN (iwmmxt_wacch, "wacch", WACCH)
-  IWMMXT_BUILTIN (iwmmxt_waccw, "waccw", WACCW)
-  IWMMXT_BUILTIN (iwmmxt_wunpckehub, "wunpckehub", WUNPCKEHUB)
-  IWMMXT_BUILTIN (iwmmxt_wunpckehuh, "wunpckehuh", WUNPCKEHUH)
-  IWMMXT_BUILTIN (iwmmxt_wunpckehuw, "wunpckehuw", WUNPCKEHUW)
-  IWMMXT_BUILTIN (iwmmxt_wunpckehsb, "wunpckehsb", WUNPCKEHSB)
-  IWMMXT_BUILTIN (iwmmxt_wunpckehsh, "wunpckehsh", WUNPCKEHSH)
-  IWMMXT_BUILTIN (iwmmxt_wunpckehsw, "wunpckehsw", WUNPCKEHSW)
-  IWMMXT_BUILTIN (iwmmxt_wunpckelub, "wunpckelub", WUNPCKELUB)
-  IWMMXT_BUILTIN (iwmmxt_wunpckeluh, "wunpckeluh", WUNPCKELUH)
-  IWMMXT_BUILTIN (iwmmxt_wunpckeluw, "wunpckeluw", WUNPCKELUW)
-  IWMMXT_BUILTIN (iwmmxt_wunpckelsb, "wunpckelsb", WUNPCKELSB)
-  IWMMXT_BUILTIN (iwmmxt_wunpckelsh, "wunpckelsh", WUNPCKELSH)
-  IWMMXT_BUILTIN (iwmmxt_wunpckelsw, "wunpckelsw", WUNPCKELSW)
-  IWMMXT2_BUILTIN (iwmmxt_wabsv8qi3, "wabsb", WABSB)
-  IWMMXT2_BUILTIN (iwmmxt_wabsv4hi3, "wabsh", WABSH)
-  IWMMXT2_BUILTIN (iwmmxt_wabsv2si3, "wabsw", WABSW)
-  IWMMXT_BUILTIN (tbcstv8qi, "tbcstb", TBCSTB)
-  IWMMXT_BUILTIN (tbcstv4hi, "tbcsth", TBCSTH)
-  IWMMXT_BUILTIN (tbcstv2si, "tbcstw", TBCSTW)
-
 #define CRYPTO1(L, U, R, A) CRYPTO_BUILTIN (L, U)
 #define CRYPTO2(L, U, R, A1, A2)
 #define CRYPTO3(L, U, R, A1, A2, A3)
@@ -2216,404 +1685,77 @@ static const struct builtin_description bdesc_3arg[] =
  };
 #undef CRYPTO_BUILTIN
 
-/* Set up all the iWMMXt builtins.  This is not called if
-   TARGET_IWMMXT is zero.  */
-
-static void
-arm_init_iwmmxt_builtins (void)
-{
-  const struct builtin_description * d;
-  size_t i;
-
-  tree V2SI_type_node = build_vector_type_for_mode (intSI_type_node, V2SImode);
-  tree V4HI_type_node = build_vector_type_for_mode (intHI_type_node, V4HImode);
-  tree V8QI_type_node = build_vector_type_for_mode (intQI_type_node, V8QImode);
-
-  tree v8qi_ftype_v8qi_v8qi_int
-    = build_function_type_list (V8QI_type_node,
-				V8QI_type_node, V8QI_type_node,
-				integer_type_node, NULL_TREE);
-  tree v4hi_ftype_v4hi_int
-    = build_function_type_list (V4HI_type_node,
-				V4HI_type_node, integer_type_node, NULL_TREE);
-  tree v2si_ftype_v2si_int
-    = build_function_type_list (V2SI_type_node,
-				V2SI_type_node, integer_type_node, NULL_TREE);
-  tree v2si_ftype_di_di
-    = build_function_type_list (V2SI_type_node,
-				long_long_integer_type_node,
-				long_long_integer_type_node,
-				NULL_TREE);
-  tree di_ftype_di_int
-    = build_function_type_list (long_long_integer_type_node,
-				long_long_integer_type_node,
-				integer_type_node, NULL_TREE);
-  tree di_ftype_di_int_int
-    = build_function_type_list (long_long_integer_type_node,
-				long_long_integer_type_node,
-				integer_type_node,
-				integer_type_node, NULL_TREE);
-  tree int_ftype_v8qi
-    = build_function_type_list (integer_type_node,
-				V8QI_type_node, NULL_TREE);
-  tree int_ftype_v4hi
-    = build_function_type_list (integer_type_node,
-				V4HI_type_node, NULL_TREE);
-  tree int_ftype_v2si
-    = build_function_type_list (integer_type_node,
-				V2SI_type_node, NULL_TREE);
-  tree int_ftype_v8qi_int
-    = build_function_type_list (integer_type_node,
-				V8QI_type_node, integer_type_node, NULL_TREE);
-  tree int_ftype_v4hi_int
-    = build_function_type_list (integer_type_node,
-				V4HI_type_node, integer_type_node, NULL_TREE);
-  tree int_ftype_v2si_int
-    = build_function_type_list (integer_type_node,
-				V2SI_type_node, integer_type_node, NULL_TREE);
-  tree v8qi_ftype_v8qi_int_int
-    = build_function_type_list (V8QI_type_node,
-				V8QI_type_node, integer_type_node,
-				integer_type_node, NULL_TREE);
-  tree v4hi_ftype_v4hi_int_int
-    = build_function_type_list (V4HI_type_node,
-				V4HI_type_node, integer_type_node,
-				integer_type_node, NULL_TREE);
-  tree v2si_ftype_v2si_int_int
-    = build_function_type_list (V2SI_type_node,
-				V2SI_type_node, integer_type_node,
-				integer_type_node, NULL_TREE);
-  /* Miscellaneous.  */
-  tree v8qi_ftype_v4hi_v4hi
-    = build_function_type_list (V8QI_type_node,
-				V4HI_type_node, V4HI_type_node, NULL_TREE);
-  tree v4hi_ftype_v2si_v2si
-    = build_function_type_list (V4HI_type_node,
-				V2SI_type_node, V2SI_type_node, NULL_TREE);
-  tree v8qi_ftype_v4hi_v8qi
-    = build_function_type_list (V8QI_type_node,
-	                        V4HI_type_node, V8QI_type_node, NULL_TREE);
-  tree v2si_ftype_v4hi_v4hi
-    = build_function_type_list (V2SI_type_node,
-				V4HI_type_node, V4HI_type_node, NULL_TREE);
-  tree v2si_ftype_v8qi_v8qi
-    = build_function_type_list (V2SI_type_node,
-				V8QI_type_node, V8QI_type_node, NULL_TREE);
-  tree v4hi_ftype_v4hi_di
-    = build_function_type_list (V4HI_type_node,
-				V4HI_type_node, long_long_integer_type_node,
-				NULL_TREE);
-  tree v2si_ftype_v2si_di
-    = build_function_type_list (V2SI_type_node,
-				V2SI_type_node, long_long_integer_type_node,
-				NULL_TREE);
-  tree di_ftype_void
-    = build_function_type_list (long_long_unsigned_type_node, NULL_TREE);
-  tree int_ftype_void
-    = build_function_type_list (integer_type_node, NULL_TREE);
-  tree di_ftype_v8qi
-    = build_function_type_list (long_long_integer_type_node,
-				V8QI_type_node, NULL_TREE);
-  tree di_ftype_v4hi
-    = build_function_type_list (long_long_integer_type_node,
-				V4HI_type_node, NULL_TREE);
-  tree di_ftype_v2si
-    = build_function_type_list (long_long_integer_type_node,
-				V2SI_type_node, NULL_TREE);
-  tree v2si_ftype_v4hi
-    = build_function_type_list (V2SI_type_node,
-				V4HI_type_node, NULL_TREE);
-  tree v4hi_ftype_v8qi
-    = build_function_type_list (V4HI_type_node,
-				V8QI_type_node, NULL_TREE);
-  tree v8qi_ftype_v8qi
-    = build_function_type_list (V8QI_type_node,
-	                        V8QI_type_node, NULL_TREE);
-  tree v4hi_ftype_v4hi
-    = build_function_type_list (V4HI_type_node,
-	                        V4HI_type_node, NULL_TREE);
-  tree v2si_ftype_v2si
-    = build_function_type_list (V2SI_type_node,
-	                        V2SI_type_node, NULL_TREE);
-
-  tree di_ftype_di_v4hi_v4hi
-    = build_function_type_list (long_long_unsigned_type_node,
-				long_long_unsigned_type_node,
-				V4HI_type_node, V4HI_type_node,
-				NULL_TREE);
-
-  tree di_ftype_v4hi_v4hi
-    = build_function_type_list (long_long_unsigned_type_node,
-				V4HI_type_node,V4HI_type_node,
-				NULL_TREE);
-
-  tree v2si_ftype_v2si_v4hi_v4hi
-    = build_function_type_list (V2SI_type_node,
-                                V2SI_type_node, V4HI_type_node,
-                                V4HI_type_node, NULL_TREE);
-
-  tree v2si_ftype_v2si_v8qi_v8qi
-    = build_function_type_list (V2SI_type_node,
-                                V2SI_type_node, V8QI_type_node,
-                                V8QI_type_node, NULL_TREE);
-
-  tree di_ftype_di_v2si_v2si
-     = build_function_type_list (long_long_unsigned_type_node,
-                                 long_long_unsigned_type_node,
-                                 V2SI_type_node, V2SI_type_node,
-                                 NULL_TREE);
-
-   tree di_ftype_di_di_int
-     = build_function_type_list (long_long_unsigned_type_node,
-                                 long_long_unsigned_type_node,
-                                 long_long_unsigned_type_node,
-                                 integer_type_node, NULL_TREE);
-
-   tree void_ftype_int
-     = build_function_type_list (void_type_node,
-                                 integer_type_node, NULL_TREE);
-
-   tree v8qi_ftype_char
-     = build_function_type_list (V8QI_type_node,
-                                 signed_char_type_node, NULL_TREE);
-
-   tree v4hi_ftype_short
-     = build_function_type_list (V4HI_type_node,
-                                 short_integer_type_node, NULL_TREE);
-
-   tree v2si_ftype_int
-     = build_function_type_list (V2SI_type_node,
-                                 integer_type_node, NULL_TREE);
-
-  /* Normal vector binops.  */
-  tree v8qi_ftype_v8qi_v8qi
-    = build_function_type_list (V8QI_type_node,
-				V8QI_type_node, V8QI_type_node, NULL_TREE);
-  tree v4hi_ftype_v4hi_v4hi
-    = build_function_type_list (V4HI_type_node,
-				V4HI_type_node,V4HI_type_node, NULL_TREE);
-  tree v2si_ftype_v2si_v2si
-    = build_function_type_list (V2SI_type_node,
-				V2SI_type_node, V2SI_type_node, NULL_TREE);
-  tree di_ftype_di_di
-    = build_function_type_list (long_long_unsigned_type_node,
-				long_long_unsigned_type_node,
-				long_long_unsigned_type_node,
-				NULL_TREE);
-
-  /* Add all builtins that are more or less simple operations on two
-     operands.  */
-  for (i = 0, d = bdesc_2arg; i < ARRAY_SIZE (bdesc_2arg); i++, d++)
-    {
-      /* Use one of the operands; the target can have a different mode for
-	 mask-generating compares.  */
-      machine_mode mode;
-      tree type;
-
-      if (d->name == 0
-	  || !(d->feature == isa_bit_iwmmxt
-	       || d->feature == isa_bit_iwmmxt2))
-	continue;
-
-      mode = insn_data[d->icode].operand[1].mode;
-
-      switch (mode)
-	{
-	case E_V8QImode:
-	  type = v8qi_ftype_v8qi_v8qi;
-	  break;
-	case E_V4HImode:
-	  type = v4hi_ftype_v4hi_v4hi;
-	  break;
-	case E_V2SImode:
-	  type = v2si_ftype_v2si_v2si;
-	  break;
-	case E_DImode:
-	  type = di_ftype_di_di;
-	  break;
-
-	default:
-	  gcc_unreachable ();
-	}
-
-      def_mbuiltin (d->feature, d->name, type, d->code);
-    }
-
-  /* Add the remaining MMX insns with somewhat more complicated types.  */
-#define iwmmx_mbuiltin(NAME, TYPE, CODE)			\
-  def_mbuiltin (isa_bit_iwmmxt, "__builtin_arm_" NAME, \
-		(TYPE), ARM_BUILTIN_ ## CODE)
-
-#define iwmmx2_mbuiltin(NAME, TYPE, CODE)                      \
-  def_mbuiltin (isa_bit_iwmmxt2, "__builtin_arm_" NAME, \
-		(TYPE),	ARM_BUILTIN_ ## CODE)
-
-  iwmmx_mbuiltin ("wzero", di_ftype_void, WZERO);
-  iwmmx_mbuiltin ("setwcgr0", void_ftype_int, SETWCGR0);
-  iwmmx_mbuiltin ("setwcgr1", void_ftype_int, SETWCGR1);
-  iwmmx_mbuiltin ("setwcgr2", void_ftype_int, SETWCGR2);
-  iwmmx_mbuiltin ("setwcgr3", void_ftype_int, SETWCGR3);
-  iwmmx_mbuiltin ("getwcgr0", int_ftype_void, GETWCGR0);
-  iwmmx_mbuiltin ("getwcgr1", int_ftype_void, GETWCGR1);
-  iwmmx_mbuiltin ("getwcgr2", int_ftype_void, GETWCGR2);
-  iwmmx_mbuiltin ("getwcgr3", int_ftype_void, GETWCGR3);
-
-  iwmmx_mbuiltin ("wsllh", v4hi_ftype_v4hi_di, WSLLH);
-  iwmmx_mbuiltin ("wsllw", v2si_ftype_v2si_di, WSLLW);
-  iwmmx_mbuiltin ("wslld", di_ftype_di_di, WSLLD);
-  iwmmx_mbuiltin ("wsllhi", v4hi_ftype_v4hi_int, WSLLHI);
-  iwmmx_mbuiltin ("wsllwi", v2si_ftype_v2si_int, WSLLWI);
-  iwmmx_mbuiltin ("wslldi", di_ftype_di_int, WSLLDI);
-
-  iwmmx_mbuiltin ("wsrlh", v4hi_ftype_v4hi_di, WSRLH);
-  iwmmx_mbuiltin ("wsrlw", v2si_ftype_v2si_di, WSRLW);
-  iwmmx_mbuiltin ("wsrld", di_ftype_di_di, WSRLD);
-  iwmmx_mbuiltin ("wsrlhi", v4hi_ftype_v4hi_int, WSRLHI);
-  iwmmx_mbuiltin ("wsrlwi", v2si_ftype_v2si_int, WSRLWI);
-  iwmmx_mbuiltin ("wsrldi", di_ftype_di_int, WSRLDI);
-
-  iwmmx_mbuiltin ("wsrah", v4hi_ftype_v4hi_di, WSRAH);
-  iwmmx_mbuiltin ("wsraw", v2si_ftype_v2si_di, WSRAW);
-  iwmmx_mbuiltin ("wsrad", di_ftype_di_di, WSRAD);
-  iwmmx_mbuiltin ("wsrahi", v4hi_ftype_v4hi_int, WSRAHI);
-  iwmmx_mbuiltin ("wsrawi", v2si_ftype_v2si_int, WSRAWI);
-  iwmmx_mbuiltin ("wsradi", di_ftype_di_int, WSRADI);
-
-  iwmmx_mbuiltin ("wrorh", v4hi_ftype_v4hi_di, WRORH);
-  iwmmx_mbuiltin ("wrorw", v2si_ftype_v2si_di, WRORW);
-  iwmmx_mbuiltin ("wrord", di_ftype_di_di, WRORD);
-  iwmmx_mbuiltin ("wrorhi", v4hi_ftype_v4hi_int, WRORHI);
-  iwmmx_mbuiltin ("wrorwi", v2si_ftype_v2si_int, WRORWI);
-  iwmmx_mbuiltin ("wrordi", di_ftype_di_int, WRORDI);
-
-  iwmmx_mbuiltin ("wshufh", v4hi_ftype_v4hi_int, WSHUFH);
-
-  iwmmx_mbuiltin ("wsadb", v2si_ftype_v2si_v8qi_v8qi, WSADB);
-  iwmmx_mbuiltin ("wsadh", v2si_ftype_v2si_v4hi_v4hi, WSADH);
-  iwmmx_mbuiltin ("wmadds", v2si_ftype_v4hi_v4hi, WMADDS);
-  iwmmx2_mbuiltin ("wmaddsx", v2si_ftype_v4hi_v4hi, WMADDSX);
-  iwmmx2_mbuiltin ("wmaddsn", v2si_ftype_v4hi_v4hi, WMADDSN);
-  iwmmx_mbuiltin ("wmaddu", v2si_ftype_v4hi_v4hi, WMADDU);
-  iwmmx2_mbuiltin ("wmaddux", v2si_ftype_v4hi_v4hi, WMADDUX);
-  iwmmx2_mbuiltin ("wmaddun", v2si_ftype_v4hi_v4hi, WMADDUN);
-  iwmmx_mbuiltin ("wsadbz", v2si_ftype_v8qi_v8qi, WSADBZ);
-  iwmmx_mbuiltin ("wsadhz", v2si_ftype_v4hi_v4hi, WSADHZ);
-
-  iwmmx_mbuiltin ("textrmsb", int_ftype_v8qi_int, TEXTRMSB);
-  iwmmx_mbuiltin ("textrmsh", int_ftype_v4hi_int, TEXTRMSH);
-  iwmmx_mbuiltin ("textrmsw", int_ftype_v2si_int, TEXTRMSW);
-  iwmmx_mbuiltin ("textrmub", int_ftype_v8qi_int, TEXTRMUB);
-  iwmmx_mbuiltin ("textrmuh", int_ftype_v4hi_int, TEXTRMUH);
-  iwmmx_mbuiltin ("textrmuw", int_ftype_v2si_int, TEXTRMUW);
-  iwmmx_mbuiltin ("tinsrb", v8qi_ftype_v8qi_int_int, TINSRB);
-  iwmmx_mbuiltin ("tinsrh", v4hi_ftype_v4hi_int_int, TINSRH);
-  iwmmx_mbuiltin ("tinsrw", v2si_ftype_v2si_int_int, TINSRW);
-
-  iwmmx_mbuiltin ("waccb", di_ftype_v8qi, WACCB);
-  iwmmx_mbuiltin ("wacch", di_ftype_v4hi, WACCH);
-  iwmmx_mbuiltin ("waccw", di_ftype_v2si, WACCW);
-
-  iwmmx_mbuiltin ("tmovmskb", int_ftype_v8qi, TMOVMSKB);
-  iwmmx_mbuiltin ("tmovmskh", int_ftype_v4hi, TMOVMSKH);
-  iwmmx_mbuiltin ("tmovmskw", int_ftype_v2si, TMOVMSKW);
-
-  iwmmx2_mbuiltin ("waddbhusm", v8qi_ftype_v4hi_v8qi, WADDBHUSM);
-  iwmmx2_mbuiltin ("waddbhusl", v8qi_ftype_v4hi_v8qi, WADDBHUSL);
-
-  iwmmx_mbuiltin ("wpackhss", v8qi_ftype_v4hi_v4hi, WPACKHSS);
-  iwmmx_mbuiltin ("wpackhus", v8qi_ftype_v4hi_v4hi, WPACKHUS);
-  iwmmx_mbuiltin ("wpackwus", v4hi_ftype_v2si_v2si, WPACKWUS);
-  iwmmx_mbuiltin ("wpackwss", v4hi_ftype_v2si_v2si, WPACKWSS);
-  iwmmx_mbuiltin ("wpackdus", v2si_ftype_di_di, WPACKDUS);
-  iwmmx_mbuiltin ("wpackdss", v2si_ftype_di_di, WPACKDSS);
-
-  iwmmx_mbuiltin ("wunpckehub", v4hi_ftype_v8qi, WUNPCKEHUB);
-  iwmmx_mbuiltin ("wunpckehuh", v2si_ftype_v4hi, WUNPCKEHUH);
-  iwmmx_mbuiltin ("wunpckehuw", di_ftype_v2si, WUNPCKEHUW);
-  iwmmx_mbuiltin ("wunpckehsb", v4hi_ftype_v8qi, WUNPCKEHSB);
-  iwmmx_mbuiltin ("wunpckehsh", v2si_ftype_v4hi, WUNPCKEHSH);
-  iwmmx_mbuiltin ("wunpckehsw", di_ftype_v2si, WUNPCKEHSW);
-  iwmmx_mbuiltin ("wunpckelub", v4hi_ftype_v8qi, WUNPCKELUB);
-  iwmmx_mbuiltin ("wunpckeluh", v2si_ftype_v4hi, WUNPCKELUH);
-  iwmmx_mbuiltin ("wunpckeluw", di_ftype_v2si, WUNPCKELUW);
-  iwmmx_mbuiltin ("wunpckelsb", v4hi_ftype_v8qi, WUNPCKELSB);
-  iwmmx_mbuiltin ("wunpckelsh", v2si_ftype_v4hi, WUNPCKELSH);
-  iwmmx_mbuiltin ("wunpckelsw", di_ftype_v2si, WUNPCKELSW);
-
-  iwmmx_mbuiltin ("wmacs", di_ftype_di_v4hi_v4hi, WMACS);
-  iwmmx_mbuiltin ("wmacsz", di_ftype_v4hi_v4hi, WMACSZ);
-  iwmmx_mbuiltin ("wmacu", di_ftype_di_v4hi_v4hi, WMACU);
-  iwmmx_mbuiltin ("wmacuz", di_ftype_v4hi_v4hi, WMACUZ);
-
-  iwmmx_mbuiltin ("walign", v8qi_ftype_v8qi_v8qi_int, WALIGNI);
-  iwmmx_mbuiltin ("tmia", di_ftype_di_int_int, TMIA);
-  iwmmx_mbuiltin ("tmiaph", di_ftype_di_int_int, TMIAPH);
-  iwmmx_mbuiltin ("tmiabb", di_ftype_di_int_int, TMIABB);
-  iwmmx_mbuiltin ("tmiabt", di_ftype_di_int_int, TMIABT);
-  iwmmx_mbuiltin ("tmiatb", di_ftype_di_int_int, TMIATB);
-  iwmmx_mbuiltin ("tmiatt", di_ftype_di_int_int, TMIATT);
-
-  iwmmx2_mbuiltin ("wabsb", v8qi_ftype_v8qi, WABSB);
-  iwmmx2_mbuiltin ("wabsh", v4hi_ftype_v4hi, WABSH);
-  iwmmx2_mbuiltin ("wabsw", v2si_ftype_v2si, WABSW);
-
-  iwmmx2_mbuiltin ("wqmiabb", v2si_ftype_v2si_v4hi_v4hi, WQMIABB);
-  iwmmx2_mbuiltin ("wqmiabt", v2si_ftype_v2si_v4hi_v4hi, WQMIABT);
-  iwmmx2_mbuiltin ("wqmiatb", v2si_ftype_v2si_v4hi_v4hi, WQMIATB);
-  iwmmx2_mbuiltin ("wqmiatt", v2si_ftype_v2si_v4hi_v4hi, WQMIATT);
-
-  iwmmx2_mbuiltin ("wqmiabbn", v2si_ftype_v2si_v4hi_v4hi, WQMIABBN);
-  iwmmx2_mbuiltin ("wqmiabtn", v2si_ftype_v2si_v4hi_v4hi, WQMIABTN);
-  iwmmx2_mbuiltin ("wqmiatbn", v2si_ftype_v2si_v4hi_v4hi, WQMIATBN);
-  iwmmx2_mbuiltin ("wqmiattn", v2si_ftype_v2si_v4hi_v4hi, WQMIATTN);
-
-  iwmmx2_mbuiltin ("wmiabb", di_ftype_di_v4hi_v4hi, WMIABB);
-  iwmmx2_mbuiltin ("wmiabt", di_ftype_di_v4hi_v4hi, WMIABT);
-  iwmmx2_mbuiltin ("wmiatb", di_ftype_di_v4hi_v4hi, WMIATB);
-  iwmmx2_mbuiltin ("wmiatt", di_ftype_di_v4hi_v4hi, WMIATT);
-
-  iwmmx2_mbuiltin ("wmiabbn", di_ftype_di_v4hi_v4hi, WMIABBN);
-  iwmmx2_mbuiltin ("wmiabtn", di_ftype_di_v4hi_v4hi, WMIABTN);
-  iwmmx2_mbuiltin ("wmiatbn", di_ftype_di_v4hi_v4hi, WMIATBN);
-  iwmmx2_mbuiltin ("wmiattn", di_ftype_di_v4hi_v4hi, WMIATTN);
-
-  iwmmx2_mbuiltin ("wmiawbb", di_ftype_di_v2si_v2si, WMIAWBB);
-  iwmmx2_mbuiltin ("wmiawbt", di_ftype_di_v2si_v2si, WMIAWBT);
-  iwmmx2_mbuiltin ("wmiawtb", di_ftype_di_v2si_v2si, WMIAWTB);
-  iwmmx2_mbuiltin ("wmiawtt", di_ftype_di_v2si_v2si, WMIAWTT);
-
-  iwmmx2_mbuiltin ("wmiawbbn", di_ftype_di_v2si_v2si, WMIAWBBN);
-  iwmmx2_mbuiltin ("wmiawbtn", di_ftype_di_v2si_v2si, WMIAWBTN);
-  iwmmx2_mbuiltin ("wmiawtbn", di_ftype_di_v2si_v2si, WMIAWTBN);
-  iwmmx2_mbuiltin ("wmiawttn", di_ftype_di_v2si_v2si, WMIAWTTN);
-
-  iwmmx2_mbuiltin ("wmerge", di_ftype_di_di_int, WMERGE);
-
-  iwmmx_mbuiltin ("tbcstb", v8qi_ftype_char, TBCSTB);
-  iwmmx_mbuiltin ("tbcsth", v4hi_ftype_short, TBCSTH);
-  iwmmx_mbuiltin ("tbcstw", v2si_ftype_int, TBCSTW);
-
-#undef iwmmx_mbuiltin
-#undef iwmmx2_mbuiltin
-}
-
 static void
 arm_init_fp16_builtins (void)
 {
   arm_fp16_type_node = make_node (REAL_TYPE);
   TYPE_PRECISION (arm_fp16_type_node) = GET_MODE_PRECISION (HFmode);
   layout_type (arm_fp16_type_node);
-  if (arm_fp16_format)
-    (*lang_hooks.types.register_builtin_type) (arm_fp16_type_node,
-					       "__fp16");
+  (*lang_hooks.types.register_builtin_type) (arm_fp16_type_node, "__fp16");
+}
+
+/* Return true if MMODE is an MVE mode.  */
+static bool
+arm_need_mve_mode_regs (int mmode)
+{
+  return (bitmap_bit_p (arm_active_target.isa, isa_bit_mve)
+	  && (VALID_MVE_MODE ((machine_mode) mmode)
+	      || VALID_MVE_STRUCT_MODE ((machine_mode) mmode)
+	      || VALID_MVE_PRED_MODE ((machine_mode) mmode)));
+}
+
+/* Return true if MMODE is a NEON mode.  */
+static bool
+arm_need_neon_mode_regs (int mmode)
+{
+  return (bitmap_bit_p (arm_active_target.isa, isa_bit_neon)
+	  && (VALID_NEON_QREG_MODE ((machine_mode) mmode)
+	      || VALID_NEON_DREG_MODE ((machine_mode) mmode)));
+}
+
+/* Temporarily set FLAGS as the enabled target features.  */
+arm_target_switcher::arm_target_switcher (const enum isa_feature *flags)
+  : m_old_general_regs_only (TARGET_GENERAL_REGS_ONLY),
+    m_old_target_pragma (current_target_pragma)
+{
+  m_old_arm_active_target_isa = sbitmap_alloc (isa_num_bits);
+  bitmap_copy (m_old_arm_active_target_isa, arm_active_target.isa);
+
+  /* Changing the ISA flags and have_regs_of_mode should be enough here.  We
+     shouldn't need to pay the compile-time cost of a full target switch.  */
+  if (! TARGET_SOFT_FLOAT)
+    global_options.x_target_flags &= ~MASK_GENERAL_REGS_ONLY;
+
+  arm_initialize_isa (arm_active_target.isa, flags);
+
+  /* Target pragmas are irrelevant when defining intrinsics artificially.  */
+  current_target_pragma = NULL_TREE;
+
+  /* Ensure SIMD / VFP regs are available if Neon or MVE is enabled.  */
+  memcpy (m_old_have_regs_of_mode, have_regs_of_mode, sizeof
+	  (have_regs_of_mode));
+
+  for (int i = 0; i < NUM_MACHINE_MODES; ++i)
+    if (arm_need_mve_mode_regs (i)
+	|| arm_need_neon_mode_regs (i))
+      have_regs_of_mode[i] = true;
+}
+
+arm_target_switcher::~arm_target_switcher ()
+{
+  if (m_old_general_regs_only)
+    global_options.x_target_flags |= MASK_GENERAL_REGS_ONLY;
+  bitmap_copy (arm_active_target.isa, m_old_arm_active_target_isa);
+  sbitmap_free (m_old_arm_active_target_isa);
+  current_target_pragma = m_old_target_pragma;
+
+  memcpy (have_regs_of_mode, m_old_have_regs_of_mode,
+	  sizeof (have_regs_of_mode));
 }
 
 void
 arm_init_builtins (void)
 {
-  if (TARGET_REALLY_IWMMXT)
-    arm_init_iwmmxt_builtins ();
-
   /* This creates the arm_simd_floatHF_type_node so must come before
      arm_init_neon_builtins which uses it.  */
   arm_init_fp16_builtins ();
@@ -2627,13 +1769,19 @@ arm_init_builtins (void)
 						      intSI_type_node,
 						      NULL);
       arm_builtin_decls[ARM_BUILTIN_SIMD_LANE_CHECK]
-      = add_builtin_function ("__builtin_arm_lane_check", lane_check_fpr,
-			      ARM_BUILTIN_SIMD_LANE_CHECK, BUILT_IN_MD,
-			      NULL, NULL_TREE);
-      if (TARGET_HAVE_MVE)
-	arm_init_mve_builtins ();
-      else
-	arm_init_neon_builtins ();
+      = arm_general_add_builtin_function ("__builtin_arm_lane_check",
+					  lane_check_fpr,
+					  ARM_BUILTIN_SIMD_LANE_CHECK);
+
+      /* Strong-typing hasn't been implemented for all AdvSIMD builtin
+	 intrinsics.  Therefore we need to preserve the old __builtin scalar
+	 types.  It can be removed once all the intrinsics become strongly
+	 typed using the qualifier system.  */
+      arm_init_simd_builtin_scalar_types ();
+      arm_init_simd_builtin_types ();
+      arm_init_neon_builtins ();
+      arm_init_mve_builtins ();
+
       arm_init_vfp_builtins ();
       arm_init_crypto_builtins ();
     }
@@ -2651,11 +1799,13 @@ arm_init_builtins (void)
 	= build_function_type_list (unsigned_type_node, NULL);
 
       arm_builtin_decls[ARM_BUILTIN_GET_FPSCR]
-	= add_builtin_function ("__builtin_arm_get_fpscr", ftype_get_fpscr,
-				ARM_BUILTIN_GET_FPSCR, BUILT_IN_MD, NULL, NULL_TREE);
+	= arm_general_add_builtin_function ("__builtin_arm_get_fpscr",
+					    ftype_get_fpscr,
+					    ARM_BUILTIN_GET_FPSCR);
       arm_builtin_decls[ARM_BUILTIN_SET_FPSCR]
-	= add_builtin_function ("__builtin_arm_set_fpscr", ftype_set_fpscr,
-				ARM_BUILTIN_SET_FPSCR, BUILT_IN_MD, NULL, NULL_TREE);
+	= arm_general_add_builtin_function ("__builtin_arm_set_fpscr",
+					    ftype_set_fpscr,
+					    ARM_BUILTIN_SET_FPSCR);
     }
 
   if (use_cmse)
@@ -2663,17 +1813,15 @@ arm_init_builtins (void)
       tree ftype_cmse_nonsecure_caller
 	= build_function_type_list (unsigned_type_node, NULL);
       arm_builtin_decls[ARM_BUILTIN_CMSE_NONSECURE_CALLER]
-	= add_builtin_function ("__builtin_arm_cmse_nonsecure_caller",
-				ftype_cmse_nonsecure_caller,
-				ARM_BUILTIN_CMSE_NONSECURE_CALLER, BUILT_IN_MD,
-				NULL, NULL_TREE);
+	= arm_general_add_builtin_function ("__builtin_arm_cmse_nonsecure_caller",
+					    ftype_cmse_nonsecure_caller,
+					    ARM_BUILTIN_CMSE_NONSECURE_CALLER);
     }
 }
 
-/* Return the ARM builtin for CODE.  */
-
+/* Implement TARGET_BUILTIN_DECL for general builtins.  */
 tree
-arm_builtin_decl (unsigned code, bool initialize_p ATTRIBUTE_UNUSED)
+arm_general_builtin_decl (unsigned code)
 {
   if (code >= ARM_BUILTIN_MAX)
     return error_mark_node;
@@ -2681,20 +1829,33 @@ arm_builtin_decl (unsigned code, bool initialize_p ATTRIBUTE_UNUSED)
   return arm_builtin_decls[code];
 }
 
+/* Implement TARGET_BUILTIN_DECL.  */
+/* Return the ARM builtin for CODE.  */
+tree
+arm_builtin_decl (unsigned code, bool initialize_p ATTRIBUTE_UNUSED)
+{
+  unsigned subcode = code >> ARM_BUILTIN_SHIFT;
+  switch (code & ARM_BUILTIN_CLASS)
+    {
+    case ARM_BUILTIN_GENERAL:
+      return arm_general_builtin_decl (subcode);
+    case ARM_BUILTIN_MVE:
+      return arm_mve::builtin_decl (subcode);
+    default:
+      gcc_unreachable ();
+    }
+}
+
 /* Errors in the source file can cause expand_expr to return const0_rtx
    where we expect a vector.  To avoid crashing, use one of the vector
    clear instructions.  */
 
 static rtx
-safe_vector_operand (rtx x, machine_mode mode)
+safe_vector_operand (rtx x, machine_mode mode ATTRIBUTE_UNUSED)
 {
   if (x != const0_rtx)
     return x;
-  x = gen_reg_rtx (mode);
-
-  emit_insn (gen_iwmmxt_clrdi (mode == DImode ? x
-			       : gen_rtx_SUBREG (DImode, x, 0)));
-  return x;
+  __builtin_unreachable ();
 }
 
 /* Function to expand ternary builtins.  */
@@ -2746,7 +1907,7 @@ arm_expand_ternop_builtin (enum insn_code icode,
   return target;
 }
 
-/* Subroutine of arm_expand_builtin to take care of binop insns.  */
+/* Subroutine of arm_general_expand_builtin to take care of binop insns.  */
 
 static rtx
 arm_expand_binop_builtin (enum insn_code icode,
@@ -2786,7 +1947,7 @@ arm_expand_binop_builtin (enum insn_code icode,
   return target;
 }
 
-/* Subroutine of arm_expand_builtin to take care of unop insns.  */
+/* Subroutine of arm_general_expand_builtin to take care of unop insns.  */
 
 static rtx
 arm_expand_unop_builtin (enum insn_code icode,
@@ -2923,11 +2084,11 @@ mve_dereference_pointer (tree exp, tree type, machine_mode reg_mode,
 		      build_int_cst (build_pointer_type (array_type), 0));
 }
 
-/* Expand a builtin.  */
+/* Implement TARGET_EXPAND_BUILTIN for general builtins.  */
 static rtx
-arm_expand_builtin_args (rtx target, machine_mode map_mode, int fcode,
-		      int icode, int have_retval, tree exp,
-		      builtin_arg *args)
+arm_general_expand_builtin_args (rtx target, machine_mode map_mode, int fcode,
+				 int icode, int have_retval, tree exp,
+				 builtin_arg *args)
 {
   rtx pat;
   tree arg[SIMD_MAX_BUILTIN_ARGS];
@@ -2989,11 +2150,14 @@ arm_expand_builtin_args (rtx target, machine_mode map_mode, int fcode,
 		op[argc] = convert_memory_address (Pmode, op[argc]);
 
 	      /* MVE uses mve_pred16_t (aka HImode) for vectors of
-		 predicates.  */
-	      if (GET_MODE_CLASS (mode[argc]) == MODE_VECTOR_BOOL)
+		 predicates, but internally we use V16BI/V8BI/V4BI/V2QI for
+		 MVE predicate modes.  */
+	      if (TARGET_HAVE_MVE && VALID_MVE_PRED_MODE (mode[argc]))
 		op[argc] = gen_lowpart (mode[argc], op[argc]);
 
-	      /*gcc_assert (GET_MODE (op[argc]) == mode[argc]); */
+	      gcc_assert (GET_MODE (op[argc]) == mode[argc]
+			  || (GET_MODE(op[argc]) == E_VOIDmode
+			      && CONSTANT_P (op[argc])));
 	      if (!(*insn_data[icode].operand[opno].predicate)
 		  (op[argc], mode[argc]))
 		op[argc] = copy_to_mode_reg (mode[argc], op[argc]);
@@ -3190,15 +2354,14 @@ constant_arg:
      builtin and error out if not.  */
   start_sequence ();
   emit_insn (pat);
-  insn = get_insns ();
-  end_sequence ();
+  insn = end_sequence ();
 
   if (recog_memoized (insn) < 0)
     error ("this builtin is not supported for this target");
   else
     emit_insn (insn);
 
-  if (GET_MODE_CLASS (tmode) == MODE_VECTOR_BOOL)
+  if (TARGET_HAVE_MVE && VALID_MVE_PRED_MODE (tmode))
     {
       rtx HItarget = gen_reg_rtx (HImode);
       emit_move_insn (HItarget, gen_lowpart (HImode, target));
@@ -3208,13 +2371,13 @@ constant_arg:
   return target;
 }
 
-/* Expand a builtin.  These builtins are "special" because they don't have
-   symbolic constants defined per-instruction or per instruction-variant.
+/* Expand a general builtin.  These builtins are "special" because they don't
+   have symbolic constants defined per-instruction or per instruction-variant.
    Instead, the required info is looked up in the ARM_BUILTIN_DATA record that
    is passed into the function.  */
 
 static rtx
-arm_expand_builtin_1 (int fcode, tree exp, rtx target,
+arm_general_expand_builtin_1 (int fcode, tree exp, rtx target,
 			   arm_builtin_datum *d)
 {
   enum insn_code icode = d->code;
@@ -3282,16 +2445,16 @@ arm_expand_builtin_1 (int fcode, tree exp, rtx target,
     }
   args[k] = ARG_BUILTIN_STOP;
 
-  /* The interface to arm_expand_builtin_args expects a 0 if
+  /* The interface to arm_general_expand_builtin_args expects a 0 if
      the function is void, and a 1 if it is not.  */
-  return arm_expand_builtin_args
+  return arm_general_expand_builtin_args
     (target, d->mode, fcode, icode, !is_void, exp,
      &args[1]);
 }
 
 /* Expand an ACLE builtin, i.e. those registered only if their respective
    target constraints are met.  This check happens within
-   arm_expand_builtin_args.  */
+   arm_general_expand_builtin_args.  */
 
 static rtx
 arm_expand_acle_builtin (int fcode, tree exp, rtx target)
@@ -3325,11 +2488,12 @@ arm_expand_acle_builtin (int fcode, tree exp, rtx target)
       ? &acle_builtin_data[fcode - ARM_BUILTIN_ACLE_PATTERN_START]
       : &cde_builtin_data[fcode - ARM_BUILTIN_CDE_PATTERN_START].base;
 
-  return arm_expand_builtin_1 (fcode, exp, target, d);
+  return arm_general_expand_builtin_1 (fcode, exp, target, d);
 }
 
-/* Expand an MVE builtin, i.e. those registered only if their respective target
-   constraints are met.  This check happens within arm_expand_builtin.  */
+/* Expand an MVE builtin, i.e. those registered only if their respective
+   target constraints are met.  This check happens within
+   arm_general_expand_builtin.  */
 
 static rtx
 arm_expand_mve_builtin (int fcode, tree exp, rtx target)
@@ -3345,7 +2509,7 @@ arm_expand_mve_builtin (int fcode, tree exp, rtx target)
   arm_builtin_datum *d
     = &mve_builtin_data[fcode - ARM_BUILTIN_MVE_PATTERN_START];
 
-  return arm_expand_builtin_1 (fcode, exp, target, d);
+  return arm_general_expand_builtin_1 (fcode, exp, target, d);
 }
 
 /* Expand a Neon builtin, i.e. those registered only if TARGET_NEON holds.
@@ -3368,7 +2532,7 @@ arm_expand_neon_builtin (int fcode, tree exp, rtx target)
   arm_builtin_datum *d
     = &neon_builtin_data[fcode - ARM_BUILTIN_NEON_PATTERN_START];
 
-  return arm_expand_builtin_1 (fcode, exp, target, d);
+  return arm_general_expand_builtin_1 (fcode, exp, target, d);
 }
 
 /* Expand a VFP builtin.  These builtins are treated like
@@ -3389,42 +2553,23 @@ arm_expand_vfp_builtin (int fcode, tree exp, rtx target)
   arm_builtin_datum *d
     = &vfp_builtin_data[fcode - ARM_BUILTIN_VFP_PATTERN_START];
 
-  return arm_expand_builtin_1 (fcode, exp, target, d);
+  return arm_general_expand_builtin_1 (fcode, exp, target, d);
 }
 
-/* Expand an expression EXP that calls a built-in function,
-   with result going to TARGET if that's convenient
-   (and in mode MODE if that's convenient).
-   SUBTARGET may be used as the target for computing one of EXP's operands.
-   IGNORE is nonzero if the value is to be ignored.  */
-
+/* Implement TARGET_EXPAND_BUILTIN for general builtins.  */
 rtx
-arm_expand_builtin (tree exp,
+arm_general_expand_builtin (unsigned int fcode,
+			    tree exp,
 		    rtx target,
-		    rtx subtarget ATTRIBUTE_UNUSED,
-		    machine_mode mode ATTRIBUTE_UNUSED,
 		    int ignore ATTRIBUTE_UNUSED)
 {
   const struct builtin_description * d;
   enum insn_code    icode;
-  tree              fndecl = TREE_OPERAND (CALL_EXPR_FN (exp), 0);
   tree              arg0;
-  tree              arg1;
-  tree              arg2;
   rtx               op0;
   rtx               op1;
-  rtx               op2;
   rtx               pat;
-  unsigned int      fcode = DECL_MD_FUNCTION_CODE (fndecl);
   size_t            i;
-  machine_mode tmode;
-  machine_mode mode0;
-  machine_mode mode1;
-  machine_mode mode2;
-  int opint;
-  int selector;
-  int mask;
-  int imm;
 
   if (fcode == ARM_BUILTIN_SIMD_LANE_CHECK)
     {
@@ -3513,499 +2658,6 @@ arm_expand_builtin (tree exp,
       emit_insn (gen_cstoresi4 (target, op1, target, const0_rtx));
       return target;
 
-    case ARM_BUILTIN_TEXTRMSB:
-    case ARM_BUILTIN_TEXTRMUB:
-    case ARM_BUILTIN_TEXTRMSH:
-    case ARM_BUILTIN_TEXTRMUH:
-    case ARM_BUILTIN_TEXTRMSW:
-    case ARM_BUILTIN_TEXTRMUW:
-      icode = (fcode == ARM_BUILTIN_TEXTRMSB ? CODE_FOR_iwmmxt_textrmsb
-	       : fcode == ARM_BUILTIN_TEXTRMUB ? CODE_FOR_iwmmxt_textrmub
-	       : fcode == ARM_BUILTIN_TEXTRMSH ? CODE_FOR_iwmmxt_textrmsh
-	       : fcode == ARM_BUILTIN_TEXTRMUH ? CODE_FOR_iwmmxt_textrmuh
-	       : CODE_FOR_iwmmxt_textrmw);
-
-      arg0 = CALL_EXPR_ARG (exp, 0);
-      arg1 = CALL_EXPR_ARG (exp, 1);
-      op0 = expand_normal (arg0);
-      op1 = expand_normal (arg1);
-      tmode = insn_data[icode].operand[0].mode;
-      mode0 = insn_data[icode].operand[1].mode;
-      mode1 = insn_data[icode].operand[2].mode;
-
-      if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
-	op0 = copy_to_mode_reg (mode0, op0);
-      if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
-	{
-	  /* @@@ better error message */
-	  error ("selector must be an immediate");
-	  return gen_reg_rtx (tmode);
-	}
-
-      opint = INTVAL (op1);
-      if (fcode == ARM_BUILTIN_TEXTRMSB || fcode == ARM_BUILTIN_TEXTRMUB)
-	{
-	  if (opint > 7 || opint < 0)
-	    error ("the range of selector should be in 0 to 7");
-	}
-      else if (fcode == ARM_BUILTIN_TEXTRMSH || fcode == ARM_BUILTIN_TEXTRMUH)
-	{
-	  if (opint > 3 || opint < 0)
-	    error ("the range of selector should be in 0 to 3");
-	}
-      else /* ARM_BUILTIN_TEXTRMSW || ARM_BUILTIN_TEXTRMUW.  */
-	{
-	  if (opint > 1 || opint < 0)
-	    error ("the range of selector should be in 0 to 1");
-	}
-
-      if (target == 0
-	  || GET_MODE (target) != tmode
-	  || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
-	target = gen_reg_rtx (tmode);
-      pat = GEN_FCN (icode) (target, op0, op1);
-      if (! pat)
-	return 0;
-      emit_insn (pat);
-      return target;
-
-    case ARM_BUILTIN_WALIGNI:
-      /* If op2 is immediate, call walighi, else call walighr.  */
-      arg0 = CALL_EXPR_ARG (exp, 0);
-      arg1 = CALL_EXPR_ARG (exp, 1);
-      arg2 = CALL_EXPR_ARG (exp, 2);
-      op0 = expand_normal (arg0);
-      op1 = expand_normal (arg1);
-      op2 = expand_normal (arg2);
-      if (CONST_INT_P (op2))
-        {
-	  icode = CODE_FOR_iwmmxt_waligni;
-          tmode = insn_data[icode].operand[0].mode;
-	  mode0 = insn_data[icode].operand[1].mode;
-	  mode1 = insn_data[icode].operand[2].mode;
-	  mode2 = insn_data[icode].operand[3].mode;
-          if (!(*insn_data[icode].operand[1].predicate) (op0, mode0))
-	    op0 = copy_to_mode_reg (mode0, op0);
-          if (!(*insn_data[icode].operand[2].predicate) (op1, mode1))
-	    op1 = copy_to_mode_reg (mode1, op1);
-          gcc_assert ((*insn_data[icode].operand[3].predicate) (op2, mode2));
-	  selector = INTVAL (op2);
-	  if (selector > 7 || selector < 0)
-	    error ("the range of selector should be in 0 to 7");
-	}
-      else
-        {
-	  icode = CODE_FOR_iwmmxt_walignr;
-          tmode = insn_data[icode].operand[0].mode;
-	  mode0 = insn_data[icode].operand[1].mode;
-	  mode1 = insn_data[icode].operand[2].mode;
-	  mode2 = insn_data[icode].operand[3].mode;
-          if (!(*insn_data[icode].operand[1].predicate) (op0, mode0))
-	    op0 = copy_to_mode_reg (mode0, op0);
-          if (!(*insn_data[icode].operand[2].predicate) (op1, mode1))
-	    op1 = copy_to_mode_reg (mode1, op1);
-          if (!(*insn_data[icode].operand[3].predicate) (op2, mode2))
-	    op2 = copy_to_mode_reg (mode2, op2);
-	}
-      if (target == 0
-	  || GET_MODE (target) != tmode
-	  || !(*insn_data[icode].operand[0].predicate) (target, tmode))
-	target = gen_reg_rtx (tmode);
-      pat = GEN_FCN (icode) (target, op0, op1, op2);
-      if (!pat)
-	return 0;
-      emit_insn (pat);
-      return target;
-
-    case ARM_BUILTIN_TINSRB:
-    case ARM_BUILTIN_TINSRH:
-    case ARM_BUILTIN_TINSRW:
-    case ARM_BUILTIN_WMERGE:
-      icode = (fcode == ARM_BUILTIN_TINSRB ? CODE_FOR_iwmmxt_tinsrb
-	       : fcode == ARM_BUILTIN_TINSRH ? CODE_FOR_iwmmxt_tinsrh
-	       : fcode == ARM_BUILTIN_WMERGE ? CODE_FOR_iwmmxt_wmerge
-	       : CODE_FOR_iwmmxt_tinsrw);
-      arg0 = CALL_EXPR_ARG (exp, 0);
-      arg1 = CALL_EXPR_ARG (exp, 1);
-      arg2 = CALL_EXPR_ARG (exp, 2);
-      op0 = expand_normal (arg0);
-      op1 = expand_normal (arg1);
-      op2 = expand_normal (arg2);
-      tmode = insn_data[icode].operand[0].mode;
-      mode0 = insn_data[icode].operand[1].mode;
-      mode1 = insn_data[icode].operand[2].mode;
-      mode2 = insn_data[icode].operand[3].mode;
-
-      if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
-	op0 = copy_to_mode_reg (mode0, op0);
-      if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
-	op1 = copy_to_mode_reg (mode1, op1);
-      if (! (*insn_data[icode].operand[3].predicate) (op2, mode2))
-	{
-	  error ("selector must be an immediate");
-	  return const0_rtx;
-	}
-      if (icode == CODE_FOR_iwmmxt_wmerge)
-	{
-	  selector = INTVAL (op2);
-	  if (selector > 7 || selector < 0)
-	    error ("the range of selector should be in 0 to 7");
-	}
-      if ((icode == CODE_FOR_iwmmxt_tinsrb)
-	  || (icode == CODE_FOR_iwmmxt_tinsrh)
-	  || (icode == CODE_FOR_iwmmxt_tinsrw))
-        {
-	  mask = 0x01;
-	  selector= INTVAL (op2);
-	  if (icode == CODE_FOR_iwmmxt_tinsrb && (selector < 0 || selector > 7))
-	    error ("the range of selector should be in 0 to 7");
-	  else if (icode == CODE_FOR_iwmmxt_tinsrh && (selector < 0 ||selector > 3))
-	    error ("the range of selector should be in 0 to 3");
-	  else if (icode == CODE_FOR_iwmmxt_tinsrw && (selector < 0 ||selector > 1))
-	    error ("the range of selector should be in 0 to 1");
-	  mask <<= selector;
-	  op2 = GEN_INT (mask);
-	}
-      if (target == 0
-	  || GET_MODE (target) != tmode
-	  || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
-	target = gen_reg_rtx (tmode);
-      pat = GEN_FCN (icode) (target, op0, op1, op2);
-      if (! pat)
-	return 0;
-      emit_insn (pat);
-      return target;
-
-    case ARM_BUILTIN_SETWCGR0:
-    case ARM_BUILTIN_SETWCGR1:
-    case ARM_BUILTIN_SETWCGR2:
-    case ARM_BUILTIN_SETWCGR3:
-      icode = (fcode == ARM_BUILTIN_SETWCGR0 ? CODE_FOR_iwmmxt_setwcgr0
-	       : fcode == ARM_BUILTIN_SETWCGR1 ? CODE_FOR_iwmmxt_setwcgr1
-	       : fcode == ARM_BUILTIN_SETWCGR2 ? CODE_FOR_iwmmxt_setwcgr2
-	       : CODE_FOR_iwmmxt_setwcgr3);
-      arg0 = CALL_EXPR_ARG (exp, 0);
-      op0 = expand_normal (arg0);
-      mode0 = insn_data[icode].operand[0].mode;
-      if (!(*insn_data[icode].operand[0].predicate) (op0, mode0))
-        op0 = copy_to_mode_reg (mode0, op0);
-      pat = GEN_FCN (icode) (op0);
-      if (!pat)
-	return 0;
-      emit_insn (pat);
-      return 0;
-
-    case ARM_BUILTIN_GETWCGR0:
-    case ARM_BUILTIN_GETWCGR1:
-    case ARM_BUILTIN_GETWCGR2:
-    case ARM_BUILTIN_GETWCGR3:
-      icode = (fcode == ARM_BUILTIN_GETWCGR0 ? CODE_FOR_iwmmxt_getwcgr0
-	       : fcode == ARM_BUILTIN_GETWCGR1 ? CODE_FOR_iwmmxt_getwcgr1
-	       : fcode == ARM_BUILTIN_GETWCGR2 ? CODE_FOR_iwmmxt_getwcgr2
-	       : CODE_FOR_iwmmxt_getwcgr3);
-      tmode = insn_data[icode].operand[0].mode;
-      if (target == 0
-	  || GET_MODE (target) != tmode
-	  || !(*insn_data[icode].operand[0].predicate) (target, tmode))
-        target = gen_reg_rtx (tmode);
-      pat = GEN_FCN (icode) (target);
-      if (!pat)
-        return 0;
-      emit_insn (pat);
-      return target;
-
-    case ARM_BUILTIN_WSHUFH:
-      icode = CODE_FOR_iwmmxt_wshufh;
-      arg0 = CALL_EXPR_ARG (exp, 0);
-      arg1 = CALL_EXPR_ARG (exp, 1);
-      op0 = expand_normal (arg0);
-      op1 = expand_normal (arg1);
-      tmode = insn_data[icode].operand[0].mode;
-      mode1 = insn_data[icode].operand[1].mode;
-      mode2 = insn_data[icode].operand[2].mode;
-
-      if (! (*insn_data[icode].operand[1].predicate) (op0, mode1))
-	op0 = copy_to_mode_reg (mode1, op0);
-      if (! (*insn_data[icode].operand[2].predicate) (op1, mode2))
-	{
-	  error ("mask must be an immediate");
-	  return const0_rtx;
-	}
-      selector = INTVAL (op1);
-      if (selector < 0 || selector > 255)
-	error ("the range of mask should be in 0 to 255");
-      if (target == 0
-	  || GET_MODE (target) != tmode
-	  || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
-	target = gen_reg_rtx (tmode);
-      pat = GEN_FCN (icode) (target, op0, op1);
-      if (! pat)
-	return 0;
-      emit_insn (pat);
-      return target;
-
-    case ARM_BUILTIN_WMADDS:
-      return arm_expand_binop_builtin (CODE_FOR_iwmmxt_wmadds, exp, target);
-    case ARM_BUILTIN_WMADDSX:
-      return arm_expand_binop_builtin (CODE_FOR_iwmmxt_wmaddsx, exp, target);
-    case ARM_BUILTIN_WMADDSN:
-      return arm_expand_binop_builtin (CODE_FOR_iwmmxt_wmaddsn, exp, target);
-    case ARM_BUILTIN_WMADDU:
-      return arm_expand_binop_builtin (CODE_FOR_iwmmxt_wmaddu, exp, target);
-    case ARM_BUILTIN_WMADDUX:
-      return arm_expand_binop_builtin (CODE_FOR_iwmmxt_wmaddux, exp, target);
-    case ARM_BUILTIN_WMADDUN:
-      return arm_expand_binop_builtin (CODE_FOR_iwmmxt_wmaddun, exp, target);
-    case ARM_BUILTIN_WSADBZ:
-      return arm_expand_binop_builtin (CODE_FOR_iwmmxt_wsadbz, exp, target);
-    case ARM_BUILTIN_WSADHZ:
-      return arm_expand_binop_builtin (CODE_FOR_iwmmxt_wsadhz, exp, target);
-
-      /* Several three-argument builtins.  */
-    case ARM_BUILTIN_WMACS:
-    case ARM_BUILTIN_WMACU:
-    case ARM_BUILTIN_TMIA:
-    case ARM_BUILTIN_TMIAPH:
-    case ARM_BUILTIN_TMIATT:
-    case ARM_BUILTIN_TMIATB:
-    case ARM_BUILTIN_TMIABT:
-    case ARM_BUILTIN_TMIABB:
-    case ARM_BUILTIN_WQMIABB:
-    case ARM_BUILTIN_WQMIABT:
-    case ARM_BUILTIN_WQMIATB:
-    case ARM_BUILTIN_WQMIATT:
-    case ARM_BUILTIN_WQMIABBN:
-    case ARM_BUILTIN_WQMIABTN:
-    case ARM_BUILTIN_WQMIATBN:
-    case ARM_BUILTIN_WQMIATTN:
-    case ARM_BUILTIN_WMIABB:
-    case ARM_BUILTIN_WMIABT:
-    case ARM_BUILTIN_WMIATB:
-    case ARM_BUILTIN_WMIATT:
-    case ARM_BUILTIN_WMIABBN:
-    case ARM_BUILTIN_WMIABTN:
-    case ARM_BUILTIN_WMIATBN:
-    case ARM_BUILTIN_WMIATTN:
-    case ARM_BUILTIN_WMIAWBB:
-    case ARM_BUILTIN_WMIAWBT:
-    case ARM_BUILTIN_WMIAWTB:
-    case ARM_BUILTIN_WMIAWTT:
-    case ARM_BUILTIN_WMIAWBBN:
-    case ARM_BUILTIN_WMIAWBTN:
-    case ARM_BUILTIN_WMIAWTBN:
-    case ARM_BUILTIN_WMIAWTTN:
-    case ARM_BUILTIN_WSADB:
-    case ARM_BUILTIN_WSADH:
-      icode = (fcode == ARM_BUILTIN_WMACS ? CODE_FOR_iwmmxt_wmacs
-	       : fcode == ARM_BUILTIN_WMACU ? CODE_FOR_iwmmxt_wmacu
-	       : fcode == ARM_BUILTIN_TMIA ? CODE_FOR_iwmmxt_tmia
-	       : fcode == ARM_BUILTIN_TMIAPH ? CODE_FOR_iwmmxt_tmiaph
-	       : fcode == ARM_BUILTIN_TMIABB ? CODE_FOR_iwmmxt_tmiabb
-	       : fcode == ARM_BUILTIN_TMIABT ? CODE_FOR_iwmmxt_tmiabt
-	       : fcode == ARM_BUILTIN_TMIATB ? CODE_FOR_iwmmxt_tmiatb
-	       : fcode == ARM_BUILTIN_TMIATT ? CODE_FOR_iwmmxt_tmiatt
-	       : fcode == ARM_BUILTIN_WQMIABB ? CODE_FOR_iwmmxt_wqmiabb
-	       : fcode == ARM_BUILTIN_WQMIABT ? CODE_FOR_iwmmxt_wqmiabt
-	       : fcode == ARM_BUILTIN_WQMIATB ? CODE_FOR_iwmmxt_wqmiatb
-	       : fcode == ARM_BUILTIN_WQMIATT ? CODE_FOR_iwmmxt_wqmiatt
-	       : fcode == ARM_BUILTIN_WQMIABBN ? CODE_FOR_iwmmxt_wqmiabbn
-	       : fcode == ARM_BUILTIN_WQMIABTN ? CODE_FOR_iwmmxt_wqmiabtn
-	       : fcode == ARM_BUILTIN_WQMIATBN ? CODE_FOR_iwmmxt_wqmiatbn
-	       : fcode == ARM_BUILTIN_WQMIATTN ? CODE_FOR_iwmmxt_wqmiattn
-	       : fcode == ARM_BUILTIN_WMIABB ? CODE_FOR_iwmmxt_wmiabb
-	       : fcode == ARM_BUILTIN_WMIABT ? CODE_FOR_iwmmxt_wmiabt
-	       : fcode == ARM_BUILTIN_WMIATB ? CODE_FOR_iwmmxt_wmiatb
-	       : fcode == ARM_BUILTIN_WMIATT ? CODE_FOR_iwmmxt_wmiatt
-	       : fcode == ARM_BUILTIN_WMIABBN ? CODE_FOR_iwmmxt_wmiabbn
-	       : fcode == ARM_BUILTIN_WMIABTN ? CODE_FOR_iwmmxt_wmiabtn
-	       : fcode == ARM_BUILTIN_WMIATBN ? CODE_FOR_iwmmxt_wmiatbn
-	       : fcode == ARM_BUILTIN_WMIATTN ? CODE_FOR_iwmmxt_wmiattn
-	       : fcode == ARM_BUILTIN_WMIAWBB ? CODE_FOR_iwmmxt_wmiawbb
-	       : fcode == ARM_BUILTIN_WMIAWBT ? CODE_FOR_iwmmxt_wmiawbt
-	       : fcode == ARM_BUILTIN_WMIAWTB ? CODE_FOR_iwmmxt_wmiawtb
-	       : fcode == ARM_BUILTIN_WMIAWTT ? CODE_FOR_iwmmxt_wmiawtt
-	       : fcode == ARM_BUILTIN_WMIAWBBN ? CODE_FOR_iwmmxt_wmiawbbn
-	       : fcode == ARM_BUILTIN_WMIAWBTN ? CODE_FOR_iwmmxt_wmiawbtn
-	       : fcode == ARM_BUILTIN_WMIAWTBN ? CODE_FOR_iwmmxt_wmiawtbn
-	       : fcode == ARM_BUILTIN_WMIAWTTN ? CODE_FOR_iwmmxt_wmiawttn
-	       : fcode == ARM_BUILTIN_WSADB ? CODE_FOR_iwmmxt_wsadb
-	       : CODE_FOR_iwmmxt_wsadh);
-      arg0 = CALL_EXPR_ARG (exp, 0);
-      arg1 = CALL_EXPR_ARG (exp, 1);
-      arg2 = CALL_EXPR_ARG (exp, 2);
-      op0 = expand_normal (arg0);
-      op1 = expand_normal (arg1);
-      op2 = expand_normal (arg2);
-      tmode = insn_data[icode].operand[0].mode;
-      mode0 = insn_data[icode].operand[1].mode;
-      mode1 = insn_data[icode].operand[2].mode;
-      mode2 = insn_data[icode].operand[3].mode;
-
-      if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
-	op0 = copy_to_mode_reg (mode0, op0);
-      if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
-	op1 = copy_to_mode_reg (mode1, op1);
-      if (! (*insn_data[icode].operand[3].predicate) (op2, mode2))
-	op2 = copy_to_mode_reg (mode2, op2);
-      if (target == 0
-	  || GET_MODE (target) != tmode
-	  || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
-	target = gen_reg_rtx (tmode);
-      pat = GEN_FCN (icode) (target, op0, op1, op2);
-      if (! pat)
-	return 0;
-      emit_insn (pat);
-      return target;
-
-    case ARM_BUILTIN_WZERO:
-      target = gen_reg_rtx (DImode);
-      emit_insn (gen_iwmmxt_clrdi (target));
-      return target;
-
-    case ARM_BUILTIN_WSRLHI:
-    case ARM_BUILTIN_WSRLWI:
-    case ARM_BUILTIN_WSRLDI:
-    case ARM_BUILTIN_WSLLHI:
-    case ARM_BUILTIN_WSLLWI:
-    case ARM_BUILTIN_WSLLDI:
-    case ARM_BUILTIN_WSRAHI:
-    case ARM_BUILTIN_WSRAWI:
-    case ARM_BUILTIN_WSRADI:
-    case ARM_BUILTIN_WRORHI:
-    case ARM_BUILTIN_WRORWI:
-    case ARM_BUILTIN_WRORDI:
-    case ARM_BUILTIN_WSRLH:
-    case ARM_BUILTIN_WSRLW:
-    case ARM_BUILTIN_WSRLD:
-    case ARM_BUILTIN_WSLLH:
-    case ARM_BUILTIN_WSLLW:
-    case ARM_BUILTIN_WSLLD:
-    case ARM_BUILTIN_WSRAH:
-    case ARM_BUILTIN_WSRAW:
-    case ARM_BUILTIN_WSRAD:
-    case ARM_BUILTIN_WRORH:
-    case ARM_BUILTIN_WRORW:
-    case ARM_BUILTIN_WRORD:
-      icode = (fcode == ARM_BUILTIN_WSRLHI ? CODE_FOR_lshrv4hi3_iwmmxt
-	       : fcode == ARM_BUILTIN_WSRLWI ? CODE_FOR_lshrv2si3_iwmmxt
-	       : fcode == ARM_BUILTIN_WSRLDI ? CODE_FOR_lshrdi3_iwmmxt
-	       : fcode == ARM_BUILTIN_WSLLHI ? CODE_FOR_ashlv4hi3_iwmmxt
-	       : fcode == ARM_BUILTIN_WSLLWI ? CODE_FOR_ashlv2si3_iwmmxt
-	       : fcode == ARM_BUILTIN_WSLLDI ? CODE_FOR_ashldi3_iwmmxt
-	       : fcode == ARM_BUILTIN_WSRAHI ? CODE_FOR_ashrv4hi3_iwmmxt
-	       : fcode == ARM_BUILTIN_WSRAWI ? CODE_FOR_ashrv2si3_iwmmxt
-	       : fcode == ARM_BUILTIN_WSRADI ? CODE_FOR_ashrdi3_iwmmxt
-	       : fcode == ARM_BUILTIN_WRORHI ? CODE_FOR_rorv4hi3
-	       : fcode == ARM_BUILTIN_WRORWI ? CODE_FOR_rorv2si3
-	       : fcode == ARM_BUILTIN_WRORDI ? CODE_FOR_rordi3
-	       : fcode == ARM_BUILTIN_WSRLH  ? CODE_FOR_lshrv4hi3_di
-	       : fcode == ARM_BUILTIN_WSRLW  ? CODE_FOR_lshrv2si3_di
-	       : fcode == ARM_BUILTIN_WSRLD  ? CODE_FOR_lshrdi3_di
-	       : fcode == ARM_BUILTIN_WSLLH  ? CODE_FOR_ashlv4hi3_di
-	       : fcode == ARM_BUILTIN_WSLLW  ? CODE_FOR_ashlv2si3_di
-	       : fcode == ARM_BUILTIN_WSLLD  ? CODE_FOR_ashldi3_di
-	       : fcode == ARM_BUILTIN_WSRAH  ? CODE_FOR_ashrv4hi3_di
-	       : fcode == ARM_BUILTIN_WSRAW  ? CODE_FOR_ashrv2si3_di
-	       : fcode == ARM_BUILTIN_WSRAD  ? CODE_FOR_ashrdi3_di
-	       : fcode == ARM_BUILTIN_WRORH  ? CODE_FOR_rorv4hi3_di
-	       : fcode == ARM_BUILTIN_WRORW  ? CODE_FOR_rorv2si3_di
-	       : fcode == ARM_BUILTIN_WRORD  ? CODE_FOR_rordi3_di
-	       : CODE_FOR_nothing);
-      arg1 = CALL_EXPR_ARG (exp, 1);
-      op1 = expand_normal (arg1);
-      if (GET_MODE (op1) == VOIDmode)
-	{
-	  imm = INTVAL (op1);
-	  if ((fcode == ARM_BUILTIN_WRORWI || fcode == ARM_BUILTIN_WRORW)
-	      && (imm < 0 || imm > 32))
-	    {
-	      const char *builtin = (fcode == ARM_BUILTIN_WRORWI
-				     ? "_mm_rori_pi32" : "_mm_ror_pi32");
-	      error ("the range of count should be in 0 to 32; "
-		     "please check the intrinsic %qs in code", builtin);
-	    }
-	  else if ((fcode == ARM_BUILTIN_WRORHI || fcode == ARM_BUILTIN_WRORH)
-		   && (imm < 0 || imm > 16))
-	    {
-	      const char *builtin = (fcode == ARM_BUILTIN_WRORHI
-				     ? "_mm_rori_pi16" : "_mm_ror_pi16");
-	      error ("the range of count should be in 0 to 16; "
-		     "please check the intrinsic %qs in code", builtin);
-	    }
-	  else if ((fcode == ARM_BUILTIN_WRORDI || fcode == ARM_BUILTIN_WRORD)
-		   && (imm < 0 || imm > 64))
-	    {
-	      const char *builtin = (fcode == ARM_BUILTIN_WRORDI
-				     ? "_mm_rori_si64" : "_mm_ror_si64");
-	      error ("the range of count should be in 0 to 64; "
-		     "please check the intrinsic %qs in code", builtin);
-	    }
-	  else if (imm < 0)
-	    {
-	      const char *builtin;
-	      switch (fcode)
-		{
-		  case ARM_BUILTIN_WSRLHI:
-		    builtin = "_mm_srli_pi16";
-		    break;
-		  case ARM_BUILTIN_WSRLWI:
-		    builtin = "_mm_srli_pi32";
-		    break;
-		  case ARM_BUILTIN_WSRLDI:
-		    builtin = "_mm_srli_si64";
-		    break;
-		  case ARM_BUILTIN_WSLLHI:
-		    builtin = "_mm_slli_pi16";
-		    break;
-		  case ARM_BUILTIN_WSLLWI:
-		    builtin = "_mm_slli_pi32";
-		    break;
-		  case ARM_BUILTIN_WSLLDI:
-		    builtin = "_mm_slli_si64";
-		    break;
-		  case ARM_BUILTIN_WSRAHI:
-		    builtin = "_mm_srai_pi16";
-		    break;
-		  case ARM_BUILTIN_WSRAWI:
-		    builtin = "_mm_srai_pi32";
-		    break;
-		  case ARM_BUILTIN_WSRADI:
-		    builtin = "_mm_srai_si64";
-		    break;
-		  case ARM_BUILTIN_WSRLH:
-		    builtin = "_mm_srl_pi16";
-		    break;
-		  case ARM_BUILTIN_WSRLW:
-		    builtin = "_mm_srl_pi32";
-		    break;
-		  case ARM_BUILTIN_WSRLD:
-		    builtin = "_mm_srl_si64";
-		    break;
-		  case ARM_BUILTIN_WSLLH:
-		    builtin = "_mm_sll_pi16";
-		    break;
-		  case ARM_BUILTIN_WSLLW:
-		    builtin = "_mm_sll_pi32";
-		    break;
-		  case ARM_BUILTIN_WSLLD:
-		    builtin = "_mm_sll_si64";
-		    break;
-		  case ARM_BUILTIN_WSRAH:
-		    builtin = "_mm_sra_pi16";
-		    break;
-		  case ARM_BUILTIN_WSRAW:
-		    builtin = "_mm_sra_si64";
-		    break;
-		  default:
-		    builtin = "_mm_sra_si64";
-		    break;
-		}
-	      error ("the count should be no less than 0; "
-		     "please check the intrinsic %qs in code", builtin);
-	    }
-	}
-      return arm_expand_binop_builtin (icode, exp, target);
-
     default:
       break;
     }
@@ -4026,128 +2678,32 @@ arm_expand_builtin (tree exp,
   return NULL_RTX;
 }
 
-tree
-arm_builtin_vectorized_function (unsigned int fn, tree type_out, tree type_in)
+/* Expand an expression EXP that calls a built-in function,
+   with result going to TARGET if that's convenient
+   (and in mode MODE if that's convenient).
+   SUBTARGET may be used as the target for computing one of EXP's operands.
+   IGNORE is nonzero if the value is to be ignored.  */
+
+rtx
+arm_expand_builtin (tree exp,
+		    rtx target,
+		    rtx subtarget ATTRIBUTE_UNUSED,
+		    machine_mode mode ATTRIBUTE_UNUSED,
+		    int ignore ATTRIBUTE_UNUSED)
 {
-  machine_mode in_mode, out_mode;
-  int in_n, out_n;
-  bool out_unsigned_p = TYPE_UNSIGNED (type_out);
-
-  /* Can't provide any vectorized builtins when we can't use NEON.  */
-  if (!TARGET_NEON)
-    return NULL_TREE;
-
-  if (TREE_CODE (type_out) != VECTOR_TYPE
-      || TREE_CODE (type_in) != VECTOR_TYPE)
-    return NULL_TREE;
-
-  out_mode = TYPE_MODE (TREE_TYPE (type_out));
-  out_n = TYPE_VECTOR_SUBPARTS (type_out);
-  in_mode = TYPE_MODE (TREE_TYPE (type_in));
-  in_n = TYPE_VECTOR_SUBPARTS (type_in);
-
-/* ARM_CHECK_BUILTIN_MODE and ARM_FIND_VRINT_VARIANT are used to find the
-   decl of the vectorized builtin for the appropriate vector mode.
-   NULL_TREE is returned if no such builtin is available.  */
-#undef ARM_CHECK_BUILTIN_MODE
-#define ARM_CHECK_BUILTIN_MODE(C)    \
-  (TARGET_VFP5   \
-   && flag_unsafe_math_optimizations \
-   && ARM_CHECK_BUILTIN_MODE_1 (C))
-
-#undef ARM_CHECK_BUILTIN_MODE_1
-#define ARM_CHECK_BUILTIN_MODE_1(C) \
-  (out_mode == SFmode && out_n == C \
-   && in_mode == SFmode && in_n == C)
-
-#undef ARM_FIND_VRINT_VARIANT
-#define ARM_FIND_VRINT_VARIANT(N) \
-  (ARM_CHECK_BUILTIN_MODE (2) \
-    ? arm_builtin_decl(ARM_BUILTIN_NEON_##N##v2sf, false) \
-    : (ARM_CHECK_BUILTIN_MODE (4) \
-      ? arm_builtin_decl(ARM_BUILTIN_NEON_##N##v4sf, false) \
-      : NULL_TREE))
-
-  switch (fn)
+  tree fndecl = TREE_OPERAND (CALL_EXPR_FN (exp), 0);
+  unsigned int code = DECL_MD_FUNCTION_CODE (fndecl);
+  unsigned int subcode = code >> ARM_BUILTIN_SHIFT;
+  switch (code & ARM_BUILTIN_CLASS)
     {
-    CASE_CFN_FLOOR:
-      return ARM_FIND_VRINT_VARIANT (vrintm);
-    CASE_CFN_CEIL:
-      return ARM_FIND_VRINT_VARIANT (vrintp);
-    CASE_CFN_TRUNC:
-      return ARM_FIND_VRINT_VARIANT (vrintz);
-    CASE_CFN_ROUND:
-      return ARM_FIND_VRINT_VARIANT (vrinta);
-#undef ARM_CHECK_BUILTIN_MODE_1
-#define ARM_CHECK_BUILTIN_MODE_1(C) \
-  (out_mode == SImode && out_n == C \
-   && in_mode == SFmode && in_n == C)
-
-#define ARM_FIND_VCVT_VARIANT(N) \
-  (ARM_CHECK_BUILTIN_MODE (2) \
-   ? arm_builtin_decl(ARM_BUILTIN_NEON_##N##v2sfv2si, false) \
-   : (ARM_CHECK_BUILTIN_MODE (4) \
-     ? arm_builtin_decl(ARM_BUILTIN_NEON_##N##v4sfv4si, false) \
-     : NULL_TREE))
-
-#define ARM_FIND_VCVTU_VARIANT(N) \
-  (ARM_CHECK_BUILTIN_MODE (2) \
-   ? arm_builtin_decl(ARM_BUILTIN_NEON_##N##uv2sfv2si, false) \
-   : (ARM_CHECK_BUILTIN_MODE (4) \
-     ? arm_builtin_decl(ARM_BUILTIN_NEON_##N##uv4sfv4si, false) \
-     : NULL_TREE))
-    CASE_CFN_LROUND:
-      return (out_unsigned_p
-	      ? ARM_FIND_VCVTU_VARIANT (vcvta)
-	      : ARM_FIND_VCVT_VARIANT (vcvta));
-    CASE_CFN_LCEIL:
-      return (out_unsigned_p
-	      ? ARM_FIND_VCVTU_VARIANT (vcvtp)
-	      : ARM_FIND_VCVT_VARIANT (vcvtp));
-    CASE_CFN_LFLOOR:
-      return (out_unsigned_p
-	      ? ARM_FIND_VCVTU_VARIANT (vcvtm)
-	      : ARM_FIND_VCVT_VARIANT (vcvtm));
-#undef ARM_CHECK_BUILTIN_MODE
-#define ARM_CHECK_BUILTIN_MODE(C, N) \
-  (out_mode == N##mode && out_n == C \
-   && in_mode == N##mode && in_n == C)
-    case CFN_BUILT_IN_BSWAP16:
-      if (ARM_CHECK_BUILTIN_MODE (4, HI))
-	return arm_builtin_decl (ARM_BUILTIN_NEON_bswapv4hi, false);
-      else if (ARM_CHECK_BUILTIN_MODE (8, HI))
-	return arm_builtin_decl (ARM_BUILTIN_NEON_bswapv8hi, false);
-      else
-	return NULL_TREE;
-    case CFN_BUILT_IN_BSWAP32:
-      if (ARM_CHECK_BUILTIN_MODE (2, SI))
-	return arm_builtin_decl (ARM_BUILTIN_NEON_bswapv2si, false);
-      else if (ARM_CHECK_BUILTIN_MODE (4, SI))
-	return arm_builtin_decl (ARM_BUILTIN_NEON_bswapv4si, false);
-      else
-	return NULL_TREE;
-    case CFN_BUILT_IN_BSWAP64:
-      if (ARM_CHECK_BUILTIN_MODE (2, DI))
-	return arm_builtin_decl (ARM_BUILTIN_NEON_bswapv2di, false);
-      else
-	return NULL_TREE;
-    CASE_CFN_COPYSIGN:
-      if (ARM_CHECK_BUILTIN_MODE (2, SF))
-	return arm_builtin_decl (ARM_BUILTIN_NEON_copysignfv2sf, false);
-      else if (ARM_CHECK_BUILTIN_MODE (4, SF))
-	return arm_builtin_decl (ARM_BUILTIN_NEON_copysignfv4sf, false);
-      else
-	return NULL_TREE;
-
+    case ARM_BUILTIN_GENERAL:
+      return arm_general_expand_builtin (subcode, exp, target, ignore);
+    case ARM_BUILTIN_MVE:
+      return arm_mve::expand_builtin (subcode, exp, target);
     default:
-      return NULL_TREE;
+      gcc_unreachable ();
     }
-  return NULL_TREE;
 }
-#undef ARM_FIND_VCVT_VARIANT
-#undef ARM_FIND_VCVTU_VARIANT
-#undef ARM_CHECK_BUILTIN_MODE
-#undef ARM_FIND_VRINT_VARIANT
 
 void
 arm_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
@@ -4219,22 +2775,21 @@ arm_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
 			    reload_fenv, restore_fnenv), update_call);
 }
 
-/* Implement TARGET_CHECK_BUILTIN_CALL.  Record a read of the Q bit through
-   intrinsics in the machine function.  */
+/* Implement TARGET_CHECK_BUILTIN_CALL for general builtins.  Record a read of
+   the Q bit through intrinsics in the machine function for general built-in
+   functions.  */
 bool
-arm_check_builtin_call (location_t , vec<location_t> , tree fndecl,
-			tree, unsigned int, tree *)
+arm_general_check_builtin_call (unsigned int code)
 {
-  int fcode = DECL_MD_FUNCTION_CODE (fndecl);
-  if (fcode == ARM_BUILTIN_saturation_occurred
-      || fcode == ARM_BUILTIN_set_saturation)
+  if (code == ARM_BUILTIN_saturation_occurred
+     || code == ARM_BUILTIN_set_saturation)
     {
       if (cfun && cfun->decl)
 	DECL_ATTRIBUTES (cfun->decl)
 	  = tree_cons (get_identifier ("acle qbit"), NULL_TREE,
 		       DECL_ATTRIBUTES (cfun->decl));
     }
-  if (fcode == ARM_BUILTIN_sel)
+  else if (code == ARM_BUILTIN_sel)
     {
       if (cfun && cfun->decl)
 	DECL_ATTRIBUTES (cfun->decl)
@@ -4244,19 +2799,109 @@ arm_check_builtin_call (location_t , vec<location_t> , tree fndecl,
   return true;
 }
 
+/* Implement TARGET_CHECK_BUILTIN_CALL.  */
+bool
+arm_check_builtin_call (location_t loc, vec<location_t> arg_loc, tree fndecl,
+			tree orig_fndecl, unsigned int nargs, tree *args, bool)
+{
+  unsigned int code = DECL_MD_FUNCTION_CODE (fndecl);
+  unsigned int subcode = code >> ARM_BUILTIN_SHIFT;
+  switch (code & ARM_BUILTIN_CLASS)
+    {
+    case ARM_BUILTIN_GENERAL:
+      return arm_general_check_builtin_call (subcode);
+    case ARM_BUILTIN_MVE:
+      return arm_mve::check_builtin_call (loc, arg_loc, subcode,
+					  orig_fndecl, nargs, args);
+    default:
+      gcc_unreachable ();
+    }
+
+}
+
 enum resolver_ident
 arm_describe_resolver (tree fndecl)
 {
-  if (DECL_MD_FUNCTION_CODE (fndecl) >= ARM_BUILTIN_vcx1qv16qi
-    && DECL_MD_FUNCTION_CODE (fndecl) < ARM_BUILTIN_MVE_BASE)
-    return arm_cde_resolver;
-  return arm_no_resolver;
+  unsigned int code = DECL_MD_FUNCTION_CODE (fndecl);
+  unsigned int subcode = code >> ARM_BUILTIN_SHIFT;
+  switch (code & ARM_BUILTIN_CLASS)
+    {
+    case ARM_BUILTIN_GENERAL:
+      if (subcode >= ARM_BUILTIN_vcx1qv16qi
+	&& subcode < ARM_BUILTIN_MVE_BASE)
+	return arm_cde_resolver;
+      return arm_no_resolver;
+    case ARM_BUILTIN_MVE:
+      return arm_mve_resolver;
+    default:
+      gcc_unreachable ();
+    }
 }
 
 unsigned
 arm_cde_end_args (tree fndecl)
 {
-  return DECL_MD_FUNCTION_CODE (fndecl) >= ARM_BUILTIN_vcx1q_p_v16qi ? 2 : 1;
+  unsigned int code = DECL_MD_FUNCTION_CODE (fndecl);
+  unsigned int subcode = code >> ARM_BUILTIN_SHIFT;
+  switch (code & ARM_BUILTIN_CLASS)
+    {
+    case ARM_BUILTIN_GENERAL:
+      return subcode >= ARM_BUILTIN_vcx1q_p_v16qi ? 2 : 1;
+    default:
+      gcc_unreachable ();
+    }
+}
+
+/* Fold a call to vaeseq_u8 and vaesdq_u8.
+   That is `vaeseq_u8 (x ^ y, 0)` gets folded
+   into `vaeseq_u8 (x, y)`.*/
+static gimple *
+arm_fold_aes_op (gcall *stmt)
+{
+  tree arg0 = gimple_call_arg (stmt, 0);
+  tree arg1 = gimple_call_arg (stmt, 1);
+  if (integer_zerop (arg0))
+    arg0 = arg1;
+  else if (!integer_zerop (arg1))
+    return nullptr;
+  if (TREE_CODE (arg0) != SSA_NAME)
+    return nullptr;
+  if (!has_single_use (arg0))
+    return nullptr;
+  auto *s = dyn_cast<gassign *> (SSA_NAME_DEF_STMT (arg0));
+  if (!s || gimple_assign_rhs_code (s) != BIT_XOR_EXPR)
+    return nullptr;
+  gimple_call_set_arg (stmt, 0, gimple_assign_rhs1 (s));
+  gimple_call_set_arg (stmt, 1, gimple_assign_rhs2 (s));
+  return stmt;
+}
+
+/* Try to fold STMT, given that it's a call to the built-in function with
+   subcode FCODE.  Return the new statement on success and null on
+   failure.  */
+gimple *
+arm_general_gimple_fold_builtin (unsigned int fcode, gcall *stmt)
+{
+  gimple *new_stmt = NULL;
+
+  switch (fcode)
+    {
+    case ARM_BUILTIN_CRYPTO_AESE:
+    case ARM_BUILTIN_CRYPTO_AESD:
+      new_stmt = arm_fold_aes_op (stmt);
+      break;
+    }
+
+  /* GIMPLE assign statements (unlike calls) require a non-null lhs.  If we
+     created an assign statement with a null lhs, then fix this by assigning
+     to a new (and subsequently unused) variable.  */
+  if (new_stmt && is_gimple_assign (new_stmt) && !gimple_assign_lhs (new_stmt))
+    {
+      tree new_lhs = make_ssa_name (gimple_call_return_type (stmt));
+      gimple_assign_set_lhs (new_stmt, new_lhs);
+    }
+
+  return new_stmt;
 }
 
 #include "gt-arm-builtins.h"

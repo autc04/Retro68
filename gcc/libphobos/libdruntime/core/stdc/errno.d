@@ -8,7 +8,7 @@
  *      $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost Software License 1.0).
  *    (See accompanying file LICENSE)
  * Authors:   Sean Kelly, Alex Rønne Petersen
- * Source:    https://github.com/dlang/druntime/blob/master/src/core/stdc/errno.d
+ * Source:    $(DRUNTIMESRC core/stdc/_errno.d)
  * Standards: ISO/IEC 9899:1999 (E)
  */
 
@@ -43,15 +43,7 @@ version (X86_64)  version = X86_Any;
 nothrow:
 @nogc:
 
-version (CRuntime_DigitalMars)
-{
-    extern (C)
-    {
-        ref int _errno();
-        alias errno = _errno;
-    }
-}
-else version (CRuntime_Microsoft)
+version (CRuntime_Microsoft)
 {
     extern (C)
     {
@@ -73,6 +65,14 @@ else version (CRuntime_Musl)
     {
         ref int __errno_location();
         alias errno = __errno_location;
+    }
+}
+else version (CRuntime_Newlib)
+{
+    extern (C)
+    {
+        ref int __errno();
+        alias errno = __errno;
     }
 }
 else version (OpenBSD)
@@ -164,7 +164,7 @@ else
 extern (C):
 
 
-version (Windows)
+version (CRuntime_Microsoft)
 {
     enum EPERM              = 1;        /// Operation not permitted
     enum ENOENT             = 2;        /// No such file or directory
@@ -249,6 +249,144 @@ version (Windows)
     enum ETIMEDOUT          = 138;
     enum ETXTBSY            = 139;
     enum EWOULDBLOCK        = 140;
+}
+else version (CRuntime_Newlib)
+{
+    enum EPERM = 1;
+    enum ENOENT = 2;
+    enum ESRCH = 3;
+    enum EINTR = 4;
+    enum EIO = 5;
+    enum ENXIO = 6;
+    enum E2BIG = 7;
+    enum ENOEXEC = 8;
+    enum EBADF = 9;
+    enum ECHILD = 10;
+    enum EAGAIN = 11;
+    enum ENOMEM = 12;
+    enum EACCES = 13;
+    enum EFAULT = 14;
+    enum EBUSY = 16;
+    enum EEXIST = 17;
+    enum EXDEV = 18;
+    enum ENODEV = 19;
+    enum ENOTDIR = 20;
+    enum EISDIR = 21;
+    enum EINVAL = 22;
+    enum ENFILE = 23;
+    enum EMFILE = 24;
+    enum ENOTTY = 25;
+    enum ETXTBSY = 26;
+    enum EFBIG = 27;
+    enum ENOSPC = 28;
+    enum ESPIPE = 29;
+    enum EROFS = 30;
+    enum EMLINK = 31;
+    enum EPIPE = 32;
+    enum EDOM = 33;
+    enum ERANGE = 34;
+    enum ENOMSG = 35;
+    enum EIDRM = 36;
+    enum EDEADLK = 45;
+    enum ENOLCK = 46;
+    enum ENOSTR = 60;
+    enum ENODATA = 61;
+    enum ETIME = 62;
+    enum ENOSR = 63;
+    enum ENOLINK = 67;
+    enum EPROTO = 71;
+    enum EMULTIHOP = 74;
+    enum EBADMSG = 77;
+    enum EFTYPE = 79;
+    enum ENOSYS = 88;
+    enum ENOTEMPTY = 90;
+    enum ENAMETOOLONG = 91;
+    enum ELOOP = 92;
+    enum EOPNOTSUPP = 95;
+    enum EPFNOSUPPORT = 96;
+    enum ECONNRESET = 104;
+    enum ENOBUFS = 105;
+    enum EAFNOSUPPORT = 106;
+    enum EPROTOTYPE = 107;
+    enum ENOTSOCK = 108;
+    enum ENOPROTOOPT = 109;
+    enum ECONNREFUSED = 111;
+    enum EADDRINUSE = 112;
+    enum ECONNABORTED = 113;
+    enum ENETUNREACH = 114;
+    enum ENETDOWN = 115;
+    enum ETIMEDOUT = 116;
+    enum EHOSTDOWN = 117;
+    enum EHOSTUNREACH = 118;
+    enum EINPROGRESS = 119;
+    enum EALREADY = 120;
+    enum EDESTADDRREQ = 121;
+    enum EMSGSIZE = 122;
+    enum EPROTONOSUPPORT = 123;
+    enum EADDRNOTAVAIL = 125;
+    enum ENETRESET = 126;
+    enum EISCONN = 127;
+    enum ENOTCONN = 128;
+    enum ETOOMANYREFS = 129;
+    enum EDQUOT = 132;
+    enum ESTALE = 133;
+    enum ENOTSUP = 134;
+    enum EILSEQ = 138;
+    enum EOVERFLOW = 139;
+    enum ECANCELED = 140;
+    enum ENOTRECOVERABLE = 141;
+    enum EOWNERDEAD = 142;
+
+    enum EWOULDBLOCK = EAGAIN;
+
+    enum __ELASTERROR = 2000;
+
+    // Linux errno extensions
+    version (Cygwin)
+    {
+        enum ENOTBLK = 15;
+        enum ECHRNG = 37;
+        enum EL2NSYNC = 38;
+        enum EL3HLT = 39;
+        enum EL3RST = 40;
+        enum ELNRNG = 41;
+        enum EUNATCH = 42;
+        enum ENOCSI = 43;
+        enum EL2HLT = 44;
+        enum EBADE = 50;
+        enum EBADR = 51;
+        enum EXFULL = 52;
+        enum ENOANO = 53;
+        enum EBADRQC = 54;
+        enum EBADSLT = 55;
+        enum EDEADLOCK = 56;
+        enum EBFONT = 57;
+        enum ENONET = 64;
+        enum ENOPKG = 65;
+        enum EREMOTE = 66;
+        enum EADV = 68;
+        enum ESRMNT = 69;
+        enum ECOMM = 70;
+        enum ELBIN = 75;
+        enum EDOTDOT = 76;
+        enum ENOTUNIQ = 80;
+        enum EBADFD = 81;
+        enum EREMCHG = 82;
+        enum ELIBACC = 83;
+        enum ELIBBAD = 84;
+        enum ELIBSCN = 85;
+        enum ELIBMAX = 86;
+        enum ELIBEXEC = 87;
+        enum ENMFILE = 89;
+        enum ESHUTDOWN = 110;
+        enum ESOCKTNOSUPPORT = 124;
+        enum EPROCLIM = 130;
+        enum EUSERS = 131;
+        enum ENOMEDIUM = 135;
+        enum ENOSHARE = 136;
+        enum ECASECLASH = 137;
+        enum ESTRPIPE = 143;
+    }
 }
 else version (linux)
 {
@@ -1015,6 +1153,109 @@ else version (linux)
         enum EHWPOISON          = 135;        ///
     }
     else version (IBMZ_Any)
+    {
+        enum EDEADLK            = 35;         ///
+        enum ENAMETOOLONG       = 36;         ///
+        enum ENOLCK             = 37;         ///
+        enum ENOSYS             = 38;         ///
+        enum ENOTEMPTY          = 39;         ///
+        enum ELOOP              = 40;         ///
+        enum EWOULDBLOCK        = EAGAIN;     ///
+        enum ENOMSG             = 42;         ///
+        enum EIDRM              = 43;         ///
+        enum ECHRNG             = 44;         ///
+        enum EL2NSYNC           = 45;         ///
+        enum EL3HLT             = 46;         ///
+        enum EL3RST             = 47;         ///
+        enum ELNRNG             = 48;         ///
+        enum EUNATCH            = 49;         ///
+        enum ENOCSI             = 50;         ///
+        enum EL2HLT             = 51;         ///
+        enum EBADE              = 52;         ///
+        enum EBADR              = 53;         ///
+        enum EXFULL             = 54;         ///
+        enum ENOANO             = 55;         ///
+        enum EBADRQC            = 56;         ///
+        enum EBADSLT            = 57;         ///
+        enum EDEADLOCK          = EDEADLK;    ///
+        enum EBFONT             = 59;         ///
+        enum ENOSTR             = 60;         ///
+        enum ENODATA            = 61;         ///
+        enum ETIME              = 62;         ///
+        enum ENOSR              = 63;         ///
+        enum ENONET             = 64;         ///
+        enum ENOPKG             = 65;         ///
+        enum EREMOTE            = 66;         ///
+        enum ENOLINK            = 67;         ///
+        enum EADV               = 68;         ///
+        enum ESRMNT             = 69;         ///
+        enum ECOMM              = 70;         ///
+        enum EPROTO             = 71;         ///
+        enum EMULTIHOP          = 72;         ///
+        enum EDOTDOT            = 73;         ///
+        enum EBADMSG            = 74;         ///
+        enum EOVERFLOW          = 75;         ///
+        enum ENOTUNIQ           = 76;         ///
+        enum EBADFD             = 77;         ///
+        enum EREMCHG            = 78;         ///
+        enum ELIBACC            = 79;         ///
+        enum ELIBBAD            = 80;         ///
+        enum ELIBSCN            = 81;         ///
+        enum ELIBMAX            = 82;         ///
+        enum ELIBEXEC           = 83;         ///
+        enum EILSEQ             = 84;         ///
+        enum ERESTART           = 85;         ///
+        enum ESTRPIPE           = 86;         ///
+        enum EUSERS             = 87;         ///
+        enum ENOTSOCK           = 88;         ///
+        enum EDESTADDRREQ       = 89;         ///
+        enum EMSGSIZE           = 90;         ///
+        enum EPROTOTYPE         = 91;         ///
+        enum ENOPROTOOPT        = 92;         ///
+        enum EPROTONOSUPPORT    = 93;         ///
+        enum ESOCKTNOSUPPORT    = 94;         ///
+        enum EOPNOTSUPP         = 95;         ///
+        enum ENOTSUP            = EOPNOTSUPP; ///
+        enum EPFNOSUPPORT       = 96;         ///
+        enum EAFNOSUPPORT       = 97;         ///
+        enum EADDRINUSE         = 98;         ///
+        enum EADDRNOTAVAIL      = 99;         ///
+        enum ENETDOWN           = 100;        ///
+        enum ENETUNREACH        = 101;        ///
+        enum ENETRESET          = 102;        ///
+        enum ECONNABORTED       = 103;        ///
+        enum ECONNRESET         = 104;        ///
+        enum ENOBUFS            = 105;        ///
+        enum EISCONN            = 106;        ///
+        enum ENOTCONN           = 107;        ///
+        enum ESHUTDOWN          = 108;        ///
+        enum ETOOMANYREFS       = 109;        ///
+        enum ETIMEDOUT          = 110;        ///
+        enum ECONNREFUSED       = 111;        ///
+        enum EHOSTDOWN          = 112;        ///
+        enum EHOSTUNREACH       = 113;        ///
+        enum EALREADY           = 114;        ///
+        enum EINPROGRESS        = 115;        ///
+        enum ESTALE             = 116;        ///
+        enum EUCLEAN            = 117;        ///
+        enum ENOTNAM            = 118;        ///
+        enum ENAVAIL            = 119;        ///
+        enum EISNAM             = 120;        ///
+        enum EREMOTEIO          = 121;        ///
+        enum EDQUOT             = 122;        ///
+        enum ENOMEDIUM          = 123;        ///
+        enum EMEDIUMTYPE        = 124;        ///
+        enum ECANCELED          = 125;        ///
+        enum ENOKEY             = 126;        ///
+        enum EKEYEXPIRED        = 127;        ///
+        enum EKEYREVOKED        = 128;        ///
+        enum EKEYREJECTED       = 129;        ///
+        enum EOWNERDEAD         = 130;        ///
+        enum ENOTRECOVERABLE    = 131;        ///
+        enum ERFKILL            = 132;        ///
+        enum EHWPOISON          = 133;        ///
+    }
+    else version (LoongArch64)
     {
         enum EDEADLK            = 35;         ///
         enum ENAMETOOLONG       = 36;         ///
@@ -2078,6 +2319,143 @@ else version (Haiku)
     enum B_TRANSLATION_BASE_ERROR        = (B_TRANSLATION_ERROR_BASE + 0);
     enum B_NO_TRANSLATOR                 = (B_TRANSLATION_ERROR_BASE + 1);
     enum B_ILLEGAL_DATA                  = (B_TRANSLATION_ERROR_BASE + 2);
+}
+else version (WASI)
+{
+    enum EPERM            = 1;
+    enum ENOENT           = 2;
+    enum ESRCH            = 3;
+    enum EINTR            = 4;
+    enum EIO              = 5;
+    enum ENXIO            = 6;
+    enum E2BIG            = 7;
+    enum ENOEXEC          = 8;
+    enum EBADF            = 9;
+    enum ECHILD          = 10;
+    enum EAGAIN          = 11;
+    enum ENOMEM          = 12;
+    enum EACCES          = 13;
+    enum EFAULT          = 14;
+    enum ENOTBLK         = 15;
+    enum EBUSY           = 16;
+    enum EEXIST          = 17;
+    enum EXDEV           = 18;
+    enum ENODEV          = 19;
+    enum ENOTDIR         = 20;
+    enum EISDIR          = 21;
+    enum EINVAL          = 22;
+    enum ENFILE          = 23;
+    enum EMFILE          = 24;
+    enum ENOTTY          = 25;
+    enum ETXTBSY         = 26;
+    enum EFBIG           = 27;
+    enum ENOSPC          = 28;
+    enum ESPIPE          = 29;
+    enum EROFS           = 30;
+    enum EMLINK          = 31;
+    enum EPIPE           = 32;
+    enum EDOM            = 33;
+    enum ERANGE          = 34;
+    enum EDEADLK         = 35;
+    enum ENAMETOOLONG    = 36;
+    enum ENOLCK          = 37;
+    enum ENOSYS          = 38;
+    enum ENOTEMPTY       = 39;
+    enum ELOOP           = 40;
+    enum EWOULDBLOCK     = EAGAIN;
+    enum ENOMSG          = 42;
+    enum EIDRM           = 43;
+    enum ECHRNG          = 44;
+    enum EL2NSYNC        = 45;
+    enum EL3HLT          = 46;
+    enum EL3RST          = 47;
+    enum ELNRNG          = 48;
+    enum EUNATCH         = 49;
+    enum ENOCSI          = 50;
+    enum EL2HLT          = 51;
+    enum EBADE           = 52;
+    enum EBADR           = 53;
+    enum EXFULL          = 54;
+    enum ENOANO          = 55;
+    enum EBADRQC         = 56;
+    enum EBADSLT         = 57;
+    enum EDEADLOCK       = EDEADLK;
+    enum EBFONT          = 59;
+    enum ENOSTR          = 60;
+    enum ENODATA         = 61;
+    enum ETIME           = 62;
+    enum ENOSR           = 63;
+    enum ENONET          = 64;
+    enum ENOPKG          = 65;
+    enum EREMOTE         = 66;
+    enum ENOLINK         = 67;
+    enum EADV            = 68;
+    enum ESRMNT          = 69;
+    enum ECOMM           = 70;
+    enum EPROTO          = 71;
+    enum EMULTIHOP       = 72;
+    enum EDOTDOT         = 73;
+    enum EBADMSG         = 74;
+    enum EOVERFLOW       = 75;
+    enum ENOTUNIQ        = 76;
+    enum EBADFD          = 77;
+    enum EREMCHG         = 78;
+    enum ELIBACC         = 79;
+    enum ELIBBAD         = 80;
+    enum ELIBSCN         = 81;
+    enum ELIBMAX         = 82;
+    enum ELIBEXEC        = 83;
+    enum EILSEQ          = 84;
+    enum ERESTART        = 85;
+    enum ESTRPIPE        = 86;
+    enum EUSERS          = 87;
+    enum ENOTSOCK        = 88;
+    enum EDESTADDRREQ    = 89;
+    enum EMSGSIZE        = 90;
+    enum EPROTOTYPE      = 91;
+    enum ENOPROTOOPT     = 92;
+    enum EPROTONOSUPPORT = 93;
+    enum ESOCKTNOSUPPORT = 94;
+    enum EOPNOTSUPP      = 95;
+    enum ENOTSUP         = EOPNOTSUPP;
+    enum EPFNOSUPPORT    = 96;
+    enum EAFNOSUPPORT    = 97;
+    enum EADDRINUSE      = 98;
+    enum EADDRNOTAVAIL   = 99;
+    enum ENETDOWN        = 100;
+    enum ENETUNREACH     = 101;
+    enum ENETRESET       = 102;
+    enum ECONNABORTED    = 103;
+    enum ECONNRESET      = 104;
+    enum ENOBUFS         = 105;
+    enum EISCONN         = 106;
+    enum ENOTCONN        = 107;
+    enum ESHUTDOWN       = 108;
+    enum ETOOMANYREFS    = 109;
+    enum ETIMEDOUT       = 110;
+    enum ECONNREFUSED    = 111;
+    enum EHOSTDOWN       = 112;
+    enum EHOSTUNREACH    = 113;
+    enum EALREADY        = 114;
+    enum EINPROGRESS     = 115;
+    enum ESTALE          = 116;
+    enum EUCLEAN         = 117;
+    enum ENOTNAM         = 118;
+    enum ENAVAIL         = 119;
+    enum EISNAM          = 120;
+    enum EREMOTEIO       = 121;
+    enum EDQUOT          = 122;
+    enum ENOMEDIUM       = 123;
+    enum EMEDIUMTYPE     = 124;
+    enum ECANCELED       = 125;
+    enum ENOKEY          = 126;
+    enum EKEYEXPIRED     = 127;
+    enum EKEYREVOKED     = 128;
+    enum EKEYREJECTED    = 129;
+    enum EOWNERDEAD      = 130;
+    enum ENOTRECOVERABLE = 131;
+    enum ERFKILL         = 132;
+    enum EHWPOISON       = 133;
 }
 else
 {

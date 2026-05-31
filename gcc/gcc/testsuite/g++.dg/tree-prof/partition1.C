@@ -1,3 +1,4 @@
+/* Explicit { dg-require-effective-target exceptions_enabled } so that dependent tests don't turn UNRESOLVED for '-fno-exceptions'.  */
 /* { dg-require-effective-target freorder } */
 /* { dg-options "-O2 -freorder-blocks-and-partition" } */
 
@@ -15,7 +16,8 @@ int bar (int i)
   void *p = __builtin_alloca (i);
   asm volatile ("" : : "r" (i), "r" (p) : "memory");
   if (k) throw 6;
-  return ++l;
+  l = l + 1;
+  return l;
 }
 
 void foo ()

@@ -1,6 +1,6 @@
-/* { dg-do compile { target c } } */
+/* { dg-do compile } */
 /* { dg-additional-options "-fdump-tree-gimple" } */
-
+// { dg-additional-options "-Wno-deprecated-openmp" }
 void f01 (void);
 #pragma omp declare variant (f01) match (user={condition(6 == 7)},implementation={vendor(gnu)})
 void f02 (void);
@@ -102,7 +102,7 @@ void
 test3 (void)
 {
   #pragma omp parallel
-  f20 ();	/* { dg-final { scan-tree-dump-times "f20 \\\(\\\);" 1 "gimple" } } */
+  f20 ();	/* { dg-final { scan-tree-dump-times "f19 \\\(\\\);" 1 "gimple" } } */
 }
 
 void

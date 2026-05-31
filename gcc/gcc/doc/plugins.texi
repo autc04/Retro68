@@ -1,4 +1,4 @@
-@c Copyright (C) 2009-2022 Free Software Foundation, Inc.
+@c Copyright (C) 2009-2026 Free Software Foundation, Inc.
 @c Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
@@ -44,7 +44,7 @@ Plugins are loaded with
 
 Where @var{name} is the plugin name and @var{ext} is the platform-specific
 dynamic library extension. It should be @code{dll} on Windows/MinGW,
-@code{dylib} on Darwin/Mac OS X, and @code{so} on all other platforms.
+@code{dylib} on Darwin/macOS, and @code{so} on all other platforms.
 The plugin arguments are parsed by GCC and passed to respective
 plugins as key-value pairs. Multiple plugins can be invoked by
 specifying multiple @option{-fplugin} arguments.
@@ -217,10 +217,6 @@ enum plugin_event
    This could happen many times.  The event data is the included file path,
    as a const char* pointer.  */
   PLUGIN_INCLUDE_FILE,
-
-  /* Called when -fanalyzer starts. The event data is an
-     ana::plugin_analyzer_init_iface *.  */
-  PLUGIN_ANALYZER_INIT,
 
   PLUGIN_EVENT_FIRST_DYNAMIC    /* Dummy event used for indexing callback
                                    array.  */

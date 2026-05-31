@@ -1,5 +1,5 @@
-// { dg-options "-std=gnu++23" }
 // { dg-do run { target c++23 } }
+// { dg-require-effective-target hosted }
 
 #include <functional>
 #include <testsuite_hooks.h>
@@ -29,6 +29,12 @@ test01()
 
   F f;
   std::move_only_function<const F::Counters&() const> m1(f);
+  VERIFY( m1().copy == 1 );
+  VERIFY( m1().move == 0 );
+
+  // Standard specifies move assigment as copy and swap
+  m1 = std::move(m1);
+  VERIFY( m1 != nullptr );
   VERIFY( m1().copy == 1 );
   VERIFY( m1().move == 0 );
 
@@ -77,6 +83,11 @@ test02()
 
   F f;
   std::move_only_function<F::Counters() const> m1(f);
+  VERIFY( m1().copy == 1 );
+  VERIFY( m1().move == 0 );
+
+  m1 = std::move(m1);
+  VERIFY( m1 != nullptr );
   VERIFY( m1().copy == 1 );
   VERIFY( m1().move == 0 );
 

@@ -1,6 +1,6 @@
 // Support for atomic operations -*- C++ -*-
 
-// Copyright (C) 2004-2022 Free Software Foundation, Inc.
+// Copyright (C) 2004-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,13 +29,18 @@
 #ifndef _GLIBCXX_ATOMICITY_H
 #define _GLIBCXX_ATOMICITY_H	1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <bits/c++config.h>
 #include <bits/gthr.h>
 #include <bits/atomic_word.h>
 #if __has_include(<sys/single_threaded.h>)
 # include <sys/single_threaded.h>
+#endif
+#if __cplusplus >= 201103L
+# include <type_traits> // make_unsigned_t
 #endif
 
 namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
@@ -59,7 +64,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   // To abstract locking primitives across all thread policies, use:
   // __exchange_and_add_dispatch
   // __atomic_add_dispatch
-#ifdef _GLIBCXX_ATOMIC_BUILTINS
+#ifdef _GLIBCXX_ATOMIC_WORD_BUILTINS
   inline _Atomic_word
   __attribute__((__always_inline__))
   __exchange_and_add(volatile _Atomic_word* __mem, int __val)
@@ -69,7 +74,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   __attribute__((__always_inline__))
   __atomic_add(volatile _Atomic_word* __mem, int __val)
   { __atomic_fetch_add(__mem, __val, __ATOMIC_ACQ_REL); }
-#else
+#else // Defined in config/cpu/.../atomicity.h
   _Atomic_word
   __exchange_and_add(volatile _Atomic_word*, int) _GLIBCXX_NOTHROW;
 
@@ -77,19 +82,57 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   __atomic_add(volatile _Atomic_word*, int) _GLIBCXX_NOTHROW;
 #endif
 
+#if __cplusplus < 201103L
+  // The array bound will be ill-formed in the very unlikely case that
+  // _Atomic_word is wider than long and we need to use unsigned long long
+  // below in __exchange_and_add_single and __atomic_add_single.
+  typedef int
+    _Atomic_word_fits_in_long[sizeof(_Atomic_word) <= sizeof(long) ? 1 : -1];
+#endif
+
+  // Targets where _Atomic_word uses __attribute__((__aligned__(n))) will get
+  // a warning for make_unsigned<_Atomic_word>. That warning can be ignored,
+  // because we only need an unsigned type, we don't care about its alignment.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+
+  // We need an unsigned type that can be used for the arithmetic below.
+  // This type must not be use for atomic ops because it might not be
+  // sufficiently aligned. Define it as a macro that we #undef below,
+  // to prevent misuse elsewhere in the library.
+#if __cplusplus >= 201103L
+# define _GLIBCXX_UNSIGNED_ATOMIC_WORD std::make_unsigned<_Atomic_word>::type
+#else
+  // For most targets make_unsigned_t<_Atomic_word> is unsigned int,
+  // but 64-bit sparc uses long for _Atomic_word, so needs unsigned long.
+  // Sign-extending to unsigned long works for both cases, so use that.
+# define _GLIBCXX_UNSIGNED_ATOMIC_WORD unsigned long
+#endif
+
   inline _Atomic_word
   __attribute__((__always_inline__))
   __exchange_and_add_single(_Atomic_word* __mem, int __val)
   {
     _Atomic_word __result = *__mem;
-    *__mem += __val;
+    // Do the addition with an unsigned type so that overflow is well defined.
+    _GLIBCXX_UNSIGNED_ATOMIC_WORD __u;
+    __u = __result;
+    __u += __val;
+    *__mem = __u;
     return __result;
   }
 
   inline void
   __attribute__((__always_inline__))
   __atomic_add_single(_Atomic_word* __mem, int __val)
-  { *__mem += __val; }
+  {
+    _GLIBCXX_UNSIGNED_ATOMIC_WORD __u;
+    __u = *__mem;
+    __u += __val;
+    *__mem = __u;
+  }
+#undef _GLIBCXX_UNSIGNED_ATOMIC_WORD
+#pragma GCC diagnostic pop
 
   inline _Atomic_word
   __attribute__ ((__always_inline__))
@@ -124,4 +167,4 @@ _GLIBCXX_END_NAMESPACE_VERSION
 #define _GLIBCXX_WRITE_MEM_BARRIER __atomic_thread_fence (__ATOMIC_RELEASE)
 #endif
 
-#endif 
+#endif

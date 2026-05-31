@@ -7,7 +7,7 @@
 --                                  S p e c                                 --
 --                                                                          --
 --             Copyright (C) 1991-2017, Florida State University            --
---          Copyright (C) 1995-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1995-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,11 +38,12 @@
 --  PLEASE DO NOT add any with-clauses to this package or remove the pragma
 --  Preelaborate. This package is designed to be a bottom-level (leaf) package.
 
-with Interfaces.C;
-
 with Ada.Unchecked_Conversion;
 
-with System.Parameters;
+with Interfaces.C;
+
+with System.C_Time;
+with System.OS_Locks;
 
 package System.OS_Interface is
    pragma Preelaborate;
@@ -240,23 +241,15 @@ package System.OS_Interface is
    -- Time --
    ----------
 
-   type timespec is private;
-
    type clockid_t is new int;
 
    function clock_gettime
-     (clock_id : clockid_t; tp : access timespec) return int;
+     (clock_id : clockid_t; tp : access C_Time.timespec) return int;
    pragma Import (C, clock_gettime, "clock_gettime");
 
    function clock_getres
-     (clock_id : clockid_t; res : access timespec) return int;
+     (clock_id : clockid_t; res : access C_Time.timespec) return int;
    pragma Import (C, clock_getres, "clock_getres");
-
-   function To_Duration (TS : timespec) return Duration;
-   pragma Inline (To_Duration);
-
-   function To_Timespec (D : Duration) return timespec;
-   pragma Inline (To_Timespec);
 
    function sysconf (name : int) return long;
    pragma Import (C, sysconf);
@@ -297,7 +290,7 @@ package System.OS_Interface is
 
    function To_thread_t is new Ada.Unchecked_Conversion (Integer, thread_t);
 
-   type mutex_t is limited private;
+   subtype mutex_t is System.OS_Locks.mutex_t;
 
    type cond_t is limited private;
 
@@ -346,7 +339,7 @@ package System.OS_Interface is
    function cond_timedwait
      (cond    : access cond_t;
       mutex   : access mutex_t;
-      abstime : access timespec) return int;
+      abstime : access C_Time.timespec) return int;
    pragma Import (C, cond_timedwait, "cond_timedwait");
 
    function cond_signal (cond : access cond_t) return int;
@@ -525,15 +518,6 @@ private
 
    type pid_t is new long;
 
-   type time_t is range -2 ** (System.Parameters.time_t_bits - 1)
-     .. 2 ** (System.Parameters.time_t_bits - 1) - 1;
-
-   type timespec is record
-      tv_sec  : time_t;
-      tv_nsec : long;
-   end record;
-   pragma Convention (C, timespec);
-
    type array_type_9 is array (0 .. 3) of unsigned_char;
    type record_type_3 is record
       flag  : array_type_9;
@@ -542,13 +526,6 @@ private
    pragma Convention (C, record_type_3);
 
    type upad64_t is new Interfaces.Unsigned_64;
-
-   type mutex_t is record
-      flags : record_type_3;
-      lock  : upad64_t;
-      data  : upad64_t;
-   end record;
-   pragma Convention (C, mutex_t);
 
    type cond_t is record
       flags : record_type_3;

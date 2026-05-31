@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,10 +23,10 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Ada.Unchecked_Conversion;
 with Aspects;              use Aspects;
 with Atree;                use Atree;
 with Debug;                use Debug;
-with Einfo;                use Einfo;
 with Einfo.Entities;       use Einfo.Entities;
 with Einfo.Utils;          use Einfo.Utils;
 with Elists;               use Elists;
@@ -37,7 +37,6 @@ with Nlists;               use Nlists;
 with Output;               use Output;
 with Seinfo;               use Seinfo;
 with Sem_Eval;             use Sem_Eval;
-with Sinfo;                use Sinfo;
 with Sinfo.Nodes;          use Sinfo.Nodes;
 with Sinfo.Utils;          use Sinfo.Utils;
 with Snames;               use Snames;
@@ -49,7 +48,6 @@ with SCIL_LL;              use SCIL_LL;
 with Uintp;                use Uintp;
 with Urealp;               use Urealp;
 with Uname;                use Uname;
-with Unchecked_Conversion;
 
 package body Treepr is
 
@@ -87,7 +85,7 @@ package body Treepr is
    procedure Destroy (Value : in out Nat) is null;
    pragma Annotate (CodePeer, False_Positive, "unassigned parameter",
                     "in out parameter is required to instantiate generic");
-   --  Dummy routine for destroing hashed values
+   --  Dummy routine for destroying hashed values
 
    package Serial_Numbers is new Dynamic_Hash_Tables
      (Key_Type              => Int,
@@ -132,19 +130,18 @@ package body Treepr is
    -- Local Procedures --
    ----------------------
 
-   function From_Union is new Unchecked_Conversion (Union_Id, Uint);
-   function From_Union is new Unchecked_Conversion (Union_Id, Ureal);
-
-   function To_Mixed (S : String) return String;
-   --  Turns an identifier into Mixed_Case. For bootstrap reasons, we cannot
-   --  use To_Mixed function from System.Case_Util.
+   function From_Union is new Ada.Unchecked_Conversion (Union_Id, Uint);
+   function From_Union is new Ada.Unchecked_Conversion (Union_Id, Ureal);
 
    function Image (F : Node_Or_Entity_Field) return String;
 
    procedure Print_Init;
    --  Initialize for printing of tree with descendants
 
-   procedure Print_End_Span (N : Node_Id);
+   procedure Print_End_Span
+     (Prefix : String;
+      Field  : Node_Field;
+      N      : Node_Id);
    --  Print contents of End_Span field of node N. The format includes the
    --  implicit source location as well as the value of the field.
 
@@ -191,7 +188,6 @@ package body Treepr is
    --  Called if the node being printed is an entity. Prints fields from the
    --  extension, using routines in Einfo to get the field names and flags.
 
-   procedure Print_Field (Val : Union_Id; Format : UI_Format := Auto);
    procedure Print_Field
      (Prefix : String;
       Field  : String;
@@ -260,7 +256,7 @@ package body Treepr is
    ----------
 
    function Hash (Key : Int) return GNAT.Bucket_Range_Type is
-      function Cast is new Unchecked_Conversion
+      function Cast is new Ada.Unchecked_Conversion
         (Source => Int, Target => GNAT.Bucket_Range_Type);
    begin
       return Cast (Key);
@@ -273,8 +269,9 @@ package body Treepr is
    function Image (F : Node_Or_Entity_Field) return String is
    begin
       case F is
-         when F_Alloc_For_BIP_Return =>
-            return "Alloc_For_BIP_Return";
+         --  We special case the following; otherwise the compiler will use
+         --  the usual Mixed_Case convention.
+
          when F_Assignment_OK =>
             return "Assignment_OK";
          when F_Backwards_OK =>
@@ -305,8 +302,6 @@ package body Treepr is
             return "SCIL_Target_Prim";
          when F_Shift_Count_OK =>
             return "Shift_Count_OK";
-         when F_Split_PPC =>
-            return "Split_PPC";
          when F_TSS_Elist =>
             return "TSS_Elist";
 
@@ -332,10 +327,10 @@ package body Treepr is
             return "Has_RACW";
          when F_Ignore_SPARK_Mode_Pragmas =>
             return "Ignore_SPARK_Mode_Pragmas";
-         when F_Is_Constr_Subt_For_UN_Aliased =>
-            return "Is_Constr_Subt_For_UN_Aliased";
          when F_Is_CPP_Class =>
             return "Is_CPP_Class";
+         when F_Is_CPP_Constructor =>
+            return "Is_CPP_Constructor";
          when F_Is_CUDA_Kernel =>
             return "Is_CUDA_Kernel";
          when F_Is_DIC_Procedure =>
@@ -346,6 +341,8 @@ package body Treepr is
             return "Is_Elaboration_Checks_OK_Id";
          when F_Is_Elaboration_Warnings_OK_Id =>
             return "Is_Elaboration_Warnings_OK_Id";
+         when F_Is_IEEE_Extended_Precision =>
+            return "Is_IEEE_Extended_Precision";
          when F_Is_RACW_Stub_Type =>
             return "Is_RACW_Stub_Type";
          when F_LSP_Subprogram =>
@@ -371,8 +368,9 @@ package body Treepr is
 
          when others =>
             declare
-               Result : constant String := To_Mixed (F'Img);
+               Result : String := F'Img;
             begin
+               To_Mixed (Result);
                return Result (3 .. Result'Last); -- Remove "F_"
             end;
       end case;
@@ -418,6 +416,34 @@ package body Treepr is
    --------
 
    procedure pe (N : Union_Id) renames pn;
+
+   ---------
+   -- pec --
+   ---------
+
+   procedure pec (From : Entity_Id) is
+   begin
+      Push_Output;
+      Set_Standard_Output;
+
+      Print_Entity_Chain (From);
+
+      Pop_Output;
+   end pec;
+
+   ----------
+   -- rpec --
+   ----------
+
+   procedure rpec (From : Entity_Id) is
+   begin
+      Push_Output;
+      Set_Standard_Output;
+
+      Print_Entity_Chain (From, Rev => True);
+
+      Pop_Output;
+   end rpec;
 
    --------
    -- pl --
@@ -539,7 +565,7 @@ package body Treepr is
          return;
       end if;
 
-      if E = No_Elist then
+      if No (E) then
          Write_Str ("<no elist>");
 
       elsif Is_Empty_Elmt_List (E) then
@@ -582,10 +608,16 @@ package body Treepr is
    -- Print_End_Span --
    --------------------
 
-   procedure Print_End_Span (N : Node_Id) is
+   procedure Print_End_Span
+     (Prefix : String;
+      Field  : Node_Field;
+      N      : Node_Id)
+   is
       Val : constant Uint := End_Span (N);
 
    begin
+      Write_Str (Prefix);
+      Write_Str (Image (Field) & " = ");
       UI_Write (Val);
       Write_Str (" (Uint = ");
       Write_Str (UI_Image (Val));
@@ -594,7 +626,39 @@ package body Treepr is
       if Present (Val) then
          Write_Location (End_Location (N));
       end if;
+
+      Write_Eol;
    end Print_End_Span;
+
+   ------------------------
+   -- Print_Entity_Chain --
+   ------------------------
+
+   procedure Print_Entity_Chain (From : Entity_Id; Rev : Boolean := False) is
+      Ent : Entity_Id := From;
+   begin
+      Printing_Descendants := False;
+      Phase := Printing;
+
+      loop
+         declare
+            Next_Ent : constant Entity_Id :=
+              (if Rev then Prev_Entity (Ent) else Next_Entity (Ent));
+
+            Prefix_Char : constant Character :=
+              (if Present (Next_Ent) then '|' else ' ');
+         begin
+            Print_Node (Ent, "", Prefix_Char);
+
+            exit when No (Next_Ent);
+
+            Ent := Next_Ent;
+
+            Print_Char ('|');
+            Print_Eol;
+         end;
+      end loop;
+   end Print_Entity_Chain;
 
    -----------------------
    -- Print_Entity_Info --
@@ -728,51 +792,6 @@ package body Treepr is
    function Get_Mechanism_Type is new Get_32_Bit_Field
      (Mechanism_Type) with Inline, Unreferenced;
 
-   procedure Print_Field (Val : Union_Id; Format : UI_Format := Auto) is
-   begin
-      if Phase /= Printing then
-         return;
-      end if;
-
-      if Val in Node_Range then
-         Print_Node_Ref (Node_Id (Val));
-
-      elsif Val in List_Range then
-         Print_List_Ref (List_Id (Val));
-
-      elsif Val in Elist_Range then
-         Print_Elist_Ref (Elist_Id (Val));
-
-      elsif Val in Names_Range then
-         Print_Name (Name_Id (Val));
-         Write_Str (" (Name_Id=");
-         Write_Int (Int (Val));
-         Write_Char (')');
-
-      elsif Val in Strings_Range then
-         Write_String_Table_Entry (String_Id (Val));
-         Write_Str (" (String_Id=");
-         Write_Int (Int (Val));
-         Write_Char (')');
-
-      elsif Val in Uint_Range then
-         UI_Write (From_Union (Val), Format);
-         Write_Str (" (Uint = ");
-         Write_Int (Int (Val));
-         Write_Char (')');
-
-      elsif Val in Ureal_Range then
-         UR_Write (From_Union (Val));
-         Write_Str (" (Ureal = ");
-         Write_Int (Int (Val));
-         Write_Char (')');
-
-      else
-         Print_Str ("****** Incorrect value = ");
-         Print_Int (Int (Val));
-      end if;
-   end Print_Field;
-
    procedure Print_Field
      (Prefix : String;
       Field  : String;
@@ -880,7 +899,7 @@ package body Treepr is
          when Uint_Field =>
             declare
                Val : constant Uint := Get_Uint (N, FD.Offset);
-               function Cast is new Unchecked_Conversion (Uint, Int);
+               function Cast is new Ada.Unchecked_Conversion (Uint, Int);
             begin
                if Present (Val) then
                   Print_Initial;
@@ -895,7 +914,7 @@ package body Treepr is
             | Nonzero_Uint_Field =>
             declare
                Val : constant Uint := Get_Valid_Uint (N, FD.Offset);
-               function Cast is new Unchecked_Conversion (Uint, Int);
+               function Cast is new Ada.Unchecked_Conversion (Uint, Int);
             begin
                Print_Initial;
                UI_Write (Val, Format);
@@ -916,7 +935,7 @@ package body Treepr is
          when Ureal_Field =>
             declare
                Val : constant Ureal := Get_Ureal (N, FD.Offset);
-               function Cast is new Unchecked_Conversion (Ureal, Int);
+               function Cast is new Ada.Unchecked_Conversion (Ureal, Int);
             begin
                if Val /= No_Ureal then
                   Print_Initial;
@@ -980,7 +999,8 @@ package body Treepr is
    exception
       when others =>
          declare
-            function Cast is new Unchecked_Conversion (Field_Size_32_Bit, Int);
+            function Cast is new
+              Ada.Unchecked_Conversion (Field_Size_32_Bit, Int);
          begin
             Write_Eol;
             Print_Initial;
@@ -1040,9 +1060,11 @@ package body Treepr is
       FD     : Field_Descriptor;
       Format : UI_Format := Auto)
    is
-      NN : constant Node_Id := Node_To_Fetch_From (N, Field);
+      NN : constant Node_Id := Node_To_Fetch_From_If_Set (N, Field);
+      --  If NN is Empty, it means that we cannot compute the
+      --  Node_To_Fetch_From, so we simply skip this field.
    begin
-      if not Field_Is_Initial_Zero (N, Field) then
+      if Present (NN) and then not Field_Is_Initial_Zero (N, Field) then
          Print_Field (Prefix, Image (Field), NN, FD, Format);
       end if;
    end Print_Entity_Field;
@@ -1142,21 +1164,7 @@ package body Treepr is
    procedure Print_Name (N : Name_Id) is
    begin
       if Phase = Printing then
-         if N = No_Name then
-            Print_Str ("<No_Name>");
-
-         elsif N = Error_Name then
-            Print_Str ("<Error_Name>");
-
-         elsif Is_Valid_Name (N) then
-            Get_Name_String (N);
-            Print_Char ('"');
-            Write_Name (N);
-            Print_Char ('"');
-
-         else
-            Print_Str ("<invalid name>");
-         end if;
+         Write_Name_For_Debug (N, Quote => """");
       end if;
    end Print_Name;
 
@@ -1209,8 +1217,8 @@ package body Treepr is
       end if;
 
       if not Is_List_Member (N) then
-         Print_Str (Prefix_Str);
-         Print_Str (" Parent = ");
+         Print_Str (Prefix);
+         Print_Str ("Parent = ");
          Print_Node_Ref (Parent (N));
          Print_Eol;
       end if;
@@ -1229,7 +1237,7 @@ package body Treepr is
 
          else
             Sfile := Get_Source_File_Index (Sloc (N));
-            Print_Int (Int (Sloc (N)) - Int (Source_Text (Sfile)'First));
+            Print_Int (Int (Sloc (N) - Source_Text (Sfile)'First));
             Write_Str ("  ");
             Write_Location (Sloc (N));
          end if;
@@ -1408,7 +1416,6 @@ package body Treepr is
             | F_Assignment_OK
             | F_Do_Range_Check
             | F_Has_Dynamic_Length_Check
-            | F_Has_Aspects
             | F_Is_Controlling_Actual
             | F_Is_Overloaded
             | F_Is_Static_Expression
@@ -1443,7 +1450,7 @@ package body Treepr is
                      --  End_Location.
 
                      if Fields (Field_Index) = F_End_Span then
-                        Print_End_Span (N);
+                        Print_End_Span (Prefix, F_End_Span, N);
 
                      else
                         Print_Node_Field
@@ -1454,15 +1461,6 @@ package body Treepr is
             end loop;
          end loop;
       end;
-
-      --  Print aspects if present
-
-      if Has_Aspects (N) then
-         Print_Str (Prefix);
-         Print_Str ("Aspect_Specifications = ");
-         Print_Field (Union_Id (Aspect_Specifications (N)));
-         Print_Eol;
-      end if;
 
       --  Print entity information for entities
 
@@ -1617,19 +1615,17 @@ package body Treepr is
          --  If this is a discrete expression whose value is known, print that
          --  value.
 
-         if Nkind (N) in N_Subexpr
+         if ((Is_Entity_Name (N) -- e.g. enumeration literal
+               and then Present (Entity (N)))
+              or else Nkind (N) in N_Integer_Literal
+                                 | N_Character_Literal
+                                 | N_Unchecked_Type_Conversion)
            and then Compile_Time_Known_Value (N)
            and then Present (Etype (N))
            and then Is_Discrete_Type (Etype (N))
          then
-            if Is_Entity_Name (N) -- e.g. enumeration literal
-              or else Nkind (N) in N_Integer_Literal
-                                 | N_Character_Literal
-                                 | N_Unchecked_Type_Conversion
-            then
-               Print_Str (" val = ");
-               UI_Write (Expr_Value (N));
-            end if;
+            Print_Str (" val = ");
+            UI_Write (Expr_Value (N));
          end if;
 
          if Nkind (N) in N_Entity then
@@ -1684,8 +1680,10 @@ package body Treepr is
    --------------------------
 
    procedure Print_Str_Mixed_Case (S : String) is
+      Tmp : String := S;
    begin
-      Print_Str (To_Mixed (S));
+      To_Mixed (Tmp);
+      Print_Str (Tmp);
    end Print_Str_Mixed_Case;
 
    ----------------
@@ -1819,17 +1817,6 @@ package body Treepr is
       Next_Serial_Number := Next_Serial_Number + 1;
    end Set_Serial_Number;
 
-   --------------
-   -- To_Mixed --
-   --------------
-
-   function To_Mixed (S : String) return String is
-   begin
-      return Result : String (S'Range) := S do
-         To_Mixed (Result);
-      end return;
-   end To_Mixed;
-
    ---------------
    -- Tree_Dump --
    ---------------
@@ -1878,7 +1865,7 @@ package body Treepr is
 
          Write_Eol;
          Write_Str ("Tree created for ");
-         Write_Unit_Name (Unit_Name (Main_Unit));
+         Write_Unit_Name_For_Debug (Unit_Name (Main_Unit));
          Underline;
          Print_Node_Subtree (Cunit (Main_Unit));
          Write_Eol;
@@ -2041,17 +2028,16 @@ package body Treepr is
          --  Case of descendant is a node
 
          if D in Node_Range then
-
-            --  Don't bother about Empty or Error descendants
-
-            if D <= Union_Id (Empty_Or_Error) then
-               return;
-            end if;
-
             declare
                Nod : constant Node_Or_Entity_Id := Node_Or_Entity_Id (D);
 
             begin
+               --  Don't bother about Empty or Error descendants
+
+               if Nod in Empty | Error then
+                  return;
+               end if;
+
                --  Descendants in one of the standardly compiled internal
                --  packages are normally ignored, unless the parent is also
                --  in such a package (happens when Standard itself is output)

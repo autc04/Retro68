@@ -10,6 +10,8 @@ f_omp (void)
     ;
 #pragma acc kernels /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
+#pragma acc serial /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
+    ;
 #pragma acc data /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
 #pragma acc update host(i) /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
@@ -26,6 +28,8 @@ f_omp (void)
 #pragma acc parallel /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
       ;
 #pragma acc kernels /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
+      ;
+#pragma acc serial /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
       ;
 #pragma acc data /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
       ;
@@ -46,6 +50,11 @@ f_omp (void)
 #pragma omp section
     {
 #pragma acc kernels /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
+      ;
+    }
+#pragma omp section
+    {
+#pragma acc serial /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
       ;
     }
 #pragma omp section
@@ -79,6 +88,8 @@ f_omp (void)
     ;
 #pragma acc kernels /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
+#pragma acc serial /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
+    ;
 #pragma acc data /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
 #pragma acc update host(i) /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
@@ -95,6 +106,8 @@ f_omp (void)
     ;
 #pragma acc kernels /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
+#pragma acc serial /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
+    ;
 #pragma acc data /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
 #pragma acc update host(i) /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
@@ -105,11 +118,13 @@ f_omp (void)
       ;
   }
 
-#pragma omp master
+#pragma omp masked
   {
 #pragma acc parallel /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
 #pragma acc kernels /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
+    ;
+#pragma acc serial /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
 #pragma acc data /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
@@ -127,6 +142,8 @@ f_omp (void)
     ;
 #pragma acc kernels /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
+#pragma acc serial /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
+    ;
 #pragma acc data /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
 #pragma acc update host(i) /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
@@ -143,6 +160,8 @@ f_omp (void)
     ;
 #pragma acc kernels /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
+#pragma acc serial /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
+    ;
 #pragma acc data /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
     ;
 #pragma acc update host(i) /* { dg-error "OpenACC construct inside of non-OpenACC region" } */
@@ -158,6 +177,8 @@ f_omp (void)
 #pragma acc parallel /* { dg-error "OpenACC .parallel. construct inside of OpenMP .target. region" } */
     ;
 #pragma acc kernels /* { dg-error "OpenACC .kernels. construct inside of OpenMP .target. region" } */
+    ;
+#pragma acc serial /* { dg-error "OpenACC .serial. construct inside of OpenMP .target. region" } */
     ;
 #pragma acc data /* { dg-error "OpenACC .data. construct inside of OpenMP .target. region" } */
     ;
@@ -208,7 +229,7 @@ f_acc_parallel (void)
 
 #pragma acc parallel
   {
-#pragma omp master /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+#pragma omp masked /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
     ;
   }
 
@@ -272,7 +293,7 @@ f_acc_kernels (void)
 
 #pragma acc kernels
   {
-#pragma omp master /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+#pragma omp masked /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
     ;
   }
 
@@ -289,6 +310,70 @@ f_acc_kernels (void)
   }
 
 #pragma acc kernels
+  {
+#pragma omp target /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+    ;
+#pragma omp target data map(i) /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+    ;
+#pragma omp target update to(i) /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+  }
+}
+
+void
+f_acc_serial (void)
+{
+#pragma acc serial
+  {
+#pragma omp parallel /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+    ;
+  }
+
+#pragma acc serial
+  {
+#pragma omp for /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+    for (i = 0; i < 3; i++)
+      ;
+  }
+
+#pragma acc serial
+  {
+#pragma omp sections /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+    {
+      ;
+    }
+  }
+
+#pragma acc serial
+  {
+#pragma omp single /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+    ;
+  }
+
+#pragma acc serial
+  {
+#pragma omp task /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+    ;
+  }
+
+#pragma acc serial
+  {
+#pragma omp masked /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+    ;
+  }
+
+#pragma acc serial
+  {
+#pragma omp critical /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+    ;
+  }
+
+#pragma acc serial
+  {
+#pragma omp ordered /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+    ;
+  }
+
+#pragma acc serial
   {
 #pragma omp target /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
     ;
@@ -336,7 +421,7 @@ f_acc_data (void)
 
 #pragma acc data
   {
-#pragma omp master /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
+#pragma omp masked /* { dg-error "non-OpenACC construct inside of OpenACC region" } */
     ;
   }
 
@@ -407,7 +492,7 @@ f_acc_loop (void)
 #pragma acc loop
   for (i = 0; i < 2; ++i)
     {
-#pragma omp master /* { dg-error "non-OpenACC construct inside of OpenACC routine" } */
+#pragma omp masked /* { dg-error "non-OpenACC construct inside of OpenACC routine" } */
       ;
     }
 

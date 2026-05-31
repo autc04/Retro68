@@ -1,6 +1,5 @@
 # Check illegal AVX512{BF16,VL} instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vcvtneps2bf16	0x10000000(%rbp, %r14, 8), %xmm3{%k7}	 #AVX512{BF16,VL} MASK_ENABLING

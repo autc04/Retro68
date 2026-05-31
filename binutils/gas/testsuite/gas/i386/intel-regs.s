@@ -3,8 +3,8 @@
 
 	mov	eax, tmm1
 
-	.arch i286
 	.code16
+	.arch i286
 	mov	ax, eax			; add	[bx+si], al
 	mov	ax, rax			; add	[bx+si], al
 	mov	ax, axl			; add	[bx+si], al

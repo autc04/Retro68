@@ -52,10 +52,10 @@
 	 typedefs, member functions, etc), but the two which concern us most
 	 are:
        </para>
-       <programlisting>
+<programlisting>
 	 T*    allocate   (size_type n, const void* hint = 0);
 	 void  deallocate (T* p, size_type n);
-       </programlisting>
+</programlisting>
 
        <para>
 	 The <varname>n</varname> arguments in both those
@@ -184,8 +184,8 @@
        Over multiple iterations, various STL container
      objects have elements inserted to some maximum amount. A variety
      of allocators are tested.
-     Test source for <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/viewcvs/gcc/trunk/libstdc%2B%2B-v3/testsuite/performance/23_containers/insert/sequence.cc?view=markup">sequence</link>
-     and <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/viewcvs/gcc/trunk/libstdc%2B%2B-v3/testsuite/performance/23_containers/insert/associative.cc?view=markup">associative</link>
+     Test source for <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/cgit/gcc/tree/libstdc++-v3/testsuite/performance/23_containers/insert/sequence.cc">sequence</link>
+     and <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/cgit/gcc/tree/libstdc++-v3/testsuite/performance/23_containers/insert/associative.cc">associative</link>
      containers.
        </para>
 
@@ -200,7 +200,7 @@
      on a per-thread basis, as well as measuring thread contention
      for memory resources.
      Test source
-    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/viewcvs/gcc/trunk/libstdc%2B%2B-v3/testsuite/performance/23_containers/insert_erase/associative.cc?view=markup">here</link>.
+    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/cgit/gcc/tree/libstdc++-v3/testsuite/performance/23_containers/insert_erase/associative.cc">here</link>.
        </para>
      </listitem>
 
@@ -210,9 +210,9 @@
        </para>
        <para>
        Test source for
-     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/viewcvs/gcc/trunk/libstdc++-v3/testsuite/performance/23_containers/producer_consumer/sequence.cc?view=markup">sequence</link>
+     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/cgit/gcc/tree/libstdc++-v3/testsuite/performance/23_containers/producer_consumer/sequence.cc">sequence</link>
      and
-     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/viewcvs/gcc/trunk/libstdc++-v3/testsuite/performance/23_containers/producer_consumer/associative.cc?view=markup">associative</link>
+     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/cgit/gcc/tree/libstdc++-v3/testsuite/performance/23_containers/producer_consumer/associative.cc">associative</link>
      containers.
      </para>
      </listitem>
@@ -291,14 +291,14 @@
       (but non-portable) method of specifying that only <function>malloc</function> or <function>free</function>
       should be used instead of the default node allocator is:
    </para>
-   <programlisting>
+<programlisting>
     std::list &lt;int, __gnu_cxx::malloc_allocator&lt;int&gt; &gt;  malloc_list;</programlisting>
     <para>
       Likewise, a debugging form of whichever allocator is currently in use:
     </para>
-      <programlisting>
+<programlisting>
     std::deque &lt;int, __gnu_cxx::debug_allocator&lt;std::allocator&lt;int&gt; &gt; &gt;  debug_deque;
-      </programlisting>
+</programlisting>
 </section>
 
 <section xml:id="allocator.custom"><info><title>Custom Allocators</title></info>
@@ -505,7 +505,7 @@
   <biblioentry>
       <title>
 	<link xmlns:xlink="http://www.w3.org/1999/xlink"
-	      xlink:href="http://www.angelikalanger.com/Articles/C++Report/Allocators/Allocators.html">
+	      xlink:href="https://angelikalanger.com/Articles/C++Report/Allocators/Allocators.html">
       Allocator Types
 	</link>
       </title>

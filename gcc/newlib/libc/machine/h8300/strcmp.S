@@ -3,20 +3,31 @@
 #include "defines.h"
 
 #if defined (__H8300SX__)
+	.section .text
 	.global _strcmp
 _strcmp:
 	mov.l	er0,er2
 loop:
 	mov.b	@er2+,r0l
+	extu.w	r0
 	beq	eos
-	sub.b	@er1+,r0l
+	mov.b	@er1+,r3l
+	extu.w	r3
+	sub.w	r3,r0
 	beq	loop
-	exts.l	#2,er0
+#if (__INT_MAX__ > 32767)
+	exts.l	er0
+#endif
 	rts
 eos:
-	sub.b	@er1,r0l
-	exts.l	#2,er0
+	mov.b	@er1,r3l
+	extu.w	r3
+	sub.w	r3,r0
+#if (__INT_MAX__ > 32767)
+	exts.l	er0
+#endif
 	rts
+	.end
 #else
 	.section .text
 	.align 2
@@ -38,22 +49,14 @@ _strcmp:
 .L3:
 	mov.b	@(-1,A2P),A0L
 	mov.b	@A3P,A1L
-	sub.b	A1L,A0L
+	sub.b	A0H,A0H ; H8/300 does not have EXTU.W instruction
+	sub.b	A1H,A1H ; so we just zero higher byte of the word
+	sub.w	A1,A0
 	; We have to sign extend the result to 32bits just in case
-	; we are using 32bit integers.
-#ifdef __H8300H__
-	exts.w	r0
+	; we are using 32bit integers. H8/300 does not support 32bit
+	; integers (-mint32), so we can just use EXTS.L here.
+#if (__INT_MAX__ > 32767)
 	exts.l	er0
-#else
-#ifdef __H8300S__
-	exts.w	r0
-	exts.l	er0
-#else
-	bld	#7,r0l
-	subx	r0h,r0h
-	subx	r1l,r1l
-	subx	r1h,r1h
-#endif
 #endif
 	rts
 	.end

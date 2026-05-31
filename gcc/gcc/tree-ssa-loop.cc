@@ -1,5 +1,5 @@
 /* Loop optimizations over tree-ssa.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -28,6 +28,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tm_p.h"
 #include "fold-const.h"
 #include "gimple-iterator.h"
+#include "gimple-range.h"
 #include "tree-ssa-loop-ivopts.h"
 #include "tree-ssa-loop-manip.h"
 #include "tree-ssa-loop-niter.h"
@@ -35,7 +36,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "cfgloop.h"
 #include "tree-inline.h"
 #include "tree-scalar-evolution.h"
-#include "tree-vectorizer.h"
 #include "omp-general.h"
 #include "diagnostic-core.h"
 #include "stringpool.h"
@@ -67,9 +67,9 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return flag_tree_loop_optimize; }
+  bool gate (function *) final override { return flag_tree_loop_optimize; }
 
-  virtual unsigned int execute (function *fn);
+  unsigned int execute (function *fn) final override;
 }; // class pass_fix_loops
 
 unsigned int
@@ -134,7 +134,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *fn) { return gate_loop (fn); }
+  bool gate (function *fn) final override { return gate_loop (fn); }
 
 }; // class pass_tree_loop
 
@@ -189,7 +189,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *fn) { return gate_oacc_kernels (fn); }
+  bool gate (function *fn) final override { return gate_oacc_kernels (fn); }
 
 }; // class pass_oacc_kernels
 
@@ -226,7 +226,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
   {
     return (optimize
 	    && flag_openacc
@@ -303,7 +303,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *fn) { return !gate_loop (fn); }
+  bool gate (function *fn) final override { return !gate_loop (fn); }
 
 }; // class pass_tree_no_loop
 
@@ -341,7 +341,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_tree_loop_init
 
@@ -395,8 +395,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return flag_tree_scev_cprop; }
-  virtual unsigned int execute (function *);
+  bool gate (function *) final override { return flag_tree_scev_cprop; }
+  unsigned int execute (function *) final override;
 
 }; // class pass_scev_cprop
 
@@ -405,10 +405,14 @@ pass_scev_cprop::execute (function *)
 {
   bool any = false;
 
+  enable_ranger (cfun);
+
   /* Perform final value replacement in loops, in case the replacement
      expressions are cheap.  */
   for (auto loop : loops_list (cfun, LI_FROM_INNERMOST))
     any |= final_value_replacement_loop (loop);
+
+  disable_ranger (cfun);
 
   return any ? TODO_cleanup_cfg | TODO_update_ssa_only_virtuals : 0;
 }
@@ -446,8 +450,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return flag_ivopts != 0; }
-  virtual unsigned int execute (function *);
+  bool gate (function *) final override { return flag_ivopts != 0; }
+  unsigned int execute (function *) final override;
 
 }; // class pass_iv_optimize
 
@@ -503,7 +507,10 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *) { return tree_ssa_loop_done (); }
+  unsigned int execute (function *) final override
+  {
+    return tree_ssa_loop_done ();
+  }
 
 }; // class pass_tree_loop_done
 

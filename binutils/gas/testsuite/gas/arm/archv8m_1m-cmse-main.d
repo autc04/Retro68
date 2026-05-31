@@ -54,4 +54,38 @@ Disassembly of section .text:
 0+.* <[^>]*> edc3 ef80 	vstr	FPCXTS, \[r3\]
 0+.* <[^>]*> bfa8      	it	ge
 0+.* <[^>]*> edc3 ef80 	vstrge	FPCXTS, \[r3\]
+0+.* <[^>]*> ed92 2f80 	vldr	FPSCR, \[r2\]
+0+.* <[^>]*> ed92 2f82 	vldr	FPSCR, \[r2, #8\]
+0+.* <[^>]*> ed92 2f82 	vldr	FPSCR, \[r2, #8\]
+0+.* <[^>]*> ed12 2f82 	vldr	FPSCR, \[r2, #-8\]
+0+.* <[^>]*> edb2 2f82 	vldr	FPSCR, \[r2, #8\]!
+0+.* <[^>]*> edb2 2f82 	vldr	FPSCR, \[r2, #8\]!
+0+.* <[^>]*> ed32 2f82 	vldr	FPSCR, \[r2, #-8\]!
+0+.* <[^>]*> ecb2 2f82 	vldr	FPSCR, \[r2\], #8
+0+.* <[^>]*> ecb2 2f82 	vldr	FPSCR, \[r2\], #8
+0+.* <[^>]*> ec32 2f82 	vldr	FPSCR, \[r2\], #-8
+0+.* <[^>]*> ed93 4f80 	vldr	FPSCR_nzcvqc, \[r3\]
+0+.* <[^>]*> edd3 8f80 	vldr	VPR, \[r3\]
+0+.* <[^>]*> edd3 af80 	vldr	P0, \[r3\]
+0+.* <[^>]*> edd3 cf80 	vldr	FPCXTNS, \[r3\]
+0+.* <[^>]*> edd3 ef80 	vldr	FPCXTS, \[r3\]
+0+.* <[^>]*> bfa8      	it	ge
+0+.* <[^>]*> edd3 ef80 	vldrge	FPCXTS, \[r3\]
+0+.* <[^>]*> ed82 2f80 	vstr	FPSCR, \[r2\]
+0+.* <[^>]*> ed82 2f82 	vstr	FPSCR, \[r2, #8\]
+0+.* <[^>]*> ed82 2f82 	vstr	FPSCR, \[r2, #8\]
+0+.* <[^>]*> ed02 2f82 	vstr	FPSCR, \[r2, #-8\]
+0+.* <[^>]*> eda2 2f82 	vstr	FPSCR, \[r2, #8\]!
+0+.* <[^>]*> eda2 2f82 	vstr	FPSCR, \[r2, #8\]!
+0+.* <[^>]*> ed22 2f82 	vstr	FPSCR, \[r2, #-8\]!
+0+.* <[^>]*> eca2 2f82 	vstr	FPSCR, \[r2\], #8
+0+.* <[^>]*> eca2 2f82 	vstr	FPSCR, \[r2\], #8
+0+.* <[^>]*> ec22 2f82 	vstr	FPSCR, \[r2\], #-8
+0+.* <[^>]*> ed83 4f80 	vstr	FPSCR_nzcvqc, \[r3\]
+0+.* <[^>]*> edc3 8f80 	vstr	VPR, \[r3\]
+0+.* <[^>]*> edc3 af80 	vstr	P0, \[r3\]
+0+.* <[^>]*> edc3 cf80 	vstr	FPCXTNS, \[r3\]
+0+.* <[^>]*> edc3 ef80 	vstr	FPCXTS, \[r3\]
+0+.* <[^>]*> bfa8      	it	ge
+0+.* <[^>]*> edc3 ef80 	vstrge	FPCXTS, \[r3\]
 #...

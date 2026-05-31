@@ -1,0 +1,8 @@
+	ftmopa	za0.s, { z0.b-z1.b }, z0.b, z20[0]
+	ftmopa	za3.s, { z0.b-z1.b }, z0.b, z20[0]
+	ftmopa	za0.s, { z30.b-z31.b }, z0.b, z20[0]
+	ftmopa	za0.s, { z0.b-z1.b }, z31.b, z20[0]
+	ftmopa	za0.s, { z0.b-z1.b }, z0.b, z23[0]
+	ftmopa	za0.s, { z0.b-z1.b }, z0.b, z28[0]
+	ftmopa	za0.s, { z0.b-z1.b }, z0.b, z31[0]
+	ftmopa	za0.s, { z0.b-z1.b }, z0.b, z20[3]

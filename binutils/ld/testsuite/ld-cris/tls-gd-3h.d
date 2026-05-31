@@ -2,7 +2,7 @@
 #source: tls128.s
 #source: tls-gd-3.s
 #source: tls-hx.s
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux
 #objdump: -d -s -t -r -p
 

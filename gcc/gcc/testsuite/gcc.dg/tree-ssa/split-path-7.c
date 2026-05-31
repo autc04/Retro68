@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fsplit-paths -fno-tree-cselim -fno-tree-sink -fdump-tree-split-paths-details -w" } */
+/* { dg-options "-O2 -fsplit-paths -fno-tree-cselim -fno-ssa-phiopt -fno-tree-sink -fdump-tree-split-paths-details -w" } */
 
 
 struct _reent
@@ -85,8 +85,8 @@ linit ()
 	    }
 	}
       if (!viazero && ind->numents >= 4
-	  && strcmp ((char *) (entry->affix),
-		     (char *) (ind->pu.ent->affix)) != 0)
+	  && __builtin_strcmp ((char *) (entry->affix),
+			       (char *) (ind->pu.ent->affix)) != 0)
 	{
 	}
     }

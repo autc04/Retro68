@@ -1,5 +1,5 @@
 /* Implementation of the IPARITY intrinsic
-   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
    Contributed by Tobias Burnus <burnus@net-b.de>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -29,13 +29,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #if defined (HAVE_GFC_INTEGER_8) && defined (HAVE_GFC_INTEGER_8)
 
 
-extern void iparity_i8 (gfc_array_i8 * const restrict, 
+extern void iparity_i8 (gfc_array_i8 * const restrict,
 	gfc_array_i8 * const restrict, const index_type * const restrict);
 export_proto(iparity_i8);
 
 void
-iparity_i8 (gfc_array_i8 * const restrict retarray, 
-	gfc_array_i8 * const restrict array, 
+iparity_i8 (gfc_array_i8 * const restrict retarray,
+	gfc_array_i8 * const restrict array,
 	const index_type * const restrict pdim)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -106,12 +106,7 @@ iparity_i8 (gfc_array_i8 * const restrict retarray,
 
       retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-
-	}
+	return;
     }
   else
     {
@@ -193,15 +188,15 @@ iparity_i8 (gfc_array_i8 * const restrict retarray,
 }
 
 
-extern void miparity_i8 (gfc_array_i8 * const restrict, 
+extern void miparity_i8 (gfc_array_i8 * const restrict,
 	gfc_array_i8 * const restrict, const index_type * const restrict,
 	gfc_array_l1 * const restrict);
 export_proto(miparity_i8);
 
 void
-miparity_i8 (gfc_array_i8 * const restrict retarray, 
-	gfc_array_i8 * const restrict array, 
-	const index_type * const restrict pdim, 
+miparity_i8 (gfc_array_i8 * const restrict retarray,
+	gfc_array_i8 * const restrict array,
+	const index_type * const restrict pdim,
 	gfc_array_l1 * const restrict mask)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -242,8 +237,8 @@ miparity_i8 (gfc_array_i8 * const restrict retarray,
     }
 
   len = GFC_DESCRIPTOR_EXTENT(array,dim);
-  if (len <= 0)
-    return;
+  if (len < 0)
+    len = 0;
 
   mbase = mask->base_addr;
 
@@ -301,15 +296,9 @@ miparity_i8 (gfc_array_i8 * const restrict retarray,
       retarray->offset = 0;
       retarray->dtype.rank = rank;
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
-
+	return;
     }
   else
     {
@@ -389,15 +378,15 @@ miparity_i8 (gfc_array_i8 * const restrict retarray,
 }
 
 
-extern void siparity_i8 (gfc_array_i8 * const restrict, 
+extern void siparity_i8 (gfc_array_i8 * const restrict,
 	gfc_array_i8 * const restrict, const index_type * const restrict,
 	GFC_LOGICAL_4 *);
 export_proto(siparity_i8);
 
 void
-siparity_i8 (gfc_array_i8 * const restrict retarray, 
-	gfc_array_i8 * const restrict array, 
-	const index_type * const restrict pdim, 
+siparity_i8 (gfc_array_i8 * const restrict retarray,
+	gfc_array_i8 * const restrict array,
+	const index_type * const restrict pdim,
 	GFC_LOGICAL_4 * mask)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -466,14 +455,9 @@ siparity_i8 (gfc_array_i8 * const restrict retarray,
 
       alloc_size = GFC_DESCRIPTOR_STRIDE(retarray,rank-1) * extent[rank-1];
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
+	return;
     }
   else
     {

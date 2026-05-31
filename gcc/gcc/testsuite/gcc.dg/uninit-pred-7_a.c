@@ -1,6 +1,5 @@
-
 /* { dg-do compile } */
-/* { dg-options "-Wuninitialized -O2" } */
+/* { dg-options "-Wuninitialized -O2 --param logical-op-non-short-circuit=1" } */
 
 int g;
 void bar();
@@ -20,10 +19,10 @@ int foo (int n, int l, int m, int r)
       blah(v); /* { dg-bogus "uninitialized" "bogus warning" } */
 
   if ( n )
-      blah(v); /* { dg-bogus "uninitialized" "bogus warning" } */
+      blah(v); /* { dg-bogus "uninitialized" "bogus warning" { xfail *-*-* } } */
 
   if ( l )
-      blah(v); /* { dg-bogus "uninitialized" "bogus warning" { xfail *-*-* } } */
+      blah(v); /* { dg-bogus "uninitialized" "bogus warning" } */
 
   return 0;
 }

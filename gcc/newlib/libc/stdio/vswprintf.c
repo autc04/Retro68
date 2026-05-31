@@ -42,10 +42,11 @@ _vswprintf_r (struct _reent *ptr,
 
   if (size > INT_MAX / sizeof (wchar_t))
     {
-      ptr->_errno = EOVERFLOW;	/* POSIX extension */
+      _REENT_ERRNO(ptr) = EOVERFLOW;	/* POSIX extension */
       return EOF;
     }
   f._flags = __SWR | __SSTR;
+  f._flags2 = 0;
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = (size > 0 ? (size - 1) * sizeof (wchar_t) : 0);
   f._file = -1;  /* No file. */
@@ -60,7 +61,7 @@ _vswprintf_r (struct _reent *ptr,
     /* _svfwprintf_r() returns how many wide characters it would have printed
      * if there were enough space.  Return an error if too big to fit in str,
      * unlike snprintf, which returns the size needed.  */
-    ptr->_errno = EOVERFLOW;	/* POSIX extension */
+    _REENT_ERRNO(ptr) = EOVERFLOW;	/* POSIX extension */
     ret = -1;
   }
   return ret;

@@ -1,6 +1,7 @@
 #source: tls-relax-gdesc-le-2.s
 #as: -mabi=ilp32
 #ld: -m [aarch64_choose_ilp32_emul] -T relocs-ilp32.ld -e0
+#notarget: *-*-nto*
 #objdump: -dr
 #...
  +10000:	52a00000 	movz	w0, #0x0, lsl #16

@@ -1,5 +1,5 @@
 /* Shorten memrefs pass for RISC-V.
-   Copyright (C) 2018-2022 Free Software Foundation, Inc.
+   Copyright (C) 2018-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -65,7 +65,8 @@ public:
   /* opt_pass methods: */
   virtual bool gate (function *)
     {
-      return TARGET_RVC && riscv_mshorten_memrefs && optimize > 0;
+      return (TARGET_RVC || TARGET_ZCA)
+	&& riscv_mshorten_memrefs && optimize > 0;
     }
   virtual unsigned int execute (function *);
 
@@ -188,8 +189,7 @@ pass_shorten_memrefs::transform (regno_map *m, basic_block bb)
 		}
 	    }
 	}
-      rtx_insn *seq = get_insns ();
-      end_sequence ();
+      rtx_insn *seq = end_sequence ();
       emit_insn_before (seq, insn);
     }
 }

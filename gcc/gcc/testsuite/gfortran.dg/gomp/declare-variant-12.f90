@@ -17,7 +17,7 @@ contains
   subroutine f04 ()
     !$omp declare variant (f01) match (device={isa("avx512f","avx512vl")}) ! 16
     !$omp declare variant (f02) match (implementation={vendor(score(15):gnu)})
-    !$omp declare variant (f03) match (user={condition(score(11):1)})
+    !$omp declare variant (f03) match (user={condition(score(11):.true.)})
   end subroutine
 
   subroutine f05 ()
@@ -32,7 +32,7 @@ contains
   subroutine f08 ()
     !$omp declare variant (f05) match (device={isa(avx512f,avx512vl)}) ! 16
     !$omp declare variant (f06) match (implementation={vendor(score(15):gnu)})
-    !$omp declare variant (f07) match (user={condition(score(17):1)})
+    !$omp declare variant (f07) match (user={condition(score(17):.true.)})
   end subroutine
 
   subroutine f09 ()
@@ -48,7 +48,7 @@ contains
   end subroutine
 
   subroutine f13 ()
-    !$omp declare variant (f09) match (device={arch(x86_64)},user={condition(score(65):1)}) ! 64+65
+    !$omp declare variant (f09) match (device={arch(x86_64)},user={condition(score(65):.true.)}) ! 64+65
     !$omp declare variant (f10) match (implementation={vendor(score(127):"gnu")})
     !$omp declare variant (f11) match (device={isa(ssse3)}) ! 128
     !$omp declare variant (f12) match (implementation={atomic_default_mem_order(score(126):seq_cst)})
@@ -64,9 +64,9 @@ contains
   end subroutine
 
   subroutine f17 ()
-    !$omp declare variant (f14) match (construct={teams,parallel,do}) ! 16+8+4
-    !$omp declare variant (f15) match (construct={parallel},user={condition(score(19):1)}) ! 8+19
-    !$omp declare variant (f16) match (implementation={atomic_default_mem_order(score(27):seq_cst)})
+    !$omp declare variant (f14) match (construct={teams,parallel,do}) ! 1+8+16
+    !$omp declare variant (f15) match (construct={parallel},user={condition(score(16):.true.)}) ! 8+16
+    !$omp declare variant (f16) match (implementation={atomic_default_mem_order(score(24):seq_cst)})
   end subroutine
 
   subroutine f18 ()
@@ -79,8 +79,8 @@ contains
   end subroutine
 
   subroutine f21 ()
-    !$omp declare variant (f18) match (construct={teams,parallel,do}) ! 16+8+4
-    !$omp declare variant (f19) match (construct={do},user={condition(score(25):1)}) ! 4+25
+    !$omp declare variant (f18) match (construct={teams,parallel,do}) ! 1+8+16
+    !$omp declare variant (f19) match (construct={do},user={condition(score(25):.true.)}) ! 4+25
     !$omp declare variant (f20) match (implementation={atomic_default_mem_order(score(28):seq_cst)})
   end subroutine
 
@@ -94,7 +94,7 @@ contains
   end subroutine
 
   subroutine f25 ()
-    !$omp declare variant (f22) match (construct={parallel,do}) ! 2+1
+    !$omp declare variant (f22) match (construct={parallel,do}) ! 8+16
     !$omp declare variant (f23) match (construct={do}) ! 0
     !$omp declare variant (f24) match (implementation={atomic_default_mem_order(score(2):seq_cst)})
   end subroutine
@@ -109,8 +109,8 @@ contains
   end subroutine
 
   subroutine f29 ()
-    !$omp declare variant (f26) match (construct={parallel,do}) ! 2+1
-    !$omp declare variant (f27) match (construct={do},user={condition(1)}) ! 4
+    !$omp declare variant (f26) match (construct={parallel,do}) ! 8+16
+    !$omp declare variant (f27) match (construct={do},user={condition(score(25):.true.)}) ! 16+25
     !$omp declare variant (f28) match (implementation={atomic_default_mem_order(score(3):seq_cst)})
   end subroutine
 
@@ -133,8 +133,8 @@ contains
     do i = 1, 2
       !$omp parallel do	! 5 constructs in OpenMP context, arch is 2^6, isa 2^7.
       do j = 1, 2
-	  call f13 ()	! { dg-final { scan-tree-dump-times "f09 \\\(\\\);" 1 "gimple" { target { { i?86-*-* x86_64-*-* } && lp64 } } } }
-			! { dg-final { scan-tree-dump-times "f11 \\\(\\\);" 1 "gimple" { target { { i?86-*-* x86_64-*-* } && { ! lp64 } } } } }
+          call f13 ()   ! { dg-final { scan-tree-dump-times "f09 \\\(\\\);" 1 "gimple" { target { { i?86-*-* x86_64-*-* } && { ! ilp32 } } } } }
+                        ! { dg-final { scan-tree-dump-times "f11 \\\(\\\);" 1 "gimple" { target { { i?86-*-* x86_64-*-* } && { ilp32 } } } } }
 			! { dg-final { scan-tree-dump-times "f10 \\\(\\\);" 1 "gimple" { target { ! { i?86-*-* x86_64-*-* } } } } }
 	  call f17 ()	! { dg-final { scan-tree-dump-times "f14 \\\(\\\);" 1 "gimple" } }
 	  call f21 ()	! { dg-final { scan-tree-dump-times "f19 \\\(\\\);" 1 "gimple" } }

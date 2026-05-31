@@ -1,0 +1,12 @@
+#![feature(no_core)]
+#![no_core]
+
+#![feature(lang_items)]
+#[lang = "sized"]
+pub trait Sized {}
+
+trait Foo<'a> {}
+
+trait Bar {
+    type Item: for<'a> Foo<'a>;
+}

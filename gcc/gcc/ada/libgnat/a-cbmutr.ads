@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---           Copyright (C) 2014-2022, Free Software Foundation, Inc.        --
+--           Copyright (C) 2014-2026, Free Software Foundation, Inc.        --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -106,12 +106,14 @@ is
       Process   : not null access procedure (Element : in out Element_Type));
 
    type Constant_Reference_Type
-     (Element : not null access constant Element_Type) is private
-        with Implicit_Dereference => Element;
+     (Element : not null access constant Element_Type) is limited private
+   with
+      Implicit_Dereference => Element;
 
    type Reference_Type
-     (Element : not null access Element_Type) is private
-        with Implicit_Dereference => Element;
+     (Element : not null access Element_Type) is limited private
+   with
+      Implicit_Dereference => Element;
 
    function Constant_Reference
      (Container : aliased Tree;
@@ -386,10 +388,7 @@ private
       Item   : out Reference_Type);
    for Reference_Type'Read use Read;
 
-   --  Three operations are used to optimize in the expansion of "for ... of"
-   --  loops: the Next(Cursor) procedure in the visible part, and the following
-   --  Pseudo_Reference and Get_Element_Access functions. See Exp_Ch5 for
-   --  details.
+   --  See Ada.Containers.Vectors for documentation on the following
 
    function Pseudo_Reference
      (Container : aliased Tree'Class) return Reference_Control_Type;

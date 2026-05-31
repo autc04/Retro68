@@ -55,7 +55,7 @@ caller_float (float16_t *x0, float16_t *x1, float32_t *x2, float64_t *x3)
 		svptrue_pat_b32 (SV_VL3));
 }
 
-/* { dg-final { scan-assembler {\tmov\tz0\.[bhsd], #0\n} } } */
+/* { dg-final { scan-assembler {\tmov(\tz0\.[bhsd]|i\td0), #0\n} } } */
 /* { dg-final { scan-assembler {\tfmov\tz1\.h, #1\.0} } } */
 /* { dg-final { scan-assembler {\tfmov\tz2\.s, #2\.0} } } */
 /* { dg-final { scan-assembler {\tfmov\tz3\.d, #3\.0} } } */
@@ -64,7 +64,7 @@ caller_float (float16_t *x0, float16_t *x1, float32_t *x2, float64_t *x3)
 /* { dg-final { scan-assembler {\tfmov\tz6\.s, #6\.0} } } */
 /* { dg-final { scan-assembler {\tfmov\tz7\.d, #7\.0} } } */
 /* { dg-final { scan-assembler {\tmov\tx4, sp\n} } } */
-/* { dg-final { scan-assembler {\tfmov\t(z[0-9]+\.h), #8\.0.*\tst1h\t\1, p[0-7], \[x4\]\n} } } */
+/* { dg-final { scan-assembler {\tfmov\t(z[0-9]+\.h), #8\.0.*\tst1h\t\1, p[0-7], \[(?:x4|sp)\]\n} } } */
 /* { dg-final { scan-assembler {\tptrue\tp0\.b, vl1\n} } } */
 /* { dg-final { scan-assembler {\tptrue\tp1\.h, vl2\n} } } */
 /* { dg-final { scan-assembler {\tptrue\tp2\.s, vl3\n} } } */

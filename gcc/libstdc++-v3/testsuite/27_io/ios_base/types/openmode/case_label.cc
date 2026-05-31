@@ -2,7 +2,7 @@
 // { dg-options "-Wall" }
 // -*- C++ -*-
  
-// Copyright (C) 2004-2022 Free Software Foundation, Inc.
+// Copyright (C) 2004-2026 Free Software Foundation, Inc.
  
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License as
@@ -44,12 +44,10 @@ case_labels(bitmask_type b)
       break;
     case std::ios_base::trunc:
       break;
-    case std::_S_ios_openmode_end:
+#ifdef __cpp_lib_ios_noreplace
+    case std::ios_base::noreplace:
       break;
-    case __INT_MAX__:
-      break;
-    case ~__INT_MAX__:
-      break;
+#endif
     }
   using underlying_type = std::underlying_type<bitmask_type>::type;
   static_assert( sizeof(underlying_type) == sizeof(int),

@@ -1,0 +1,10 @@
+// { dg-additional-options "-w" }
+#![feature(no_core)]
+#![no_core]
+
+
+const P: usize = 14;
+
+struct Foo<const N: usize = { M }>; // { dg-error "cannot find value .M. in this scope" }
+struct Bar<const N: usize = { P }>;
+struct Baz<const N: NotAType = { P }>; // { dg-error "could not resolve type path .NotAType." }

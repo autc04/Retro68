@@ -1,4 +1,4 @@
-/* Copyright (C) 2017-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2017-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -24,9 +24,9 @@
 #ifndef __VAESINTRIN_H_INCLUDED
 #define __VAESINTRIN_H_INCLUDED
 
-#if !defined(__VAES__) || !defined(__AVX__)
+#if !defined(__VAES__)
 #pragma GCC push_options
-#pragma GCC target("vaes,avx")
+#pragma GCC target("vaes")
 #define __DISABLE_VAES__
 #endif /* __VAES__ */
 

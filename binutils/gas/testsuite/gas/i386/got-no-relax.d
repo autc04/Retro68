@@ -1,5 +1,5 @@
 #source: got.s
-#as: -mrelax-relocations=no
+#as: -mrelax-relocations=no -march=+mpx
 #objdump: -dwr
 
 .*: +file format .*

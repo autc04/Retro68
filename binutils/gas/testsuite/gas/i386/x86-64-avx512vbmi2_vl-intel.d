@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: x86_64 AVX512VBMI2/VL insns (Intel disassembly)
 #source: x86-64-avx512vbmi2_vl.s

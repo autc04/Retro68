@@ -9,6 +9,7 @@ Disassembly of section .text:
 0+ <start>:
 [ 	]*[0-9a-f]+:[ 	]+36 8d 04 08[ 	]+lea[ 	]+%ss:\(%eax,%ecx(,1)?\),%eax
 [ 	]*[0-9a-f]+:[ 	]+36 8d 04 08[ 	]+lea[ 	]+%ss:\(%eax,%ecx(,1)?\),%eax
+[ 	]*[0-9a-f]+:[ 	]+26 8d 04 01[ 	]+lea[ 	]+%es:\(%ecx,%eax(,1)?\),%eax
 [ 	]*[0-9a-f]+:[ 	]+8d 48 01[ 	]+lea[ 	]+0x1\(%eax\),%ecx
 [ 	]*[0-9a-f]+:[ 	]+8d 88 00 00 00 00[ 	]+lea[ 	]+0x0\(%eax\),%ecx
 [ 	]*[0-9a-f]+:[ 	]+8d 0c 25 00 00 00 00[ 	]+lea[ 	]+0x0\(,(%eiz)?(,1)?\),%ecx
@@ -20,6 +21,7 @@ Disassembly of section .text:
 [ 	]*[0-9a-f]+:[ 	]+8d 08[ 	]+lea[ 	]+\(%eax\),%ecx
 [ 	]*[0-9a-f]+:[ 	]+8d 08[ 	]+lea[ 	]+\(%eax\),%ecx
 [ 	]*[0-9a-f]+:[ 	]+65 8d 08[ 	]+lea[ 	]+%gs:\(%eax\),%ecx
+[ 	]*[0-9a-f]+:[ 	]+64 8d 08[ 	]+lea[ 	]+%fs:\(%eax\),%ecx
 [ 	]*[0-9a-f]+:[ 	]+67 8d 04[ 	]+lea[ 	]+\(%si\),%eax
 [ 	]*[0-9a-f]+:[ 	]+67 8d 34[ 	]+lea[ 	]+\(%si\),%esi
 [ 	]*[0-9a-f]+:[ 	]+67 8d 04[ 	]+lea[ 	]+\(%si\),%eax

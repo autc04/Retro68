@@ -1,10 +1,10 @@
 Contents of the .debug_info section:
 
-  Compilation Unit @ offset 0x0:
+  Compilation Unit @ offset (0x)?0:
    Length:        0x40 \(32-bit\)
    Version:       5
    Unit Type:     DW_UT_compile \(1\)
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  4
  <0><c>: Abbrev Number: 1 \(User TAG value: 0x5555\)
     <d>   DW_AT_ordering    : 1	\(column major\)

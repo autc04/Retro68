@@ -18,9 +18,11 @@ with Ada.Strings.Text_Buffers; use Ada.Strings.Text_Buffers;
 private with Ada.Finalization;
 private with System;
 
-package Ada.Numerics.Big_Numbers.Big_Integers
-  with Preelaborate
+package Ada.Numerics.Big_Numbers.Big_Integers with
+  Preelaborate,
+  Always_Terminates
 is
+
    type Big_Integer is private
      with Integer_Literal => From_Universal_Image,
           Put_Image       => Put_Image;

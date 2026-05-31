@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,28 +29,24 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  Integer exponentiation (checks on)
-
---  Preconditions, postconditions, ghost code, loop invariants and assertions
---  in this unit are meant for analysis only, not for run-time checking, as it
---  would be too costly otherwise. This is enforced by setting the assertion
---  policy to Ignore.
-
-pragma Assertion_Policy (Pre            => Ignore,
-                         Post           => Ignore,
-                         Ghost          => Ignore,
-                         Loop_Invariant => Ignore,
-                         Assert         => Ignore);
+--  This package implements Integer exponentiation (checks on)
 
 with System.Expont;
 
 package System.Exp_Int
   with SPARK_Mode
 is
-
    package Expont_Integer is new Expont (Integer);
 
    function Exp_Integer (Left : Integer; Right : Natural) return Integer
      renames Expont_Integer.Expon;
+   --  Return the power of ``Left`` by ``Right`` where ``Left`` is an
+   --  Integer.
+   --
+   --  This function is implemented using the standard logarithmic approach:
+   --  ``Right`` gets shifted right testing successive low order bits, and
+   --  ``Left`` is raised to the next power of 2.
+   --
+   --  In case of overflow, Constraint_Error is raised.
 
 end System.Exp_Int;

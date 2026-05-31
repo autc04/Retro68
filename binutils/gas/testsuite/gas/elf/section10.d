@@ -1,7 +1,5 @@
 #readelf: -N --wide
 #name: numeric section flags and types
-# The RX port annoyingly reorders the sections so that they do not match the sequence expected below.
-#xfail: rx-*-*
 
 #...
 [ 	]*\[.*\][ 	]+.text
@@ -13,8 +11,7 @@
 [ 	]*\[.*6000000\]: OS \(.*6000000\)
 [ 	]*\[.*\][ 	]+sec2
 [ 	]*PROGBITS.*
-[ 	]*\[0+00806\]: ALLOC, EXEC, COMPRESSED
-[ 	]*\[<unknown>: 0x[0-9]+\], .*
+[ 	]*\[0+00086\]: ALLOC, EXEC, LINK ORDER
 #...
 [ 	]*\[.*\][ 	]+sec3
 [ 	]*PROGBITS.*

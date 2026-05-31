@@ -1,8 +1,10 @@
 /*  This file is distributed under the University of Illinois Open Source
     License. See license.txt for details.  */
 
-/* { dg-additional-options "--param vect-epilogues-nomask=0" } */
+/* { dg-additional-options "--param vect-epilogues-nomask=0 -fno-trapping-math" } */
 /* { dg-require-effective-target vect_float } */
+/* { dg-require-effective-target vect_early_break_hw } */
+/* { dg-add-options vect_early_break } */
 
 #include "tsvc.h"
 
@@ -37,4 +39,4 @@ int main (int argc, char **argv)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump "vectorized 1 loops" "vect" { xfail *-*-* } } } */
+/* { dg-final { scan-tree-dump "vectorized 1 loops" "vect" { xfail { ! vect_early_break } } } } */

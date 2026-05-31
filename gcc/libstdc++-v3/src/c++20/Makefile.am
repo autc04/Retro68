@@ -1,6 +1,6 @@
 ## Makefile for the C++20 sources of the GNU C++ Standard library.
 ##
-## Copyright (C) 1997-2022 Free Software Foundation, Inc.
+## Copyright (C) 1997-2026 Free Software Foundation, Inc.
 ##
 ## This file is part of the libstdc++ version 3 distribution.
 ## Process this file with automake to produce Makefile.in.
@@ -22,25 +22,70 @@
 
 include $(top_srcdir)/fragment.am
 
-# Convenience library for C++17 runtime.
+# Convenience library for C++20 runtime.
 noinst_LTLIBRARIES = libc++20convenience.la
 
 headers =
 
+if ENABLE_DUAL_ABI
+extra_string_inst_sources = cow-string-inst.cc
+else
+extra_string_inst_sources =
+endif
+
 if ENABLE_EXTERN_TEMPLATE
 # XTEMPLATE_FLAGS = -fno-implicit-templates
 inst_sources = \
-	sstream-inst.cc
+	sstream-inst.cc \
+	format-inst.cc \
+	string-inst.cc \
+	$(extra_string_inst_sources)
 else
 # XTEMPLATE_FLAGS =
 inst_sources =
 endif
 
-sources =
+sources = tzdb.cc format.cc atomic.cc clock.cc syncbuf.cc
 
 vpath % $(top_srcdir)/src/c++20
 
+if ENABLE_DUAL_ABI
+# These files should be rebuilt if the .cc prerequisite changes.
+cow-string-inst.lo cow-string-inst.o: string-inst.cc
+endif
+
+if USE_STATIC_TZDATA
+tzdata.zi.h: $(top_srcdir)/src/c++20/tzdata.zi
+	echo 'static const char tzdata_chars[] = R"__libstdcxx__(' > $@.tmp
+	cat $^ >> $@.tmp
+	echo ')__libstdcxx__";' >> $@.tmp
+	mv $@.tmp $@
+
+tzdb.lo: tzdb.cc tzdata.zi.h
+	$(LTCXXCOMPILE) -I. -c $<
+tzdb.o: tzdb.cc tzdata.zi.h
+	$(CXXCOMPILE) -I. -c $<
+endif
+
+# This needs access to std::text_encoding and to the internals of std::locale.
+format.lo: format.cc
+	$(LTCXXCOMPILE) -std=gnu++26 -fno-access-control -c $<
+format.o: format.cc
+	$(CXXCOMPILE) -std=gnu++26 -fno-access-control -c $<
+
+if ENABLE_EXTERN_TEMPLATE
+# The unicode literal version of formatters is exported, override the encoding accordingly
+format-inst.lo: format-inst.cc
+	$(LTCXXCOMPILE) -fexec-charset=UTF-8 -c $<
+format-inst.o: format-inst.cc
+	$(CXXCOMPILE) -fexec-charset=UTF-8 -c $<
+endif
+
+if GLIBCXX_HOSTED
 libc__20convenience_la_SOURCES = $(sources)  $(inst_sources)
+else
+libc__20convenience_la_SOURCES =
+endif
 
 # AM_CXXFLAGS needs to be in each subdirectory so that it can be
 # modified in a per-library or per-sub-library way.  Need to manually

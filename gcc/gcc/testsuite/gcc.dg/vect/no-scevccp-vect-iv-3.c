@@ -1,5 +1,6 @@
 /* Disabling epilogues until we find a better way to deal with scans.  */
 /* { dg-additional-options "--param vect-epilogues-nomask=0" } */
+/* { dg-additional-options "-fno-tree-scev-cprop" } */
 /* { dg-do compile } */
 /* { dg-require-effective-target vect_int } */
 
@@ -30,4 +31,4 @@ unsigned int main1 ()
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target vect_widen_sum_hi_to_si } } } */
-/* { dg-final { scan-tree-dump-times "vect_recog_widen_sum_pattern: detected" 1 "vect" { target vect_widen_sum_hi_to_si } } } */
+/* { dg-final { scan-tree-dump-times "vect_recog_widen_sum_pattern: detected(?:(?!Analysis failed).)*Analysis succeeded" 1 "vect" { target vect_widen_sum_hi_to_si } } } */

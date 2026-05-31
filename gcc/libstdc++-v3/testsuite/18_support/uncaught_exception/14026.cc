@@ -1,4 +1,4 @@
-// Copyright (C) 2004-2022 Free Software Foundation, Inc.
+// Copyright (C) 2004-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,7 +18,7 @@
 // PR 14026
 // 18.6.4 uncaught_exception
 
-// { dg-options "-Wno-deprecated" }
+// { dg-options "-Wno-deprecated-declarations" }
 
 #include <cstdlib>
 #include <exception>
@@ -28,7 +28,7 @@ static void
 no_uncaught ()
 {
   if (std::uncaught_exception())
-    abort();
+    std::abort();
 }
 
 int

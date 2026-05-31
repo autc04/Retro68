@@ -1,8 +1,10 @@
-/* { dg-compile } */
+/* { dg-do compile } */
 
 /* Check if the instruction are being used also for compares.  */
 
 /* and with complement */
+
+int i32;
 
 int
 ncrk (int a, int b)
@@ -58,10 +60,10 @@ nngrk (long long a, long long b)
 
 /* nor */
 
-int
+void
 nork (int a, int b)
 {
-  return ~(a | b);
+  i32 = ~(a | b);
 }
 
 /* { dg-final { scan-assembler-times "\tnork\t" 1 } } */

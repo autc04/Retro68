@@ -1,5 +1,5 @@
 ;; Machine description for TI C6X.
-;; Copyright (C) 2010-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2026 Free Software Foundation, Inc.
 ;; Contributed by Andrew Jenner <andrew@codesourcery.com>
 ;; Contributed by Bernd Schmidt <bernds@codesourcery.com>
 ;; Contributed by CodeSourcery.
@@ -274,12 +274,16 @@
 (define_cpu_unit "l1w,s1w" "c6x_1")
 (define_query_cpu_unit "m1" "c6x_m1")
 (define_cpu_unit "m1w" "c6x_m1")
+(define_cpu_unit "m1dp" "c6x_m1")
+(define_cpu_unit "m1spdp" "c6x_m1")
 (define_cpu_unit "t1" "c6x_t1")
 (define_query_cpu_unit "d2,l2,s2" "c6x_2")
 (define_cpu_unit "x2" "c6x_2")
 (define_cpu_unit "l2w,s2w" "c6x_2")
 (define_query_cpu_unit "m2" "c6x_m2")
 (define_cpu_unit "m2w" "c6x_m2")
+(define_cpu_unit "m2dp" "c6x_m1")
+(define_cpu_unit "m2spdp" "c6x_m2")
 (define_cpu_unit "t2" "c6x_t2")
 ;; A special set of units used to identify specific reservations, rather than
 ;; just units.
@@ -365,12 +369,14 @@
 (define_insn "nop"
   [(const_int 0)]
   ""
-  "nop")
+  "nop"
+  [(set_attr "dest_regfile" "unknown")])
 
 (define_insn "nop_count"
   [(unspec [(match_operand 0 "const_int_operand" "n")] UNSPEC_NOP)]
   ""
-  "%|%.\\tnop\\t%0")
+  "%|%.\\tnop\\t%0"
+  [(set_attr "dest_regfile" "unknown")])
 
 ;; -------------------------------------------------------------------------
 ;; Move instructions
@@ -1440,7 +1446,7 @@
 
 (define_insn "mvilc"
   [(set (reg:SI REG_ILC)
-	(unspec [(match_operand:SI 0 "register_operand" "a,b")] UNSPEC_MVILC))]
+	(unspec:SI [(match_operand:SI 0 "register_operand" "a,b")] UNSPEC_MVILC))]
   "TARGET_INSNS_64PLUS"
   "%|%.\\tmvc\\t%$\\t%0, ILC"
   [(set_attr "predicable" "no")
@@ -3082,7 +3088,7 @@
 ;; Widening vector multiply and dot product.
 ;; See c6x-mult.md.in for the define_insn patterns
 
-(define_expand "sdot_prodv2hi"
+(define_expand "sdot_prodsiv2hi"
   [(match_operand:SI 0 "register_operand" "")
    (match_operand:V2HI 1 "register_operand" "")
    (match_operand:V2HI 2 "register_operand" "")

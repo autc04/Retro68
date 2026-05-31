@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -46,17 +46,17 @@ package body System.Value_I is
       Uval : Uns;
       --  Unsigned result
 
-      Minus : Boolean := False;
+      Minus : Boolean;
       --  Set to True if minus sign is present, otherwise to False
 
-      Start : Positive;
+      Unused_Start : Positive;
       --  Saves location of first non-blank (not used in this case)
 
    begin
-      Scan_Sign (Str, Ptr, Max, Minus, Start);
+      Scan_Sign (Str, Ptr, Max, Minus, Unused_Start);
 
       if Str (Ptr.all) not in '0' .. '9' then
-         Ptr.all := Start;
+         Ptr.all := Unused_Start;
          Bad_Value (Str);
       end if;
 
@@ -65,7 +65,7 @@ package body System.Value_I is
       --  Deal with overflow cases, and also with largest negative number
 
       if Uval > Uns (Int'Last) then
-         if Minus and then Uval = Uns (-(Int'First)) then
+         if Minus and then Uval = Uns (Int'Last) + 1 then
             Res := Int'First;
          else
             Bad_Value (Str);
@@ -107,7 +107,12 @@ package body System.Value_I is
             V : Int;
             P : aliased Integer := Str'First;
          begin
-            Scan_Integer (Str, P'Access, Str'Last, V);
+            declare
+               P_Acc : constant not null access Integer := P'Access;
+            begin
+               Scan_Integer (Str, P_Acc, Str'Last, V);
+            end;
+
             Scan_Trailing_Blanks (Str, P);
             return V;
          end;

@@ -1,6 +1,5 @@
 # Check 32bit AVX512_4VNNIW instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vp4dpwssd	(%ecx), %zmm4, %zmm1	 # AVX512_4VNNIW

@@ -9,14 +9,13 @@
  */
 module core.sys.windows.aclapi;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "advapi32");
 
 import core.sys.windows.accctrl, core.sys.windows.basetyps, core.sys.windows.w32api, core.sys.windows.winnt;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     VOID BuildExplicitAccessWithNameA(PEXPLICIT_ACCESS_A, LPSTR, DWORD,
       ACCESS_MODE, DWORD);
     VOID BuildExplicitAccessWithNameW(PEXPLICIT_ACCESS_W, LPWSTR, DWORD,
@@ -94,47 +93,45 @@ extern (Windows) {
 }
 
 version (Unicode) {
-    alias BuildExplicitAccessWithNameW BuildExplicitAccessWithName;
-    alias BuildSecurityDescriptorW BuildSecurityDescriptor;
-    alias BuildTrusteeWithNameW BuildTrusteeWithName;
-    alias BuildTrusteeWithObjectsAndNameW BuildTrusteeWithObjectsAndName;
-    alias BuildTrusteeWithObjectsAndSidW BuildTrusteeWithObjectsAndSid;
-    alias BuildTrusteeWithSidW BuildTrusteeWithSid;
-    alias GetAuditedPermissionsFromAclW GetAuditedPermissionsFromAcl;
-    alias GetEffectiveRightsFromAclW GetEffectiveRightsFromAcl;
-    alias GetExplicitEntriesFromAclW GetExplicitEntriesFromAcl;
-    alias GetNamedSecurityInfoW GetNamedSecurityInfo;
-    alias GetTrusteeFormW GetTrusteeForm;
-    alias GetTrusteeNameW GetTrusteeName;
-    alias GetTrusteeTypeW GetTrusteeType;
-    alias LookupSecurityDescriptorPartsW LookupSecurityDescriptorParts;
-    alias SetEntriesInAclW SetEntriesInAcl;
-    alias SetNamedSecurityInfoW SetNamedSecurityInfo;
-    alias BuildImpersonateExplicitAccessWithNameW
-      BuildImpersonateExplicitAccessWithName;
-    alias BuildImpersonateTrusteeW BuildImpersonateTrustee;
-    alias GetMultipleTrusteeW GetMultipleTrustee;
-    alias GetMultipleTrusteeOperationW GetMultipleTrusteeOperation;
+    alias BuildExplicitAccessWithName = BuildExplicitAccessWithNameW;
+    alias BuildSecurityDescriptor = BuildSecurityDescriptorW;
+    alias BuildTrusteeWithName = BuildTrusteeWithNameW;
+    alias BuildTrusteeWithObjectsAndName = BuildTrusteeWithObjectsAndNameW;
+    alias BuildTrusteeWithObjectsAndSid = BuildTrusteeWithObjectsAndSidW;
+    alias BuildTrusteeWithSid = BuildTrusteeWithSidW;
+    alias GetAuditedPermissionsFromAcl = GetAuditedPermissionsFromAclW;
+    alias GetEffectiveRightsFromAcl = GetEffectiveRightsFromAclW;
+    alias GetExplicitEntriesFromAcl = GetExplicitEntriesFromAclW;
+    alias GetNamedSecurityInfo = GetNamedSecurityInfoW;
+    alias GetTrusteeForm = GetTrusteeFormW;
+    alias GetTrusteeName = GetTrusteeNameW;
+    alias GetTrusteeType = GetTrusteeTypeW;
+    alias LookupSecurityDescriptorParts = LookupSecurityDescriptorPartsW;
+    alias SetEntriesInAcl = SetEntriesInAclW;
+    alias SetNamedSecurityInfo = SetNamedSecurityInfoW;
+    alias BuildImpersonateExplicitAccessWithName = BuildImpersonateExplicitAccessWithNameW;
+    alias BuildImpersonateTrustee = BuildImpersonateTrusteeW;
+    alias GetMultipleTrustee = GetMultipleTrusteeW;
+    alias GetMultipleTrusteeOperation = GetMultipleTrusteeOperationW;
 } else {
-    alias BuildExplicitAccessWithNameA BuildExplicitAccessWithName;
-    alias BuildSecurityDescriptorA BuildSecurityDescriptor;
-    alias BuildTrusteeWithNameA BuildTrusteeWithName;
-    alias BuildTrusteeWithObjectsAndNameA BuildTrusteeWithObjectsAndName;
-    alias BuildTrusteeWithObjectsAndSidA BuildTrusteeWithObjectsAndSid;
-    alias BuildTrusteeWithSidA BuildTrusteeWithSid;
-    alias GetAuditedPermissionsFromAclA GetAuditedPermissionsFromAcl;
-    alias GetEffectiveRightsFromAclA GetEffectiveRightsFromAcl;
-    alias GetExplicitEntriesFromAclA GetExplicitEntriesFromAcl;
-    alias GetNamedSecurityInfoA GetNamedSecurityInfo;
-    alias GetTrusteeFormA GetTrusteeForm;
-    alias GetTrusteeNameA GetTrusteeName;
-    alias GetTrusteeTypeA GetTrusteeType;
-    alias LookupSecurityDescriptorPartsA LookupSecurityDescriptorParts;
-    alias SetEntriesInAclA SetEntriesInAcl;
-    alias SetNamedSecurityInfoA SetNamedSecurityInfo;
-    alias BuildImpersonateExplicitAccessWithNameA
-      BuildImpersonateExplicitAccessWithName;
-    alias BuildImpersonateTrusteeA BuildImpersonateTrustee;
-    alias GetMultipleTrusteeA GetMultipleTrustee;
-    alias GetMultipleTrusteeOperationA GetMultipleTrusteeOperation;
+    alias BuildExplicitAccessWithName = BuildExplicitAccessWithNameA;
+    alias BuildSecurityDescriptor = BuildSecurityDescriptorA;
+    alias BuildTrusteeWithName = BuildTrusteeWithNameA;
+    alias BuildTrusteeWithObjectsAndName = BuildTrusteeWithObjectsAndNameA;
+    alias BuildTrusteeWithObjectsAndSid = BuildTrusteeWithObjectsAndSidA;
+    alias BuildTrusteeWithSid = BuildTrusteeWithSidA;
+    alias GetAuditedPermissionsFromAcl = GetAuditedPermissionsFromAclA;
+    alias GetEffectiveRightsFromAcl = GetEffectiveRightsFromAclA;
+    alias GetExplicitEntriesFromAcl = GetExplicitEntriesFromAclA;
+    alias GetNamedSecurityInfo = GetNamedSecurityInfoA;
+    alias GetTrusteeForm = GetTrusteeFormA;
+    alias GetTrusteeName = GetTrusteeNameA;
+    alias GetTrusteeType = GetTrusteeTypeA;
+    alias LookupSecurityDescriptorParts = LookupSecurityDescriptorPartsA;
+    alias SetEntriesInAcl = SetEntriesInAclA;
+    alias SetNamedSecurityInfo = SetNamedSecurityInfoA;
+    alias BuildImpersonateExplicitAccessWithName = BuildImpersonateExplicitAccessWithNameA;
+    alias BuildImpersonateTrustee = BuildImpersonateTrusteeA;
+    alias GetMultipleTrustee = GetMultipleTrusteeA;
+    alias GetMultipleTrusteeOperation = GetMultipleTrusteeOperationA;
 }

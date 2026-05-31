@@ -45,11 +45,11 @@ AC_DEFUN([GCC_ENABLE_PLUGINS],
      ;;
      *)
        if test x$build = x$host; then
-	 export_sym_check="objdump${exeext} -T"
+	 export_sym_check="$ac_cv_prog_OBJDUMP -T"
        elif test x$host = x$target; then
 	 export_sym_check="$gcc_cv_objdump -T"
        else
-	 export_sym_check=
+	 export_sym_check="$ac_cv_prog_OBJDUMP -T"
        fi
      ;;
    esac
@@ -91,14 +91,18 @@ AC_DEFUN([GCC_ENABLE_PLUGINS],
      # Check that we can build shared objects with -fPIC -shared
      saved_LDFLAGS="$LDFLAGS"
      saved_CFLAGS="$CFLAGS"
+     saved_CXXFLAGS="$CXXFLAGS"
      case "${host}" in
        *-*-darwin*)
 	 CFLAGS=`echo $CFLAGS | sed s/-mdynamic-no-pic//g`
 	 CFLAGS="$CFLAGS -fPIC"
+	 CXXFLAGS=`echo $CXXFLAGS | sed s/-mdynamic-no-pic//g`
+	 CXXFLAGS="$CXXFLAGS -fPIC"
 	 LDFLAGS="$LDFLAGS -shared -undefined dynamic_lookup"
        ;;
        *)
 	 CFLAGS="$CFLAGS -fPIC"
+	 CXXFLAGS="$CXXFLAGS -fPIC"
 	 LDFLAGS="$LDFLAGS -fPIC -shared"
        ;;
      esac
@@ -113,6 +117,7 @@ AC_DEFUN([GCC_ENABLE_PLUGINS],
      fi
      LDFLAGS="$saved_LDFLAGS"
      CFLAGS="$saved_CFLAGS"
+     CXXFLAGS="$saved_CXXFLAGS"
 
      # If plugin support had been requested but not available, fail.
      if test x"$enable_plugin" = x"no" ; then
@@ -131,8 +136,11 @@ dnl GCC_PLUGIN_OPTION
 dnl    (SHELL-CODE_HANDLER)
 dnl
 AC_DEFUN([GCC_PLUGIN_OPTION],[dnl
+AC_CHECK_TOOL(AR, ar)
+if test -z "${AR}"; then
+  AC_MSG_ERROR([Required archive tool 'ar' not found on PATH.])
+fi
 AC_MSG_CHECKING([for -plugin option])
-
 plugin_names="liblto_plugin.so liblto_plugin-0.dll cyglto_plugin-0.dll"
 plugin_option=
 for plugin in $plugin_names; do
@@ -145,22 +153,61 @@ for plugin in $plugin_names; do
     break
   fi
 done
-dnl Check if ${AR} $plugin_option rc works.
-AC_CHECK_TOOL(AR, ar)
-if test "${AR}" = "" ; then
-  AC_MSG_ERROR([Required archive tool 'ar' not found on PATH.])
-fi
-touch conftest.c
-${AR} $plugin_option rc conftest.a conftest.c
-if test "$?" != 0; then
-  AC_MSG_WARN([Failed: $AR $plugin_option rc])
-  plugin_option=
-fi
-rm -f conftest.*
-if test -n "$plugin_option"; then
-  $1="$plugin_option"
-  AC_MSG_RESULT($plugin_option)
-else
+if test -z "$plugin_option"; then
   AC_MSG_RESULT([no])
+else
+  AC_MSG_RESULT($plugin_option)
+  dnl Check if ${AR} $plugin_option rc works.
+  touch conftest.c
+  ${AR} $plugin_option rc conftest.a conftest.c
+  if test "$?" != 0; then
+    AC_MSG_WARN([Failed: $AR $plugin_option rc])
+    plugin_option=
+  fi
+  rm -f conftest.*
 fi
+$1="$plugin_option"
+])
+
+dnl
+dnl
+dnl GCC_PLUGIN_OPTION_FOR_TARGET
+dnl    (SHELL-CODE_HANDLER)
+dnl
+AC_DEFUN([GCC_PLUGIN_OPTION_FOR_TARGET],[dnl
+COMPILER_FOR_TARGET="${CC_FOR_TARGET}"
+dnl Check if the host compiler is used.
+if test x"${COMPILER_FOR_TARGET}" = x"\$(CC)"; then
+  COMPILER_FOR_TARGET="$CC"
+fi
+saved_CC="$CC"
+CC="$COMPILER_FOR_TARGET"
+AC_CACHE_CHECK([for gcc for target], gcc_target_cv_working, [
+  AC_TRY_COMPILE(
+  [],
+  [],
+  gcc_target_cv_working=yes,
+  gcc_target_cv_working=no)])
+CC="$saved_CC"
+AC_MSG_CHECKING([for target -plugin option])
+plugin_option=
+if test $gcc_target_cv_working = yes; then
+  plugin_names="liblto_plugin.so liblto_plugin-0.dll cyglto_plugin-0.dll"
+  for plugin in $plugin_names; do
+    plugin_so=`${COMPILER_FOR_TARGET} ${CFLAGS_FOR_TARGET} --print-prog-name $plugin`
+    if test x$plugin_so = x$plugin; then
+      plugin_so=`${COMPILER_FOR_TARGET} ${CFLAGS_FOR_TARGET} --print-file-name $plugin`
+    fi
+    if test x$plugin_so != x$plugin; then
+      plugin_option="--plugin $plugin_so"
+      break
+    fi
+  done
+fi
+if test -z "$plugin_option"; then
+  AC_MSG_RESULT([no])
+else
+  AC_MSG_RESULT($plugin_option)
+fi
+$1="$plugin_option"
 ])

@@ -1,6 +1,7 @@
 #source: emit-relocs-28.s
 #as: -mabi=ilp32
 #ld: -m [aarch64_choose_ilp32_emul] --defsym globala=0x11000 --defsym globalb=0x45000 --defsym globalc=0x1234  -e0 --emit-relocs
+#notarget: *-*-nto*
 #objdump: -dr
 
 .*: +file format .*

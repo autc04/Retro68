@@ -16,9 +16,9 @@ template <typename T> struct B {
 
 template <typename T> T B<T>::t2 = { };
 
-enum { E1 } e1;			// OK, defined
-extern enum { E2 } e2;		// { dg-error "never defined" }
-extern "C" enum { E3 } e3;	// OK, extern "C"
+enum { } e1;			// OK, defined
+extern enum { } e2;		// { dg-error "never defined" }
+extern "C" enum { } e3;		// OK, extern "C"
 
 void f() {
   struct A { int x; };  // no linkage
@@ -29,5 +29,6 @@ void f() {
   ba.g(a);              // OK
   ba.h(a);              // error, B<T>::h never defined
   i(ba, a);             // OK
-  e1+e2+e3; // { dg-warning "arithmetic between different enumeration types" "" { target c++20 } }
+  e1+e2+e3; // { dg-warning "arithmetic between different enumeration types" "" { target { c++20 && c++23_down } } }
+	    // { dg-error "arithmetic between different enumeration types" "" { target c++26 } .-1 }
 }

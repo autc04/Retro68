@@ -1,6 +1,6 @@
 // Concept-constrained comparison implementations -*- C++ -*-
 
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -46,19 +46,19 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /// [func.identity] The identity function.
   struct identity
   {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++23-extensions" // static operator()
     template<typename _Tp>
       [[nodiscard]]
-      constexpr _Tp&&
-      operator()(_Tp&& __t) const noexcept
+      static constexpr _Tp&&
+      operator()(_Tp&& __t) noexcept
       { return std::forward<_Tp>(__t); }
+#pragma GCC diagnostic pop
 
     using is_transparent = __is_transparent;
   };
 
-#ifdef __cpp_lib_concepts
-// Define this here, included by all the headers that need to define it.
-#define __cpp_lib_ranges 202110L
-
+#ifdef __glibcxx_ranges // C++ >= 20
 namespace ranges
 {
   namespace __detail
@@ -71,10 +71,11 @@ namespace ranges
 	= requires (_Tp&& __t, _Up&& __u) { { __t < __u } -> same_as<bool>; }
 	  && convertible_to<_Tp, const volatile void*>
 	  && convertible_to<_Up, const volatile void*>
-	  && (! requires(_Tp&& __t, _Up&& __u)
+	  && ! requires(_Tp&& __t, _Up&& __u)
 	      { operator<(std::forward<_Tp>(__t), std::forward<_Up>(__u)); }
-	      && ! requires(_Tp&& __t, _Up&& __u)
-	      { std::forward<_Tp>(__t).operator<(std::forward<_Up>(__u)); });
+	  && ! requires(_Tp&& __t, _Up&& __u)
+	      { std::forward<_Tp>(__t).operator<(std::forward<_Up>(__u)); }
+	  && std::__detail::__not_overloaded_spaceship<_Tp, _Up>;
   } // namespace __detail
 
   // [range.cmp] Concept-constrained comparisons
@@ -82,13 +83,15 @@ namespace ranges
   // _GLIBCXX_RESOLVE_LIB_DEFECTS
   // 3530 BUILTIN-PTR-MEOW should not opt the type out of syntactic checks
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++23-extensions" // static operator()
   /// ranges::equal_to function object type.
   struct equal_to
   {
     template<typename _Tp, typename _Up>
       requires equality_comparable_with<_Tp, _Up>
-      constexpr bool
-      operator()(_Tp&& __t, _Up&& __u) const
+      static constexpr bool
+      operator()(_Tp&& __t, _Up&& __u)
       noexcept(noexcept(std::declval<_Tp>() == std::declval<_Up>()))
       { return std::forward<_Tp>(__t) == std::forward<_Up>(__u); }
 
@@ -100,9 +103,9 @@ namespace ranges
   {
     template<typename _Tp, typename _Up>
       requires equality_comparable_with<_Tp, _Up>
-      constexpr bool
-      operator()(_Tp&& __t, _Up&& __u) const
-      noexcept(noexcept(std::declval<_Up>() == std::declval<_Tp>()))
+      static constexpr bool
+      operator()(_Tp&& __t, _Up&& __u)
+      noexcept(noexcept(std::declval<_Tp>() == std::declval<_Up>()))
       { return !equal_to{}(std::forward<_Tp>(__t), std::forward<_Up>(__u)); }
 
     using is_transparent = __is_transparent;
@@ -113,8 +116,8 @@ namespace ranges
   {
     template<typename _Tp, typename _Up>
       requires totally_ordered_with<_Tp, _Up>
-      constexpr bool
-      operator()(_Tp&& __t, _Up&& __u) const
+      static constexpr bool
+      operator()(_Tp&& __t, _Up&& __u)
       noexcept(noexcept(std::declval<_Tp>() < std::declval<_Up>()))
       {
 	if constexpr (__detail::__less_builtin_ptr_cmp<_Tp, _Up>)
@@ -140,8 +143,8 @@ namespace ranges
   {
     template<typename _Tp, typename _Up>
       requires totally_ordered_with<_Tp, _Up>
-      constexpr bool
-      operator()(_Tp&& __t, _Up&& __u) const
+      static constexpr bool
+      operator()(_Tp&& __t, _Up&& __u)
       noexcept(noexcept(std::declval<_Up>() < std::declval<_Tp>()))
       { return less{}(std::forward<_Up>(__u), std::forward<_Tp>(__t)); }
 
@@ -153,8 +156,8 @@ namespace ranges
   {
     template<typename _Tp, typename _Up>
       requires totally_ordered_with<_Tp, _Up>
-      constexpr bool
-      operator()(_Tp&& __t, _Up&& __u) const
+      static constexpr bool
+      operator()(_Tp&& __t, _Up&& __u)
       noexcept(noexcept(std::declval<_Tp>() < std::declval<_Up>()))
       { return !less{}(std::forward<_Tp>(__t), std::forward<_Up>(__u)); }
 
@@ -166,16 +169,17 @@ namespace ranges
   {
     template<typename _Tp, typename _Up>
       requires totally_ordered_with<_Tp, _Up>
-      constexpr bool
-      operator()(_Tp&& __t, _Up&& __u) const
+      static constexpr bool
+      operator()(_Tp&& __t, _Up&& __u)
       noexcept(noexcept(std::declval<_Up>() < std::declval<_Tp>()))
       { return !less{}(std::forward<_Up>(__u), std::forward<_Tp>(__t)); }
 
     using is_transparent = __is_transparent;
   };
+#pragma GCC diagnostic pop
 
 } // namespace ranges
-#endif // library concepts
+#endif // __glibcxx_ranges
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 #endif // C++20

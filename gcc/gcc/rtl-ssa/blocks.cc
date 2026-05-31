@@ -1,5 +1,5 @@
 // Implementation of basic-block-related functions for RTL SSA      -*- C++ -*-
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -19,6 +19,7 @@
 
 #define INCLUDE_ALGORITHM
 #define INCLUDE_FUNCTIONAL
+#define INCLUDE_ARRAY
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -47,7 +48,8 @@ function_info::build_info::build_info (unsigned int num_regs,
     potential_phi_regs (num_regs),
     bb_phis (num_bb_indices),
     bb_mem_live_out (num_bb_indices),
-    bb_to_rpo (num_bb_indices)
+    bb_to_rpo (num_bb_indices),
+    exit_block_dominator (nullptr)
 {
   last_access.safe_grow_cleared (num_regs + 1);
 
@@ -57,7 +59,7 @@ function_info::build_info::build_info (unsigned int num_regs,
   // write to an entry before reading from it.  But poison the contents
   // when checking, just to make sure we don't accidentally use an
   // uninitialized value.
-  bb_phis.quick_grow (num_bb_indices);
+  bb_phis.quick_grow_cleared (num_bb_indices);
   bb_mem_live_out.quick_grow (num_bb_indices);
   bb_to_rpo.quick_grow (num_bb_indices);
   if (flag_checking)
@@ -85,8 +87,8 @@ class function_info::bb_walker : public dom_walker
 {
 public:
   bb_walker (function_info *, build_info &);
-  virtual edge before_dom_children (basic_block);
-  virtual void after_dom_children (basic_block);
+  edge before_dom_children (basic_block) final override;
+  void after_dom_children (basic_block) final override;
 
 private:
   // Information about the function we're building.
@@ -103,21 +105,8 @@ function_info::bb_walker::bb_walker (function_info *function, build_info &bi)
   : dom_walker (CDI_DOMINATORS, ALL_BLOCKS, bi.bb_to_rpo.address ()),
     m_function (function),
     m_bi (bi),
-    m_exit_block_dominator (nullptr)
+    m_exit_block_dominator (bi.exit_block_dominator)
 {
-  // ??? There is no dominance information associated with the exit block,
-  // so work out its immediate dominator using predecessor blocks.  We then
-  // walk the exit block just before popping its immediate dominator.
-  edge e;
-  edge_iterator ei;
-  FOR_EACH_EDGE (e, ei, EXIT_BLOCK_PTR_FOR_FN (m_function->m_fn)->preds)
-    if (m_exit_block_dominator)
-      m_exit_block_dominator
-	= nearest_common_dominator (CDI_DOMINATORS,
-				    m_exit_block_dominator, e->src);
-    else
-      m_exit_block_dominator = e->src;
-
   // If the exit block is unreachable, process it last.
   if (!m_exit_block_dominator)
     m_exit_block_dominator = ENTRY_BLOCK_PTR_FOR_FN (m_function->m_fn);
@@ -326,49 +315,51 @@ function_info::add_live_out_use (bb_info *bb, set_info *def)
 
   // If the end of the block already has an artificial use, that use
   // acts to make DEF live at the appropriate point.
-  use_info *use = def->last_nondebug_insn_use ();
-  if (use && use->insn () == bb->end_insn ())
+  if (find_use (def, bb->end_insn ()).matching_use ())
     return;
 
   // Currently there is no need to maintain a backward link from the end
   // instruction to the list of live-out uses.  Such a list would be
   // expensive to update if it was represented using the usual insn_info
   // access arrays.
-  use = allocate<use_info> (bb->end_insn (), def->resource (), def);
+  auto *use = allocate<use_info> (bb->end_insn (), def->resource (), def);
   use->set_is_live_out_use (true);
   add_use (use);
 }
 
-// Return true if all nondebug uses of DEF are live-out uses.
-static bool
-all_uses_are_live_out_uses (set_info *def)
+// Make USE's definition available at USE, if it isn't already.  Assume that
+// the caller has properly used make_use_available to check that this is
+// possible.
+void
+function_info::commit_make_use_available (use_info *use)
 {
-  for (use_info *use : def->all_uses ())
-    if (!use->is_in_debug_insn () && !use->is_live_out_use ())
-      return false;
-  return true;
-}
-
-// SET, if nonnull, is a definition of something that is live out from BB.
-// Return the live-out value itself.
-set_info *
-function_info::live_out_value (bb_info *bb, set_info *set)
-{
-  // Degenerate phis only exist to provide a definition for uses in the
-  // same EBB.  The live-out value is the same as the live-in value.
-  if (auto *phi = safe_dyn_cast<phi_info *> (set))
-    if (phi->is_degenerate ())
-      {
-	set = phi->input_value (0);
-
-	// Remove the phi if it turned out to be useless.  This is
-	// mainly useful for memory, because we don't know ahead of time
-	// whether a block will use memory or not.
-	if (bb == bb->ebb ()->last_bb () && all_uses_are_live_out_uses (phi))
-	  replace_phi (phi, set);
-      }
-
-  return set;
+  // We only need to handle single dominating definitions here.
+  // Other cases are handled by degenerate phis, with create_degenerate_phi
+  // creating any necessary live-out uses.
+  set_info *def = use->def ();
+  if (def
+      && use->is_reg ()
+      && is_single_dominating_def (def)
+      && use->ebb () != def->ebb ())
+    {
+      // If USE's EBB has DEF's EBB as its single predecessor, it's enough
+      // to add a live-out use to the former's predecessor block.  Otherwise,
+      // conservatively add a live-out use at the end of DEF's block, so that
+      // DEF cannot move further down.  Doing a minimal yet accurate update
+      // would be an O(n.log(n)) operation in the worst case.
+      auto ebb_cfg_bb = def->ebb ()->first_bb ()->cfg_bb ();
+      if (single_pred_p (ebb_cfg_bb))
+	{
+	  bb_info *pred_bb = this->bb (single_pred (ebb_cfg_bb));
+	  if (pred_bb->ebb () == def->ebb ())
+	    {
+	      add_live_out_use (pred_bb, def);
+	      return;
+	    }
+	}
+      add_live_out_use (def->bb (), def);
+      return;
+    }
 }
 
 // Add PHI to EBB and enter it into the function's hash table.
@@ -431,18 +422,33 @@ function_info::replace_phi (phi_info *phi, set_info *new_value)
 
   if (new_value)
     for (use_info *use : phi->nondebug_insn_uses ())
-      if (!use->is_live_out_use ())
+      // Live-out uses act as a movement barrier for later definitions
+      // in the same EBB.
+      if (!use->is_live_out_use ()
+	  || (phi->next_def ()
+	      && phi->next_def ()->ebb () == phi->ebb ()))
 	{
 	  // We need to keep the phi around for its local uses.
 	  // Turn it into a degenerate phi, if it isn't already.
-	  use_info *use = phi->input_use (0);
-	  if (use->def () != new_value)
-	    update_use (use);
+	  use_info *single_use = nullptr;
+	  for (auto *use : phi->inputs ())
+	    if (!single_use)
+	      single_use = use;
+	    else if (use->def () == new_value)
+	      {
+		remove_use (single_use);
+		single_use = use;
+	      }
+	    else
+	      remove_use (use);
+
+	  if (single_use->def () != new_value)
+	    update_use (single_use);
 
 	  if (phi->is_degenerate ())
 	    return;
 
-	  phi->make_degenerate (use);
+	  phi->make_degenerate (single_use);
 
 	  // Redirect all phi users to NEW_VALUE.
 	  while (use_info *phi_use = phi->last_phi_use ())
@@ -509,6 +515,17 @@ function_info::create_phi (ebb_info *ebb, resource_info resource,
   return phi;
 }
 
+// Called while building an extended basic block's SSA form using BI.
+// Create and return a degenerate phi whose single input is VALUE.
+phi_info *
+function_info::create_degenerate_phi (build_info &bi, set_info *value)
+{
+  access_info *inputs[] = { look_through_degenerate_phi (value) };
+  auto *phi = create_phi (bi.current_ebb, value->resource (), inputs, 1);
+  bi.record_reg_def (phi);
+  return phi;
+}
+
 // Create and return a degenerate phi for EBB whose input comes from DEF.
 // This is used in cases where DEF is known to be available on entry to
 // EBB but was not previously used within it.  If DEF is for a register,
@@ -525,6 +542,11 @@ function_info::create_phi (ebb_info *ebb, resource_info resource,
 phi_info *
 function_info::create_degenerate_phi (ebb_info *ebb, set_info *def)
 {
+  // Allow the function to be called twice in succession for the same def.
+  def_lookup dl = find_def (def->resource (), ebb->phi_insn ());
+  if (set_info *set = dl.matching_set ())
+    return as_a<phi_info *> (set);
+
   access_info *input = def;
   phi_info *phi = create_phi (ebb, def->resource (), &input, 1);
   if (def->is_reg ())
@@ -535,12 +557,12 @@ function_info::create_degenerate_phi (ebb_info *ebb, set_info *def)
       basic_block pred_cfg_bb = single_pred (ebb->first_bb ()->cfg_bb ());
       bb_info *pred_bb = this->bb (pred_cfg_bb);
 
-      if (!bitmap_set_bit (DF_LR_IN (ebb->first_bb ()->cfg_bb ()), regno))
+      if (bitmap_set_bit (DF_LR_IN (ebb->first_bb ()->cfg_bb ()), regno))
 	{
 	  // The register was not previously live on entry to EBB and
 	  // might not have been live on exit from PRED_BB either.
-	  if (bitmap_set_bit (DF_LR_OUT (pred_cfg_bb), regno))
-	    add_live_out_use (pred_bb, def);
+	  bitmap_set_bit (DF_LR_OUT (pred_cfg_bb), regno);
+	  add_live_out_use (pred_bb, def);
 	}
       else
 	{
@@ -614,10 +636,23 @@ function_info::place_phis (build_info &bi)
 
   // Calculate dominance frontiers.
   auto_vec<bitmap_head> frontiers;
-  frontiers.safe_grow (num_bb_indices);
+  frontiers.safe_grow_cleared (num_bb_indices);
   for (unsigned int i = 0; i < num_bb_indices; ++i)
     bitmap_initialize (&frontiers[i], &bitmap_default_obstack);
   compute_dominance_frontiers (frontiers.address ());
+
+  // The normal dominance information doesn't calculate dominators for
+  // the exit block, so we don't get dominance frontiers for them either.
+  // Calculate them by hand.
+  for (edge e : EXIT_BLOCK_PTR_FOR_FN (m_fn)->preds)
+    {
+      basic_block bb = e->src;
+      while (bb != bi.exit_block_dominator)
+	{
+	  bitmap_set_bit (&frontiers[bb->index], EXIT_BLOCK);
+	  bb = get_immediate_dominator (CDI_DOMINATORS, bb);
+	}
+    }
 
   // In extreme cases, the number of live-in registers can be much
   // greater than the number of phi nodes needed in a block (see PR98863).
@@ -626,7 +661,7 @@ function_info::place_phis (build_info &bi)
   // they are live on entry to the corresponding block, but do not need
   // phi nodes otherwise.
   auto_vec<bitmap_head> unfiltered;
-  unfiltered.safe_grow (num_bb_indices);
+  unfiltered.safe_grow_cleared (num_bb_indices);
   for (unsigned int i = 0; i < num_bb_indices; ++i)
     bitmap_initialize (&unfiltered[i], &bitmap_default_obstack);
 
@@ -639,7 +674,12 @@ function_info::place_phis (build_info &bi)
       if (bitmap_empty_p (&frontiers[b1]))
 	continue;
 
-      bitmap b1_def = &DF_LR_BB_INFO (BASIC_BLOCK_FOR_FN (m_fn, b1))->def;
+      // Defs in B1 that are possibly in LR_IN in the dominance frontier
+      // blocks.
+      auto_bitmap b1_def;
+      bitmap_and (b1_def, &DF_LR_BB_INFO (BASIC_BLOCK_FOR_FN (m_fn, b1))->def,
+		  DF_LR_OUT (BASIC_BLOCK_FOR_FN (m_fn, b1)));
+
       bitmap_iterator bmi;
       unsigned int b2;
       EXECUTE_IF_SET_IN_BITMAP (&frontiers[b1], 0, b2, bmi)
@@ -765,6 +805,7 @@ void
 function_info::add_phi_nodes (build_info &bi)
 {
   ebb_info *ebb = bi.current_ebb;
+  bb_info *bb = ebb->first_bb ();
   basic_block cfg_bb = ebb->first_bb ()->cfg_bb ();
 
   // Create the register phis for this EBB.
@@ -788,6 +829,26 @@ function_info::add_phi_nodes (build_info &bi)
     }
 
   bitmap_copy (bi.ebb_def_regs, &phis.regs);
+
+  if (bb->next_bb ())
+    {
+      // If a live input is redefined by later blocks in the same EBB, we need
+      // to add live-out uses to prevent the later definition from being moved
+      // into earlier blocks.  Create degenerate phis that can be used for
+      // that purpose, if phis are not naturally needed.
+      auto_bitmap extra_regs;
+      for (auto *bb2 : ebb->bbs ())
+	if (bb2 != bb)
+	  bitmap_ior_into (extra_regs, &DF_LR_BB_INFO (bb2->cfg_bb ())->def);
+      bitmap_and_compl_into (extra_regs, &phis.regs);
+      EXECUTE_IF_AND_IN_BITMAP (extra_regs, DF_LR_IN (cfg_bb), 0, regno, in_bi)
+	if (set_info *value = bi.current_reg_value (regno))
+	  {
+	    create_degenerate_phi (bi, value);
+	    // Record that live-out uses are needed for this phi.
+	    bitmap_set_bit (bi.ebb_def_regs, regno);
+	  }
+    }
 
   // Collect the live-in memory definitions and record whether they're
   // all the same.
@@ -861,11 +922,14 @@ function_info::add_artificial_accesses (build_info &bi, df_ref_flags flags)
 
   start_insn_accesses ();
 
+  HARD_REG_SET added_regs = {};
   FOR_EACH_ARTIFICIAL_USE (ref, cfg_bb->index)
     if ((DF_REF_FLAGS (ref) & DF_REF_AT_TOP) == flags)
       {
 	unsigned int regno = DF_REF_REGNO (ref);
 	machine_mode mode = GET_MODE (DF_REF_REAL_REG (ref));
+	if (HARD_REGISTER_NUM_P (regno))
+	  SET_HARD_REG_BIT (added_regs, regno);
 
 	// A definition must be available.
 	gcc_checking_assert (bitmap_bit_p (&lr_info->in, regno)
@@ -874,10 +938,20 @@ function_info::add_artificial_accesses (build_info &bi, df_ref_flags flags)
 	m_temp_uses.safe_push (create_reg_use (bi, insn, { mode, regno }));
       }
 
-  // Track the return value of memory by adding an artificial use of
-  // memory at the end of the exit block.
-  if (flags == 0 && cfg_bb->index == EXIT_BLOCK)
+  // Ensure that global registers and memory are live at the end of any
+  // block that has no successors, such as the exit block and non-local gotos.
+  // Global registers have to be singled out because they are not part of
+  // the DF artifical use list (they are instead treated as used within
+  // every block).
+  if (flags == 0 && EDGE_COUNT (cfg_bb->succs) == 0)
     {
+      for (unsigned int i = 0; i < FIRST_PSEUDO_REGISTER; ++i)
+	if (global_regs[i] && !TEST_HARD_REG_BIT (added_regs, i))
+	  {
+	    auto mode = reg_raw_mode[i];
+	    m_temp_uses.safe_push (create_reg_use (bi, insn, { mode, i }));
+	  }
+
       auto *use = allocate<use_info> (insn, memory, bi.current_mem_value ());
       add_use (use);
       m_temp_uses.safe_push (use);
@@ -951,8 +1025,12 @@ function_info::record_block_live_out (build_info &bi)
       bitmap_iterator out_bi;
       EXECUTE_IF_SET_IN_BITMAP (&phis.regs, 0, regno, out_bi)
 	{
-	  phis.inputs[input_i]
-	    = live_out_value (bb, bi.current_reg_value (regno));
+	  set_info *value = bi.current_reg_value (regno);
+	  // Degenerate phis only exist to provide a definition for uses in the
+	  // same EBB.  The live-out value is the same as the live-in value.
+	  if (value)
+	    value = look_through_degenerate_phi (value);
+	  phis.inputs[input_i] = value;
 	  input_i += 1;
 	}
     }
@@ -969,7 +1047,7 @@ function_info::record_block_live_out (build_info &bi)
       bitmap_iterator out_bi;
       EXECUTE_IF_AND_IN_BITMAP (bi.ebb_def_regs, live_out, 0, regno, out_bi)
 	{
-	  set_info *value = live_out_value (bb, bi.current_reg_value (regno));
+	  set_info *value = bi.current_reg_value (regno);
 	  if (value && value->ebb () == ebb)
 	    add_live_out_use (bb, value);
 	}
@@ -989,8 +1067,15 @@ function_info::record_block_live_out (build_info &bi)
       }
 
   // Record the live-out memory value.
-  bi.bb_mem_live_out[cfg_bb->index]
-    = live_out_value (bb, bi.current_mem_value ());
+  set_info *mem_value = bi.current_mem_value ();
+  if (auto *phi = safe_dyn_cast <phi_info *> (mem_value))
+    if (phi->is_degenerate ())
+      {
+	mem_value = phi->input_value (0);
+	if (bb == ebb->last_bb () && !phi->has_nondebug_uses ())
+	  replace_phi (phi, mem_value);
+      }
+  bi.bb_mem_live_out[cfg_bb->index] = mem_value;
 }
 
 // Add BB and its contents to the SSA information.
@@ -1008,9 +1093,6 @@ function_info::start_block (build_info &bi, bb_info *bb)
 
   // Record the start of this block's definitions in the definitions stack.
   bi.old_def_stack_limit.safe_push (bi.def_stack.length ());
-
-  // Add the block itself.
-  append_bb (bb);
 
   // If the block starts an EBB, create the phi insn.  This insn should exist
   // for all EBBs, even if they don't (yet) need phis.
@@ -1229,7 +1311,10 @@ function_info::create_ebbs (build_info &bi)
 	// Create the EBB itself.
 	auto *ebb = allocate<ebb_info> (bbs[0], bbs.last ());
 	for (bb_info *bb : bbs)
-	  bb->set_ebb (ebb);
+	  {
+	    bb->set_ebb (ebb);
+	    append_bb (bb);
+	  }
 	bbs.truncate (0);
       }
 
@@ -1245,6 +1330,16 @@ function_info::process_all_blocks ()
   unsigned int num_bb_indices = last_basic_block_for_fn (m_fn);
 
   build_info bi (m_num_regs, num_bb_indices);
+
+  // ??? There is no dominance information associated with the exit block,
+  // so work out its immediate dominator using predecessor blocks.
+  for (edge e : EXIT_BLOCK_PTR_FOR_FN (m_fn)->preds)
+    if (bi.exit_block_dominator)
+      bi.exit_block_dominator
+	= nearest_common_dominator (CDI_DOMINATORS,
+				    bi.exit_block_dominator, e->src);
+    else
+      bi.exit_block_dominator = e->src;
 
   calculate_potential_phi_regs (bi);
   create_ebbs (bi);

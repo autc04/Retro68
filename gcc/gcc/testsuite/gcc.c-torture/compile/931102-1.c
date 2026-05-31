@@ -1,10 +1,13 @@
+/* { dg-additional-options "-std=gnu17" } */
+
 char *e ();
 
 #define SET \
   if (d > *b++) d |= a; \
   if (b) b = e(b);
 
-xxx()
+void
+xxx(void)
 {
   int a, d;
   char *b, *c;

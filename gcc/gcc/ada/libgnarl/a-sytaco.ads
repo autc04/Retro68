@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -33,9 +33,9 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with System.Task_Primitives;
+with System.OS_Locks;
+with System.Tasking;
 
-with Ada.Finalization;
 with Ada.Task_Identification;
 
 package Ada.Synchronous_Task_Control with
@@ -75,14 +75,16 @@ private
    procedure Finalize (S : in out Suspension_Object);
    --  Finalization for Suspension_Object
 
-   type Suspension_Object is
-     new Ada.Finalization.Limited_Controlled with
-   record
-      SO : System.Task_Primitives.Suspension_Object;
-      --  Use low-level suspension objects so that the synchronization
-      --  functionality provided by this object can be achieved using
-      --  efficient operating system primitives.
-   end record;
+   type Suspension_Object is limited record
+      L              : aliased System.OS_Locks.RTS_Lock;
+      State          : Boolean with Atomic;
+      Suspended_Task : System.Tasking.Task_Id;
+   end record
+   with
+     Finalizable =>
+       (Initialize           => Initialize,
+        Finalize             => Finalize,
+        Relaxed_Finalization => False);
 
    pragma Inline (Set_True);
    pragma Inline (Set_False);

@@ -1,5 +1,5 @@
 /* Declarations for -*- C++ -*- name lookup routines.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@integrable-solutions.net>
 
 This file is part of GCC.
@@ -40,6 +40,30 @@ struct cp_binding_level;
    VALUE or the TYPE slot.  We do not get the situation where the
    value and type slots are both filled and both hidden.  */
 #define HIDDEN_TYPE_BINDING_P(NODE) ((NODE)->type_is_hidden)
+
+/* Create an overload suitable for recording an artificial TYPE_DECL
+   and another decl.  We use this machanism to implement the struct
+   stat hack.  */
+
+#define STAT_HACK_P(N) ((N) && TREE_CODE (N) == OVERLOAD && OVL_LOOKUP_P (N))
+#define STAT_TYPE_VISIBLE_P(N) TREE_USED (OVERLOAD_CHECK (N))
+#define STAT_TYPE(N) TREE_TYPE (N)
+#define STAT_DECL(N) OVL_FUNCTION (N)
+#define STAT_VISIBLE(N) OVL_CHAIN (N)
+#define MAYBE_STAT_DECL(N) (STAT_HACK_P (N) ? STAT_DECL (N) : N)
+#define MAYBE_STAT_TYPE(N) (STAT_HACK_P (N) ? STAT_TYPE (N) : NULL_TREE)
+
+/* When a STAT_HACK_P is true, OVL_USING_P and OVL_EXPORT_P are valid
+   and apply to the hacked type.  */
+
+/* For regular (maybe) overloaded functions, we have OVL_HIDDEN_P.
+   But we also need to indicate hiddenness on implicit type decls
+   (injected friend classes), and (coming soon) decls injected from
+   block-scope externs.  It is too awkward to press the existing
+   overload marking for that.  If we have a hidden non-function, we
+   always create a STAT_HACK, and use these two markers as needed.  */
+#define STAT_TYPE_HIDDEN_P(N) OVL_HIDDEN_P (N)
+#define STAT_DECL_HIDDEN_P(N) OVL_DEDUP_P (N)
 
 /* Datatype that represents binding established by a declaration between
    a name and a C++ entity.  */
@@ -142,15 +166,23 @@ struct GTY(()) binding_cluster
 #define BINDING_VECTOR_CLUSTER(NODE,IX) \
   (((tree_binding_vec *)BINDING_VECTOR_CHECK (NODE))->vec[IX])
 
+struct module_tree_map_traits
+  : simple_hashmap_traits<int_hash<unsigned, 0>, tree> {};
+typedef hash_map<unsigned, tree, module_tree_map_traits> module_tree_map_t;
+
 struct GTY(()) tree_binding_vec {
   struct tree_base base;
   tree name;
+  module_tree_map_t *internal_decls;
   binding_cluster GTY((length ("%h.base.u.dependence_info.base"))) vec[1];
 };
 
 /* The name of a module vector.  */
 #define BINDING_VECTOR_NAME(NODE) \
   (((tree_binding_vec *)BINDING_VECTOR_CHECK (NODE))->name)
+/* A collection of internal functions for ADL in this binding.  */
+#define BINDING_VECTOR_INTERNAL_DECLS(NODE) \
+  (((tree_binding_vec *)BINDING_VECTOR_CHECK (NODE))->internal_decls)
 
 /* tree_binding_vec does uses  base.u.dependence_info.base field for
    length.  It does not have lang_flag etc available!  */
@@ -165,6 +197,11 @@ struct GTY(()) tree_binding_vec {
    entity.  */
 #define BINDING_VECTOR_PARTITION_DUPS_P(NODE) \
   (BINDING_VECTOR_CHECK (NODE)->base.volatile_flag)
+
+/* True if the binding slot has internal-linkage functions that should
+   cause ADL to error.  */
+#define MODULE_BINDING_INTERNAL_DECLS_P(NODE) \
+  (OVERLOAD_CHECK (NODE)->base.private_flag)
 
 /* These two flags indicate the provenence of the bindings on this
    particular vector slot.  We can of course determine this from slot
@@ -198,8 +235,10 @@ enum scope_kind {
   sk_catch,	     /* A catch-block.  */
   sk_for,	     /* The scope of the variable declared in a
 			init-statement.  */
+  sk_template_for,   /* Ditto for expansion statements.  */
   sk_cond,	     /* The scope of the variable declared in the condition
 			of an if or switch statement.  */
+  sk_stmt_expr,	     /* GNU statement expression block.  */
   sk_function_parms, /* The scope containing function parameters.  */
   sk_class,	     /* The scope containing the members of a class.  */
   sk_scoped_enum,    /* The scope containing the enumerators of a C++11
@@ -212,7 +251,11 @@ enum scope_kind {
 			explicit specialization is introduced by
 			"template <>", this scope is always empty.  */
   sk_transaction,    /* A synchronized or atomic statement.  */
-  sk_omp	     /* An OpenMP structured block.  */
+  sk_omp,	     /* An OpenMP structured block.  */
+  sk_lambda,	     /* A lambda scope.  */
+  sk_contract,	     /* A C++26 contract-assertion scope.
+			[basic.scope.contract] */
+  sk_count	     /* Number of scope_kind enumerations.  */
 };
 
 struct GTY(()) cp_class_binding {
@@ -285,17 +328,17 @@ struct GTY(()) cp_binding_level {
   /* The kind of scope that this object represents.  However, a
       SK_TEMPLATE_SPEC scope is represented with KIND set to
       SK_TEMPLATE_PARMS and EXPLICIT_SPEC_P set to true.  */
-  ENUM_BITFIELD (scope_kind) kind : 4;
+  ENUM_BITFIELD (scope_kind) kind : 5;
 
   /* True if this scope is an SK_TEMPLATE_SPEC scope.  This field is
       only valid if KIND == SK_TEMPLATE_PARMS.  */
   BOOL_BITFIELD explicit_spec_p : 1;
 
-  /* true means make a BLOCK for this level regardless of all else.  */
+  /* True means make a BLOCK for this level regardless of all else.  */
   unsigned keep : 1;
 
   /* Nonzero if this level can safely have additional
-      cleanup-needing variables added to it.  */
+     cleanup-needing variables added to it.  */
   unsigned more_cleanups_ok : 1;
   unsigned have_cleanups : 1;
 
@@ -306,13 +349,14 @@ struct GTY(()) cp_binding_level {
      'this_entity'.  */
   unsigned defining_class_p : 1;
 
-  /* true for SK_FUNCTION_PARMS of immediate functions.  */
-  unsigned immediate_fn_ctx_p : 1;
-
   /* True for SK_FUNCTION_PARMS of a requires-expression.  */
-  unsigned requires_expression: 1;
+  unsigned requires_expression : 1;
 
-  /* 21 bits left to fill a 32-bit word.  */
+  /* True for artificial blocks which should be ignored when finding
+     parent scope.  */
+  unsigned artificial : 1;
+
+  /* 20 bits left to fill a 32-bit word.  */
 };
 
 /* The binding level currently in effect.  */
@@ -359,9 +403,9 @@ extern void poplevel_class (void);
    don't accidentally mix integers.  */
 enum class LOOK_where
 {
-  BLOCK = 1 << 0,  /* Consider block scopes.  */ 
-  CLASS = 1 << 1,  /* Consider class scopes.  */ 
-  NAMESPACE = 1 << 2,  /* Consider namespace scopes.  */ 
+  BLOCK = 1 << 0,  /* Consider block scopes.  */
+  CLASS = 1 << 1,  /* Consider class scopes.  */
+  NAMESPACE = 1 << 2,  /* Consider namespace scopes.  */
 
   ALL = BLOCK | CLASS | NAMESPACE,
   BLOCK_NAMESPACE = BLOCK | NAMESPACE,
@@ -382,8 +426,11 @@ enum class LOOK_want
   TYPE = 1 << 1,  /* We only want TYPE_DECLS.  */
   NAMESPACE = 1 << 2,  /* We only want NAMESPACE_DECLS.  */
 
-  HIDDEN_FRIEND = 1 << 3, /* See hidden friends.  */
+  HIDDEN_FRIEND = 1 << 3,  /* See hidden friends.  */
   HIDDEN_LAMBDA = 1 << 4,  /* See lambda-ignored entities.  */
+
+  ANY_REACHABLE = 1 << 5,  /* Include reachable module declarations not
+			      normally visible to name lookup.  */
 
   TYPE_NAMESPACE = TYPE | NAMESPACE,  /* Either NAMESPACE or TYPE.  */
 };
@@ -438,9 +485,10 @@ extern tree cp_namespace_decls (tree);
 extern void set_decl_namespace (tree, tree, bool);
 extern void push_decl_namespace (tree);
 extern void pop_decl_namespace (void);
-extern void do_namespace_alias (tree, tree);
+extern void do_namespace_alias (location_t, tree, tree);
 extern tree do_class_using_decl (tree, tree);
-extern tree lookup_arg_dependent (tree, tree, vec<tree, va_gc> *);
+extern tree lookup_arg_dependent (tree, tree, vec<tree, va_gc> *,
+				  bool tentative = false);
 extern tree search_anon_aggr (tree, tree, bool = false);
 extern tree get_class_binding_direct (tree, tree, bool want_type = false);
 extern tree get_class_binding (tree, tree, bool want_type = false);
@@ -451,6 +499,7 @@ extern void resort_type_member_vec (void *, void *,
 extern vec<tree, va_gc> *set_class_bindings (tree, int extra = 0);
 extern void insert_late_enum_def_bindings (tree, tree);
 extern tree innermost_non_namespace_value (tree);
+extern bool decl_in_scope_p (tree);
 extern cxx_binding *outer_binding (tree, cxx_binding *, bool);
 extern void cp_emit_debug_info_for_using (tree, tree);
 
@@ -468,19 +517,27 @@ extern void push_nested_namespace (tree);
 extern void pop_nested_namespace (tree);
 extern void push_to_top_level (void);
 extern void pop_from_top_level (void);
+extern bool maybe_push_to_top_level (tree);
+extern void maybe_pop_from_top_level (bool);
 extern void push_using_decl_bindings (tree, tree);
+extern void expose_existing_namespace (tree);
+extern void walk_namespace_bindings (tree ns,
+				     void (*callback) (tree, void *data),
+				     void *data);
 
 /* Lower level interface for modules. */
-extern tree *mergeable_namespace_slots (tree ns, tree name, bool is_global,
+extern tree *mergeable_namespace_slots (tree ns, tree name, bool is_attached,
 					tree *mvec);
 extern void add_mergeable_namespace_entity (tree *slot, tree decl);
 extern tree lookup_class_binding (tree ctx, tree name);
 extern bool import_module_binding (tree ctx, tree name, unsigned mod,
 				   unsigned snum);
 extern bool set_module_binding (tree ctx, tree name, unsigned mod,
-				int mod_glob_flag,
-				tree value, tree type, tree visible);
+				bool global_p, bool partition_p,
+				tree value, tree type, tree visible,
+				tree internal);
 extern void add_module_namespace_decl (tree ns, tree decl);
+extern void add_imported_using_namespace (tree, tree);
 
 enum WMB_Flags
 {
@@ -489,7 +546,12 @@ enum WMB_Flags
   WMB_Export = 1 << 1,
   WMB_Using = 1 << 2,
   WMB_Hidden = 1 << 3,
+  WMB_Purview = 1 << 4,
 };
+inline WMB_Flags operator|(WMB_Flags x, WMB_Flags y)
+{ return WMB_Flags(+x|y); }
+inline WMB_Flags& operator|=(WMB_Flags& x, WMB_Flags y)
+{ return x = x|y; }
 
 extern unsigned walk_module_binding (tree binding, bitmap partitions,
 				     bool (*)(tree decl, WMB_Flags, void *data),

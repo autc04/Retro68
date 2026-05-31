@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -94,7 +94,7 @@ package body Ch8 is
    begin
       Scan; -- past USE
 
-      if Token = Tok_Type or else Token = Tok_All then
+      if Token in Tok_Type | Tok_All then
          P_Use_Type_Clause (Item_List);
       else
          P_Use_Package_Clause (Item_List);
@@ -128,7 +128,7 @@ package body Ch8 is
 
       loop
          Use_Node := New_Node (N_Use_Package_Clause, Use_Sloc);
-         Set_Name (Use_Node, P_Qualified_Simple_Name);
+         Set_Name (Use_Node, P_Package_Name);
 
          --  Locally chain each name's use-package node
 

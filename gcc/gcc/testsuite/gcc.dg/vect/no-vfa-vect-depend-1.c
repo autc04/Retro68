@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-additional-options "--param vect-max-version-for-alias-checks=0" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -21,6 +22,7 @@ int main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N - 1; i++)
     {
       if (ia[i] != 0)
@@ -34,6 +36,7 @@ int main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N - 1; i++)
     {
       if (ib[i] != res[i])

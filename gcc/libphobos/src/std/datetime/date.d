@@ -1075,7 +1075,7 @@ public:
       +/
     ref DateTime add(string units)
                     (long value, AllowDayOverflow allowOverflow = AllowDayOverflow.yes) @safe pure nothrow @nogc
-        if (units == "years" || units == "months")
+    if (units == "years" || units == "months")
     {
         _date.add!units(value, allowOverflow);
         return this;
@@ -1140,7 +1140,7 @@ public:
       +/
     ref DateTime roll(string units)
                      (long value, AllowDayOverflow allowOverflow = AllowDayOverflow.yes) @safe pure nothrow @nogc
-        if (units == "years" || units == "months")
+    if (units == "years" || units == "months")
     {
         _date.roll!units(value, allowOverflow);
         return this;
@@ -1209,7 +1209,7 @@ public:
             A reference to the `DateTime` (`this`).
       +/
     ref DateTime roll(string units)(long value) @safe pure nothrow @nogc
-        if (units == "days")
+    if (units == "days")
     {
         _date.roll!"days"(value);
         return this;
@@ -1250,9 +1250,9 @@ public:
 
     /// ditto
     ref DateTime roll(string units)(long value) @safe pure nothrow @nogc
-        if (units == "hours" ||
-            units == "minutes" ||
-            units == "seconds")
+    if (units == "hours" ||
+        units == "minutes" ||
+        units == "seconds")
     {
         _tod.roll!units(value);
         return this;
@@ -2131,6 +2131,7 @@ public:
         $(BOOKTABLE,
         $(TR $(TD DateTime) $(TD +) $(TD Duration) $(TD -->) $(TD DateTime))
         $(TR $(TD DateTime) $(TD -) $(TD Duration) $(TD -->) $(TD DateTime))
+        $(TR $(TD Duration) $(TD +) $(TD DateTime) $(TD -->) $(TD DateTime))
         )
 
         Params:
@@ -2138,12 +2139,20 @@ public:
                        this $(LREF DateTime).
       +/
     DateTime opBinary(string op)(Duration duration) const @safe pure nothrow @nogc
-        if (op == "+" || op == "-")
+    if (op == "+" || op == "-")
     {
         DateTime retval = this;
         immutable seconds = duration.total!"seconds";
         mixin("return retval._addSeconds(" ~ op ~ "seconds);");
     }
+
+    /// ditto
+    DateTime opBinaryRight(string op)(Duration duration) const @safe pure nothrow @nogc
+    if (op == "+")
+    {
+        return this + duration;
+    }
+
 
     ///
     @safe unittest
@@ -2161,6 +2170,9 @@ public:
 
         assert(DateTime(2016, 1, 1, 0, 59, 59) - hours(1) ==
                DateTime(2015, 12, 31, 23, 59, 59));
+
+        assert(DateTime(2015, 12, 31, 23, 59, 59) + hours(1) ==
+               hours(1) + DateTime(2015, 12, 31, 23, 59, 59));
     }
 
     @safe unittest
@@ -2233,7 +2245,7 @@ public:
                        $(LREF DateTime).
       +/
     ref DateTime opOpAssign(string op)(Duration duration) @safe pure nothrow @nogc
-        if (op == "+" || op == "-")
+    if (op == "+" || op == "-")
     {
         import core.time : convert;
         import std.format : format;
@@ -2339,7 +2351,7 @@ public:
         )
       +/
     Duration opBinary(string op)(DateTime rhs) const @safe pure nothrow @nogc
-        if (op == "-")
+    if (op == "-")
     {
         immutable dateResult = _date - rhs.date;
         immutable todResult = _tod - rhs._tod;
@@ -3151,7 +3163,7 @@ public:
             be valid.
       +/
     static DateTime fromISOString(S)(scope const S isoString) @safe pure
-        if (isSomeString!S)
+    if (isSomeString!S)
     {
         import std.algorithm.searching : countUntil;
         import std.exception : enforce;
@@ -3161,10 +3173,10 @@ public:
 
         auto str = strip(isoString);
 
-        enforce(str.length >= 15, new DateTimeException(format("Invalid ISO String: %s", isoString)));
+        enforce!DateTimeException(str.length >= 15, format("Invalid format for DateTime.fromISOString %s", isoString));
         auto t = str.byCodeUnit.countUntil('T');
 
-        enforce(t != -1, new DateTimeException(format("Invalid ISO String: %s", isoString)));
+        enforce!DateTimeException(t != -1, format("Invalid format for DateTime.fromISOString: %s", isoString));
 
         immutable date = Date.fromISOString(str[0 .. t]);
         immutable tod = TimeOfDay.fromISOString(str[t+1 .. $]);
@@ -3252,7 +3264,7 @@ public:
             would not be valid.
       +/
     static DateTime fromISOExtString(S)(scope const S isoExtString) @safe pure
-        if (isSomeString!(S))
+    if (isSomeString!(S))
     {
         import std.algorithm.searching : countUntil;
         import std.exception : enforce;
@@ -3262,10 +3274,11 @@ public:
 
         auto str = strip(isoExtString);
 
-        enforce(str.length >= 15, new DateTimeException(format("Invalid ISO Extended String: %s", isoExtString)));
+        enforce!DateTimeException(str.length >= 15,
+                                  format("Invalid format for DateTime.fromISOExtString: %s", isoExtString));
         auto t = str.byCodeUnit.countUntil('T');
 
-        enforce(t != -1, new DateTimeException(format("Invalid ISO Extended String: %s", isoExtString)));
+        enforce!DateTimeException(t != -1, format("Invalid format for DateTime.fromISOExtString: %s", isoExtString));
 
         immutable date = Date.fromISOExtString(str[0 .. t]);
         immutable tod = TimeOfDay.fromISOExtString(str[t+1 .. $]);
@@ -3352,7 +3365,7 @@ public:
             would not be valid.
       +/
     static DateTime fromSimpleString(S)(scope const S simpleString) @safe pure
-        if (isSomeString!(S))
+    if (isSomeString!(S))
     {
         import std.algorithm.searching : countUntil;
         import std.exception : enforce;
@@ -3362,10 +3375,11 @@ public:
 
         auto str = strip(simpleString);
 
-        enforce(str.length >= 15, new DateTimeException(format("Invalid string format: %s", simpleString)));
+        enforce!DateTimeException(str.length >= 15,
+                                  format("Invalid format for DateTime.fromSimpleString: %s", simpleString));
         auto t = str.byCodeUnit.countUntil(' ');
 
-        enforce(t != -1, new DateTimeException(format("Invalid string format: %s", simpleString)));
+        enforce!DateTimeException(t != -1, format("Invalid format for DateTime.fromSimpleString: %s", simpleString));
 
         immutable date = Date.fromSimpleString(str[0 .. t]);
         immutable tod = TimeOfDay.fromISOExtString(str[t+1 .. $]);
@@ -3776,7 +3790,7 @@ public:
         enforceValid!"months"(cast(Month) month);
         enforceValid!"days"(year, cast(Month) month, day);
 
-        _year  = cast(short) year;
+        _year  = year.castToYear;
         _month = cast(Month) month;
         _day   = cast(ubyte) day;
     }
@@ -3814,6 +3828,7 @@ public:
         assertThrown!DateTimeException(Date(1999, 10, 32));
         assertThrown!DateTimeException(Date(1999, 11, 31));
         assertThrown!DateTimeException(Date(1999, 12, 32));
+        assertThrown!DateTimeException(Date(short.max+1, 1, 1));
 
         assertNotThrown!DateTimeException(Date(1999, 1, 31));
         assertNotThrown!DateTimeException(Date(1999, 2, 28));
@@ -3839,6 +3854,7 @@ public:
         assertThrown!DateTimeException(Date(-1, 2, 29));
         assertThrown!DateTimeException(Date(-2, 2, 29));
         assertThrown!DateTimeException(Date(-3, 2, 29));
+        assertThrown!DateTimeException(Date(short.min-1, 1, 1));
     }
 
 
@@ -4128,7 +4144,7 @@ public:
     @property void year(int year) @safe pure
     {
         enforceValid!"days"(year, _month, _day);
-        _year = cast(short) year;
+        _year = year.castToYear;
     }
 
     ///
@@ -4215,7 +4231,7 @@ public:
     {
         if (year <= 0)
             throw new DateTimeException("The given year is not a year B.C.");
-        _year = cast(short)((year - 1) * -1);
+        _year = castToYear((year - 1) * -1);
     }
 
     ///
@@ -4479,7 +4495,7 @@ public:
       +/
     @safe pure nothrow @nogc
     ref Date add(string units)(long value, AllowDayOverflow allowOverflow = AllowDayOverflow.yes)
-        if (units == "years")
+    if (units == "years")
     {
         _year += value;
 
@@ -4720,7 +4736,7 @@ public:
     // Shares documentation with "years" version.
     @safe pure nothrow @nogc
     ref Date add(string units)(long months, AllowDayOverflow allowOverflow = AllowDayOverflow.yes)
-        if (units == "months")
+    if (units == "months")
     {
         auto years = months / 12;
         months %= 12;
@@ -5264,7 +5280,7 @@ public:
       +/
     @safe pure nothrow @nogc
     ref Date roll(string units)(long value, AllowDayOverflow allowOverflow = AllowDayOverflow.yes)
-        if (units == "years")
+    if (units == "years")
     {
         return add!"years"(value, allowOverflow);
     }
@@ -5309,7 +5325,7 @@ public:
     // Shares documentation with "years" version.
     @safe pure nothrow @nogc
     ref Date roll(string units)(long months, AllowDayOverflow allowOverflow = AllowDayOverflow.yes)
-        if (units == "months")
+    if (units == "months")
     {
         months %= 12;
         auto newMonth = _month + months;
@@ -5906,7 +5922,7 @@ public:
             A reference to the `Date` (`this`).
       +/
     ref Date roll(string units)(long days) @safe pure nothrow @nogc
-        if (units == "days")
+    if (units == "days")
     {
         immutable limit = maxDay(_year, _month);
         days %= limit;
@@ -6130,13 +6146,14 @@ public:
     import core.time : Duration;
     /++
         Gives the result of adding or subtracting a $(REF Duration, core,time)
-        from
+        from this $(LREF Date).
 
         The legal types of arithmetic for $(LREF Date) using this operator are
 
         $(BOOKTABLE,
         $(TR $(TD Date) $(TD +) $(TD Duration) $(TD -->) $(TD Date))
         $(TR $(TD Date) $(TD -) $(TD Duration) $(TD -->) $(TD Date))
+        $(TR $(TD Duration) $(TD +) $(TD Date) $(TD -->) $(TD Date))
         )
 
         Params:
@@ -6144,11 +6161,19 @@ public:
                        this $(LREF Date).
       +/
     Date opBinary(string op)(Duration duration) const @safe pure nothrow @nogc
-        if (op == "+" || op == "-")
+    if (op == "+" || op == "-")
     {
         Date retval = this;
         immutable days = duration.total!"days";
         mixin("return retval._addDays(" ~ op ~ "days);");
+    }
+
+
+    /// ditto
+    Date opBinaryRight(string op)(Duration duration) const @safe pure nothrow @nogc
+    if (op == "+")
+    {
+        return this + duration;
     }
 
     ///
@@ -6161,6 +6186,8 @@ public:
 
         assert(Date(2016, 1, 1) - days(1) == Date(2015, 12, 31));
         assert(Date(2004, 3, 1) - days(4) == Date(2004, 2, 26));
+
+        assert(Date(2004, 2, 26) + days(4) == days(4) + Date(2004, 2, 26));
     }
 
     @safe unittest
@@ -6234,7 +6261,7 @@ public:
                        this $(LREF Date).
       +/
     ref Date opOpAssign(string op)(Duration duration) @safe pure nothrow @nogc
-        if (op == "+" || op == "-")
+    if (op == "+" || op == "-")
     {
         immutable days = duration.total!"days";
         mixin("return _addDays(" ~ op ~ "days);");
@@ -6309,7 +6336,7 @@ public:
         )
       +/
     Duration opBinary(string op)(Date rhs) const @safe pure nothrow @nogc
-        if (op == "-")
+    if (op == "-")
     {
         import core.time : dur;
         return dur!"days"(this.dayOfGregorianCal - rhs.dayOfGregorianCal);
@@ -7617,7 +7644,7 @@ public:
             valid.
       +/
     static Date fromISOString(S)(scope const S isoString) @safe pure
-        if (isSomeString!S)
+    if (isSomeString!S)
     {
         import std.algorithm.searching : startsWith;
         import std.conv : to, text, ConvException;
@@ -7626,7 +7653,7 @@ public:
 
         auto str = isoString.strip;
 
-        enforce!DateTimeException(str.length >= 8, text("Invalid ISO String: ", isoString));
+        enforce!DateTimeException(str.length >= 8, text("Invalid format for Date.fromISOString: ", isoString));
 
         int day, month, year;
         auto yearStr = str[0 .. $ - 4];
@@ -7641,7 +7668,7 @@ public:
             if (yearStr.length > 4)
             {
                 enforce!DateTimeException(yearStr.startsWith('-', '+'),
-                        text("Invalid ISO String: ", isoString));
+                        text("Invalid format for Date.fromISOString: ", isoString));
                 year = to!int(yearStr);
             }
             else
@@ -7651,7 +7678,7 @@ public:
         }
         catch (ConvException)
         {
-            throw new DateTimeException(text("Invalid ISO String: ", isoString));
+            throw new DateTimeException(text("Invalid format for Date.fromISOString: ", isoString));
         }
 
         return Date(year, month, day);
@@ -7760,7 +7787,7 @@ public:
             would not be valid.
       +/
     static Date fromISOExtString(S)(scope const S isoExtString) @safe pure
-        if (isSomeString!(S))
+    if (isSomeString!(S))
     {
         import std.algorithm.searching : startsWith;
         import std.conv : to, ConvException;
@@ -7772,13 +7799,13 @@ public:
         ubyte month, day;
 
         if (str.length < 10 || str[$-3] != '-' || str[$-6] != '-')
-            throw new DateTimeException(format("Invalid ISO Extended String: %s", isoExtString));
+            throw new DateTimeException(format("Invalid format for Date.fromISOExtString: %s", isoExtString));
 
         auto yearStr = str[0 .. $-6];
         auto signAtBegining = cast(bool) yearStr.startsWith('-', '+');
         if ((yearStr.length > 4) != signAtBegining)
         {
-            throw new DateTimeException(format("Invalid ISO Extended String: %s", isoExtString));
+            throw new DateTimeException(format("Invalid format for Date.fromISOExtString: %s", isoExtString));
         }
 
         try
@@ -7789,7 +7816,7 @@ public:
         }
         catch (ConvException)
         {
-            throw new DateTimeException(format("Invalid ISO Extended String: %s", isoExtString));
+            throw new DateTimeException(format("Invalid format for Date.fromISOExtString: %s", isoExtString));
         }
 
         return Date(year, month, day);
@@ -7898,7 +7925,7 @@ public:
             be valid.
       +/
     static Date fromSimpleString(S)(scope const S simpleString) @safe pure
-        if (isSomeString!(S))
+    if (isSomeString!(S))
     {
         import std.algorithm.searching : startsWith;
         import std.conv : to, ConvException;
@@ -7908,7 +7935,7 @@ public:
         auto str = strip(simpleString);
 
         if (str.length < 11 || str[$-3] != '-' || str[$-7] != '-')
-            throw new DateTimeException(format!"Invalid string format: %s"(simpleString));
+            throw new DateTimeException(format!"Invalid format for Date.fromSimpleString: %s"(simpleString));
 
         int year;
         uint day;
@@ -7917,7 +7944,7 @@ public:
         auto signAtBegining = cast(bool) yearStr.startsWith('-', '+');
         if ((yearStr.length > 4) != signAtBegining)
         {
-            throw new DateTimeException(format!"Invalid string format: %s"(simpleString));
+            throw new DateTimeException(format!"Invalid format for Date.fromSimpleString: %s"(simpleString));
         }
 
         try
@@ -7927,7 +7954,7 @@ public:
         }
         catch (ConvException)
         {
-            throw new DateTimeException(format!"Invalid string format: %s"(simpleString));
+            throw new DateTimeException(format!"Invalid format for Date.fromSimpleString: %s"(simpleString));
         }
 
         return Date(year, month, day);
@@ -8602,7 +8629,7 @@ public:
             A reference to the `TimeOfDay` (`this`).
       +/
     ref TimeOfDay roll(string units)(long value) @safe pure nothrow @nogc
-        if (units == "hours")
+    if (units == "hours")
     {
         import core.time : dur;
         return this += dur!"hours"(value);
@@ -8651,7 +8678,7 @@ public:
 
     /// ditto
     ref TimeOfDay roll(string units)(long value) @safe pure nothrow @nogc
-        if (units == "minutes" || units == "seconds")
+    if (units == "minutes" || units == "seconds")
     {
         import std.format : format;
 
@@ -8840,6 +8867,7 @@ public:
         $(BOOKTABLE,
         $(TR $(TD TimeOfDay) $(TD +) $(TD Duration) $(TD -->) $(TD TimeOfDay))
         $(TR $(TD TimeOfDay) $(TD -) $(TD Duration) $(TD -->) $(TD TimeOfDay))
+        $(TR $(TD Duration) $(TD +) $(TD TimeOfDay) $(TD -->) $(TD TimeOfDay))
         )
 
         Params:
@@ -8847,11 +8875,18 @@ public:
                        this $(LREF TimeOfDay).
       +/
     TimeOfDay opBinary(string op)(Duration duration) const @safe pure nothrow @nogc
-        if (op == "+" || op == "-")
+    if (op == "+" || op == "-")
     {
         TimeOfDay retval = this;
         immutable seconds = duration.total!"seconds";
         mixin("return retval._addSeconds(" ~ op ~ "seconds);");
+    }
+
+    /// ditto
+    TimeOfDay opBinaryRight(string op)(Duration duration) const @safe pure nothrow @nogc
+    if (op == "+")
+    {
+        return this + duration;
     }
 
     ///
@@ -8868,6 +8903,8 @@ public:
         assert(TimeOfDay(12, 12, 12) - minutes(1) == TimeOfDay(12, 11, 12));
         assert(TimeOfDay(12, 12, 12) - hours(1) == TimeOfDay(11, 12, 12));
         assert(TimeOfDay(0, 0, 0) - seconds(1) == TimeOfDay(23, 59, 59));
+
+        assert(TimeOfDay(12, 12, 12) + seconds(1) == seconds(1) + TimeOfDay(12, 12, 12));
     }
 
     @safe unittest
@@ -8934,7 +8971,7 @@ public:
                        this $(LREF TimeOfDay).
       +/
     ref TimeOfDay opOpAssign(string op)(Duration duration) @safe pure nothrow @nogc
-        if (op == "+" || op == "-")
+    if (op == "+" || op == "-")
     {
         immutable seconds = duration.total!"seconds";
         mixin("return _addSeconds(" ~ op ~ "seconds);");
@@ -9000,7 +9037,7 @@ public:
             rhs = The $(LREF TimeOfDay) to subtract from this one.
       +/
     Duration opBinary(string op)(TimeOfDay rhs) const @safe pure nothrow @nogc
-        if (op == "-")
+    if (op == "-")
     {
         immutable lhsSec = _hour * 3600 + _minute * 60 + _second;
         immutable rhsSec = rhs._hour * 3600 + rhs._minute * 60 + rhs._second;
@@ -9197,7 +9234,7 @@ public:
             not be valid.
       +/
     static TimeOfDay fromISOString(S)(scope const S isoString) @safe pure
-        if (isSomeString!S)
+    if (isSomeString!S)
     {
         import std.conv : to, text, ConvException;
         import std.exception : enforce;
@@ -9206,7 +9243,7 @@ public:
         int hours, minutes, seconds;
         auto str = strip(isoString);
 
-        enforce!DateTimeException(str.length == 6, text("Invalid ISO String: ", isoString));
+        enforce!DateTimeException(str.length == 6, text("Invalid format for TimeOfDay.fromISOString: ", isoString));
 
         try
         {
@@ -9218,7 +9255,7 @@ public:
         }
         catch (ConvException)
         {
-            throw new DateTimeException(text("Invalid ISO String: ", isoString));
+            throw new DateTimeException(text("Invalid format for TimeOfDay.fromISOString: ", isoString));
         }
 
         return TimeOfDay(hours, minutes, seconds);
@@ -9322,7 +9359,7 @@ public:
             would not be valid.
       +/
     static TimeOfDay fromISOExtString(S)(scope const S isoExtString) @safe pure
-        if (isSomeString!S)
+    if (isSomeString!S)
     {
         import std.conv : ConvException, text, to;
         import std.string : strip;
@@ -9331,7 +9368,7 @@ public:
         int hours, minutes, seconds;
 
         if (str.length != 8 || str[2] != ':' || str[5] != ':')
-            throw new DateTimeException(text("Invalid ISO Extended String: ", isoExtString));
+            throw new DateTimeException(text("Invalid format for TimeOfDay.fromISOExtString: ", isoExtString));
 
         try
         {
@@ -9343,7 +9380,7 @@ public:
         }
         catch (ConvException)
         {
-            throw new DateTimeException(text("Invalid ISO Extended String: ", isoExtString));
+            throw new DateTimeException(text("Invalid format for TimeOfDay.fromISOExtString: ", isoExtString));
         }
 
         return TimeOfDay(hours, minutes, seconds);
@@ -9689,6 +9726,16 @@ if (units == "days")
     assert(!valid!"days"(2017, 2, 29));
 }
 
+private short castToYear(int year, string file = __FILE__, size_t line = __LINE__) @safe pure
+{
+    import std.conv : to, ConvOverflowException;
+    import std.format : format;
+
+    try
+        return year.to!short;
+    catch (ConvOverflowException)
+        throw new DateTimeException(format("year %s doesn't fit to Date.", year), file, line);
+}
 
 /++
     Params:

@@ -1,6 +1,6 @@
 // random number generation (out of line) -*- C++ -*-
 
-// Copyright (C) 2009-2022 Free Software Foundation, Inc.
+// Copyright (C) 2009-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -83,7 +83,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       __normalize(_InputIterator __first, _InputIterator __last,
 		  _OutputIterator __result, const _Tp& __factor)
       {
-	for (; __first != __last; ++__first, ++__result)
+	for (; __first != __last; ++__first, (void) ++__result)
 	  *__result = *__first / __factor;
 	return __result;
       }
@@ -532,7 +532,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     subtract_with_carry_engine<_UIntType, __w, __s, __r>::long_lag;
 
   template<typename _UIntType, size_t __w, size_t __s, size_t __r>
-    constexpr _UIntType
+    constexpr uint_least32_t
     subtract_with_carry_engine<_UIntType, __w, __s, __r>::default_seed;
 #endif
 
@@ -541,8 +541,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     subtract_with_carry_engine<_UIntType, __w, __s, __r>::
     seed(result_type __value)
     {
-      std::linear_congruential_engine<result_type, 40014u, 0u, 2147483563u>
-	__lcg(__value == 0u ? default_seed : __value);
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 3809. Is std::subtract_with_carry_engine<uint16_t> supposed to work?
+      // 4014. LWG 3809 changes behavior of some existing code
+      std::linear_congruential_engine<uint_least32_t, 40014u, 0u, 2147483563u>
+	__lcg(__value == 0u ? default_seed : __value % 2147483563u);
 
       const size_t __n = (__w + 31) / 32;
 
@@ -846,11 +849,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       constexpr result_type __range = max() - min();
       size_t __j = __k;
       const result_type __y = _M_y - min();
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions" // if constexpr
       // Avoid using slower long double arithmetic if possible.
-      if _GLIBCXX17_CONSTEXPR (__detail::__p1_representable_as_double(__range))
+      if constexpr (__detail::__p1_representable_as_double(__range))
 	__j *= __y / (__range + 1.0);
       else
 	__j *= __y / (__range + 1.0L);
+#pragma GCC diagnostic pop
       _M_y = _M_v[__j];
       _M_v[__j] = _M_b();
 
@@ -901,6 +907,132 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       return __is;
     }
 
+#if __glibcxx_philox_engine // >= C++26
+
+  template<typename _UIntType, size_t __w, size_t __n, size_t __r,
+	   _UIntType... __consts>
+    _UIntType
+    philox_engine<_UIntType, __w, __n, __r, __consts...>::
+    _S_mulhi(_UIntType __a, _UIntType __b)
+    {
+      using __type = typename __detail::_Select_uint_least_t<__w * 2>::type;
+      const __type __num = static_cast<__type>(__a) * __b;
+      return static_cast<_UIntType>(__num >> __w) & max();
+    }
+
+  template<typename _UIntType, size_t __w, size_t __n, size_t __r,
+	   _UIntType... __consts>
+    _UIntType
+    philox_engine<_UIntType, __w, __n, __r, __consts...>::
+    _S_mullo(_UIntType __a, _UIntType __b)
+    {
+      return static_cast<_UIntType>((__a * __b) & max());
+    }
+
+  template<typename _UIntType, size_t __w, size_t __n, size_t __r,
+	   _UIntType... __consts>
+    void
+    philox_engine<_UIntType, __w, __n, __r, __consts...>::_M_transition()
+    {
+      ++_M_i;
+      if (_M_i != __n)
+	return;
+
+      using __type = typename __detail::_Select_uint_least_t<__w * 2>::type;
+
+      _M_philox();
+      if constexpr (__n == 4)
+	{
+	  __type __uh
+	    = (static_cast<__type>(_M_x[1]) << __w)
+		| static_cast<__type>(_M_x[0]);
+	  ++__uh;
+	  __type __lh
+	    = (static_cast<__type>(_M_x[3]) << __w)
+		| static_cast<__type>(_M_x[2]);
+	  __type __bigMask
+	    = ~__type(0) >> ((sizeof(__type) * __CHAR_BIT__) - (__w * 2));
+	  if ((__uh & __bigMask) == 0)
+	    {
+	      ++__lh;
+	      __uh = 0;
+	    }
+	  _M_x[0] = static_cast<_UIntType>(__uh & max());
+	  _M_x[1] = static_cast<_UIntType>((__uh >> (__w)) & max());
+	  _M_x[2] = static_cast<_UIntType>(__lh & max());
+	  _M_x[3] = static_cast<_UIntType>((__lh >> (__w)) & max());
+	}
+      else
+	{
+	  __type __num
+	    = (static_cast<__type>(_M_x[1]) << __w)
+		| static_cast<__type>(_M_x[0]);
+	  ++__num;
+	  _M_x[0] = static_cast<_UIntType>(__num & max());
+	  _M_x[1] = static_cast<_UIntType>((__num >> __w) & max());
+	}
+      _M_i = 0;
+    }
+
+  template<typename _UIntType, size_t __w, size_t __n, size_t __r,
+	   _UIntType... __consts>
+    void
+    philox_engine<_UIntType, __w, __n, __r, __consts...>::_M_philox()
+    {
+      array<_UIntType, __n> __outputSeq = _M_x;
+      for (size_t __j = 0; __j < __r; ++__j)
+	{
+	  array<_UIntType, __n> __intermedSeq{};
+	  if constexpr (__n == 4)
+	    {
+	      __intermedSeq[0] = __outputSeq[2];
+	      __intermedSeq[1] = __outputSeq[1];
+	      __intermedSeq[2] = __outputSeq[0];
+	      __intermedSeq[3] = __outputSeq[3];
+	    }
+	  else
+	    {
+	      __intermedSeq[0] = __outputSeq[0];
+	      __intermedSeq[1] = __outputSeq[1];
+	    }
+	  for (unsigned long __k = 0; __k < (__n/2); ++__k)
+	    {
+	      __outputSeq[2*__k]
+		= _S_mulhi(__intermedSeq[2*__k], multipliers[__k])
+		    ^ (((_M_k[__k] + (__j * round_consts[__k])) & max()))
+		    ^ __intermedSeq[2*__k+1];
+
+	      __outputSeq[(2*__k)+1]
+		= _S_mullo(__intermedSeq[2*__k], multipliers[__k]);
+	    }
+	}
+      _M_y = __outputSeq;
+    }
+
+  template<typename _UIntType, size_t __w, size_t __n, size_t __r,
+	   _UIntType... __consts>
+  template<typename _Sseq>
+    void
+    philox_engine<_UIntType, __w, __n, __r, __consts...>::seed(_Sseq& __q)
+    requires __is_seed_seq<_Sseq>
+    {
+      seed(0);
+
+      const unsigned __p = 1 + ((__w - 1) / 32);
+      uint_least32_t __tmpArr[(__n/2) * __p];
+      __q.generate(__tmpArr + 0, __tmpArr + ((__n/2) * __p));
+      for (unsigned __k = 0; __k < (__n/2); ++__k)
+	{
+	  unsigned long long __precalc = 0;
+	  for (unsigned __j = 0; __j < __p; ++__j)
+	    {
+	      unsigned long long __multiplicand = (1ull << (32 * __j));
+	      __precalc += (__tmpArr[__k * __p + __j] * __multiplicand) & max();
+	    }
+	  _M_k[__k] = __precalc;
+	}
+    }
+#endif // philox_engine
 
   template<typename _IntType, typename _CharT, typename _Traits>
     std::basic_ostream<_CharT, _Traits>&
@@ -1267,7 +1399,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     poisson_distribution<_IntType>::param_type::
     _M_initialize()
     {
-#if _GLIBCXX_USE_C99_MATH_TR1
+#if _GLIBCXX_USE_C99_MATH_FUNCS
       if (_M_mean >= 12)
 	{
 	  const double __m = std::floor(_M_mean);
@@ -1295,7 +1427,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /**
    * A rejection algorithm when mean >= 12 and a simple method based
    * upon the multiplication of uniform random variates otherwise.
-   * NB: The former is available only if _GLIBCXX_USE_C99_MATH_TR1
+   * NB: The former is available only if _GLIBCXX_USE_C99_MATH_FUNCS
    * is defined.
    *
    * Reference:
@@ -1311,7 +1443,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       {
 	__detail::_Adaptor<_UniformRandomNumberGenerator, double>
 	  __aurng(__urng);
-#if _GLIBCXX_USE_C99_MATH_TR1
+#if _GLIBCXX_USE_C99_MATH_FUNCS
 	if (__param.mean() >= 12)
 	  {
 	    double __x;
@@ -1479,7 +1611,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
       _M_easy = true;
 
-#if _GLIBCXX_USE_C99_MATH_TR1
+#if _GLIBCXX_USE_C99_MATH_FUNCS
       if (_M_t * __p12 >= 8)
 	{
 	  _M_easy = false;
@@ -1500,7 +1632,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  // sqrt(pi / 2)
 	  const double __spi_2 = 1.2533141373155002512078826424055226L;
 	  _M_s1 = std::sqrt(__np * __1p) * (1 + _M_d1 / (4 * __np));
-	  _M_s2 = std::sqrt(__np * __1p) * (1 + _M_d2 / (4 * _M_t * __1p));
+	  _M_s2 = std::sqrt(__np * __1p) * (1 + _M_d2 / (4 * (_M_t * __1p)));
 	  _M_c = 2 * _M_d1 / __np;
 	  _M_a1 = std::exp(_M_c) * _M_s1 * __spi_2;
 	  const double __a12 = _M_a1 + _M_s2 * __spi_2;
@@ -1550,7 +1682,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   /**
    * A rejection algorithm when t * p >= 8 and a simple waiting time
    * method - the second in the referenced book - otherwise.
-   * NB: The former is available only if _GLIBCXX_USE_C99_MATH_TR1
+   * NB: The former is available only if _GLIBCXX_USE_C99_MATH_FUNCS
    * is defined.
    *
    * Reference:
@@ -1571,7 +1703,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	__detail::_Adaptor<_UniformRandomNumberGenerator, double>
 	  __aurng(__urng);
 
-#if _GLIBCXX_USE_C99_MATH_TR1
+#if _GLIBCXX_USE_C99_MATH_FUNCS
 	if (!__param._M_easy)
 	  {
 	    double __x;
@@ -1907,15 +2039,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
       if (__d1._M_param == __d2._M_param
 	  && __d1._M_saved_available == __d2._M_saved_available)
-	{
-	  if (__d1._M_saved_available
-	      && __d1._M_saved == __d2._M_saved)
-	    return true;
-	  else if(!__d1._M_saved_available)
-	    return true;
-	  else
-	    return false;
-	}
+	return __d1._M_saved_available ? __d1._M_saved == __d2._M_saved : true;
       else
 	return false;
     }
@@ -3080,7 +3204,7 @@ namespace __detail
 		 _InputIteratorW __wbegin)
       : _M_int(), _M_den(), _M_cp(), _M_m()
       {
-	for (; __bbegin != __bend; ++__bbegin, ++__wbegin)
+	for (; __bbegin != __bend; ++__bbegin, (void) ++__wbegin)
 	  {
 	    _M_int.push_back(*__bbegin);
 	    _M_den.push_back(*__wbegin);
@@ -3249,8 +3373,11 @@ namespace __detail
   template<typename _InputIterator>
     seed_seq::seed_seq(_InputIterator __begin, _InputIterator __end)
     {
-      if _GLIBCXX17_CONSTEXPR (__is_random_access_iter<_InputIterator>::value)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions" // if constexpr
+      if constexpr (__is_random_access_iter<_InputIterator>::value)
 	_M_v.reserve(std::distance(__begin, __end));
+#pragma GCC diagnostic pop
 
       for (_InputIterator __iter = __begin; __iter != __end; ++__iter)
 	_M_v.push_back(__detail::__mod<result_type,
@@ -3348,22 +3475,274 @@ namespace __detail
 	}
     }
 
+// [rand.util.canonical]
+// generate_canonical(RNG&)
+
+#ifndef _GLIBCXX_USE_OLD_GENERATE_CANONICAL
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++14-extensions" // for variable templates
+#pragma GCC diagnostic ignored "-Wc++17-extensions" // if constexpr
+
+  // __generate_canonical_pow2 is used when Urbg::max()-Urbg::min() is
+  // a power of two less 1. It works by calling urng() as many times as
+  // needed to fill the target mantissa, accumulating entropy into an
+  // integer value, converting that to the float type, and then dividing
+  // by the range of the integer value (a constexpr power of 2,
+  // so only adjusts the exponent) to produce a result in [0..1].
+  // In case of an exact 1.0 result, we re-try.
+  //
+  // It needs to work even when the integer type used is only as big
+  // as the float mantissa, such as uint64_t for long double. So,
+  // commented-out assignments represent computations the Standard
+  // prescribes but cannot be performed, or are not used. Names are
+  // chosen to match the description in the Standard.
+  //
+  // When the result is close to zero, the strict Standard-prescribed
+  // calculation may leave more low-order zeros in the mantissa than
+  // is usually necessary. When spare entropy has been extracted, as
+  // is usual for float and double, some or all of the spare entropy
+  // can commonly be pulled into the result for better randomness.
+  // Defining _GLIBCXX_GENERATE_CANONICAL_STRICT discards it instead.
+  //
+  // When k calls to urng() yield more bits of entropy, log2_Rk_max,
+  // than fit into UInt, we discard some of it by overflowing, which
+  // is OK.  On converting the integer representation of the sample
+  // to the float value, we must divide out the (possibly-truncated)
+  // size log2_Rk.
+  //
+  // This implementation works with std::bfloat16, which can exactly
+  // represent 2^32, but not with std::float16_t, limited to 2^15.
+
+  template<typename _RealT, size_t __d, typename _Urbg>
+    _RealT
+    __generate_canonical_pow2(_Urbg& __urng)
+    {
+      using _UInt = typename __detail::_Select_uint_least_t<__d>::type;
+
+      // Parameter __d is the actual target number of bits.
+      // Commented-out assignments below are of values specified in
+      //  the Standard, but not used here for reasons noted.
+      // r = 2;  // Redundant, we only support radix 2.
+      using _Rng = decltype(_Urbg::max());
+      const _Rng __rng_range_less_1 = _Urbg::max() - _Urbg::min();
+      // R = _UInt(__rng_range_less_1) + 1;  // May wrap to 0.
+      const auto __log2_R = __builtin_popcountg(__rng_range_less_1);
+      const auto __log2_uint_max = sizeof(_UInt) * __CHAR_BIT__;
+      // rd = _UInt(1) << __d;  // Could overflow, UB.
+      const unsigned __k = (__d + __log2_R - 1) / __log2_R;
+      const unsigned __log2_Rk_max = __k * __log2_R;
+      const unsigned __log2_Rk =  // Bits of entropy actually obtained:
+	__log2_uint_max < __log2_Rk_max ? __log2_uint_max : __log2_Rk_max;
+      // Rk = _UInt(1) << __log2_Rk;  // Likely overflows, UB.
+      _GLIBCXX14_CONSTEXPR const _RealT __Rk
+	 = _RealT(_UInt(1) << (__log2_Rk - 1)) * _RealT(2.0);
+#if defined(_GLIBCXX_GENERATE_CANONICAL_STRICT)
+      const unsigned __log2_x = __log2_Rk - __d; // # of spare entropy bits.
+#else
+      const unsigned __log2_x = 0;
+#endif
+      _GLIBCXX14_CONSTEXPR const _UInt __x = _UInt(1) << __log2_x;
+      _GLIBCXX14_CONSTEXPR const _RealT __rd = __Rk / _RealT(__x);
+      // xrd = __x << __d;  // Could overflow.
+
+      while (true)
+	{
+	  _UInt __sum = _UInt(__urng() - _Urbg::min());
+	  for (unsigned __i = __k - 1, __shift = 0; __i > 0; --__i)
+	    {
+	      __shift += __log2_R;
+	      __sum |= _UInt(__urng() - _Urbg::min()) << __shift;
+	    }
+	  const _RealT __ret = _RealT(__sum >> __log2_x) / _RealT(__rd);
+	  if (__ret < _RealT(1.0))
+	    return __ret;
+	}
+    }
+
+
+  template<typename _UInt>
+    struct __gen_canon_log_res
+    {
+       unsigned __floor_log;
+       _UInt __floor_pow;
+
+       constexpr __gen_canon_log_res
+       update(_UInt __base) const
+       { return {__floor_log + 1, __floor_pow * __base}; }
+    };
+
+
+  template <typename _UInt1, typename _UInt2,
+            typename _UComm = __conditional_t<(sizeof(_UInt2) > sizeof(_UInt1)),
+					      _UInt2, _UInt1>>
+    constexpr __gen_canon_log_res<_UInt1>
+    __gen_canon_log(_UInt1 __val, _UInt2 __base)
+    {
+#if __cplusplus >= 201402L
+      __gen_canon_log_res<_UInt1> __res{0, _UInt1(1)};
+      if (_UComm(__base) > _UComm(__val))
+	return __res;
+
+      const _UInt1 __base1(__base);
+      do
+        { 
+	  __val /= __base1;
+          __res = __res.update(__base1);
+        }
+      while (__val >= __base1);
+      return __res;
+#else
+      return (_UComm(__val) >= _UComm(__base))
+	     ? __gen_canon_log(__val / _UInt1(__base), _UInt1(__base))
+	         .update(_UInt1(__base))
+	     : __gen_canon_log_res<_UInt1>{0, _UInt1(1)};
+#endif
+    }
+
+  // This version must be used when the range of possible RNG results,
+  // Urbg::max()-Urbg::min(), is not a power of two less one. The UInt
+  // type passed must be big enough to represent Rk, R^k, a power of R
+  // (the range of values produced by the rng) up to twice the length
+  // of the mantissa.
+
+  template<typename _RealT, size_t __d, typename _Urbg>
+    _RealT
+    __generate_canonical_any(_Urbg& __urng)
+    {
+      // Names below are chosen to match the description in the Standard.
+      // Parameter d is the actual target number of bits.
+#if (__cplusplus >= 201402L) || defined(__SIZEOF_INT128__)
+#  define _GLIBCXX_GEN_CANON_CONST constexpr
+#else
+#  define _GLIBCXX_GEN_CANON_CONST const
+#endif
+
+      using _UIntR = typename make_unsigned<decltype(_Urbg::max())>::type;
+      // Cannot overflow, as _Urbg::max() - _Urbg::min() is not power of
+      // two minus one
+      constexpr _UIntR __R = _UIntR(_Urbg::max() - _Urbg::min()) + 1;
+      constexpr unsigned __log2R
+	= sizeof(_UIntR) * __CHAR_BIT__ - __builtin_clzg(__R) - 1;
+      // We overstimate number of required bits, by computing
+      // r such that l * log2(R) >= d, so:
+      // R^l >= (2 ^ log2(R)) ^ l == 2 ^ (log2(r) * l) >= 2^d
+      // And then requiring l * bit_width(R) bits.
+      constexpr unsigned __l = (__d + __log2R - 1) / __log2R;
+      constexpr unsigned __bits = (__log2R + 1) * __l;
+      using _UInt = typename __detail::_Select_uint_least_t<__bits>::type;
+
+      _GLIBCXX_GEN_CANON_CONST _UInt __rd = _UInt(1) << __d;
+      _GLIBCXX_GEN_CANON_CONST auto __logRrd = __gen_canon_log(__rd, __R);
+      _GLIBCXX_GEN_CANON_CONST unsigned __k
+	 = __logRrd.__floor_log + (__rd > __logRrd.__floor_pow);
+
+      _GLIBCXX_GEN_CANON_CONST _UInt __Rk
+	 = (__k > __logRrd.__floor_log)
+	   ? _UInt(__logRrd.__floor_pow) * _UInt(__R)
+	   : _UInt(__logRrd.__floor_pow);
+      _GLIBCXX_GEN_CANON_CONST _UInt __x =  __Rk / __rd;
+
+      while (true)
+	{
+	  _UInt __Ri{1};
+	  _UInt __sum(__urng() - _Urbg::min());
+	  for (int __i = __k - 1; __i > 0; --__i)
+	    {
+	      __Ri *= _UInt(__R);
+	      __sum += _UInt(__urng() - _Urbg::min()) * __Ri;
+	    }
+	  const _RealT __ret = _RealT(__sum / __x) / _RealT(__rd);
+	  if (__ret < _RealT(1.0))
+	    return __ret;
+	}
+#undef _GLIBCXX_GEN_CANON_CONST 
+    }
+
+#if !defined(_GLIBCXX_GENERATE_CANONICAL_STRICT)
+  template <typename _Tp>
+    const bool __is_rand_dist_float_v = is_floating_point<_Tp>::value;
+#else
+  template <typename _Tp> const bool __is_rand_dist_float_v = false;
+  template <> const bool __is_rand_dist_float_v<float> = true;
+  template <> const bool __is_rand_dist_float_v<double> = true;
+  template <> const bool __is_rand_dist_float_v<long double> = true;
+#endif
+
+  // Note, this works even when (__range + 1) overflows:
+  template <typename _Rng>
+    constexpr bool __is_power_of_2_less_1(_Rng __range)
+      { return ((__range + 1) & __range) == 0; };
+
+_GLIBCXX_BEGIN_INLINE_ABI_NAMESPACE(_V2)
+  /** Produce a random floating-point value in the range [0..1)
+   *
+   * The result of `std::generate_canonical<RealT,digits>(urng)` is a
+   * random floating-point value of type `RealT` in the range [0..1),
+   * using entropy provided by the uniform random bit generator `urng`.
+   * A value for `digits` may be passed to limit the precision of the
+   * result to so many bits, but normally `-1u` is passed to get the
+   * native precision of `RealT`. As many `urng()` calls are made as
+   * needed to obtain the required entropy. On rare occasions, more
+   * `urng()` calls are used. It is fastest when the value of
+   * `Urbg::max()` is a power of two less one, such as from a
+   * `std::philox4x32` (for `float`) or `philox4x64` (for `double`).
+   *
+   *  @since C++11
+   */
+  template<typename _RealT, size_t __digits,
+	   typename _Urbg>
+    _RealT
+    generate_canonical(_Urbg& __urng)
+    {
+#ifdef __glibcxx_concepts
+      static_assert(uniform_random_bit_generator<_Urbg>);
+#endif      
+      static_assert(__is_rand_dist_float_v<_RealT>,
+	"template argument must be a floating point type");
+      static_assert(__digits != 0 && _Urbg::max() > _Urbg::min(),
+	"random samples with 0 bits are not meaningful");
+      static_assert(std::numeric_limits<_RealT>::radix == 2,
+	"only base-2 float types are supported");
+#if defined(__STDCPP_FLOAT16_T__)
+      static_assert(! is_same_v<_RealT, _Float16>,
+	"float16_t type is not supported, consider using bfloat16_t");
+#endif
+
+      const unsigned __d_max = std::numeric_limits<_RealT>::digits;
+      const unsigned __d = __digits > __d_max ? __d_max : __digits;
+
+      // If the RNG range is a power of 2 less 1, the float type mantissa
+      // is enough bits. If not, we need more.
+      if constexpr (__is_power_of_2_less_1(_Urbg::max() - _Urbg::min()))
+	return __generate_canonical_pow2<_RealT, __d>(__urng);
+      else // Need up to 2x bits.
+	return __generate_canonical_any<_RealT, __d>(__urng);
+    }
+_GLIBCXX_END_INLINE_ABI_NAMESPACE(_V2)
+
+#pragma GCC diagnostic pop
+
+#else // _GLIBCXX_USE_OLD_GENERATE_CANONICAL
+
+  // This is the pre-P0952 definition, to reproduce old results.
+
   template<typename _RealType, size_t __bits,
-	   typename _UniformRandomNumberGenerator>
+	  typename _UniformRandomNumberGenerator>
     _RealType
     generate_canonical(_UniformRandomNumberGenerator& __urng)
     {
       static_assert(std::is_floating_point<_RealType>::value,
-		    "template argument must be a floating point type");
+		   "template argument must be a floating point type");
 
       const size_t __b
-	= std::min(static_cast<size_t>(std::numeric_limits<_RealType>::digits),
-                   __bits);
+       = std::min(static_cast<size_t>(std::numeric_limits<_RealType>::digits),
+		   __bits);
       const long double __r = static_cast<long double>(__urng.max())
-			    - static_cast<long double>(__urng.min()) + 1.0L;
+			   - static_cast<long double>(__urng.min()) + 1.0L;
       const size_t __log2r = std::log(__r) / std::log(2.0L);
       const size_t __m = std::max<size_t>(1UL,
-					  (__b + __log2r - 1UL) / __log2r);
+					 (__b + __log2r - 1UL) / __log2r);
       _RealType __ret;
       _RealType __sum = _RealType(0);
       _RealType __tmp = _RealType(1);
@@ -3375,15 +3754,17 @@ namespace __detail
       __ret = __sum / __tmp;
       if (__builtin_expect(__ret >= _RealType(1), 0))
 	{
-#if _GLIBCXX_USE_C99_MATH_TR1
+# if _GLIBCXX_USE_C99_MATH_FUNCS
 	  __ret = std::nextafter(_RealType(1), _RealType(0));
-#else
+# else
 	  __ret = _RealType(1)
 	    - std::numeric_limits<_RealType>::epsilon() / _RealType(2);
-#endif
+# endif
 	}
       return __ret;
     }
+
+#endif // _GLIBCXX_USE_OLD_GENERATE_CANONICAL
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace

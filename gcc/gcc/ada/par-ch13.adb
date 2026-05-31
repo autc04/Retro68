@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -194,20 +194,16 @@ package body Ch13 is
    -- Get_Aspect_Specifications --
    -------------------------------
 
-   function Get_Aspect_Specifications
-     (Semicolon : Boolean := True) return List_Id
-   is
+   function Get_Aspect_Specifications (Semicolon : Boolean) return List_Id is
       A_Id    : Aspect_Id;
       Aspect  : Node_Id;
-      Aspects : List_Id;
+      Aspects : constant List_Id := Empty_List;
       OK      : Boolean;
 
       Opt : Boolean;
       --  True if current aspect takes an optional argument
 
    begin
-      Aspects := Empty_List;
-
       --  Check if aspect specification present
 
       if not Aspect_Specifications_Present then
@@ -219,7 +215,6 @@ package body Ch13 is
       end if;
 
       Scan; -- past WITH (or possible WHEN after error)
-      Aspects := Empty_List;
 
       --  Loop to scan aspects
 
@@ -336,7 +331,7 @@ package body Ch13 is
             --  Check for a missing aspect definition. Aspects with optional
             --  definitions are not considered.
 
-            if Token = Tok_Comma or else Token = Tok_Semicolon then
+            if Token in Tok_Comma | Tok_Semicolon then
                if not Opt then
                   Error_Msg_Node_1 := Identifier (Aspect);
                   Error_Msg_AP ("aspect& requires an aspect definition");
@@ -367,7 +362,7 @@ package body Ch13 is
                --  aspect Depends, Global, Refined_Depends, Refined_Global
                --  or Refined_State lacks enclosing parentheses.
 
-               if Token /= Tok_Left_Paren and then Token /= Tok_Null then
+               if Token not in Tok_Left_Paren | Tok_Null then
 
                   --  [Refined_]Depends
 
@@ -501,21 +496,19 @@ package body Ch13 is
                   end if;
                end if;
 
-               --  Note if inside Depends or Refined_Depends aspect
+               --  Set some aspect-dependent flags
 
-               if A_Id = Aspect_Depends
-                 or else A_Id = Aspect_Refined_Depends
-               then
-                  Inside_Depends := True;
-               end if;
+               case A_Id is
+                  when Aspect_Depends | Aspect_Refined_Depends =>
+                     Inside_Depends := True;
+                  when Aspect_Abstract_State =>
+                     Inside_Abstract_State := True;
+                  when Aspect_Import =>
+                     SIS_Aspect_Import_Seen := True;
+                     --  This matters only while parsing a subprogram.
 
-               --  Note that we have seen an Import aspect specification.
-               --  This matters only while parsing a subprogram.
-
-               if A_Id = Aspect_Import then
-                  SIS_Aspect_Import_Seen := True;
-                  --  Should do it only for subprograms
-               end if;
+                  when others => null;
+               end case;
 
                --  Parse the aspect definition depending on the expected
                --  argument kind.
@@ -533,9 +526,10 @@ package body Ch13 is
                   Set_Expression (Aspect, P_Expression);
                end if;
 
-               --  Unconditionally reset flag for Inside_Depends
+               --  Unconditionally reset flag for being inside aspects
 
-               Inside_Depends := False;
+               Inside_Depends        := False;
+               Inside_Abstract_State := False;
             end if;
 
             --  Add the aspect to the resulting list only when it was properly
@@ -571,7 +565,7 @@ package body Ch13 is
                --  Attempt to detect ' or => following a potential aspect
                --  mark.
 
-               if Token = Tok_Apostrophe or else Token = Tok_Arrow then
+               if Token in Tok_Apostrophe | Tok_Arrow then
                   Restore_Scan_State (Scan_State);
                   Error_Msg_AP -- CODEFIX
                     ("|missing "",""");
@@ -603,7 +597,7 @@ package body Ch13 is
 
                   --  Attempt to detect ' or => following potential aspect mark
 
-                  if Token = Tok_Apostrophe or else Token = Tok_Arrow then
+                  if Token in Tok_Apostrophe | Tok_Arrow then
                      Restore_Scan_State (Scan_State);
                      Error_Msg_SC -- CODEFIX
                        ("|"";"" should be "",""");
@@ -632,6 +626,77 @@ package body Ch13 is
 
       return Aspects;
    end Get_Aspect_Specifications;
+
+   -----------------------------
+   -- P_Attribute_Designators --
+   -----------------------------
+
+   function P_Attribute_Designators (Initial_Prefix : Node_Id) return Node_Id
+   is
+      Accumulator  : Node_Id := Initial_Prefix;
+      Designator   : Name_Id;
+   begin
+      while Token = Tok_Apostrophe loop
+
+         Scan; -- past apostrophe
+
+         Designator := No_Name;
+
+         if Token = Tok_Identifier then
+            Designator := Token_Name;
+
+            --  Note that the parser must complain in case of an internal
+            --  attribute name that comes from source since internal names are
+            --  meant to be used only by the compiler.
+
+            if not Is_Attribute_Name (Designator)
+              and then (not Is_Internal_Attribute_Name (Designator)
+                        or else Comes_From_Source (Token_Node))
+            then
+               Signal_Bad_Attribute;
+            end if;
+
+            if Style_Check then
+               Style.Check_Attribute_Name (False);
+            end if;
+
+         --  Here for case of attribute designator is not an identifier
+
+         else
+            if Token = Tok_Delta then
+               Designator := Name_Delta;
+
+            elsif Token = Tok_Digits then
+               Designator := Name_Digits;
+
+            elsif Token = Tok_Access then
+               Designator := Name_Access;
+
+            else
+               Error_Msg_AP ("attribute designator expected");
+               raise Error_Resync;
+            end if;
+
+            if Style_Check then
+               Style.Check_Attribute_Name (True);
+            end if;
+         end if;
+
+         --  Here we have an OK attribute scanned, and the corresponding
+         --  Attribute identifier node is stored in Designator.
+
+         declare
+            Temp : constant Node_Id := Accumulator;
+         begin
+            Accumulator := New_Node (N_Attribute_Reference, Prev_Token_Ptr);
+            Set_Prefix (Accumulator, Temp);
+         end;
+         Set_Attribute_Name (Accumulator, Designator);
+         Scan;
+      end loop;
+
+      return Accumulator;
+   end P_Attribute_Designators;
 
    --------------------------------------------
    -- 13.1  Representation Clause (also I.7) --
@@ -675,8 +740,6 @@ package body Ch13 is
    function P_Representation_Clause return Node_Id is
       For_Loc         : Source_Ptr;
       Name_Node       : Node_Id;
-      Prefix_Node     : Node_Id;
-      Attr_Name       : Name_Id;
       Identifier_Node : Node_Id;
       Rep_Clause_Node : Node_Id;
       Expr_Node       : Node_Id;
@@ -694,8 +757,7 @@ package body Ch13 is
       --  Check case of qualified name to give good error message
 
       if Token = Tok_Dot then
-         Error_Msg_SC
-            ("representation clause requires simple name!");
+         Error_Msg_SC ("representation clause requires simple name!");
 
          loop
             exit when Token /= Tok_Dot;
@@ -707,80 +769,28 @@ package body Ch13 is
       --  Attribute Definition Clause
 
       if Token = Tok_Apostrophe then
+         Name_Node := P_Attribute_Designators (Identifier_Node);
 
-         --  Allow local names of the form a'b'.... This enables
-         --  us to parse class-wide streams attributes correctly.
+         --  Check for Address clause which needs to be marked for use in
+         --  optimizing performance of Exp_Util.Following_Address_Clause.
 
-         Name_Node := Identifier_Node;
-         while Token = Tok_Apostrophe loop
+         declare
+            Cursor : Node_Id := Name_Node;
+         begin
+            while Nkind (Prefix (Cursor)) = N_Attribute_Reference loop
+               Cursor := Prefix (Cursor);
+            end loop;
 
-            Scan; -- past apostrophe
-
-            Identifier_Node := Token_Node;
-            Attr_Name := No_Name;
-
-            if Token = Tok_Identifier then
-               Attr_Name := Token_Name;
-
-               --  Note that the parser must complain in case of an internal
-               --  attribute name that comes from source since internal names
-               --  are meant to be used only by the compiler.
-
-               if not Is_Attribute_Name (Attr_Name)
-                 and then (not Is_Internal_Attribute_Name (Attr_Name)
-                            or else Comes_From_Source (Token_Node))
-               then
-                  Signal_Bad_Attribute;
-               end if;
-
-               if Style_Check then
-                  Style.Check_Attribute_Name (False);
-               end if;
-
-            --  Here for case of attribute designator is not an identifier
-
-            else
-               if Token = Tok_Delta then
-                  Attr_Name := Name_Delta;
-
-               elsif Token = Tok_Digits then
-                  Attr_Name := Name_Digits;
-
-               elsif Token = Tok_Access then
-                  Attr_Name := Name_Access;
-
-               else
-                  Error_Msg_AP ("attribute designator expected");
-                  raise Error_Resync;
-               end if;
-
-               if Style_Check then
-                  Style.Check_Attribute_Name (True);
-               end if;
-            end if;
-
-            --  Here we have an OK attribute scanned, and the corresponding
-            --  Attribute identifier node is stored in Ident_Node.
-
-            Prefix_Node := Name_Node;
-            Name_Node := New_Node (N_Attribute_Reference, Prev_Token_Ptr);
-            Set_Prefix (Name_Node, Prefix_Node);
-            Set_Attribute_Name (Name_Node, Attr_Name);
-            Scan;
-
-            --  Check for Address clause which needs to be marked for use in
-            --  optimizing performance of Exp_Util.Following_Address_Clause.
-
-            if Attr_Name = Name_Address
-              and then Nkind (Prefix_Node) = N_Identifier
+            if Attribute_Name (Cursor) = Name_Address
+              and then Nkind (Prefix (Cursor)) = N_Identifier
             then
-               Set_Name_Table_Boolean1 (Chars (Prefix_Node), True);
+               Set_Name_Table_Boolean1 (Chars (Prefix (Cursor)), True);
             end if;
-         end loop;
+         end;
 
          Rep_Clause_Node := New_Node (N_Attribute_Definition_Clause, For_Loc);
-         Set_Name (Rep_Clause_Node, Prefix_Node);
-         Set_Chars (Rep_Clause_Node, Attr_Name);
+         Set_Name (Rep_Clause_Node, Prefix (Name_Node));
+         Set_Chars (Rep_Clause_Node, Attribute_Name (Name_Node));
          T_Use;
 
          Expr_Node := P_Expression_No_Right_Paren;
@@ -909,25 +919,13 @@ package body Ch13 is
 
    procedure P_Aspect_Specifications
      (Decl      : Node_Id;
-      Semicolon : Boolean := True)
+      Semicolon : Boolean)
    is
-      Aspects : List_Id;
-      Ptr     : Source_Ptr;
+      Ptr     : constant Source_Ptr := Token_Ptr;
+      Aspects : constant List_Id := Get_Aspect_Specifications (Semicolon);
 
    begin
-      --  Aspect Specification is present
-
-      Ptr := Token_Ptr;
-
-      --  Here we have an aspect specification to scan, note that we don't
-      --  set the flag till later, because it may turn out that we have no
-      --  valid aspects in the list.
-
-      Aspects := Get_Aspect_Specifications (Semicolon);
-
-      --  Here if aspects present
-
-      if Is_Non_Empty_List (Aspects) then
+      if Is_Non_Empty_List (Aspects) then -- Aspects present?
 
          --  If Decl is Empty, we just ignore the aspects (the caller in this
          --  case has always issued an appropriate error message).
@@ -935,7 +933,7 @@ package body Ch13 is
          if Decl = Empty then
             null;
 
-         --  If Decl is Error, we ignore the aspects, and issue a message
+         --  Cases where we issue an error
 
          elsif Decl = Error
            or else not Permits_Aspect_Specifications (Decl)
@@ -945,7 +943,6 @@ package body Ch13 is
          --  Here aspects are allowed, and we store them
 
          else
-            Set_Parent (Aspects, Decl);
             Set_Aspect_Specifications (Decl, Aspects);
          end if;
       end if;

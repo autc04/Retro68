@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,77 +29,9 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  Ghost code, loop invariants and assertions in this unit are meant for
---  analysis only, not for run-time checking, as it would be too costly
---  otherwise. This is enforced by setting the assertion policy to Ignore.
-
-pragma Assertion_Policy (Ghost          => Ignore,
-                         Loop_Invariant => Ignore,
-                         Assert         => Ignore);
-
 package body Interfaces.C
   with SPARK_Mode
 is
-
-   --------------------
-   -- C_Length_Ghost --
-   --------------------
-
-   function C_Length_Ghost (Item : char_array) return size_t is
-   begin
-      for J in Item'Range loop
-         if Item (J) = nul then
-            return J - Item'First;
-         end if;
-
-         pragma Loop_Invariant
-           (for all K in Item'First .. J => Item (K) /= nul);
-      end loop;
-
-      raise Program_Error;
-   end C_Length_Ghost;
-
-   function C_Length_Ghost (Item : wchar_array) return size_t is
-   begin
-      for J in Item'Range loop
-         if Item (J) = wide_nul then
-            return J - Item'First;
-         end if;
-
-         pragma Loop_Invariant
-           (for all K in Item'First .. J => Item (K) /= wide_nul);
-      end loop;
-
-      raise Program_Error;
-   end C_Length_Ghost;
-
-   function C_Length_Ghost (Item : char16_array) return size_t is
-   begin
-      for J in Item'Range loop
-         if Item (J) = char16_nul then
-            return J - Item'First;
-         end if;
-
-         pragma Loop_Invariant
-           (for all K in Item'First .. J => Item (K) /= char16_nul);
-      end loop;
-
-      raise Program_Error;
-   end C_Length_Ghost;
-
-   function C_Length_Ghost (Item : char32_array) return size_t is
-   begin
-      for J in Item'Range loop
-         if Item (J) = char32_nul then
-            return J - Item'First;
-         end if;
-
-         pragma Loop_Invariant
-           (for all K in Item'First .. J => Item (K) /= char32_nul);
-      end loop;
-
-      raise Program_Error;
-   end C_Length_Ghost;
 
    -----------------------
    -- Is_Nul_Terminated --
@@ -113,9 +45,6 @@ is
          if Item (J) = nul then
             return True;
          end if;
-
-         pragma Loop_Invariant
-           (for all K in Item'First .. J => Item (K) /= nul);
       end loop;
 
       return False;
@@ -129,9 +58,6 @@ is
          if Item (J) = wide_nul then
             return True;
          end if;
-
-         pragma Loop_Invariant
-           (for all K in Item'First .. J => Item (K) /= wide_nul);
       end loop;
 
       return False;
@@ -145,9 +71,6 @@ is
          if Item (J) = char16_nul then
             return True;
          end if;
-
-         pragma Loop_Invariant
-           (for all K in Item'First .. J => Item (K) /= char16_nul);
       end loop;
 
       return False;
@@ -161,9 +84,6 @@ is
          if Item (J) = char32_nul then
             return True;
          end if;
-
-         pragma Loop_Invariant
-           (for all K in Item'First .. J => Item (K) /= char32_nul);
       end loop;
 
       return False;
@@ -194,13 +114,6 @@ is
          From := Item'First;
 
          loop
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant
-              (for some J in From .. Item'Last => Item (J) = nul);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From when J /= From =>
-                 Item (J) /= nul);
-
             if From > Item'Last then
                raise Terminator_Error;
             elsif Item (From) = nul then
@@ -210,8 +123,6 @@ is
             end if;
          end loop;
 
-         pragma Assert (From = Item'First + C_Length_Ghost (Item));
-
          Count := Natural (From - Item'First);
 
       else
@@ -219,17 +130,10 @@ is
       end if;
 
       declare
-         Count_Cst : constant Natural := Count;
-         R : String (1 .. Count_Cst) with Relaxed_Initialization;
-
+         R : String (1 .. Count);
       begin
          for J in R'Range loop
             R (J) := To_Ada (Item (size_t (J) - 1 + Item'First));
-
-            pragma Loop_Invariant (for all K in 1 .. J => R (K)'Initialized);
-            pragma Loop_Invariant
-              (for all K in 1 .. J =>
-                R (K) = To_Ada (Item (size_t (K) - 1 + Item'First)));
          end loop;
 
          return R;
@@ -251,13 +155,6 @@ is
       if Trim_Nul then
          From := Item'First;
          loop
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant
-              (for some J in From .. Item'Last => Item (J) = nul);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From when J /= From =>
-                Item (J) /= nul);
-
             if From > Item'Last then
                raise Terminator_Error;
             elsif Item (From) = nul then
@@ -282,19 +179,6 @@ is
 
          for J in 1 .. Count loop
             Target (To) := Character (Item (From));
-
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant (To in Target'Range);
-            pragma Loop_Invariant (To = Target'First + (J - 1));
-            pragma Loop_Invariant (From = Item'First + size_t (J - 1));
-            pragma Loop_Invariant
-              (for all J in Target'First .. To => Target (J)'Initialized);
-            pragma Loop_Invariant
-              (Target (Target'First .. To)'Initialized);
-            pragma Loop_Invariant
-              (for all K in Target'First .. To =>
-                Target (K) =
-                  To_Ada (Item (size_t (K - Target'First) + Item'First)));
 
             --  Avoid possible overflow when incrementing To in the last
             --  iteration of the loop.
@@ -327,13 +211,6 @@ is
          From := Item'First;
 
          loop
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant
-              (for some J in From .. Item'Last => Item (J) = wide_nul);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From when J /= From =>
-                 Item (J) /= wide_nul);
-
             if From > Item'Last then
                raise Terminator_Error;
             elsif Item (From) = wide_nul then
@@ -343,8 +220,6 @@ is
             end if;
          end loop;
 
-         pragma Assert (From = Item'First + C_Length_Ghost (Item));
-
          Count := Natural (From - Item'First);
 
       else
@@ -352,17 +227,10 @@ is
       end if;
 
       declare
-         Count_Cst : constant Natural := Count;
-         R : Wide_String (1 .. Count_Cst) with Relaxed_Initialization;
-
+         R : Wide_String (1 .. Count);
       begin
          for J in R'Range loop
             R (J) := To_Ada (Item (size_t (J) - 1 + Item'First));
-
-            pragma Loop_Invariant (for all K in 1 .. J => R (K)'Initialized);
-            pragma Loop_Invariant
-              (for all K in 1 .. J =>
-                R (K) = To_Ada (Item (size_t (K) - 1 + Item'First)));
          end loop;
 
          return R;
@@ -384,13 +252,6 @@ is
       if Trim_Nul then
          From := Item'First;
          loop
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant
-              (for some J in From .. Item'Last => Item (J) = wide_nul);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From when J /= From =>
-                Item (J) /= wide_nul);
-
             if From > Item'Last then
                raise Terminator_Error;
             elsif Item (From) = wide_nul then
@@ -415,19 +276,6 @@ is
 
          for J in 1 .. Count loop
             Target (To) := To_Ada (Item (From));
-
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant (To in Target'Range);
-            pragma Loop_Invariant (To = Target'First + (J - 1));
-            pragma Loop_Invariant (From = Item'First + size_t (J - 1));
-            pragma Loop_Invariant
-              (for all J in Target'First .. To => Target (J)'Initialized);
-            pragma Loop_Invariant
-              (Target (Target'First .. To)'Initialized);
-            pragma Loop_Invariant
-              (for all K in Target'First .. To =>
-                Target (K) =
-                  To_Ada (Item (size_t (K - Target'First) + Item'First)));
 
             --  Avoid possible overflow when incrementing To in the last
             --  iteration of the loop.
@@ -460,13 +308,6 @@ is
          From := Item'First;
 
          loop
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant
-              (for some J in From .. Item'Last => Item (J) = char16_nul);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From when J /= From =>
-                 Item (J) /= char16_nul);
-
             if From > Item'Last then
                raise Terminator_Error;
             elsif Item (From) = char16_nul then
@@ -476,8 +317,6 @@ is
             end if;
          end loop;
 
-         pragma Assert (From = Item'First + C_Length_Ghost (Item));
-
          Count := Natural (From - Item'First);
 
       else
@@ -485,17 +324,10 @@ is
       end if;
 
       declare
-         Count_Cst : constant Natural := Count;
-         R : Wide_String (1 .. Count_Cst) with Relaxed_Initialization;
-
+         R : Wide_String (1 .. Count);
       begin
          for J in R'Range loop
             R (J) := To_Ada (Item (size_t (J) - 1 + Item'First));
-
-            pragma Loop_Invariant (for all K in 1 .. J => R (K)'Initialized);
-            pragma Loop_Invariant
-              (for all K in 1 .. J =>
-                R (K) = To_Ada (Item (size_t (K) - 1 + Item'First)));
          end loop;
 
          return R;
@@ -517,13 +349,6 @@ is
       if Trim_Nul then
          From := Item'First;
          loop
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant
-              (for some J in From .. Item'Last => Item (J) = char16_nul);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From when J /= From =>
-                Item (J) /= char16_nul);
-
             if From > Item'Last then
                raise Terminator_Error;
             elsif Item (From) = char16_nul then
@@ -548,19 +373,6 @@ is
 
          for J in 1 .. Count loop
             Target (To) := To_Ada (Item (From));
-
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant (To in Target'Range);
-            pragma Loop_Invariant (To = Target'First + (J - 1));
-            pragma Loop_Invariant (From = Item'First + size_t (J - 1));
-            pragma Loop_Invariant
-              (for all J in Target'First .. To => Target (J)'Initialized);
-            pragma Loop_Invariant
-              (Target (Target'First .. To)'Initialized);
-            pragma Loop_Invariant
-              (for all K in Target'First .. To =>
-                Target (K) =
-                  To_Ada (Item (size_t (K - Target'First) + Item'First)));
 
             --  Avoid possible overflow when incrementing To in the last
             --  iteration of the loop.
@@ -593,13 +405,6 @@ is
          From := Item'First;
 
          loop
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant
-              (for some J in From .. Item'Last => Item (J) = char32_nul);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From when J /= From =>
-                 Item (J) /= char32_nul);
-
             if From > Item'Last then
                raise Terminator_Error;
             elsif Item (From) = char32_nul then
@@ -609,8 +414,6 @@ is
             end if;
          end loop;
 
-         pragma Assert (From = Item'First + C_Length_Ghost (Item));
-
          Count := Natural (From - Item'First);
 
       else
@@ -618,17 +421,11 @@ is
       end if;
 
       declare
-         Count_Cst : constant Natural := Count;
-         R : Wide_Wide_String (1 .. Count_Cst) with Relaxed_Initialization;
+         R : Wide_Wide_String (1 .. Count);
 
       begin
          for J in R'Range loop
             R (J) := To_Ada (Item (size_t (J) - 1 + Item'First));
-
-            pragma Loop_Invariant (for all K in 1 .. J => R (K)'Initialized);
-            pragma Loop_Invariant
-              (for all K in 1 .. J =>
-                R (K) = To_Ada (Item (size_t (K) - 1 + Item'First)));
          end loop;
 
          return R;
@@ -650,13 +447,6 @@ is
       if Trim_Nul then
          From := Item'First;
          loop
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant
-              (for some J in From .. Item'Last => Item (J) = char32_nul);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From when J /= From =>
-                Item (J) /= char32_nul);
-
             if From > Item'Last then
                raise Terminator_Error;
             elsif Item (From) = char32_nul then
@@ -681,19 +471,6 @@ is
 
          for J in 1 .. Count loop
             Target (To) := To_Ada (Item (From));
-
-            pragma Loop_Invariant (From in Item'Range);
-            pragma Loop_Invariant (To in Target'Range);
-            pragma Loop_Invariant (To = Target'First + (J - 1));
-            pragma Loop_Invariant (From = Item'First + size_t (J - 1));
-            pragma Loop_Invariant
-              (for all J in Target'First .. To => Target (J)'Initialized);
-            pragma Loop_Invariant
-              (Target (Target'First .. To)'Initialized);
-            pragma Loop_Invariant
-              (for all K in Target'First .. To =>
-                Target (K) =
-                  To_Ada (Item (size_t (K - Target'First) + Item'First)));
 
             --  Avoid possible overflow when incrementing To in the last
             --  iteration of the loop.
@@ -725,25 +502,13 @@ is
    begin
       if Append_Nul then
          declare
-            R : char_array (0 .. Item'Length) with Relaxed_Initialization;
-
+            R : char_array (0 .. Item'Length);
          begin
             for J in Item'Range loop
                R (size_t (J - Item'First)) := To_C (Item (J));
-
-               pragma Loop_Invariant
-                 (for all K in 0 .. size_t (J - Item'First) =>
-                    R (K)'Initialized);
-               pragma Loop_Invariant
-                 (for all K in Item'First .. J =>
-                    R (size_t (K - Item'First)) = To_C (Item (K)));
             end loop;
 
             R (R'Last) := nul;
-
-            pragma Assert
-              (for all J in Item'Range =>
-                 R (size_t (J - Item'First)) = To_C (Item (J)));
 
             return R;
          end;
@@ -765,19 +530,10 @@ is
 
          else
             declare
-               R : char_array (0 .. Item'Length - 1)
-                 with Relaxed_Initialization;
-
+               R : char_array (0 .. Item'Length - 1);
             begin
                for J in Item'Range loop
                   R (size_t (J - Item'First)) := To_C (Item (J));
-
-                  pragma Loop_Invariant
-                    (for all K in 0 .. size_t (J - Item'First) =>
-                       R (K)'Initialized);
-                  pragma Loop_Invariant
-                    (for all K in Item'First .. J =>
-                       R (size_t (K - Item'First)) = To_C (Item (K)));
                end loop;
 
                return R;
@@ -805,18 +561,6 @@ is
          for From in Item'Range loop
             Target (To) := char (Item (From));
 
-            pragma Loop_Invariant (To in Target'Range);
-            pragma Loop_Invariant
-              (To - Target'First = size_t (From - Item'First));
-            pragma Loop_Invariant
-              (for all J in Target'First .. To => Target (J)'Initialized);
-            pragma Loop_Invariant
-              (Target (Target'First .. To)'Initialized);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From =>
-                 Target (Target'First + size_t (J - Item'First)) =
-                   To_C (Item (J)));
-
             To := To + 1;
          end loop;
 
@@ -827,7 +571,6 @@ is
                Target (To) := nul;
                Count := Item'Length + 1;
             end if;
-
          else
             Count := Item'Length;
          end if;
@@ -850,25 +593,13 @@ is
    begin
       if Append_Nul then
          declare
-            R : wchar_array (0 .. Item'Length) with Relaxed_Initialization;
-
+            R : wchar_array (0 .. Item'Length);
          begin
             for J in Item'Range loop
                R (size_t (J - Item'First)) := To_C (Item (J));
-
-               pragma Loop_Invariant
-                 (for all K in 0 .. size_t (J - Item'First) =>
-                    R (K)'Initialized);
-               pragma Loop_Invariant
-                 (for all K in Item'First .. J =>
-                    R (size_t (K - Item'First)) = To_C (Item (K)));
             end loop;
 
             R (R'Last) := wide_nul;
-
-            pragma Assert
-              (for all J in Item'Range =>
-                 R (size_t (J - Item'First)) = To_C (Item (J)));
 
             return R;
          end;
@@ -886,19 +617,10 @@ is
 
          else
             declare
-               R : wchar_array (0 .. Item'Length - 1)
-                 with Relaxed_Initialization;
-
+               R : wchar_array (0 .. Item'Length - 1);
             begin
                for J in Item'Range loop
                   R (size_t (J - Item'First)) := To_C (Item (J));
-
-                  pragma Loop_Invariant
-                    (for all K in 0 .. size_t (J - Item'First) =>
-                       R (K)'Initialized);
-                  pragma Loop_Invariant
-                    (for all K in Item'First .. J =>
-                       R (size_t (K - Item'First)) = To_C (Item (K)));
                end loop;
 
                return R;
@@ -916,39 +638,16 @@ is
       Append_Nul : Boolean := True)
    is
       To : size_t;
-
    begin
       if Target'Length < Item'Length then
          raise Constraint_Error;
-
       else
          To := Target'First;
          for From in Item'Range loop
             Target (To) := To_C (Item (From));
 
-            pragma Loop_Invariant (To in Target'Range);
-            pragma Loop_Invariant
-              (To - Target'First = size_t (From - Item'First));
-            pragma Loop_Invariant
-              (for all J in Target'First .. To => Target (J)'Initialized);
-            pragma Loop_Invariant
-              (Target (Target'First .. To)'Initialized);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From =>
-                Target (Target'First + size_t (J - Item'First)) =
-                  To_C (Item (J)));
-
             To := To + 1;
          end loop;
-
-         pragma Assert
-           (for all J in Item'Range =>
-             Target (Target'First + size_t (J - Item'First)) =
-               To_C (Item (J)));
-         pragma Assert
-           (if Item'Length /= 0 then
-             Target (Target'First ..
-                     Target'First + (Item'Length - 1))'Initialized);
 
          if Append_Nul then
             if To > Target'Last then
@@ -957,7 +656,6 @@ is
                Target (To) := wide_nul;
                Count := Item'Length + 1;
             end if;
-
          else
             Count := Item'Length;
          end if;
@@ -980,25 +678,13 @@ is
    begin
       if Append_Nul then
          declare
-            R : char16_array (0 .. Item'Length) with Relaxed_Initialization;
-
+            R : char16_array (0 .. Item'Length);
          begin
             for J in Item'Range loop
                R (size_t (J - Item'First)) := To_C (Item (J));
-
-               pragma Loop_Invariant
-                 (for all K in 0 .. size_t (J - Item'First) =>
-                    R (K)'Initialized);
-               pragma Loop_Invariant
-                 (for all K in Item'First .. J =>
-                    R (size_t (K - Item'First)) = To_C (Item (K)));
             end loop;
 
             R (R'Last) := char16_nul;
-
-            pragma Assert
-              (for all J in Item'Range =>
-                 R (size_t (J - Item'First)) = To_C (Item (J)));
 
             return R;
          end;
@@ -1013,22 +699,12 @@ is
 
          if Item'Length = 0 then
             raise Constraint_Error;
-
          else
             declare
-               R : char16_array (0 .. Item'Length - 1)
-                 with Relaxed_Initialization;
-
+               R : char16_array (0 .. Item'Length - 1);
             begin
                for J in Item'Range loop
                   R (size_t (J - Item'First)) := To_C (Item (J));
-
-                  pragma Loop_Invariant
-                    (for all K in 0 .. size_t (J - Item'First) =>
-                       R (K)'Initialized);
-                  pragma Loop_Invariant
-                    (for all K in Item'First .. J =>
-                       R (size_t (K - Item'First)) = To_C (Item (K)));
                end loop;
 
                return R;
@@ -1046,7 +722,6 @@ is
       Append_Nul : Boolean := True)
    is
       To : size_t;
-
    begin
       if Target'Length < Item'Length then
          raise Constraint_Error;
@@ -1056,29 +731,8 @@ is
          for From in Item'Range loop
             Target (To) := To_C (Item (From));
 
-            pragma Loop_Invariant (To in Target'Range);
-            pragma Loop_Invariant
-              (To - Target'First = size_t (From - Item'First));
-            pragma Loop_Invariant
-              (for all J in Target'First .. To => Target (J)'Initialized);
-            pragma Loop_Invariant
-              (Target (Target'First .. To)'Initialized);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From =>
-                Target (Target'First + size_t (J - Item'First)) =
-                  To_C (Item (J)));
-
             To := To + 1;
          end loop;
-
-         pragma Assert
-           (for all J in Item'Range =>
-             Target (Target'First + size_t (J - Item'First)) =
-               To_C (Item (J)));
-         pragma Assert
-           (if Item'Length /= 0 then
-             Target (Target'First ..
-                     Target'First + (Item'Length - 1))'Initialized);
 
          if Append_Nul then
             if To > Target'Last then
@@ -1087,7 +741,6 @@ is
                Target (To) := char16_nul;
                Count := Item'Length + 1;
             end if;
-
          else
             Count := Item'Length;
          end if;
@@ -1110,25 +763,13 @@ is
    begin
       if Append_Nul then
          declare
-            R : char32_array (0 .. Item'Length) with Relaxed_Initialization;
-
+            R : char32_array (0 .. Item'Length);
          begin
             for J in Item'Range loop
                R (size_t (J - Item'First)) := To_C (Item (J));
-
-               pragma Loop_Invariant
-                 (for all K in 0 .. size_t (J - Item'First) =>
-                    R (K)'Initialized);
-               pragma Loop_Invariant
-                 (for all K in Item'First .. J =>
-                    R (size_t (K - Item'First)) = To_C (Item (K)));
             end loop;
 
             R (R'Last) := char32_nul;
-
-            pragma Assert
-              (for all J in Item'Range =>
-                 R (size_t (J - Item'First)) = To_C (Item (J)));
 
             return R;
          end;
@@ -1145,19 +786,10 @@ is
 
          else
             declare
-               R : char32_array (0 .. Item'Length - 1)
-                 with Relaxed_Initialization;
-
+               R : char32_array (0 .. Item'Length - 1);
             begin
                for J in Item'Range loop
                   R (size_t (J - Item'First)) := To_C (Item (J));
-
-                  pragma Loop_Invariant
-                    (for all K in 0 .. size_t (J - Item'First) =>
-                       R (K)'Initialized);
-                  pragma Loop_Invariant
-                    (for all K in Item'First .. J =>
-                       R (size_t (K - Item'First)) = To_C (Item (K)));
                end loop;
 
                return R;
@@ -1177,46 +809,20 @@ is
       To : size_t;
 
    begin
-      if Target'Length < Item'Length then
+      if Target'Length < Item'Length + (if Append_Nul then 1 else 0) then
          raise Constraint_Error;
-
       else
          To := Target'First;
+
          for From in Item'Range loop
             Target (To) := To_C (Item (From));
-
-            pragma Loop_Invariant (To in Target'Range);
-            pragma Loop_Invariant
-              (To - Target'First = size_t (From - Item'First));
-            pragma Loop_Invariant
-              (for all J in Target'First .. To => Target (J)'Initialized);
-            pragma Loop_Invariant
-              (Target (Target'First .. To)'Initialized);
-            pragma Loop_Invariant
-              (for all J in Item'First .. From =>
-                Target (Target'First + size_t (J - Item'First)) =
-                  To_C (Item (J)));
 
             To := To + 1;
          end loop;
 
-         pragma Assert
-           (for all J in Item'Range =>
-             Target (Target'First + size_t (J - Item'First)) =
-               To_C (Item (J)));
-         pragma Assert
-           (if Item'Length /= 0 then
-             Target (Target'First ..
-                     Target'First + (Item'Length - 1))'Initialized);
-
          if Append_Nul then
-            if To > Target'Last then
-               raise Constraint_Error;
-            else
-               Target (To) := char32_nul;
-               Count := Item'Length + 1;
-            end if;
-
+            Target (To) := char32_nul;
+            Count := Item'Length + 1;
          else
             Count := Item'Length;
          end if;

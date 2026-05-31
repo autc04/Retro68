@@ -302,14 +302,15 @@ RM 13.1 (21-24): Representation Clauses
 Followed.  In fact, GNAT goes beyond the recommended level of support
 by allowing nonstatic expressions in some representation clauses even
 without the need to declare constants initialized with the values of
-such expressions.
-For example:
+such expressions. For example:
 
 .. code-block:: ada
 
     X : Integer;
     Y : Float;
-    for Y'Address use X'Address;>>
+    for Y'Address use X'Address;
+
+is accepted directly by GNAT.
 
 
   "An implementation need not support a specification for the ``Size``
@@ -352,12 +353,6 @@ the component is a boolean type or an enumeration type with two values)
 then values of the type are implicitly initialized to zero. This
 happens both for objects of the packed type, and for objects that have a
 subcomponent of the packed type.
-
-
-  "An implementation should support Address clauses for imported
-  subprograms."
-
-Followed.
 
 .. index:: Address clauses
 
@@ -591,12 +586,10 @@ RM 13.5.3(7-8): Bit Ordering
 
   "The recommended level of support for the non-default bit ordering is:
 
-  If ``Word_Size`` = ``Storage_Unit``, then the implementation
-  should support the non-default bit ordering in addition to the default
-  bit ordering."
+  The implementation should support the nondefault bit ordering in addition
+  to the default bit ordering."
 
-Followed.  Word size does not equal storage size in this implementation.
-Thus non-default bit ordering is not supported.
+Followed.
 
 .. index:: Address, as private type
 
@@ -1225,15 +1218,12 @@ RM E.5(28-29): Partition Communication Subsystem
   should allow them to block until the corresponding subprogram body
   returns."
 
-Followed by GLADE, a separately supplied PCS that can be used with
-GNAT.
+A separately supplied PCS that can be used with GNAT when combined with the PolyORB product (NB! See the note in :ref:`polyORB` regarding the lifetime
+of this product).
 
   "The ``Write`` operation on a stream of type ``Params_Stream_Type``
   should raise ``Storage_Error`` if it runs out of space trying to
   write the ``Item`` into the stream."
-
-Followed by GLADE, a separately supplied PCS that can be used with
-GNAT.
 
 .. index:: COBOL support
 

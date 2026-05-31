@@ -31,7 +31,6 @@ extern (C):
 
 nothrow:
 @nogc:
-@system:
 
 //
 // Required
@@ -133,9 +132,9 @@ TCOON
 
 version (linux)
 {
-    alias ubyte cc_t;
-    alias uint  speed_t;
-    alias uint  tcflag_t;
+    alias cc_t = ubyte;
+    alias speed_t = uint;
+    alias tcflag_t = uint;
 
     enum NCCS   = 32;
 
@@ -231,9 +230,9 @@ version (linux)
 }
 else version (Darwin)
 {
-    alias ubyte cc_t;
-    alias c_ulong  speed_t;
-    alias c_ulong  tcflag_t;
+    alias cc_t = ubyte;
+    alias speed_t = c_ulong;
+    alias tcflag_t = c_ulong;
 
     enum NCCS   = 20;
 
@@ -328,9 +327,9 @@ else version (Darwin)
 }
 else version (FreeBSD)
 {
-    alias ubyte cc_t;
-    alias uint  speed_t;
-    alias uint  tcflag_t;
+    alias cc_t = ubyte;
+    alias speed_t = uint;
+    alias tcflag_t = uint;
 
     enum NCCS   = 20;
 
@@ -425,9 +424,9 @@ else version (FreeBSD)
 }
 else version (DragonFlyBSD)
 {
-    alias ubyte cc_t;
-    alias uint  speed_t;
-    alias uint  tcflag_t;
+    alias cc_t = ubyte;
+    alias speed_t = uint;
+    alias tcflag_t = uint;
 
     enum NCCS   = 20;
 
@@ -522,9 +521,9 @@ else version (DragonFlyBSD)
 }
 else version (NetBSD)
 {
-    alias ubyte cc_t;
-    alias uint  speed_t;
-    alias uint  tcflag_t;
+    alias cc_t = ubyte;
+    alias speed_t = uint;
+    alias tcflag_t = uint;
 
     enum NCCS   = 20;
 
@@ -619,9 +618,9 @@ else version (NetBSD)
 }
 else version (OpenBSD)
 {
-    alias uint  tcflag_t;
-    alias ubyte cc_t;
-    alias uint  speed_t;
+    alias tcflag_t = uint;
+    alias cc_t = ubyte;
+    alias speed_t = uint;
 
     enum NCCS   = 20;
 

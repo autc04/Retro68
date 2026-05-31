@@ -1,5 +1,5 @@
 /* AddressSanitizer, a fast memory error detector.
-   Copyright (C) 2011-2022 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
    Contributed by Kostya Serebryany <kcc@google.com>
 
 This file is part of GCC.
@@ -33,6 +33,10 @@ extern bool asan_expand_check_ifn (gimple_stmt_iterator *, bool);
 extern bool asan_expand_mark_ifn (gimple_stmt_iterator *);
 extern bool asan_expand_poison_ifn (gimple_stmt_iterator *, bool *,
 				    hash_map<tree, tree> &);
+extern rtx asan_memfn_rtl (tree);
+
+extern void
+asan_maybe_insert_dynamic_shadow_at_function_entry (function *);
 
 extern void hwasan_record_frame_init ();
 extern void hwasan_record_stack_var (rtx, rtx, poly_int64, poly_int64);
@@ -52,6 +56,14 @@ extern bool hwasan_sanitize_allocas_p (void);
 extern bool hwasan_expand_check_ifn (gimple_stmt_iterator *, bool);
 extern bool hwasan_expand_mark_ifn (gimple_stmt_iterator *);
 extern bool gate_hwasan (void);
+
+extern bool memtag_sanitize_p (void);
+extern bool memtag_sanitize_stack_p (void);
+extern bool memtag_sanitize_allocas_p (void);
+extern bool gate_memtag (void);
+
+bool hwassist_sanitize_p (void);
+bool hwassist_sanitize_stack_p (void);
 
 extern gimple_stmt_iterator create_cond_insert_point
      (gimple_stmt_iterator *, bool, bool, bool, basic_block *, basic_block *);
@@ -99,7 +111,7 @@ extern hash_set <tree> *asan_used_labels;
    independently here.  */
 /* How many bits are used to store a tag in a pointer.
    The default version uses the entire top byte of a pointer (i.e. 8 bits).  */
-#define HWASAN_TAG_SIZE targetm.memtag.tag_size ()
+#define HWASAN_TAG_SIZE targetm.memtag.tag_bitsize ()
 /* Tag Granule of HWASAN shadow stack.
    This is the size in real memory that each byte in the shadow memory refers
    to.  I.e. if a variable is X bytes long in memory then its tag in shadow
@@ -139,7 +151,7 @@ extern bool asan_mark_p (gimple *stmt, enum asan_mark_flags flag);
 /* Return the size of padding needed to insert after a protected
    decl of SIZE.  */
 
-static inline unsigned int
+inline unsigned int
 asan_red_zone_size (unsigned int size)
 {
   unsigned int c = size & (ASAN_RED_ZONE_SIZE - 1);
@@ -149,7 +161,7 @@ asan_red_zone_size (unsigned int size)
 /* Return how much a stack variable occupis on a stack
    including a space for red zone.  */
 
-static inline unsigned HOST_WIDE_INT
+inline unsigned HOST_WIDE_INT
 asan_var_and_redzone_size (unsigned HOST_WIDE_INT size)
 {
   if (size <= 4)
@@ -181,11 +193,16 @@ extern hash_set<tree> *asan_handled_variables;
 /* Return TRUE if builtin with given FCODE will be intercepted by
    libasan.  */
 
-static inline bool
+inline bool
 asan_intercepted_p (enum built_in_function fcode)
 {
+  /* This list should be kept up-to-date with upstream's version at
+     compiler-rt/lib/hwasan/hwasan_platform_interceptors.h.  */
   if (hwasan_sanitize_p ())
-    return false;
+    return fcode == BUILT_IN_MEMCMP
+	 || fcode == BUILT_IN_MEMCPY
+	 || fcode == BUILT_IN_MEMMOVE
+	 || fcode == BUILT_IN_MEMSET;
 
   return fcode == BUILT_IN_INDEX
 	 || fcode == BUILT_IN_MEMCHR
@@ -212,16 +229,16 @@ asan_intercepted_p (enum built_in_function fcode)
 
 /* Return TRUE if we should instrument for use-after-scope sanity checking.  */
 
-static inline bool
+inline bool
 asan_sanitize_use_after_scope (void)
 {
   return (flag_sanitize_address_use_after_scope
-	  && (asan_sanitize_stack_p () || hwasan_sanitize_stack_p ()));
+	  && (asan_sanitize_stack_p () || hwassist_sanitize_stack_p ()));
 }
 
 /* Return true if DECL should be guarded on the stack.  */
 
-static inline bool
+inline bool
 asan_protect_stack_decl (tree decl)
 {
   return DECL_P (decl)
@@ -232,10 +249,11 @@ asan_protect_stack_decl (tree decl)
 /* Return true when flag_sanitize & FLAG is non-zero.  If FN is non-null,
    remove all flags mentioned in "no_sanitize" of DECL_ATTRIBUTES.  */
 
-static inline bool
-sanitize_flags_p (unsigned int flag, const_tree fn = current_function_decl)
+inline bool
+sanitize_flags_p (sanitize_code_type flag,
+		  const_tree fn = current_function_decl)
 {
-  unsigned int result_flags = flag_sanitize & flag;
+  sanitize_code_type result_flags = flag_sanitize & flag;
   if (result_flags == 0)
     return false;
 
@@ -251,7 +269,7 @@ sanitize_flags_p (unsigned int flag, const_tree fn = current_function_decl)
 
 /* Return true when coverage sanitization should happend for FN function.  */
 
-static inline bool
+inline bool
 sanitize_coverage_p (const_tree fn = current_function_decl)
 {
   return (flag_sanitize_coverage

@@ -1,5 +1,5 @@
 /* Language independent return value optimizations
-   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -125,9 +125,9 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return optimize > 0; }
+  bool gate (function *) final override { return optimize > 0; }
 
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_nrv
 
@@ -167,16 +167,21 @@ pass_nrv::execute (function *fun)
       for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
 	{
 	  gimple *stmt = gsi_stmt (gsi);
-	  tree ret_val;
 
 	  if (greturn *return_stmt = dyn_cast <greturn *> (stmt))
 	    {
-	      /* In a function with an aggregate return value, the
-		 gimplifier has changed all non-empty RETURN_EXPRs to
-		 return the RESULT_DECL.  */
-	      ret_val = gimple_return_retval (return_stmt);
-	      if (ret_val)
-		gcc_assert (ret_val == result);
+	      /* We cannot perform NRV optimizations in a function with an
+		 aggregate return value if there is a return that does not
+		 return RESULT_DECL.  We used to assert this scenario doesn't
+		 happen: the gimplifier has changed all non-empty RETURN_EXPRs
+		 to return the RESULT_DECL.  However, per PR119835 we may run
+		 into this scenario for offloading compilation, and therefore
+		 gracefully bail out.  */
+	      if (tree ret_val = gimple_return_retval (return_stmt))
+		{
+		  if (ret_val != result)
+		    return 0;
+		}
 	    }
 	  else if (gimple_has_lhs (stmt)
 		   && gimple_get_lhs (stmt) == result)
@@ -264,7 +269,17 @@ pass_nrv::execute (function *fun)
 	      data.modified = 0;
 	      walk_gimple_op (stmt, finalize_nrv_r, &wi);
 	      if (data.modified)
-		update_stmt (stmt);
+		{
+		  /* If this is a CLOBBER of VAR, remove it.  */
+		  if (gimple_clobber_p (stmt))
+		    {
+		      unlink_stmt_vdef (stmt);
+		      gsi_remove (&gsi, true);
+		      release_defs (stmt);
+		      continue;
+		    }
+		  update_stmt (stmt);
+		}
 	      gsi_next (&gsi);
 	    }
 	}
@@ -344,7 +359,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_return_slot
 
@@ -370,7 +385,7 @@ pass_return_slot::execute (function *fun)
 		 undesirable warnings with some backends.  */
 	      && !gimple_call_internal_p (stmt)
 	      && aggregate_value_p (TREE_TYPE (gimple_call_lhs (stmt)),
-				    gimple_call_fndecl (stmt)))
+				    gimple_call_fntype (stmt)))
 	    {
 	      /* Check if the location being assigned to is
 		 clobbered by the call.  */

@@ -1,4 +1,3 @@
-// { dg-options "-std=gnu++23" }
 // { dg-do run { target c++23 } }
 
 #include <expected>
@@ -78,7 +77,10 @@ test_value()
   return true;
 }
 
-void
+#if __cpp_lib_constexpr_exceptions >= 202502L
+constexpr
+#endif
+bool
 test_value_throw()
 {
   std::expected<int, int> e1 = std::unexpected(9);
@@ -88,6 +90,8 @@ test_value_throw()
     VERIFY( false );
   } catch (const std::bad_expected_access<int>& e) {
     VERIFY( e.error() == 9 );
+    long c = e.what()[0];
+    VERIFY( c == e.what()[0] );
   }
   try {
     std::move(e1).value();
@@ -123,6 +127,7 @@ test_value_throw()
   } catch (const std::bad_expected_access<int>& e) {
     VERIFY( e.error() == 8 );
   }
+  return true;
 }
 
 constexpr bool
@@ -191,6 +196,24 @@ test_value_or()
   return true;
 }
 
+constexpr bool
+test_error_or()
+{
+  std::expected<int, int> e1(1), e2(std::unexpect, 3);
+  VERIFY( e1.error_or(2) == 2 );
+  VERIFY( std::move(e1).error_or(2) == 2 );
+  VERIFY( e2.error_or(2) == 3 );
+  VERIFY( std::move(e2).error_or(2) == 3 );
+
+  std::expected<void, int> e3, e4(std::unexpect, 3);
+  VERIFY( e3.error_or(2) == 2 );
+  VERIFY( std::move(e3).error_or(2) == 2 );
+  VERIFY( e4.error_or(2) == 3 );
+  VERIFY( std::move(e4).error_or(2) == 3 );
+
+  return true;
+}
+
 int main()
 {
   static_assert( test_arrow() );
@@ -201,9 +224,14 @@ int main()
   test_has_value();
   static_assert( test_value() );
   test_value();
+#if __cpp_lib_constexpr_exceptions >= 202502L
+  static_assert( test_value_throw() );
+#endif
   test_value_throw();
   static_assert( test_error() );
   test_error();
   static_assert( test_value_or() );
   test_value_or();
+  static_assert( test_error_or() );
+  test_error_or();
 }

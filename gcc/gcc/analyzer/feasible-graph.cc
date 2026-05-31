@@ -1,5 +1,5 @@
 /* A graph for exploring trees of feasible paths through the egraph.
-   Copyright (C) 2021-2022 Free Software Foundation, Inc.
+   Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,27 +18,13 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "pretty-print.h"
-#include "gcc-rich-location.h"
-#include "gimple-pretty-print.h"
-#include "function.h"
-#include "diagnostic-core.h"
-#include "diagnostic-event-id.h"
-#include "diagnostic-path.h"
-#include "alloc-pool.h"
-#include "fibonacci_heap.h"
-#include "shortest-paths.h"
-#include "sbitmap.h"
-#include "bitmap.h"
-#include "tristate.h"
-#include "selftest.h"
-#include "ordered-hash-map.h"
-#include "json.h"
-#include "analyzer/analyzer.h"
+#include "analyzer/common.h"
+
+#include "cfg.h"
+#include "gimple-iterator.h"
+#include "cgraph.h"
+#include "digraph.h"
+
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/sm.h"
 #include "analyzer/pending-diagnostic.h"
@@ -48,12 +34,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "analyzer/store.h"
 #include "analyzer/region-model.h"
 #include "analyzer/constraint-manager.h"
-#include "cfg.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "gimple-iterator.h"
-#include "cgraph.h"
-#include "digraph.h"
 #include "analyzer/supergraph.h"
 #include "analyzer/program-state.h"
 #include "analyzer/exploded-graph.h"
@@ -101,7 +81,6 @@ feasible_node::dump_dot (graphviz_out *gv,
   m_state.get_model ().dump_to_pp (pp, true, true);
   pp_newline (pp);
 
-  m_inner_node->dump_processed_stmts (pp);
   m_inner_node->dump_saved_diagnostics (pp);
 
   pp_write_text_as_dot_label_to_stream (pp, /*for_record=*/true);
@@ -178,16 +157,15 @@ feasible_graph::add_node (const exploded_node *enode,
 }
 
 /* Add an infeasible_node to this graph and an infeasible_edge connecting
-   to it from SRC_FNODE, capturing a failure of RC along EEDGE.
-   Takes ownership of RC.  */
+   to it from SRC_FNODE, capturing a failure of RC along EEDGE.  */
 
 void
 feasible_graph::add_feasibility_problem (feasible_node *src_fnode,
 					 const exploded_edge *eedge,
-					 rejected_constraint *rc)
+					 std::unique_ptr<rejected_constraint> rc)
 {
   infeasible_node *dst_fnode
-    = new infeasible_node (eedge->m_dest, m_nodes.length (), rc);
+    = new infeasible_node (eedge->m_dest, m_nodes.length (), std::move (rc));
   digraph<fg_traits>::add_node (dst_fnode);
   add_edge (new infeasible_edge (src_fnode, dst_fnode, eedge));
   m_num_infeasible++;
@@ -196,10 +174,10 @@ feasible_graph::add_feasibility_problem (feasible_node *src_fnode,
 /* Make an exploded_path from the origin to FNODE's exploded_node,
    following the edges in the feasible_graph.  */
 
-exploded_path *
+std::unique_ptr<exploded_path>
 feasible_graph::make_epath (feasible_node *fnode) const
 {
-  exploded_path *epath = new exploded_path ();
+  std::unique_ptr<exploded_path> epath (new exploded_path ());
 
   /* FG is actually a tree.  Built the path backwards, by walking
      backwards from FNODE until we reach the origin.  */
@@ -277,7 +255,7 @@ feasible_graph::dump_feasible_path (const feasible_node &dst_fnode,
   FILE *fp = fopen (filename, "w");
   pretty_printer pp;
   pp_format_decoder (&pp) = default_tree_printer;
-  pp.buffer->stream = fp;
+  pp.set_output_stream (fp);
   dump_feasible_path (dst_fnode, &pp);
   pp_flush (&pp);
   fclose (fp);

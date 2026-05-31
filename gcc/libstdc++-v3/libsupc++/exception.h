@@ -1,6 +1,6 @@
 // Exception Handling support header for -*- C++ -*-
 
-// Copyright (C) 2016-2022 Free Software Foundation, Inc.
+// Copyright (C) 2016-2026 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -31,15 +31,15 @@
 #ifndef __EXCEPTION_H
 #define __EXCEPTION_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
-
-#pragma GCC visibility push(default)
+#endif
 
 #include <bits/c++config.h>
 
 extern "C++" {
 
-namespace std
+namespace std _GLIBCXX_VISIBILITY(default)
 {
   /**
    * @defgroup exceptions Exceptions
@@ -61,19 +61,30 @@ namespace std
   class exception
   {
   public:
-    exception() _GLIBCXX_NOTHROW { }
+    _GLIBCXX26_CONSTEXPR exception() _GLIBCXX_NOTHROW { }
+#if __cplusplus >= 202400L
+    [[__gnu__::__gnu_inline__]]
+    constexpr inline virtual ~exception() _GLIBCXX_TXN_SAFE_DYN noexcept {}
+#else
     virtual ~exception() _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+#endif
 #if __cplusplus >= 201103L
-    exception(const exception&) = default;
-    exception& operator=(const exception&) = default;
-    exception(exception&&) = default;
-    exception& operator=(exception&&) = default;
+    _GLIBCXX26_CONSTEXPR exception(const exception&) = default;
+    _GLIBCXX26_CONSTEXPR exception& operator=(const exception&) = default;
+    _GLIBCXX26_CONSTEXPR exception(exception&&) = default;
+    _GLIBCXX26_CONSTEXPR exception& operator=(exception&&) = default;
 #endif
 
     /** Returns a C-style character string describing the general cause
      *  of the current error.  */
+#if __cplusplus >= 202400L
+    [[__gnu__::__gnu_inline__]]
+    constexpr inline virtual const char*
+    what() const _GLIBCXX_TXN_SAFE_DYN noexcept { return "std::exception"; }
+#else
     virtual const char*
     what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_NOTHROW;
+#endif
   };
 
   /// @}
@@ -81,7 +92,5 @@ namespace std
 } // namespace std
 
 }
-
-#pragma GCC visibility pop
 
 #endif

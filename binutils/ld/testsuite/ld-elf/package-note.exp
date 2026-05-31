@@ -1,5 +1,5 @@
 # Expect script for --package-note tests.
-#   Copyright (C) 2022 Free Software Foundation, Inc.
+#   Copyright (C) 2022-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -27,7 +27,6 @@ if ![is_elf_format] {
 
 if { !([istarget *-*-linux*]
        || [istarget arm*-*-uclinuxfdpiceabi]
-       || [istarget *-*-nacl*]
        || [istarget *-*-gnu*]) } then {
     return
 }
@@ -41,5 +40,41 @@ run_ld_link_tests [list \
 	{start.s} \
 	{{readelf {--notes} package-note.rd}} \
 	"package-note.o" \
+    ] \
+    [list \
+	"package-note1b.o" \
+	"--package-metadata=%7B%22foo%22%3A%22bar%22%7D" \
+	"" \
+	"" \
+	{start.s} \
+	{{readelf {--notes} package-note.rd}} \
+	"package-note1b.o" \
+    ] \
+    [list \
+	"package-note1c.o" \
+	"--package-metadata=%\[lbrace\]%\[quot\]foo%\[quot\]:%\[quot\]bar%\[quot\]%\[rbrace\]" \
+	"" \
+	"" \
+	{start.s} \
+	{{readelf {--notes} package-note.rd}} \
+	"package-note1c.o" \
+    ] \
+    [list \
+	"package-note2.o" \
+	"--package-metadata=%7B%22name%22:%22binutils%22%2C%22ver%22%3A%22x%20%%22%7d" \
+	"" \
+	"" \
+	{start.s} \
+	{{readelf {--notes} package-note2.rd}} \
+	"package-note2.o" \
+    ] \
+    [list \
+	"package-note2b.o" \
+	"--package-metadata={%\[quot\]name%\[quot\]:%\[quot\]binutils%\[quot\]%\[comma\]%\[quot\]ver%\[quot\]:%\[quot\]x%\[space\]%%\[quot\]}" \
+	"" \
+	"" \
+	{start.s} \
+	{{readelf {--notes} package-note2.rd}} \
+	"package-note2b.o" \
     ] \
 ]

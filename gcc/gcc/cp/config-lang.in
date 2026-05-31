@@ -1,5 +1,5 @@
 # Top level configure fragment for GNU C++.
-#   Copyright (C) 1994-2022 Free Software Foundation, Inc.
+#   Copyright (C) 1994-2026 Free Software Foundation, Inc.
 
 #This file is part of GCC.
 
@@ -39,6 +39,7 @@ gtfiles="\
 \$(srcdir)/c-family/c-common.cc \$(srcdir)/c-family/c-format.cc \
 \$(srcdir)/c-family/c-cppbuiltin.cc \$(srcdir)/c-family/c-pragma.cc \
 \$(srcdir)/cp/call.cc \$(srcdir)/cp/class.cc \$(srcdir)/cp/constexpr.cc \
+\$(srcdir)/cp/contracts.cc \
 \$(srcdir)/cp/constraint.cc \$(srcdir)/cp/coroutines.cc \
 \$(srcdir)/cp/cp-gimplify.cc \
 \$(srcdir)/cp/cp-lang.cc \$(srcdir)/cp/cp-objcp-common.cc \
@@ -50,7 +51,7 @@ gtfiles="\
 \$(srcdir)/cp/mangle.cc \$(srcdir)/cp/method.cc \$(srcdir)/cp/module.cc \
 \$(srcdir)/cp/name-lookup.cc \
 \$(srcdir)/cp/parser.cc \$(srcdir)/cp/pt.cc \
-\$(srcdir)/cp/rtti.cc \
+\$(srcdir)/cp/reflect.cc \$(srcdir)/cp/rtti.cc \
 \$(srcdir)/cp/semantics.cc \
 \$(srcdir)/cp/tree.cc \$(srcdir)/cp/typeck2.cc \
 \$(srcdir)/cp/vtable-class-hierarchy.cc \

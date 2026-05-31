@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,25 +24,22 @@
 ------------------------------------------------------------------------------
 
 with Atree;          use Atree;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
 with Exp_Util;       use Exp_Util;
+with Mutably_Tagged; use Mutably_Tagged;
 with Namet;          use Namet;
 with Nlists;         use Nlists;
 with Nmake;          use Nmake;
-with Rtsfind;        use Rtsfind;
 with Sem_Aux;        use Sem_Aux;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Snames;         use Snames;
 with Stand;          use Stand;
 with Tbuild;         use Tbuild;
 with Ttypes;         use Ttypes;
-with Uintp;          use Uintp;
 
 package body Exp_Strm is
 
@@ -51,20 +48,17 @@ package body Exp_Strm is
    -----------------------
 
    procedure Build_Array_Read_Write_Procedure
-     (Nod  : Node_Id;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : Entity_Id;
       Nam  : Name_Id);
    --  Common routine shared to build either an array Read procedure or an
    --  array Write procedure, Nam is Name_Read or Name_Write to select which.
    --  Pnam is the defining identifier for the constructed procedure. The
-   --  other parameters are as for Build_Array_Read_Procedure except that
-   --  the first parameter Nod supplies the Sloc to be used to generate code.
+   --  other parameters are as for Build_Array_Read_Procedure.
 
    procedure Build_Record_Read_Write_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : Entity_Id;
       Nam  : Name_Id);
@@ -74,8 +68,7 @@ package body Exp_Strm is
    --  as for Build_Record_Read_Procedure.
 
    procedure Build_Stream_Function
-     (Loc   : Source_Ptr;
-      Typ   : Entity_Id;
+     (Typ   : Entity_Id;
       Decl  : out Node_Id;
       Fnam  : Entity_Id;
       Decls : List_Id;
@@ -85,13 +78,13 @@ package body Exp_Strm is
    --  Decls and Stms are the declarations and statements for the body and
    --  The parameter Fnam is the name of the constructed function.
 
-   function Has_Stream_Standard_Rep (U_Type : Entity_Id) return Boolean;
-   --  This function is used to test the type U_Type, to determine if it has
-   --  a standard representation from a streaming point of view. Standard means
-   --  that it has a standard representation (e.g. no enumeration rep clause),
-   --  and the size of the root type is the same as the streaming size (which
-   --  is defined as value specified by a Stream_Size clause if present, or
-   --  the Esize of U_Type if not).
+   function Is_Stream_Standard_Rep
+     (U_Type : Entity_Id; S_Size : Uint) return Boolean;
+   --  This function is used to test the type U_Type, to determine whether it
+   --  would have a standard representation from a streaming point of view if
+   --  its Stream_Size attribute was set to S_Size. Standard means that it has
+   --  a standard representation (e.g. no enumeration rep clause), and the size
+   --  of the root type is the same as the stream size.
 
    function Make_Stream_Subprogram_Name
      (Loc : Source_Ptr;
@@ -105,13 +98,10 @@ package body Exp_Strm is
    --  Loc parameter is used as the Sloc of the created entity.
 
    function Stream_Base_Type (E : Entity_Id) return Entity_Id;
-   --  Stream attributes work on the basis of the base type except for the
-   --  array case. For the array case, we do not go to the base type, but
-   --  to the first subtype if it is constrained. This avoids problems with
-   --  incorrect conversions in the packed array case. Stream_Base_Type is
-   --  exactly this function (returns the base type, unless we have an array
-   --  type whose first subtype is constrained, in which case it returns the
-   --  first subtype).
+   --  For an array type whose whose first subtype is constrained, return
+   --  the first subtype. For the internal representation type corresponding
+   --  to a mutably tagged type, return the mutably tagged type. Otherwise,
+   --  return the base type. Similar to Exp_Put_Image.Put_Image_Base_Type.
 
    --------------------------------
    -- Build_Array_Input_Function --
@@ -140,11 +130,11 @@ package body Exp_Strm is
    --  reference, so the name must be unique.
 
    procedure Build_Array_Input_Function
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Fnam : out Entity_Id)
    is
+      Loc    : constant Source_Ptr := Sloc (Typ);
       Dim    : constant Pos := Number_Dimensions (Typ);
       Lnam   : Name_Id;
       Hnam   : Name_Id;
@@ -235,7 +225,7 @@ package body Exp_Strm is
         Make_Defining_Identifier (Loc,
           Chars => Make_TSS_Name_Local (Typ, TSS_Stream_Input));
 
-      Build_Stream_Function (Loc, Typ, Decl, Fnam, Decls, Stms);
+      Build_Stream_Function (Typ, Decl, Fnam, Decls, Stms);
    end Build_Array_Input_Function;
 
    ----------------------------------
@@ -243,11 +233,11 @@ package body Exp_Strm is
    ----------------------------------
 
    procedure Build_Array_Output_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id)
    is
+      Loc  : constant Source_Ptr := Sloc (Typ);
       Stms : List_Id;
       Indx : Node_Id;
 
@@ -301,7 +291,7 @@ package body Exp_Strm is
         Make_Defining_Identifier (Loc,
           Chars => Make_TSS_Name_Local (Typ, TSS_Stream_Output));
 
-      Build_Stream_Procedure (Loc, Typ, Decl, Pnam, Stms, Outp => False);
+      Build_Stream_Procedure (Typ, Decl, Pnam, Stms, Outp => False);
    end Build_Array_Output_Procedure;
 
    --------------------------------
@@ -309,18 +299,17 @@ package body Exp_Strm is
    --------------------------------
 
    procedure Build_Array_Read_Procedure
-     (Nod  : Node_Id;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id)
    is
-      Loc : constant Source_Ptr := Sloc (Nod);
+      Loc : constant Source_Ptr := Sloc (Typ);
 
    begin
       Pnam :=
         Make_Defining_Identifier (Loc,
           Chars => Make_TSS_Name_Local (Typ, TSS_Stream_Read));
-      Build_Array_Read_Write_Procedure (Nod, Typ, Decl, Pnam, Name_Read);
+      Build_Array_Read_Write_Procedure (Typ, Decl, Pnam, Name_Read);
    end Build_Array_Read_Procedure;
 
    --------------------------------------
@@ -345,13 +334,12 @@ package body Exp_Strm is
    --  The out keyword for V is supplied in the Read case
 
    procedure Build_Array_Read_Write_Procedure
-     (Nod  : Node_Id;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : Entity_Id;
       Nam  : Name_Id)
    is
-      Loc  : constant Source_Ptr := Sloc (Nod);
+      Loc  : constant Source_Ptr := Sloc (Typ);
       Ndim : constant Pos        := Number_Dimensions (Typ);
       Ctyp : constant Entity_Id  := Component_Type (Typ);
 
@@ -402,7 +390,7 @@ package body Exp_Strm is
 
       for J in 1 .. Ndim loop
          Stm :=
-           Make_Implicit_Loop_Statement (Nod,
+           Make_Implicit_Loop_Statement (Typ,
              Iteration_Scheme =>
                Make_Iteration_Scheme (Loc,
                  Loop_Parameter_Specification =>
@@ -424,7 +412,7 @@ package body Exp_Strm is
       end loop;
 
       Build_Stream_Procedure
-        (Loc, Typ, Decl, Pnam, New_List (Stm), Outp => Nam = Name_Read);
+        (Typ, Decl, Pnam, New_List (Stm), Outp => Nam = Name_Read);
    end Build_Array_Read_Write_Procedure;
 
    ---------------------------------
@@ -432,65 +420,51 @@ package body Exp_Strm is
    ---------------------------------
 
    procedure Build_Array_Write_Procedure
-     (Nod  : Node_Id;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id)
    is
-      Loc : constant Source_Ptr := Sloc (Nod);
+      Loc : constant Source_Ptr := Sloc (Typ);
    begin
       Pnam :=
         Make_Defining_Identifier (Loc,
           Chars => Make_TSS_Name_Local (Typ, TSS_Stream_Write));
-      Build_Array_Read_Write_Procedure (Nod, Typ, Decl, Pnam, Name_Write);
+      Build_Array_Read_Write_Procedure (Typ, Decl, Pnam, Name_Write);
    end Build_Array_Write_Procedure;
 
-   ---------------------------------
-   -- Build_Elementary_Input_Call --
-   ---------------------------------
+   function Get_Primitives
+     (P_Type : Entity_Id; P_Size : Uint) return Primitive_Result
+   is
 
-   function Build_Elementary_Input_Call (N : Node_Id) return Node_Id is
-      Loc     : constant Source_Ptr := Sloc (N);
-      P_Type  : constant Entity_Id  := Entity (Prefix (N));
-      U_Type  : constant Entity_Id  := Underlying_Type (P_Type);
-      Rt_Type : constant Entity_Id  := Root_Type (U_Type);
-      FST     : constant Entity_Id  := First_Subtype (U_Type);
-      Strm    : constant Node_Id    := First (Expressions (N));
-      Targ    : constant Node_Id    := Next (Strm);
-      P_Size  : constant Uint       := Get_Stream_Size (FST);
-      Res     : Node_Id;
-      Lib_RE  : RE_Id;
+      function Prims (Input, Write : RE_Id) return Primitive_Result;
+      function Prims (Input, Write : RE_Id) return Primitive_Result is
+      begin
+         return (Primitives, 0, Input, Write);
+      end Prims;
 
+      function PSizes (L : Sizes) return Primitive_Result;
+      function PSizes (L : Sizes) return Primitive_Result is
+      begin
+         return (Possible_Sizes, L'Length, L);
+      end PSizes;
+
+      U_Type  : constant Entity_Id := Underlying_Type (P_Type);
+      FST     : constant Entity_Id := First_Subtype (U_Type);
+      Rt_Type : constant Entity_Id := Root_Type (U_Type);
+
+      Rep_Is_Standard : constant Boolean :=
+        Known_RM_Size (U_Type)
+        and then Is_Stream_Standard_Rep (U_Type, P_Size);
    begin
-
-      --  Check first for Boolean and Character. These are enumeration types,
-      --  but we treat them specially, since they may require special handling
-      --  in the transfer protocol. However, this special handling only applies
-      --  if they have standard representation, otherwise they are treated like
-      --  any other enumeration type.
-
-      if Rt_Type = Standard_Boolean
-        and then Has_Stream_Standard_Rep (U_Type)
+      if Rt_Type = Standard_Boolean and then Rep_Is_Standard then
+         return Prims (RE_I_B, RE_W_B);
+      elsif Rt_Type = Standard_Character and then Rep_Is_Standard then
+         return Prims (RE_I_C, RE_W_C);
+      elsif Rt_Type = Standard_Wide_Character and then Rep_Is_Standard then
+         return Prims (RE_I_WC, RE_W_WC);
+      elsif Rt_Type = Standard_Wide_Wide_Character and then Rep_Is_Standard
       then
-         Lib_RE := RE_I_B;
-
-      elsif Rt_Type = Standard_Character
-        and then Has_Stream_Standard_Rep (U_Type)
-      then
-         Lib_RE := RE_I_C;
-
-      elsif Rt_Type = Standard_Wide_Character
-        and then Has_Stream_Standard_Rep (U_Type)
-      then
-         Lib_RE := RE_I_WC;
-
-      elsif Rt_Type = Standard_Wide_Wide_Character
-        and then Has_Stream_Standard_Rep (U_Type)
-      then
-         Lib_RE := RE_I_WWC;
-
-      --  Floating point types
-
+         return Prims (RE_I_WWC, RE_W_WWC);
       elsif Is_Floating_Point_Type (U_Type) then
 
          --  Question: should we use P_Size or Rt_Type to distinguish between
@@ -510,23 +484,38 @@ package body Exp_Strm is
          --  To deal with these two requirements we add the special checks
          --  on equal sizes and use the root type to distinguish.
 
-         if P_Size <= Standard_Short_Float_Size
+         if P_Size = Standard_Short_Float_Size
            and then (Standard_Short_Float_Size /= Standard_Float_Size
                      or else Rt_Type = Standard_Short_Float)
          then
-            Lib_RE := RE_I_SF;
+            return Prims (RE_I_SF, RE_W_SF);
 
-         elsif P_Size <= Standard_Float_Size then
-            Lib_RE := RE_I_F;
+         elsif P_Size = Standard_Float_Size then
+            return Prims (RE_I_F, RE_W_F);
 
-         elsif P_Size <= Standard_Long_Float_Size
+         elsif P_Size = Standard_Long_Float_Size
            and then (Standard_Long_Float_Size /= Standard_Long_Long_Float_Size
-                       or else Rt_Type = Standard_Long_Float)
+                     or else Rt_Type = Standard_Long_Float)
          then
-            Lib_RE := RE_I_LF;
+            return Prims (RE_I_LF, RE_W_LF);
 
+         elsif Is_IEEE_Extended_Precision (U_Type) then
+            --  For 80-bit IEEE extended precision values, we use a special
+            --  write routine that sets the unused bytes to zero. The reason
+            --  why we don't set Stream_Size to 80 and stream only the
+            --  meaningful bits is that the user is allowed to select the XDR
+            --  implementation of streaming at bind time, and XDR does not
+            --  allow 80 bits floating point values.
+            return Prims (RE_I_LLF, RE_W_80IEEE);
+         elsif P_Size = Standard_Long_Long_Float_Size then
+            return Prims (RE_I_LLF, RE_W_LLF);
          else
-            Lib_RE := RE_I_LLF;
+            return
+              PSizes
+                ((Standard_Short_Float_Size,
+                  Standard_Float_Size,
+                  Standard_Long_Float_Size,
+                  Standard_Long_Long_Float_Size));
          end if;
 
       --  Signed integer types. Also includes signed fixed-point types and
@@ -558,35 +547,42 @@ package body Exp_Strm is
         --  The following set of tests gets repeated many times, we should
         --  have an abstraction defined ???
 
-        and then
-          (Is_Fixed_Point_Type (U_Type)
-             or else
-           Is_Enumeration_Type (U_Type)
-             or else
-           (Is_Signed_Integer_Type (U_Type)
-              and then not Has_Biased_Representation (FST)))
+        and then (Is_Fixed_Point_Type (U_Type)
+                  or else Is_Enumeration_Type (U_Type)
+                  or else (Is_Signed_Integer_Type (U_Type)
+                           and then not Has_Biased_Representation (FST)))
 
       then
-         if P_Size <= Standard_Short_Short_Integer_Size then
-            Lib_RE := RE_I_SSI;
+         if P_Size = Standard_Short_Short_Integer_Size then
+            return Prims (RE_I_SSI, RE_W_SSI);
 
-         elsif P_Size <= Standard_Short_Integer_Size then
-            Lib_RE := RE_I_SI;
+         elsif P_Size = Standard_Short_Integer_Size then
+            return Prims (RE_I_SI, RE_W_SI);
 
          elsif P_Size = 24 then
-            Lib_RE := RE_I_I24;
+            return Prims (RE_I_I24, RE_W_I24);
 
-         elsif P_Size <= Standard_Integer_Size then
-            Lib_RE := RE_I_I;
+         elsif P_Size = Standard_Integer_Size then
+            return Prims (RE_I_I, RE_W_I);
 
-         elsif P_Size <= Standard_Long_Integer_Size then
-            Lib_RE := RE_I_LI;
+         elsif P_Size = Standard_Long_Integer_Size then
+            return Prims (RE_I_LI, RE_W_LI);
 
-         elsif P_Size <= Standard_Long_Long_Integer_Size then
-            Lib_RE := RE_I_LLI;
+         elsif P_Size = Standard_Long_Long_Integer_Size then
+            return Prims (RE_I_LLI, RE_W_LLI);
 
+         elsif P_Size = Standard_Long_Long_Long_Integer_Size then
+            return Prims (RE_I_LLLI, RE_W_LLLI);
          else
-            Lib_RE := RE_I_LLLI;
+            return
+              PSizes
+                ((Standard_Short_Short_Integer_Size,
+                  Standard_Short_Integer_Size,
+                  24,
+                  Standard_Integer_Size,
+                  Standard_Long_Integer_Size,
+                  Standard_Long_Long_Integer_Size,
+                  Standard_Long_Long_Long_Integer_Size));
          end if;
 
       --  Unsigned integer types, also includes unsigned fixed-point types
@@ -596,41 +592,74 @@ package body Exp_Strm is
       --  Also includes signed integer types that are unsigned in the sense
       --  that they do not include negative numbers. See above for details.
 
-      elsif Is_Modular_Integer_Type    (U_Type)
-        or else Is_Fixed_Point_Type    (U_Type)
-        or else Is_Enumeration_Type    (U_Type)
+      elsif Is_Modular_Integer_Type (U_Type)
+        or else Is_Fixed_Point_Type (U_Type)
+        or else Is_Enumeration_Type (U_Type)
         or else Is_Signed_Integer_Type (U_Type)
       then
-         if P_Size <= Standard_Short_Short_Integer_Size then
-            Lib_RE := RE_I_SSU;
+         if P_Size = Standard_Short_Short_Integer_Size then
+            return Prims (RE_I_SSU, RE_W_SSU);
 
-         elsif P_Size <= Standard_Short_Integer_Size then
-            Lib_RE := RE_I_SU;
+         elsif P_Size = Standard_Short_Integer_Size then
+            return Prims (RE_I_SU, RE_W_SU);
 
          elsif P_Size = 24 then
-            Lib_RE := RE_I_U24;
+            return Prims (RE_I_U24, RE_W_U24);
 
-         elsif P_Size <= Standard_Integer_Size then
-            Lib_RE := RE_I_U;
+         elsif P_Size = Standard_Integer_Size then
+            return Prims (RE_I_U, RE_W_U);
 
-         elsif P_Size <= Standard_Long_Integer_Size then
-            Lib_RE := RE_I_LU;
+         elsif P_Size = Standard_Long_Integer_Size then
+            return Prims (RE_I_LU, RE_W_LU);
 
-         elsif P_Size <= Standard_Long_Long_Integer_Size then
-            Lib_RE := RE_I_LLU;
+         elsif P_Size = Standard_Long_Long_Integer_Size then
+            return Prims (RE_I_LLU, RE_W_LLU);
+
+         elsif P_Size = Standard_Long_Long_Long_Integer_Size then
+            return Prims (RE_I_LLLU, RE_W_LLLU);
 
          else
-            Lib_RE := RE_I_LLLU;
+            return
+              PSizes
+                ((Standard_Short_Short_Integer_Size,
+                  Standard_Short_Integer_Size,
+                  24,
+                  Standard_Integer_Size,
+                  Standard_Long_Integer_Size,
+                  Standard_Long_Long_Integer_Size,
+                  Standard_Long_Long_Long_Integer_Size));
          end if;
 
       else pragma Assert (Is_Access_Type (U_Type));
          if Present (P_Size) and then P_Size > System_Address_Size then
-            Lib_RE := RE_I_AD;
+            return Prims (RE_I_AD, RE_W_AD);
          else
-            Lib_RE := RE_I_AS;
+            return Prims (RE_I_AS, RE_W_AS);
          end if;
       end if;
+   end Get_Primitives;
 
+   ---------------------------------
+   -- Build_Elementary_Input_Call --
+   ---------------------------------
+
+   function Build_Elementary_Input_Call (N : Node_Id) return Node_Id is
+      Loc     : constant Source_Ptr := Sloc (N);
+      P_Type  : constant Entity_Id  := Entity (Prefix (N));
+      U_Type  : constant Entity_Id  := Underlying_Type (P_Type);
+      FST     : constant Entity_Id  := First_Subtype (U_Type);
+      Strm    : constant Node_Id    := First (Expressions (N));
+      Targ    : constant Node_Id    := Next (Strm);
+      P_Size  : constant Uint       := Get_Stream_Size (FST);
+      Res     : Node_Id;
+
+      Prims : constant Primitive_Result := Get_Primitives (P_Type, P_Size);
+
+      Lib_RE : constant RE_Id :=
+        (case Prims.S is
+           when Primitives => Prims.Input,
+           when others => raise Program_Error);
+   begin
       --  Call the function, and do an unchecked conversion of the result
       --  to the actual type of the prefix. If the target is a discriminant,
       --  and we are in the body of the default implementation of a 'Read
@@ -689,191 +718,22 @@ package body Exp_Strm is
 
    function Build_Elementary_Write_Call (N : Node_Id) return Node_Id is
       Loc     : constant Source_Ptr := Sloc (N);
-      P_Type  : constant Entity_Id  := Entity (Prefix (N));
-      U_Type  : constant Entity_Id  := Underlying_Type (P_Type);
-      Rt_Type : constant Entity_Id  := Root_Type (U_Type);
-      FST     : constant Entity_Id  := First_Subtype (U_Type);
-      Strm    : constant Node_Id    := First (Expressions (N));
-      Item    : constant Node_Id    := Next (Strm);
-      P_Size  : Uint;
-      Lib_RE  : RE_Id;
+      P_Type  : constant Entity_Id := Entity (Prefix (N));
+      U_Type  : constant Entity_Id := Underlying_Type (P_Type);
+      FST     : constant Entity_Id := First_Subtype (U_Type);
+      Strm    : constant Node_Id := First (Expressions (N));
+      Item    : constant Node_Id := Next (Strm);
+      P_Size  : constant Uint := Get_Stream_Size (FST);
       Libent  : Entity_Id;
 
+      Prims : constant Primitive_Result := Get_Primitives (P_Type, P_Size);
+
+      Lib_RE : constant RE_Id :=
+        (case Prims.S is
+           when Primitives => Prims.Write,
+           when others => raise Program_Error);
    begin
-      --  Compute the size of the stream element. This is either the size of
-      --  the first subtype or if given the size of the Stream_Size attribute.
-
-      if Has_Stream_Size_Clause (FST) then
-         P_Size := Static_Integer (Expression (Stream_Size_Clause (FST)));
-      else
-         P_Size := Esize (FST);
-      end if;
-
-      --  Find the routine to be called
-
-      --  Check for First Boolean and Character. These are enumeration types,
-      --  but we treat them specially, since they may require special handling
-      --  in the transfer protocol. However, this special handling only applies
-      --  if they have standard representation, otherwise they are treated like
-      --  any other enumeration type.
-
-      if Rt_Type = Standard_Boolean
-        and then Has_Stream_Standard_Rep (U_Type)
-      then
-         Lib_RE := RE_W_B;
-
-      elsif Rt_Type = Standard_Character
-        and then Has_Stream_Standard_Rep (U_Type)
-      then
-         Lib_RE := RE_W_C;
-
-      elsif Rt_Type = Standard_Wide_Character
-        and then Has_Stream_Standard_Rep (U_Type)
-      then
-         Lib_RE := RE_W_WC;
-
-      elsif Rt_Type = Standard_Wide_Wide_Character
-        and then Has_Stream_Standard_Rep (U_Type)
-      then
-         Lib_RE := RE_W_WWC;
-
-      --  Floating point types
-
-      elsif Is_Floating_Point_Type (U_Type) then
-
-         --  Question: should we use P_Size or Rt_Type to distinguish between
-         --  possible floating point types? If a non-standard size or a stream
-         --  size is specified, then we should certainly use the size. But if
-         --  we have two types the same (notably Short_Float_Size = Float_Size
-         --  which is close to universally true, and Long_Long_Float_Size =
-         --  Long_Float_Size, true on most targets except the x86), then we
-         --  would really rather use the root type, so that if people want to
-         --  fiddle with System.Stream_Attributes to get inter-target portable
-         --  streams, they get the size they expect. Consider in particular the
-         --  case of a stream written on an x86, with 96-bit Long_Long_Float
-         --  being read into a non-x86 target with 64 bit Long_Long_Float. A
-         --  special version of System.Stream_Attributes can deal with this
-         --  provided the proper type is always used.
-
-         --  To deal with these two requirements we add the special checks
-         --  on equal sizes and use the root type to distinguish.
-
-         if P_Size <= Standard_Short_Float_Size
-           and then (Standard_Short_Float_Size /= Standard_Float_Size
-                      or else Rt_Type = Standard_Short_Float)
-         then
-            Lib_RE := RE_W_SF;
-
-         elsif P_Size <= Standard_Float_Size then
-            Lib_RE := RE_W_F;
-
-         elsif P_Size <= Standard_Long_Float_Size
-           and then (Standard_Long_Float_Size /= Standard_Long_Long_Float_Size
-                      or else Rt_Type = Standard_Long_Float)
-         then
-            Lib_RE := RE_W_LF;
-
-         else
-            Lib_RE := RE_W_LLF;
-         end if;
-
-      --  Signed integer types. Also includes signed fixed-point types and
-      --  signed enumeration types share this circuitry.
-
-      --  Note on signed integer types. We do not consider types as signed for
-      --  this purpose if they have no negative numbers, or if they have biased
-      --  representation. The reason is that the value in either case basically
-      --  represents an unsigned value.
-
-      --  For example, consider:
-
-      --     type W is range 0 .. 2**32 - 1;
-      --     for W'Size use 32;
-
-      --  This is a signed type, but the representation is unsigned, and may
-      --  be outside the range of a 32-bit signed integer, so this must be
-      --  treated as 32-bit unsigned.
-
-      --  Similarly, the representation is also unsigned if we have:
-
-      --     type W is range -1 .. +254;
-      --     for W'Size use 8;
-
-      --  forcing a biased and unsigned representation
-
-      elsif not Is_Unsigned_Type (FST)
-        and then
-          (Is_Fixed_Point_Type (U_Type)
-             or else
-           Is_Enumeration_Type (U_Type)
-             or else
-           (Is_Signed_Integer_Type (U_Type)
-              and then not Has_Biased_Representation (FST)))
-      then
-         if P_Size <= Standard_Short_Short_Integer_Size then
-            Lib_RE := RE_W_SSI;
-
-         elsif P_Size <= Standard_Short_Integer_Size then
-            Lib_RE := RE_W_SI;
-
-         elsif P_Size = 24 then
-            Lib_RE := RE_W_I24;
-
-         elsif P_Size <= Standard_Integer_Size then
-            Lib_RE := RE_W_I;
-
-         elsif P_Size <= Standard_Long_Integer_Size then
-            Lib_RE := RE_W_LI;
-
-         elsif P_Size <= Standard_Long_Long_Integer_Size then
-            Lib_RE := RE_W_LLI;
-
-         else
-            Lib_RE := RE_W_LLLI;
-         end if;
-
-      --  Unsigned integer types, also includes unsigned fixed-point types
-      --  and unsigned enumeration types (note we know they are unsigned
-      --  because we already tested for signed above).
-
-      --  Also includes signed integer types that are unsigned in the sense
-      --  that they do not include negative numbers. See above for details.
-
-      elsif Is_Modular_Integer_Type    (U_Type)
-        or else Is_Fixed_Point_Type    (U_Type)
-        or else Is_Enumeration_Type    (U_Type)
-        or else Is_Signed_Integer_Type (U_Type)
-      then
-         if P_Size <= Standard_Short_Short_Integer_Size then
-            Lib_RE := RE_W_SSU;
-
-         elsif P_Size <= Standard_Short_Integer_Size then
-            Lib_RE := RE_W_SU;
-
-         elsif P_Size = 24 then
-            Lib_RE := RE_W_U24;
-
-         elsif P_Size <= Standard_Integer_Size then
-            Lib_RE := RE_W_U;
-
-         elsif P_Size <= Standard_Long_Integer_Size then
-            Lib_RE := RE_W_LU;
-
-         elsif P_Size <= Standard_Long_Long_Integer_Size then
-            Lib_RE := RE_W_LLU;
-
-         else
-            Lib_RE := RE_W_LLLU;
-         end if;
-
-      else pragma Assert (Is_Access_Type (U_Type));
-
-         if Present (P_Size) and then P_Size > System_Address_Size then
-            Lib_RE := RE_W_AD;
-         else
-            Lib_RE := RE_W_AS;
-         end if;
-      end if;
+      pragma Assert (Prims.S = Primitives);
 
       --  Unchecked-convert parameter to the required type (i.e. the type of
       --  the corresponding parameter, and call the appropriate routine.
@@ -881,12 +741,15 @@ package body Exp_Strm is
       Libent := RTE (Lib_RE);
 
       return
-        Make_Procedure_Call_Statement (Loc,
-          Name => New_Occurrence_Of (Libent, Loc),
-          Parameter_Associations => New_List (
-            Relocate_Node (Strm),
-            Unchecked_Convert_To (Etype (Next_Formal (First_Formal (Libent))),
-              Relocate_Node (Item))));
+        Make_Procedure_Call_Statement
+          (Loc,
+           Name                   => New_Occurrence_Of (Libent, Loc),
+           Parameter_Associations =>
+             New_List
+               (Relocate_Node (Strm),
+                Unchecked_Convert_To
+                  (Etype (Next_Formal (First_Formal (Libent))),
+                   Relocate_Node (Item))));
    end Build_Elementary_Write_Call;
 
    -----------------------------------------
@@ -894,11 +757,12 @@ package body Exp_Strm is
    -----------------------------------------
 
    procedure Build_Mutable_Record_Read_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id)
    is
+      Loc  : constant Source_Ptr := Sloc (Typ);
+
       Out_Formal : Node_Id;
       --  Expression denoting the out formal parameter
 
@@ -951,7 +815,7 @@ package body Exp_Strm is
            Make_Raise_Program_Error (Loc,
              Reason => PE_Unchecked_Union_Restriction));
 
-         Build_Stream_Procedure (Loc, Typ, Decl, Pnam, Stms, Outp => True);
+         Build_Stream_Procedure (Typ, Decl, Pnam, Stms, Outp => True);
          return;
       end if;
 
@@ -1007,7 +871,7 @@ package body Exp_Strm is
       --  Generate reads for the components of the record (including those
       --  that depend on discriminants).
 
-      Build_Record_Read_Write_Procedure (Loc, Typ, Decl, Pnam, Name_Read);
+      Build_Record_Read_Write_Procedure (Typ, Decl, Pnam, Name_Read);
 
       --  Save original statement sequence for component assignments, and
       --  replace it with Stms.
@@ -1066,11 +930,11 @@ package body Exp_Strm is
    ------------------------------------------
 
    procedure Build_Mutable_Record_Write_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id)
    is
+      Loc   : constant Source_Ptr := Sloc (Typ);
       Stms  : List_Id;
       Disc  : Entity_Id;
       D_Ref : Node_Id;
@@ -1111,7 +975,7 @@ package body Exp_Strm is
       Pnam :=
         Make_Defining_Identifier (Loc,
           Chars => Make_TSS_Name_Local (Typ, TSS_Stream_Write));
-      Build_Record_Read_Write_Procedure (Loc, Typ, Decl, Pnam, Name_Write);
+      Build_Record_Read_Write_Procedure (Typ, Decl, Pnam, Name_Write);
 
       --  Write the discriminants before the rest of the components, so
       --  that discriminant values are properly set of variants, etc.
@@ -1152,11 +1016,11 @@ package body Exp_Strm is
    --  an elementary type, then no Cn constants are defined.
 
    procedure Build_Record_Or_Elementary_Input_Function
-     (Loc            : Source_Ptr;
-      Typ            : Entity_Id;
+     (Typ            : Entity_Id;
       Decl           : out Node_Id;
       Fnam           : out Entity_Id)
    is
+      Loc        : constant Source_Ptr := Sloc (Typ);
       B_Typ      : constant Entity_Id := Underlying_Type (Base_Type (Typ));
       Cn         : Name_Id;
       Constr     : List_Id;
@@ -1288,7 +1152,7 @@ package body Exp_Strm is
 
       Fnam := Make_Stream_Subprogram_Name (Loc, B_Typ, TSS_Stream_Input);
 
-      Build_Stream_Function (Loc, B_Typ, Decl, Fnam, Decls, Stms);
+      Build_Stream_Function (B_Typ, Decl, Fnam, Decls, Stms);
    end Build_Record_Or_Elementary_Input_Function;
 
    -------------------------------------------------
@@ -1296,11 +1160,11 @@ package body Exp_Strm is
    -------------------------------------------------
 
    procedure Build_Record_Or_Elementary_Output_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id)
    is
+      Loc      : constant Source_Ptr := Sloc (Typ);
       Stms     : List_Id;
       Disc     : Entity_Id;
       Disc_Ref : Node_Id;
@@ -1356,7 +1220,7 @@ package body Exp_Strm is
 
       Pnam := Make_Stream_Subprogram_Name (Loc, Typ, TSS_Stream_Output);
 
-      Build_Stream_Procedure (Loc, Typ, Decl, Pnam, Stms, Outp => False);
+      Build_Stream_Procedure (Typ, Decl, Pnam, Stms, Outp => False);
    end Build_Record_Or_Elementary_Output_Procedure;
 
    ---------------------------------
@@ -1364,14 +1228,14 @@ package body Exp_Strm is
    ---------------------------------
 
    procedure Build_Record_Read_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id)
    is
+      Loc : constant Source_Ptr := Sloc (Typ);
    begin
       Pnam := Make_Stream_Subprogram_Name (Loc, Typ, TSS_Stream_Read);
-      Build_Record_Read_Write_Procedure (Loc, Typ, Decl, Pnam, Name_Read);
+      Build_Record_Read_Write_Procedure (Typ, Decl, Pnam, Name_Read);
    end Build_Record_Read_Procedure;
 
    ---------------------------------------
@@ -1407,12 +1271,12 @@ package body Exp_Strm is
    --  The out keyword for V is supplied in the Read case
 
    procedure Build_Record_Read_Write_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : Entity_Id;
       Nam  : Name_Id)
    is
+      Loc  : constant Source_Ptr := Sloc (Typ);
       Rdef : Node_Id;
       Stms : List_Id;
       Typt : Entity_Id;
@@ -1509,6 +1373,7 @@ package body Exp_Strm is
 
       function Make_Field_Attribute (C : Entity_Id) return Node_Id is
          Field_Typ : constant Entity_Id := Stream_Base_Type (Etype (C));
+         Selected  : Node_Id;
 
          TSS_Names : constant array (Name_Input .. Name_Write) of
                        TSS_Name_Type :=
@@ -1531,15 +1396,23 @@ package body Exp_Strm is
             return Make_Null_Statement (Loc);
          end if;
 
+         Selected := Make_Selected_Component (Loc,
+                       Prefix        => Make_Identifier (Loc, Name_V),
+                       Selector_Name => New_Occurrence_Of (C, Loc));
+
+         if Is_Mutably_Tagged_CW_Equivalent_Type (Etype (C)) then
+            Make_Mutably_Tagged_Conversion
+              (Selected,
+               Typ => Get_Corresponding_Mutably_Tagged_Type_If_Present
+                        (Etype (C)));
+         end if;
+
          return
            Make_Attribute_Reference (Loc,
              Prefix         => New_Occurrence_Of (Field_Typ, Loc),
              Attribute_Name => Nam,
-             Expressions    => New_List (
-               Make_Identifier (Loc, Name_S),
-               Make_Selected_Component (Loc,
-                 Prefix        => Make_Identifier (Loc, Name_V),
-                 Selector_Name => New_Occurrence_Of (C, Loc))));
+             Expressions    => New_List (Make_Identifier (Loc, Name_S),
+                                         Selected));
       end Make_Field_Attribute;
 
       ---------------------------
@@ -1548,37 +1421,32 @@ package body Exp_Strm is
 
       function Make_Field_Attributes (Clist : List_Id) return List_Id is
          Item   : Node_Id;
-         Result : List_Id;
+         Result : constant List_Id := New_List;
 
       begin
-         Result := New_List;
+         --  Loop through components, skipping all internal components, which
+         --  are not part of the value (e.g. _Tag), except that we don't skip
+         --  the _Parent, since we do want to process that recursively. If
+         --  _Parent is an interface type, being abstract with no components
+         --  there is no need to handle it.
 
-         if Present (Clist) then
-            Item := First (Clist);
+         Item := First (Clist);
+         while Present (Item) loop
+            if Nkind (Item) = N_Component_Declaration
+              and then
+                ((Chars (Defining_Identifier (Item)) = Name_uParent
+                 and then not Is_Interface
+                   (Etype (Defining_Identifier (Item))))
+                or else
+                  not Is_Internal_Name (Chars (Defining_Identifier (Item))))
+            then
+               Append_To
+                 (Result,
+                  Make_Field_Attribute (Defining_Identifier (Item)));
+            end if;
 
-            --  Loop through components, skipping all internal components,
-            --  which are not part of the value (e.g. _Tag), except that we
-            --  don't skip the _Parent, since we do want to process that
-            --  recursively. If _Parent is an interface type, being abstract
-            --  with no components there is no need to handle it.
-
-            while Present (Item) loop
-               if Nkind (Item) = N_Component_Declaration
-                 and then
-                   ((Chars (Defining_Identifier (Item)) = Name_uParent
-                       and then not Is_Interface
-                                      (Etype (Defining_Identifier (Item))))
-                     or else
-                    not Is_Internal_Name (Chars (Defining_Identifier (Item))))
-               then
-                  Append_To
-                    (Result,
-                     Make_Field_Attribute (Defining_Identifier (Item)));
-               end if;
-
-               Next (Item);
-            end loop;
-         end if;
+            Next (Item);
+         end loop;
 
          return Result;
       end Make_Field_Attributes;
@@ -1621,7 +1489,7 @@ package body Exp_Strm is
       end if;
 
       Build_Stream_Procedure
-        (Loc, Typ, Decl, Pnam, Stms, Outp => Nam = Name_Read);
+        (Typ, Decl, Pnam, Stms, Outp => Nam = Name_Read);
    end Build_Record_Read_Write_Procedure;
 
    ----------------------------------
@@ -1629,14 +1497,14 @@ package body Exp_Strm is
    ----------------------------------
 
    procedure Build_Record_Write_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id)
    is
+      Loc : constant Source_Ptr := Sloc (Typ);
    begin
       Pnam := Make_Stream_Subprogram_Name (Loc, Typ, TSS_Stream_Write);
-      Build_Record_Read_Write_Procedure (Loc, Typ, Decl, Pnam, Name_Write);
+      Build_Record_Read_Write_Procedure (Typ, Decl, Pnam, Name_Write);
    end Build_Record_Write_Procedure;
 
    -------------------------------
@@ -1679,13 +1547,13 @@ package body Exp_Strm is
    ---------------------------
 
    procedure Build_Stream_Function
-     (Loc   : Source_Ptr;
-      Typ   : Entity_Id;
+     (Typ   : Entity_Id;
       Decl  : out Node_Id;
       Fnam  : Entity_Id;
       Decls : List_Id;
       Stms  : List_Id)
    is
+      Loc  : constant Source_Ptr := Sloc (Typ);
       Spec : Node_Id;
 
    begin
@@ -1724,13 +1592,13 @@ package body Exp_Strm is
    ----------------------------
 
    procedure Build_Stream_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : Entity_Id;
       Stms : List_Id;
       Outp : Boolean)
    is
+      Loc  : constant Source_Ptr := Sloc (Typ);
       Spec : Node_Id;
 
    begin
@@ -1771,22 +1639,15 @@ package body Exp_Strm is
    -- Has_Stream_Standard_Rep --
    -----------------------------
 
-   function Has_Stream_Standard_Rep (U_Type : Entity_Id) return Boolean is
-      Siz : Uint;
-
+   function Is_Stream_Standard_Rep
+     (U_Type : Entity_Id; S_Size : Uint) return Boolean is
    begin
       if Has_Non_Standard_Rep (U_Type) then
          return False;
       end if;
 
-      if Has_Stream_Size_Clause (U_Type) then
-         Siz := Static_Integer (Expression (Stream_Size_Clause (U_Type)));
-      else
-         Siz := Esize (First_Subtype (U_Type));
-      end if;
-
-      return Siz = Esize (Root_Type (U_Type));
-   end Has_Stream_Standard_Rep;
+      return S_Size = Esize (Root_Type (U_Type));
+   end Is_Stream_Standard_Rep;
 
    ---------------------------------
    -- Make_Stream_Subprogram_Name --
@@ -1820,6 +1681,10 @@ package body Exp_Strm is
 
    function Stream_Base_Type (E : Entity_Id) return Entity_Id is
    begin
+      if Is_Class_Wide_Equivalent_Type (E) then
+         return Corresponding_Mutably_Tagged_Type (E);
+      end if;
+
       if Is_Array_Type (E)
         and then Is_First_Subtype (E)
       then
@@ -1828,5 +1693,4 @@ package body Exp_Strm is
          return Base_Type (E);
       end if;
    end Stream_Base_Type;
-
 end Exp_Strm;

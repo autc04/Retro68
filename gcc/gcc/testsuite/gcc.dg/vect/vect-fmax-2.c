@@ -1,3 +1,5 @@
+/* { dg-require-effective-target vect_double } */
+
 #define TYPE double
 #define FN __builtin_fmax
 

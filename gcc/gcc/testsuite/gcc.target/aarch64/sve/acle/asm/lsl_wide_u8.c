@@ -102,7 +102,7 @@ TEST_UNIFORM_Z (lsl_wide_8_u8_m_tied1, svuint8_t,
 		z0 = svlsl_wide_m (p0, z0, 8))
 
 /*
-** lsl_wide_8_u8_m_untied: { xfail *-*-* }
+** lsl_wide_8_u8_m_untied:
 **	mov	(z[0-9]+\.d), #8
 **	movprfx	z0, z1
 **	lsl	z0\.b, p0/m, z0\.b, \1
@@ -155,7 +155,7 @@ TEST_UNIFORM_ZX (lsl_wide_x0_u8_z_tied1, svuint8_t, uint64_t,
 		 z0 = svlsl_wide_z (p0, z0, x0))
 
 /*
-** lsl_wide_x0_u8_z_untied: { xfail *-*-* }
+** lsl_wide_x0_u8_z_untied:
 **	mov	(z[0-9]+\.d), x0
 **	movprfx	z0\.b, p0/z, z1\.b
 **	lsl	z0\.b, p0/m, z0\.b, \1
@@ -217,7 +217,7 @@ TEST_UNIFORM_Z (lsl_wide_8_u8_z_tied1, svuint8_t,
 		z0 = svlsl_wide_z (p0, z0, 8))
 
 /*
-** lsl_wide_8_u8_z_untied: { xfail *-*-* }
+** lsl_wide_8_u8_z_untied:
 **	mov	(z[0-9]+\.d), #8
 **	movprfx	z0\.b, p0/z, z1\.b
 **	lsl	z0\.b, p0/m, z0\.b, \1
@@ -276,7 +276,7 @@ TEST_UNIFORM_ZX (lsl_wide_x0_u8_x_untied, svuint8_t, uint64_t,
 
 /*
 ** lsl_wide_1_u8_x_tied1:
-**	lsl	z0\.b, z0\.b, #1
+**	add	z0\.b, z0\.b, z0\.b
 **	ret
 */
 TEST_UNIFORM_Z (lsl_wide_1_u8_x_tied1, svuint8_t,
@@ -285,7 +285,7 @@ TEST_UNIFORM_Z (lsl_wide_1_u8_x_tied1, svuint8_t,
 
 /*
 ** lsl_wide_1_u8_x_untied:
-**	lsl	z0\.b, z1\.b, #1
+**	add	z0\.b, z1\.b, z1\.b
 **	ret
 */
 TEST_UNIFORM_Z (lsl_wide_1_u8_x_untied, svuint8_t,

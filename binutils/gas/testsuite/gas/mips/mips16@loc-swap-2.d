@@ -6,7 +6,7 @@
 
 Raw dump of debug contents of section .debug_line:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Length:                      60
   DWARF Version:               3
   Prologue Length:             35

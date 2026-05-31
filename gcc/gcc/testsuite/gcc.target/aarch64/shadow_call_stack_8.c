@@ -9,7 +9,8 @@
      * optimized code should not restore x30 in epilogue.  */
 
 /* { dg-do compile } */
-/* { dg-options "-O0 -fomit-frame-pointer -fsanitize=shadow-call-stack -fno-exceptions -ffixed-x18 --save-temps" } */
+/* { dg-options "-O0 -fomit-frame-pointer -fsanitize=shadow-call-stack -fno-exceptions -ffixed-x18 --save-temps -fno-stack-protector" } */
+/* { dg-skip-if "conflicts with x18" { aarch64-*-vxworks* } } */
 
 int func1 (void)
 {

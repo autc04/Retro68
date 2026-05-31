@@ -1,13 +1,13 @@
-.macro cond
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vpnot
-.endr
-.endm
-
 .syntax unified
 .thumb
-cond
+
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+vpnot
+
+.endr
+
 it eq
 vpnoteq
 vpnoteq

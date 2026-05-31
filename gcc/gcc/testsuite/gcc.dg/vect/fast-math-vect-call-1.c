@@ -1,3 +1,4 @@
+/* { dg-additional-options "-ffast-math" } */
 /* Disabling epilogues until we find a better way to deal with scans.  */
 /* { dg-additional-options "--param vect-epilogues-nomask=0" } */
 #include "tree-vect.h"
@@ -65,24 +66,28 @@ main1 ()
       d[i] = i * i;
     }
   f1 (16);
+#pragma GCC novector
   for (i = 0; i < 64; i++)
     if (fabsf (((i & 2) ? -4 * i : 4 * i) + 1 + (i & 3) + i - a[i]) >= 0.0001f)
       abort ();
     else
       a[i] = 131.25;
   f2 (16);
+#pragma GCC novector
   for (i = 0; i < 64; i++)
     if (fabsf (((i & 2) ? -4 * i : 4 * i) + 1 + (i & 1) + i - a[i]) >= 0.0001f)
       abort ();
     else
       a[i] = 131.25;
   f3 ();
+#pragma GCC novector
   for (i = 0; i < 64; i++)
     if (fabsf (((i & 2) ? -4 * i : 4 * i) + 1 + i - a[i]) >= 0.0001f)
       abort ();
     else
       a[i] = 131.25;
   f4 (10);
+#pragma GCC novector
   for (i = 0; i < 60; i++)
     if (fabsf (((i & 2) ? -4 * i : 4 * i) + 1 + (i % 3) + i - a[i]) >= 0.0001f)
       abort ();
@@ -97,4 +102,4 @@ main ()
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 4 "vect" { target { vect_call_copysignf && vect_call_sqrtf } } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 3 "vect" { target { { vect_call_copysignf && vect_call_sqrtf } && vect_perm3_int } } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 4 "vect" { target { { vect_call_copysignf && vect_call_sqrtf } && vect_perm3_int } } } } */

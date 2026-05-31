@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 AVX512F/VAES insns (Intel disassembly)
 #source: avx512f_vaes.s

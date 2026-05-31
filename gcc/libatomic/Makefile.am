@@ -1,4 +1,4 @@
-##  Copyright (C) 2012-2022 Free Software Foundation, Inc.
+##  Copyright (C) 2012-2026 Free Software Foundation, Inc.
 ##  Contributed by Richard Henderson <rth@redhat.com>.
 ##
 ##  This file is part of the GNU Atomic Library (libatomic).
@@ -55,9 +55,7 @@ libatomic.map-sun : $(top_srcdir)/libatomic.map \
 		$(libatomic_la_OBJECTS) $(libatomic_la_LIBADD)
 	perl $(top_srcdir)/../contrib/make_sunver.pl \
 	  $(top_srcdir)/libatomic.map \
-	  $(libatomic_la_OBJECTS:%.lo=.libs/%.o) \
-	 `echo $(libatomic_la_LIBADD) | \
-	    sed 's,\([^/ 	]*\)\.l\([ao]\),.libs/\1.\2,g'` \
+	  $(libatomic_la_OBJECTS) $(libatomic_la_LIBADD) \
 	 > $@ || (rm -f $@ ; exit 1)
 endif
 else
@@ -65,13 +63,23 @@ libatomic_version_script =
 libatomic_version_dep =
 endif
 libatomic_version_info = -version-info $(libtool_VERSION)
+if ENABLE_DARWIN_AT_RPATH
+libatomic_darwin_rpath = -Wc,-nodefaultrpaths
+libatomic_darwin_rpath += -Wl,-rpath,@loader_path
+endif
 
-libatomic_la_LDFLAGS = $(libatomic_version_info) $(libatomic_version_script) $(lt_host_flags)
+libatomic_la_LDFLAGS = $(libatomic_version_info) $(libatomic_version_script) \
+	-Wc,-fno-link-libatomic $(lt_host_flags) $(libatomic_darwin_rpath)
+
+SIZES = @SIZES@
+
+if PARTIAL_VXWORKS
+libatomic_la_SOURCES = fenv.c fence.c flag.c
+else
 libatomic_la_SOURCES = gload.c gstore.c gcas.c gexch.c glfree.c lock.c init.c \
 	fenv.c fence.c flag.c
 
 SIZEOBJS = load store cas exch fadd fsub fand fior fxor fnand tas
-SIZES = @SIZES@
 
 EXTRA_libatomic_la_SOURCES = $(addsuffix _n.c,$(SIZEOBJS))
 libatomic_la_DEPENDENCIES = $(libatomic_la_LIBADD) $(libatomic_version_dep)
@@ -99,7 +107,7 @@ PAT_BASE	= $(word 1,$(PAT_SPLIT))
 PAT_N		= $(word 2,$(PAT_SPLIT))
 PAT_S		= $(word 3,$(PAT_SPLIT))
 IFUNC_DEF	= -DIFUNC_ALT=$(PAT_S)
-IFUNC_OPT	= $(word $(PAT_S),$(IFUNC_OPTIONS))
+IFUNC_OPT	= $(subst |,$(space),$(word $(PAT_S),$(IFUNC_OPTIONS)))
 
 @AMDEP_TRUE@M_DEPS		= -MT $@ -MD -MP -MF $(DEPDIR)/$(@F).Ppo
 @AMDEP_FALSE@M_DEPS		=
@@ -127,11 +135,13 @@ if HAVE_IFUNC
 if ARCH_AARCH64_LINUX
 IFUNC_OPTIONS	     = -march=armv8-a+lse
 libatomic_la_LIBADD += $(foreach s,$(SIZES),$(addsuffix _$(s)_1_.lo,$(SIZEOBJS)))
+
 endif
 if ARCH_ARM_LINUX
 IFUNC_OPTIONS	     = -march=armv7-a+fp -DHAVE_KERNEL64
 libatomic_la_LIBADD += $(foreach s,$(SIZES),$(addsuffix _$(s)_1_.lo,$(SIZEOBJS)))
 libatomic_la_LIBADD += $(addsuffix _8_2_.lo,$(SIZEOBJS))
+libatomic_la_LIBADD += tas_1_2_.lo
 endif
 if ARCH_I386
 IFUNC_OPTIONS	     = -march=i586
@@ -142,17 +152,63 @@ IFUNC_OPTIONS	     = -mcx16 -mcx16
 libatomic_la_LIBADD += $(addsuffix _16_1_.lo,$(SIZEOBJS)) \
 		       $(addsuffix _16_2_.lo,$(SIZEOBJS))
 endif
+if ARCH_LOONGARCH
+IFUNC_OPTIONS	     = -mlsx|-mscq
+libatomic_la_LIBADD += $(addsuffix _16_1_.lo,$(SIZEOBJS))
+endif
+endif
+
+if ARCH_AARCH64_LINUX
+libatomic_la_SOURCES += atomic_16.S
+endif
 endif
 
 libatomic_convenience_la_SOURCES = $(libatomic_la_SOURCES)
 libatomic_convenience_la_LIBADD = $(libatomic_la_LIBADD)
 
-# Override the automake generated all-multi rule to guarantee that all-multi
+# Amend the automake generated all-multi rule to guarantee that all-multi
 # is not run in parallel with the %_.lo rules which generate $(DEPDIR)/*.Ppo
 # makefile fragments to avoid broken *.Ppo getting included into the Makefile
 # when it is reloaded during the build of all-multi.
 all-multi: $(libatomic_la_LIBADD)
-	$(MULTIDO) $(AM_MAKEFLAGS) DO=all multi-do # $(MAKE)
+
+# Copy built libatomic library to $build/gcc so it's easier to locate,
+# similar to libgcc.
+#
+# FIXME: libtool --mode=install also ends up copying libatomic.la in $gcc_objdir,
+# which (somehow) ends up adding $gcc_objdir to RPATH for libraries that get
+# built after libatomic, which makes RPATH insecure. Removing libatomic.la
+# from $gcc_objdir seems to fix the issue.
+
+gcc_objdir = `pwd`/$(MULTIBUILDTOP)../../gcc/
+all-local: stmp-libatomic
+stmp-libatomic: libatomic.la
+	$(LIBTOOL) --mode=install $(INSTALL_DATA) libatomic.la $(gcc_objdir)$(MULTISUBDIR)/
+if LIBAT_BUILD_ASNEEDED_SOLINK
+	cd $(gcc_objdir)$(MULTISUBDIR) || exit 1; \
+	if test -f libatomic.so; then (echo "/* GNU ld script"; \
+	 echo "   Add DT_NEEDED entry for -latomic only if needed.  */"; \
+	 echo "INPUT ( AS_NEEDED ( -latomic ) )" \
+	) > libatomic_asneeded.so; fi; \
+	if test -f libatomic.a; then rm -f libatomic_asneeded.a; \
+	$(LN_S) libatomic.a libatomic_asneeded.a; fi
+endif
+	rm $(gcc_objdir)$(MULTISUBDIR)/libatomic.la
+	touch $@
+
+if LIBAT_BUILD_ASNEEDED_SOLINK
+install-data-am: install-asneeded
+
+install-asneeded: install-toolexeclibLTLIBRARIES
+	$(MKDIR_P) "$(DESTDIR)$(toolexeclibdir)" || exit 1; \
+	cd "$(DESTDIR)$(toolexeclibdir)" || exit 1; \
+	if test -f libatomic.so; then (echo "/* GNU ld script"; \
+	 echo "   Add DT_NEEDED entry for -latomic only if needed.  */"; \
+	 echo "INPUT ( AS_NEEDED ( -latomic ) )" \
+	) > libatomic_asneeded.so; fi; \
+	if test -f libatomic.a; then rm -f libatomic_asneeded.a; \
+	$(LN_S) libatomic.a libatomic_asneeded.a; fi
+endif
 
 # target overrides
 -include $(tmake_file)

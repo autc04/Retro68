@@ -1,6 +1,6 @@
 /* Test MIPS MSA ASE instructions */
 /* { dg-do compile } */
-/* { dg-options "-mfp64 -mhard-float -mmsa -fexpensive-optimizations -fcommon" } */
+/* { dg-options "-mno-mips16 -mfp64 -mhard-float -mmsa -fexpensive-optimizations -fcommon" } */
 /* { dg-skip-if "madd and msub need combine" { *-*-* } { "-O0" } { "" } } */
 
 /* { dg-final { scan-assembler-times "\t.comm\tv16i8_\\d+,16,16" 3 } } */
@@ -90,8 +90,8 @@
 /* { dg-final { scan-assembler-times "test7_v8u16:.*subv.h.*test7_v8u16" 1 } } */
 /* { dg-final { scan-assembler-times "test7_v4u32:.*subv.w.*test7_v4u32" 1 } } */
 /* { dg-final { scan-assembler-times "test7_v2u64:.*subv.d.*test7_v2u64" 1 } } */
-/* { dg-final { scan-assembler-times "test7_v4f32:.*fsub.w.*test7_v4f32" 1 } } */
-/* { dg-final { scan-assembler-times "test7_v2f64:.*fsub.d.*test7_v2f64" 1 } } */
+/* { dg-final { scan-assembler-times "test7_v4f32:.*bnegi.w.*test7_v4f32" 1 } } */
+/* { dg-final { scan-assembler-times "test7_v2f64:.*bnegi.d.*test7_v2f64" 1 } } */
 /* { dg-final { scan-assembler-times "test8_v16i8:.*xor.v.*test8_v16i8" 1 } } */
 /* { dg-final { scan-assembler-times "test8_v8i16:.*xor.v.*test8_v8i16" 1 } } */
 /* { dg-final { scan-assembler-times "test8_v4i32:.*xor.v.*test8_v4i32" 1 } } */
@@ -401,7 +401,7 @@
 /* { dg-final { scan-assembler-times "test43_v16i8:.*insve.b.*test43_v16i8" 1 } } */
 /* { dg-final { scan-assembler-times "test43_v8i16:.*insve.h.*test43_v8i16" 1 } } */
 /* { dg-final { scan-assembler-times "test43_v4i32:.*insve.w.*test43_v4i32" 1 } } */
-/* { dg-final { scan-assembler-times "test43_v2i64:.*insve.d.*test43_v2i64" 1 } } */
+/* { dg-final { scan-assembler-times "test43_v2i64:.*ilvr.d.*test43_v2i64" 1 } } */
 /* { dg-final { scan-assembler-times "test44_v16i8:.*copy_s.b.*test44_v16i8" 1 } } */
 /* { dg-final { scan-assembler-times "test44_v8i16:.*copy_s.h.*test44_v8i16" 1 } } */
 /* { dg-final { scan-assembler-times "test44_v4i32:.*copy_s.w.*test44_v4i32" 1 } } */
@@ -485,11 +485,11 @@ float imm_f = 37.0;
 
 
 #define DECLARE(TYPE) TYPE TYPE ## _0, TYPE ## _1, TYPE ## _2;
-#define RETURN(TYPE) NOMIPS16 TYPE test0_ ## TYPE () { return TYPE ## _0; }
-#define ASSIGN(TYPE) NOMIPS16 void test1_ ## TYPE (TYPE i) { TYPE ## _1 = i; }
-#define ADD(TYPE) NOMIPS16 TYPE test2_ ## TYPE (TYPE i, TYPE j) { return i + j; }
-#define SUB(TYPE) NOMIPS16 TYPE test3_ ## TYPE (TYPE i, TYPE j) { return i - j; }
-#define MUL(TYPE) NOMIPS16 TYPE test4_ ## TYPE (TYPE i, TYPE j) { return i * j; }
+#define RETURN(TYPE) TYPE test0_ ## TYPE () { return TYPE ## _0; }
+#define ASSIGN(TYPE) void test1_ ## TYPE (TYPE i) { TYPE ## _1 = i; }
+#define ADD(TYPE) TYPE test2_ ## TYPE (TYPE i, TYPE j) { return i + j; }
+#define SUB(TYPE) TYPE test3_ ## TYPE (TYPE i, TYPE j) { return i - j; }
+#define MUL(TYPE) TYPE test4_ ## TYPE (TYPE i, TYPE j) { return i * j; }
 #define DIV(TYPE) TYPE test5_ ## TYPE (TYPE i, TYPE j) { return i / j; }
 #define MOD(TYPE) TYPE test6_ ## TYPE (TYPE i, TYPE j) { return i % j; }
 #define MINUS(TYPE) TYPE test7_ ## TYPE (TYPE i) { return -i; }

@@ -1,4 +1,6 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-require-effective-target vect_pack_trunc } */
+/* { dg-additional-options "-fno-tree-scev-cprop" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -33,6 +35,7 @@ int main (void)
   foo ();
 
     /* check results:  */
+#pragma GCC novector
   for (i=0; i<N; i++)
     {
       sum = 0;
@@ -45,5 +48,4 @@ int main (void)
   return 0;
 }
 
-/* Until we support multiple types in the inner loop  */
-/* { dg-final { scan-tree-dump-times "OUTER LOOP VECTORIZED." 1 "vect" { xfail { ! aarch64*-*-* } } } } */
+/* { dg-final { scan-tree-dump-times "OUTER LOOP VECTORIZED." 1 "vect" } } */

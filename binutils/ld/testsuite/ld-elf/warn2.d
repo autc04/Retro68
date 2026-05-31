@@ -1,7 +1,7 @@
 #source: start.s
 #source: symbol2ref.s
 #source: symbol2w.s
-#ld: -T group.ld
+#ld: -T group.ld --no-warn-rwx-segments
 #warning: ^[^\n]*\.[obj]+: warning: function 'Foo' used$
 #readelf: -s
 # if not using elf.em, you don't get fancy section handling

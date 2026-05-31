@@ -47,8 +47,8 @@ Disassembly of section .text:
 0+90 <[^>]*> e1800001 ?	orr	r0, r0, r1
 0+94 <[^>]*> e1c00001 ?	bic	r0, r0, r1
 0+98 <[^>]*> e0000091 ?	mul	r0, r1, r0
-0+9c <[^>]*> e1a00000 ?	nop			; \(mov r0, r0\)
+0+9c <[^>]*> e1a00000 ?	nop			@ \(mov r0, r0\)
 0+a0 <[^>]*> e1a00069 ?	rrx	r0, r9
 0+a4 <[^>]*> e1b09060 ?	rrxs	r9, r0
-0+a8 <[^>]*> e1a00000 ?	nop			; \(mov r0, r0\)
-0+ac <[^>]*> e1a00000 ?	nop			; \(mov r0, r0\)
+0+a8 <[^>]*> e1a00000 ?	nop			@ \(mov r0, r0\)
+0+ac <[^>]*> e1a00000 ?	nop			@ \(mov r0, r0\)

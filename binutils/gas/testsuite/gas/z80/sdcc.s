@@ -1,3 +1,7 @@
+;; This file uses syntax emitted by the Small Device C Compiler.  It
+;; is used to test the -sdcc flag to the z80 assembler.  Modifications
+;; to this file should take care to keep SDCC syntax.
+
         .module longpolls
         .optsdcc -mz80
 
@@ -142,13 +146,13 @@ _start::
 	xor	a, 5 (ix)
 	xor	a, -2 (iy)
 
-	jp	0$
-	jp	100$
-	jp	200$
-	jp	300$
-	jp	500$
-	jp	600$
-	jp	700$
+	jp	00000$
+	jp	00100$
+	jp	00200$
+	jp	00300$
+	jp	00500$
+	jp	00600$
+	jp	00700$
 _func:
 	ld	hl,0
 	ld	(hl),#<function
@@ -156,7 +160,7 @@ _func:
 	inc	hl
 	ld	(hl),#>function
 00600$:
-	jr	100$
+	jr	00100$
 _finish::
 	ld	a, 2 (iy)
 	ld	-1 (ix), a

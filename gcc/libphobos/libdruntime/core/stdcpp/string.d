@@ -31,7 +31,7 @@ version (Darwin)
     version = _LIBCPP_ABI_ALTERNATE_STRING_LAYOUT;
 }
 
-version (CppRuntime_Gcc)
+version (CppRuntime_GNU)
 {
     version (_GLIBCXX_USE_CXX98_ABI)
     {
@@ -155,7 +155,7 @@ extern(D):
     ///
     alias opDollar = length;
     ///
-    bool empty() const nothrow @safe                                        { return size() == 0; }
+    bool empty() const nothrow @trusted                                     { return size() == 0; }
 
     ///
     size_t[2] opSlice(size_t dim : 0)(size_t start, size_t end) const pure nothrow @safe @nogc { return [start, end]; }
@@ -343,7 +343,7 @@ extern(D):
         ///
         inout(T)* data() inout @safe                                        { return _Get_data()._Myptr; }
         ///
-        inout(T)[] as_array() scope return inout nothrow @trusted           { return _Get_data()._Myptr[0 .. _Get_data()._Mysize]; }
+        inout(T)[] as_array() return ref scope inout nothrow @trusted       { return _Get_data()._Myptr[0 .. _Get_data()._Mysize]; }
         ///
         ref inout(T) at(size_type i) inout nothrow @trusted                 { return _Get_data()._Myptr[0 .. _Get_data()._Mysize][i]; }
 
@@ -894,7 +894,7 @@ extern(D):
 
         _String_alloc!(_String_base_types!(T, Alloc)) _Base;
     }
-    else version (CppRuntime_Gcc)
+    else version (CppRuntime_GNU)
     {
         version (_GLIBCXX_USE_CXX98_ABI)
         {
@@ -1873,10 +1873,10 @@ extern(D):
             __d[0 .. __n] = __s[0 .. __n];
         }
     }
-    else version (CppRuntime_Clang)
+    else version (CppRuntime_LLVM)
     {
         //----------------------------------------------------------------------------------
-        // Clang/libc++ implementation
+        // libc++ implementation
         //----------------------------------------------------------------------------------
 
         ///
@@ -1918,9 +1918,9 @@ extern(D):
         ///
         size_type capacity() const nothrow                                  { return (__is_long() ? __get_long_cap() : __min_cap) - 1; }
         ///
-        inout(T)* data() inout @safe                                        { return __get_pointer(); }
+        inout(T)* data() inout @trusted                                     { return __get_pointer(); }
         ///
-        inout(T)[] as_array() scope return inout nothrow @trusted           { return __get_pointer()[0 .. size()]; }
+        inout(T)[] as_array() return ref scope inout nothrow @trusted       { return __get_pointer()[0 .. size()]; }
         ///
         ref inout(T) at(size_type i) inout nothrow @trusted                 { return __get_pointer()[0 .. size()][i]; }
 
@@ -2355,7 +2355,7 @@ extern(D):
                 }
             }
             void __set_long_size(size_type __s) nothrow                         { __r_.first().__l.__size_ = __s; }
-            size_type __get_long_size() const nothrow                           { return __r_.first().__l.__size_; }
+            size_type __get_long_size() const nothrow @trusted                  { return __r_.first().__l.__size_; }
             void __set_size(size_type __s) nothrow                              { if (__is_long()) __set_long_size(__s); else __set_short_size(__s); }
 
             void __set_long_cap(size_type __s) nothrow                          { __r_.first().__l.__cap_  = __long_mask | __s; }

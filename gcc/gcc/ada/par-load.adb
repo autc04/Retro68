@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -83,7 +83,7 @@ procedure Load is
    --  withed units and the second round handles Ada 2005 limited-withed units.
    --  This is required to allow the low-level circuitry that detects circular
    --  dependencies of units the correct notification of errors (see comment
-   --  bellow). This variable is used to indicate that the second round is
+   --  below). This variable is used to indicate that the second round is
    --  required.
 
    function Same_File_Name_Except_For_Case
@@ -116,6 +116,29 @@ procedure Load is
       end;
 
    end Same_File_Name_Except_For_Case;
+
+   function Actual_Name_Collides_With_Predefined_Unit_Name
+     (Actual_File_Name : File_Name_Type) return Boolean;
+   --  Given an actual file name, determine if it is a child unit whose parent
+   --  unit is a single letter that is a, g, i, or s. Such a name could create
+   --  confusion with predefined units and thus is required to use a tilde
+   --  instead of the minus as the second character.
+
+   ----------------------------------------------------
+   -- Actual_Name_Collides_With_Predefined_Unit_Name --
+   ----------------------------------------------------
+
+   function Actual_Name_Collides_With_Predefined_Unit_Name
+     (Actual_File_Name : File_Name_Type) return Boolean
+   is
+      N1 : Character;
+   begin
+      Get_Name_String (Actual_File_Name);
+      N1 := Name_Buffer (1);
+      return Name_Len > 1
+        and then Name_Buffer (2) = '-'
+        and then (N1 = 'a' or else N1 = 'g' or else N1 = 'i' or else N1 = 's');
+   end Actual_Name_Collides_With_Predefined_Unit_Name;
 
 --  Start of processing for Load
 
@@ -163,8 +186,18 @@ begin
                          (File_Name, Unit_File_Name (Cur_Unum)))
    then
       Error_Msg_File_1 := File_Name;
-      Error_Msg
-        ("??file name does not match unit name, should be{", Sloc (Curunit));
+      if Actual_Name_Collides_With_Predefined_Unit_Name
+           (Unit_File_Name (Cur_Unum))
+      then
+         Error_Msg
+           ("??file name may conflict with predefined units, "
+            & "the expected file name for this unit is{",
+            Sloc (Curunit));
+      else
+         Error_Msg
+           ("??file name does not match unit name, should be{",
+            Sloc (Curunit));
+      end if;
    end if;
 
    --  For units other than the main unit, the expected unit name is set and
@@ -258,8 +291,8 @@ begin
       --  have set our Fatal_Error flag to propagate this condition.
 
       if Unum /= No_Unit then
-         Set_Library_Unit (Curunit, Cunit (Unum));
-         Set_Library_Unit (Cunit (Unum), Curunit);
+         Set_Spec_Lib_Unit (Curunit, Cunit (Unum));
+         Set_Body_Lib_Unit (Cunit (Unum), Curunit);
 
          --  If this is a separate spec for the main unit, then we reset
          --  Main_Unit_Entity to point to the entity for this separate spec
@@ -284,7 +317,7 @@ begin
 
       elsif Nkind (Unit (Curunit)) = N_Subprogram_Body then
          Set_Acts_As_Spec (Curunit, True);
-         Set_Library_Unit (Curunit, Curunit);
+         Set_Spec_Lib_Unit (Curunit, Curunit);
 
       --  Otherwise we do have an error, repeat the load request for the spec
       --  with Required set True to generate an appropriate error message.
@@ -341,7 +374,7 @@ begin
            Error_Node => Name (Unit (Curunit)));
 
       if Unum /= No_Unit then
-         Set_Library_Unit (Curunit, Cunit (Unum));
+         Set_Subunit_Parent (Curunit, Cunit (Unum));
       end if;
    end if;
 
@@ -397,7 +430,7 @@ begin
             --  unit gets a fatal error, so we don't need to worry about that.
 
             if Unum /= No_Unit then
-               Set_Library_Unit (With_Node, Cunit (Unum));
+               Set_Withed_Lib_Unit (With_Node, Cunit (Unum));
 
             --  If the spec isn't found, then try finding the corresponding
             --  body, since it is possible that we have a subprogram body
@@ -414,16 +447,29 @@ begin
                     Renamings  => True);
 
                --  If we got a subprogram body, then mark that we are using
-               --  the body as a spec in the file table, and set the spec
-               --  pointer in the N_With_Clause to point to the body entity.
+               --  the body as a spec in the file table, and set
+               --  Withed_Lib_Unit of the N_With_Clause to point to
+               --  the body entity.
 
                if Unum /= No_Unit
                  and then Nkind (Unit (Cunit (Unum))) = N_Subprogram_Body
                then
                   With_Cunit := Cunit (Unum);
-                  Set_Library_Unit (With_Node, With_Cunit);
-                  Set_Acts_As_Spec (With_Cunit, True);
-                  Set_Library_Unit (With_Cunit, With_Cunit);
+                  Set_Withed_Lib_Unit (With_Node, With_Cunit);
+
+                  --  If we have errors, Acts_As_Spec and Spec_Lib_Unit might
+                  --  not be set; set them for better error recovery.
+
+                  if Serious_Errors_Detected > 0 then
+                     Set_Acts_As_Spec (With_Cunit, True);
+                     Set_Spec_Lib_Unit (With_Cunit, With_Cunit);
+
+                  --  Otherwise, these field should already by set
+
+                  else
+                     pragma Assert (Acts_As_Spec (With_Cunit));
+                     pragma Assert (Spec_Lib_Unit (With_Cunit) = With_Cunit);
+                  end if;
 
                --  If we couldn't find the body, or if it wasn't a body spec
                --  then we are in trouble. We make one more call to Load to
@@ -443,7 +489,7 @@ begin
                   --  Here we create a dummy package unit for the missing unit
 
                   Unum := Create_Dummy_Package_Unit (With_Node, Spec_Name);
-                  Set_Library_Unit (With_Node, Cunit (Unum));
+                  Set_Withed_Lib_Unit (With_Node, Cunit (Unum));
                end if;
             end if;
          end if;

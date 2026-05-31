@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: --pic --underscore --em=criself
+#as: --pic --underscore --emulation=criself
 #source: branch.s
 
 .*:     file format .*-cris

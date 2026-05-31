@@ -1,6 +1,8 @@
 	.section .text
 	.global	start
+	.global	_start
 start:
+_start:
 
 	mov.l	stack_k,r15
 
@@ -19,9 +21,11 @@ main_k:
 
 	.global _trap
 _trap:	
-	trapa #3
+	trapa #34
 	rts
 	nop
 
-	.section .stack
-_stack:	.long	0xdeaddead
+	.section .stack,"aw",%nobits
+	.balign 4096
+	.space 4096
+_stack:

@@ -9,7 +9,7 @@ Disassembly of section \.text:
     8004:	ecba 5b08 	vldmia	sl!, {d5-d8}
     8008:	ecba 9b08 	vldmia	sl!, {d9-d12}
     800c:	ecba db06 	vldmia	sl!, {d13-d15}
-    8010:	f1aa 0a78 	sub\.w	sl, sl, #120	; 0x78
+    8010:	f1aa 0a78 	sub\.w	sl, sl, #120	@ 0x78
     8014:	f000 b826 	b\.w	8064 <__stm32l4xx_veneer_0_r>
 
 00008018 <__stm32l4xx_veneer_1>:

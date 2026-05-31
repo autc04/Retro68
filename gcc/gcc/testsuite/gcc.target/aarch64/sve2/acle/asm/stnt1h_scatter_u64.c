@@ -1,3 +1,4 @@
+/* { dg-skip-if "" { *-*-* } { "-DSTREAMING_COMPATIBLE" } { "" } } */
 /* { dg-final { check-function-bodies "**" "" "-DCHECK_ASM" { target { ! ilp32 } } } } */
 
 #include "test_sve_acle.h"
@@ -176,7 +177,7 @@ TEST_STORE_SCATTER_SZ (stnt1h_scatter_u64_u64offset, svuint64_t, uint16_t, svuin
 
 /*
 ** stnt1h_scatter_x0_u64_s64index:
-**	lsl	(z[0-9]+\.d), z1\.d, #1
+**	add	(z[0-9]+\.d), z1\.d, z1\.d
 **	stnt1h	z0\.d, p0, \[\1, x0\]
 **	ret
 */
@@ -186,7 +187,7 @@ TEST_STORE_SCATTER_SZ (stnt1h_scatter_x0_u64_s64index, svuint64_t, uint16_t, svi
 
 /*
 ** stnt1h_scatter_u64_s64index:
-**	lsl	(z[0-9]+\.d), z1\.d, #1
+**	add	(z[0-9]+\.d), z1\.d, z1\.d
 **	stnt1h	z0\.d, p0, \[\1, x0\]
 **	ret
 */
@@ -196,7 +197,7 @@ TEST_STORE_SCATTER_SZ (stnt1h_scatter_u64_s64index, svuint64_t, uint16_t, svint6
 
 /*
 ** stnt1h_scatter_x0_u64_u64index:
-**	lsl	(z[0-9]+\.d), z1\.d, #1
+**	add	(z[0-9]+\.d), z1\.d, z1\.d
 **	stnt1h	z0\.d, p0, \[\1, x0\]
 **	ret
 */
@@ -206,7 +207,7 @@ TEST_STORE_SCATTER_SZ (stnt1h_scatter_x0_u64_u64index, svuint64_t, uint16_t, svu
 
 /*
 ** stnt1h_scatter_u64_u64index:
-**	lsl	(z[0-9]+\.d), z1\.d, #1
+**	add	(z[0-9]+\.d), z1\.d, z1\.d
 **	stnt1h	z0\.d, p0, \[\1, x0\]
 **	ret
 */

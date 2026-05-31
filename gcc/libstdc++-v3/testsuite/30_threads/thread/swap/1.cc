@@ -3,7 +3,7 @@
 // { dg-require-effective-target c++11 }
 // { dg-require-gthreads "" }
 
-// Copyright (C) 2008-2022 Free Software Foundation, Inc.
+// Copyright (C) 2008-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -23,7 +23,7 @@
 
 #include <thread>
 #include <system_error>
-#include <bits/move.h> // std::move
+#include <utility> // std::move
 #include <testsuite_hooks.h>
 
 void f() { }

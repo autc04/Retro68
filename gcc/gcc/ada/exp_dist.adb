@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,7 +24,6 @@
 ------------------------------------------------------------------------------
 
 with Atree;          use Atree;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
@@ -46,7 +45,6 @@ with Sem_Ch12;       use Sem_Ch12;
 with Sem_Dist;       use Sem_Dist;
 with Sem_Eval;       use Sem_Eval;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Stand;          use Stand;
@@ -2089,8 +2087,7 @@ package body Exp_Dist is
       --  disambiguated within their own scope.
 
       if Overload_Order > 1 then
-         Name_Buffer (Name_Len + 1 .. Name_Len + 2) := "__";
-         Name_Len := Name_Len + 2;
+         Add_Str_To_Name_Buffer ("__");
          Add_Nat_To_Name_Buffer (Overload_Order);
       end if;
 
@@ -2826,7 +2823,6 @@ package body Exp_Dist is
       Append_To (Decls,
         Make_Object_Declaration (Loc,
           Defining_Identifier => NVList,
-          Aliased_Present     => False,
           Object_Definition   =>
               New_Occurrence_Of (RTE (RE_NVList_Ref), Loc)));
 
@@ -3118,8 +3114,8 @@ package body Exp_Dist is
       --  Start of processing for Add_RACW_Read_Attribute
 
       begin
-         Build_Stream_Procedure (Loc,
-           RACW_Type, Body_Node, Pnam, Statements, Outp => True);
+         Build_Stream_Procedure
+           (RACW_Type, Body_Node, Pnam, Statements, Outp => True);
          Proc_Decl := Make_Subprogram_Declaration (Loc,
            Copy_Specification (Loc, Specification (Body_Node)));
 
@@ -3354,7 +3350,7 @@ package body Exp_Dist is
 
       begin
          Build_Stream_Procedure
-           (Loc, RACW_Type, Body_Node, Pnam, Statements, Outp => False);
+           (RACW_Type, Body_Node, Pnam, Statements, Outp => False);
 
          Proc_Decl := Make_Subprogram_Declaration (Loc,
            Copy_Specification (Loc, Specification (Body_Node)));
@@ -5800,7 +5796,7 @@ package body Exp_Dist is
 
       begin
          Build_Stream_Procedure
-           (Loc, RACW_Type, Body_Node, Pnam, Statements, Outp => True);
+           (RACW_Type, Body_Node, Pnam, Statements, Outp => True);
 
          Proc_Decl := Make_Subprogram_Declaration (Loc,
            Copy_Specification (Loc, Specification (Body_Node)));
@@ -6103,7 +6099,7 @@ package body Exp_Dist is
 
       begin
          Build_Stream_Procedure
-           (Loc, RACW_Type, Body_Node, Pnam, Statements, Outp => False);
+           (RACW_Type, Body_Node, Pnam, Statements, Outp => False);
 
          Proc_Decl :=
            Make_Subprogram_Declaration (Loc,
@@ -7252,7 +7248,6 @@ package body Exp_Dist is
          Append_To (Decls,
            Make_Object_Declaration (Loc,
              Defining_Identifier => Result,
-             Aliased_Present     => False,
              Object_Definition   =>
                New_Occurrence_Of (RTE (RE_NamedValue), Loc),
              Expression =>
@@ -7379,7 +7374,6 @@ package body Exp_Dist is
                   Append_To (Decls,
                     Make_Object_Declaration (Loc,
                       Defining_Identifier => Any,
-                      Aliased_Present     => False,
                       Object_Definition   =>
                         New_Occurrence_Of (RTE (RE_Any), Loc),
                       Expression          => Expr));
@@ -7450,7 +7444,6 @@ package body Exp_Dist is
                   Append_To (Decls,
                     Make_Object_Declaration (Loc,
                       Defining_Identifier => Extra_Any_Parameter,
-                      Aliased_Present     => False,
                       Object_Definition   =>
                         New_Occurrence_Of (RTE (RE_Any), Loc),
                       Expression          =>
@@ -8304,7 +8297,7 @@ package body Exp_Dist is
             CI := Component_Items (Clist);
             VP := Variant_Part (Clist);
 
-            Item := First (CI);
+            Item := First_Non_Pragma (CI);
             while Present (Item) loop
                Def := Defining_Identifier (Item);
 
@@ -8313,7 +8306,7 @@ package body Exp_Dist is
                     (Stmts, Container, Counter, Rec, Def);
                end if;
 
-               Next (Item);
+               Next_Non_Pragma (Item);
             end loop;
 
             if Present (VP) then
@@ -8631,7 +8624,7 @@ package body Exp_Dist is
             --  The RACW case is taken care of by Exp_Dist.Add_RACW_From_Any
 
             pragma Assert
-              (not (Is_Remote_Access_To_Class_Wide_Type (Typ)));
+              (not Is_Remote_Access_To_Class_Wide_Type (Typ));
 
             Use_Opaque_Representation := False;
 
@@ -10985,6 +10978,7 @@ package body Exp_Dist is
             if not Constrained or else Depth > 1 then
                Inner_Any := Make_Defining_Identifier (Loc,
                               New_External_Name ('A', Depth));
+               Mutate_Ekind (Inner_Any, E_Variable);
                Set_Etype (Inner_Any, RTE (RE_Any));
             else
                Inner_Any := Empty;
@@ -10993,6 +10987,7 @@ package body Exp_Dist is
             if Present (Counter) then
                Inner_Counter := Make_Defining_Identifier (Loc,
                                   New_External_Name ('J', Depth));
+               Mutate_Ekind (Inner_Counter, E_Variable);
             else
                Inner_Counter := Empty;
             end if;
@@ -11188,11 +11183,8 @@ package body Exp_Dist is
       -----------------------------------
 
       procedure Reserve_NamingContext_Methods is
-         Str_Resolve : constant String := "resolve";
       begin
-         Name_Buffer (1 .. Str_Resolve'Length) := Str_Resolve;
-         Name_Len := Str_Resolve'Length;
-         Overload_Counter_Table.Set (Name_Find, 1);
+         Overload_Counter_Table.Set (Name_Find ("resolve"), 1);
       end Reserve_NamingContext_Methods;
 
       -----------------------

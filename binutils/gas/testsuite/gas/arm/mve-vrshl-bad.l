@@ -1,22 +1,22 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: bad type in SIMD instruction -- `vrshl.i16 q0,q1,q2'
-[^:]*:11: Error: bad type in SIMD instruction -- `vrshl.i16 q0,r2'
-[^:]*:12: Error: bad type in SIMD instruction -- `vrshl.s64 q0,q1,q2'
-[^:]*:13: Error: bad type in SIMD instruction -- `vrshl.s64 q0,r2'
-[^:]*:14: Warning: instruction is UNPREDICTABLE with SP operand
-[^:]*:15: Warning: instruction is UNPREDICTABLE with PC operand
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:16: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Error: bad type in SIMD instruction -- `vrshl.i16 q0,q1,q2'
+[^:]*:5: Error: bad type in SIMD instruction -- `vrshl.i16 q0,r2'
+[^:]*:6: Error: bad type in SIMD instruction -- `vrshl.s64 q0,q1,q2'
+[^:]*:7: Error: bad type in SIMD instruction -- `vrshl.s64 q0,r2'
+[^:]*:8: Warning: instruction is UNPREDICTABLE with SP operand
+[^:]*:9: Warning: instruction is UNPREDICTABLE with PC operand
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:19: Error: syntax error -- `vrshleq.s32 q0,q1,q2'
 [^:]*:20: Error: syntax error -- `vrshleq.s32 q0,q1,q2'
 [^:]*:22: Error: syntax error -- `vrshleq.s32 q0,q1,q2'

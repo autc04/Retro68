@@ -18,15 +18,15 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	62 63 fd 08 17 aa 00 02 00 00 7b 	vextractps DWORD PTR \[rdx\+0x200\],xmm29,0x7b
 [ 	]*[a-f0-9]+:	62 63 fd 08 17 6a 80 7b 	vextractps DWORD PTR \[rdx-0x200\],xmm29,0x7b
 [ 	]*[a-f0-9]+:	62 63 fd 08 17 aa fc fd ff ff 7b 	vextractps DWORD PTR \[rdx-0x204\],xmm29,0x7b
-[ 	]*[a-f0-9]+:	62 f3 fd 08 14 c0 00 	vpextrb eax,xmm0,0x0
-[ 	]*[a-f0-9]+:	62 f3 fd 08 14 00 00 	vpextrb BYTE PTR \[rax\],xmm0,0x0
-[ 	]*[a-f0-9]+:	62 f1 fd 08 c5 c0 00 	vpextrw eax,xmm0,0x0
-[ 	]*[a-f0-9]+:	62 f3 fd 08 15 c0 00 	vpextrw eax,xmm0,0x0
-[ 	]*[a-f0-9]+:	62 f3 fd 08 15 00 00 	vpextrw WORD PTR \[rax\],xmm0,0x0
-[ 	]*[a-f0-9]+:	62 f3 fd 08 20 c0 00 	vpinsrb xmm0,xmm0,eax,0x0
-[ 	]*[a-f0-9]+:	62 f3 fd 08 20 00 00 	vpinsrb xmm0,xmm0,BYTE PTR \[rax\],0x0
-[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 c0 00 	vpinsrw xmm0,xmm0,eax,0x0
-[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 00 00 	vpinsrw xmm0,xmm0,WORD PTR \[rax\],0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 14 c0 00 	\{evex\} vpextrb eax,xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 14 00 00 	\{evex\} vpextrb BYTE PTR \[rax\],xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c5 c0 00 	\{evex\} vpextrw eax,xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 15 c0 00 	\{evex\} vpextrw eax,xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 15 00 00 	\{evex\} vpextrw WORD PTR \[rax\],xmm0,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 20 c0 00 	\{evex\} vpinsrb xmm0,xmm0,eax,0x0
+[ 	]*[a-f0-9]+:	62 f3 fd 08 20 00 00 	\{evex\} vpinsrb xmm0,xmm0,BYTE PTR \[rax\],0x0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 c0 00 	\{evex\} vpinsrw xmm0,xmm0,eax,0x0
+[ 	]*[a-f0-9]+:	62 f1 fd 08 c4 00 00 	\{evex\} vpinsrw xmm0,xmm0,WORD PTR \[rax\],0x0
 [ 	]*[a-f0-9]+:	62 02 fd 4f 21 f5    	vpmovsxbd zmm30\{k7\},xmm29
 [ 	]*[a-f0-9]+:	62 02 fd cf 21 f5    	vpmovsxbd zmm30\{k7\}\{z\},xmm29
 [ 	]*[a-f0-9]+:	62 62 fd 4f 21 31    	vpmovsxbd zmm30\{k7\},XMMWORD PTR \[rcx\]

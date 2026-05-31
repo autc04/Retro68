@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2010-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2010-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,7 +24,6 @@
 ------------------------------------------------------------------------------
 
 with Atree;          use Atree;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Elists;         use Elists;
@@ -38,7 +37,6 @@ with Sem_Aux;        use Sem_Aux;
 with Sem_Disp;       use Sem_Disp;
 with Sem_Type;       use Sem_Type;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
@@ -125,14 +123,7 @@ package body Exp_CG is
       for J in Call_Graph_Nodes.First .. Call_Graph_Nodes.Last loop
          N := Call_Graph_Nodes.Table (J);
 
-         --  No action needed for subprogram calls removed by the expander
-         --  (for example, calls to ignored ghost entities).
-
-         if Nkind (N) = N_Null_Statement then
-            pragma Assert (Nkind (Original_Node (N)) in N_Subprogram_Call);
-            null;
-
-         elsif Nkind (N) in N_Subprogram_Call then
+         if Nkind (N) in N_Subprogram_Call then
             Write_Call_Info (N);
 
          else pragma Assert (Nkind (N) = N_Defining_Identifier);
@@ -358,7 +349,13 @@ package body Exp_CG is
 
    procedure Register_CG_Node (N : Node_Id) is
    begin
-      if Nkind (N) in N_Subprogram_Call then
+      --  Skip ignored ghost calls that will be removed by the expander
+
+      if Is_Ignored_Ghost_Node (N) then
+         null;
+
+      elsif Nkind (N) in N_Subprogram_Call then
+
          if Current_Scope = Main_Unit_Entity
            or else Entity_Is_In_Main_Unit (Current_Scope)
          then

@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler for Renesas / SuperH SH.
-   Copyright (C) 1993-2022 Free Software Foundation, Inc.
+   Copyright (C) 1993-2026 Free Software Foundation, Inc.
    Contributed by Steve Chamberlain (sac@cygnus.com).
    Improved by Jim Wilson (wilson@cygnus.com).
 
@@ -261,6 +261,7 @@ extern rtx_insn* sh_peephole_emit_move_insn (rtx dst, rtx src);
 
 extern bool sh_in_recog_treg_set_expr (void);
 extern bool sh_recog_treg_set_expr (rtx op, machine_mode mode);
+extern bool sh_recog_treg_set_expr_not_01 (rtx op, machine_mode mode);
 
 /* Result value of sh_split_treg_set_expr.  Contains the first insn emitted
    and the optional trailing nott insn.  */

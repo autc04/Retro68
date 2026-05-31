@@ -1,5 +1,5 @@
 // Function-related RTL SSA classes                                 -*- C++ -*-
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -68,6 +68,23 @@ public:
   // Return the SSA information for CFG_BB.
   bb_info *bb (basic_block cfg_bb) const { return m_bbs[cfg_bb->index]; }
 
+  // Create a temporary def.
+  set_info *create_set (obstack_watermark &watermark,
+			insn_info *insn,
+			resource_info resource);
+
+  // Create a temporary use of SET as part of a change to INSN.
+  // SET can be a pre-existing definition or one that is being created
+  // as part of the same change group.
+  use_info *create_use (obstack_watermark &watermark,
+			insn_info *insn,
+			set_info *set);
+
+  // Create a temporary insn with code INSN_CODE and pattern PAT.
+  insn_info *create_insn (obstack_watermark &watermark,
+			  rtx_code insn_code,
+			  rtx pat);
+
   // Return a list of all the instructions in the function, in reverse
   // postorder.  The list includes both real and artificial instructions.
   //
@@ -102,6 +119,11 @@ public:
   // definitions by things like phi nodes.
   iterator_range<def_iterator> reg_defs (unsigned int regno) const;
 
+  // Return true if SET is the only set of SET->resource () and if it
+  // dominates all uses (excluding uses of SET->resource () at points
+  // where SET->resource () is always undefined).
+  bool is_single_dominating_def (const set_info *set) const;
+
   // Check if all uses of register REGNO are either unconditionally undefined
   // or use the same single dominating definition.  Return the definition
   // if so, otherwise return null.
@@ -109,12 +131,36 @@ public:
 
   // Look for a definition of RESOURCE at INSN.  Return the result of the
   // search as a def_lookup; see the comments there for more details.
+  //
+  // NOTE: This is not the function to use if INSN is known to be a real
+  // instruction (one with an RTL pattern) and if the caller is only
+  // interested in definitions within INSN itself.  In those cases
+  // it is better to use find_access.
   def_lookup find_def (resource_info resource, insn_info *insn);
+
+  // Search for a use of DEF around non-debug instruction INSN and return the
+  // result of the search as a use_lookup.  See the comment above the class
+  // for more details about the result means.
+  //
+  // NOTE: This is not the function to use if INSN is known to be a real
+  // instruction (one with an RTL pattern) and if the caller is only
+  // interested in uses within INSN itself.  In those cases it is better
+  // to use find_access.
+  use_lookup find_use (set_info *def, insn_info *insn);
 
   // Return an RAII object that owns all temporary RTL SSA memory
   // allocated during a change attempt.  The object should remain in
   // scope until the change has been aborted or successfully completed.
   obstack_watermark new_change_attempt () { return &m_temp_obstack; }
+
+  // SET and INSN belong to the same EBB, with SET occuring before INSN.
+  // Return true if SET is still available at INSN.
+  bool remains_available_at_insn (const set_info *set, insn_info *insn);
+
+  // SET either occurs in BB or is known to be available on entry to BB.
+  // Return true if it is also available on exit from BB.  (The value
+  // might or might not be live.)
+  bool remains_available_on_exit (const set_info *set, bb_info *bb);
 
   // Make a best attempt to check whether the values used by USES are
   // available on entry to BB, without solving a full dataflow problem.
@@ -134,16 +180,22 @@ public:
 
   // If CHANGE doesn't already clobber REGNO, try to add such a clobber,
   // limiting the movement range in order to make the clobber valid.
-  // When determining whether REGNO is live, ignore accesses made by an
-  // instruction I if IGNORE (I) is true.  The caller then assumes the
-  // responsibility of ensuring that CHANGE and I are placed in a valid order.
+  // Use IGNORE to guide this process, where IGNORE is an object that
+  // provides the same interface as ignore_nothing.
+  //
+  // That is, when determining whether REGNO is live, ignore accesses made
+  // by an instruction I if IGNORE says that I should be ignored.  The caller
+  // then assumes the responsibility of ensuring that CHANGE and I are placed
+  // in a valid order.  Similarly, ignore live ranges associated with a
+  // definition of REGNO if IGNORE says that that definition should be
+  // ignored.
   //
   // Return true on success.  Leave CHANGE unmodified when returning false.
   //
   // WATERMARK is a watermark returned by new_change_attempt ().
-  template<typename IgnorePredicate>
+  template<typename IgnorePredicates>
   bool add_regno_clobber (obstack_watermark &watermark, insn_change &change,
-			  unsigned int regno, IgnorePredicate ignore);
+			  unsigned int regno, IgnorePredicates ignore);
 
   // Return true if change_insns will be able to perform the changes
   // described by CHANGES.
@@ -158,6 +210,9 @@ public:
 
   // Like change_insns, but for a single change CHANGE.
   void change_insn (insn_change &change);
+
+  // Given a use USE, re-parent it to get its def from NEW_DEF.
+  void reparent_use (use_info *use, set_info *new_def);
 
   // If the changes that have been made to instructions require updates
   // to the CFG, perform those updates now.  Return true if something changed.
@@ -177,6 +232,10 @@ public:
 
   // Print the contents of the function to PP.
   void print (pretty_printer *pp) const;
+
+  // Allocate an object of type T above the obstack watermark WM.
+  template<typename T, typename... Ts>
+  T *change_alloc (obstack_watermark &wm, Ts... args);
 
 private:
   class bb_phi_info;
@@ -213,7 +272,8 @@ private:
   void append_clobber_to_group (clobber_info *, clobber_group *);
   void merge_clobber_groups (clobber_info *, clobber_info *,
 			     def_info *);
-  clobber_info *split_clobber_group (clobber_group *, insn_info *);
+  std::array<clobber_group *, 2> split_clobber_group (clobber_group *,
+						      insn_info *);
 
   void append_def (def_info *);
   void add_def (def_info *);
@@ -230,6 +290,7 @@ private:
   insn_info::order_node *need_order_node (insn_info *);
 
   void add_insn_after (insn_info *, insn_info *);
+  void replace_nondebug_insn (insn_info *, insn_info *);
   void append_insn (insn_info *);
   void remove_insn (insn_info *);
 
@@ -247,7 +308,7 @@ private:
   void add_reg_unused_notes (insn_info *);
 
   void add_live_out_use (bb_info *, set_info *);
-  set_info *live_out_value (bb_info *, set_info *);
+  void commit_make_use_available (use_info *);
 
   void append_phi (ebb_info *, phi_info *);
   void remove_phi (phi_info *);
@@ -260,10 +321,13 @@ private:
   bb_info *create_bb_info (basic_block);
   void append_bb (bb_info *);
 
+  void process_uses_of_deleted_def (set_info *);
   insn_info *add_placeholder_after (insn_info *);
   void possibly_queue_changes (insn_change &);
-  void finalize_new_accesses (insn_change &);
-  void apply_changes_to_insn (insn_change &);
+  void finalize_new_accesses (insn_change &, insn_info *,
+			      hash_set<def_info *> &);
+  void apply_changes_to_insn (insn_change &,
+			      hash_set<def_info *> &);
 
   void init_function_data ();
   void calculate_potential_phi_regs (build_info &);
@@ -271,6 +335,7 @@ private:
   void create_ebbs (build_info &);
   void add_entry_block_defs (build_info &);
   void calculate_ebb_live_in_for_debug (build_info &);
+  phi_info *create_degenerate_phi (build_info &, set_info *);
   void add_phi_nodes (build_info &);
   void add_artificial_accesses (build_info &, df_ref_flags);
   void add_block_contents (build_info &);
@@ -353,6 +418,10 @@ private:
   // on it.  As with M_QUEUED_INSN_UPDATES, these updates are queued until
   // a convenient point.
   auto_bitmap m_need_to_purge_dead_edges;
+
+  // The set of hard registers that are fully or partially clobbered
+  // by at least one insn_call_clobbers_note.
+  HARD_REG_SET m_clobbered_by_calls;
 };
 
 void pp_function (pretty_printer *, const function_info *);

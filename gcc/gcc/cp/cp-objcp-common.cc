@@ -1,5 +1,5 @@
 /* Some code common to C++ and ObjC++ front ends.
-   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
    Contributed by Ziemowit Laski  <zlaski@apple.com>
 
 This file is part of GCC.
@@ -23,8 +23,151 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "cp-tree.h"
 #include "cp-objcp-common.h"
+#include "c-family/c-common.h"
 #include "dwarf2.h"
 #include "stringpool.h"
+
+/* Class to determine whether a given C++ language feature is available.
+   Used to implement __has_{feature,extension}.  */
+
+struct cp_feature_selector
+{
+  enum
+  {
+    DIALECT,
+    FLAG
+  } kind;
+
+  enum class result
+  {
+    NONE,
+    EXT,
+    FEAT
+  };
+
+  union
+  {
+    const int *enable_flag;
+    struct {
+      enum cxx_dialect feat;
+      enum cxx_dialect ext;
+    } dialect;
+  };
+
+  constexpr cp_feature_selector (const int *flag)
+    : kind (FLAG), enable_flag (flag) {}
+  constexpr cp_feature_selector (enum cxx_dialect feat,
+				 enum cxx_dialect ext)
+    : kind (DIALECT), dialect{feat, ext} {}
+  constexpr cp_feature_selector (enum cxx_dialect feat)
+    : cp_feature_selector (feat, feat) {}
+
+  inline result has_feature () const;
+};
+
+/* Check whether this language feature is available as a feature,
+   extension, or not at all.  */
+
+cp_feature_selector::result
+cp_feature_selector::has_feature () const
+{
+  switch (kind)
+    {
+    case DIALECT:
+      if (cxx_dialect >= dialect.feat)
+	return result::FEAT;
+      else if (cxx_dialect >= dialect.ext)
+	return result::EXT;
+      else
+	return result::NONE;
+    case FLAG:
+      return *enable_flag ? result::FEAT : result::NONE;
+    }
+
+  gcc_unreachable ();
+}
+
+/* Information about a C++ language feature which can be queried
+   through __has_{feature,extension}.  IDENT is the name of the feature,
+   and SELECTOR encodes how to compute whether the feature is available.  */
+
+struct cp_feature_info
+{
+  const char *ident;
+  cp_feature_selector selector;
+};
+
+/* Table of features for __has_{feature,extension}.  */
+
+static constexpr cp_feature_info cp_feature_table[] =
+{
+  { "cxx_exceptions", &flag_exceptions },
+  { "cxx_rtti", &flag_rtti },
+  { "cxx_access_control_sfinae", { cxx11, cxx98 } },
+  { "cxx_alias_templates", cxx11 },
+  { "cxx_alignas", cxx11 },
+  { "cxx_alignof", cxx11 },
+  { "cxx_attributes", cxx11 },
+  { "cxx_constexpr", cxx11 },
+  { "cxx_decltype", cxx11 },
+  { "cxx_decltype_incomplete_return_types", cxx11 },
+  { "cxx_default_function_template_args", cxx11 },
+  { "cxx_defaulted_functions", cxx11 },
+  { "cxx_delegating_constructors", cxx11 },
+  { "cxx_deleted_functions", cxx11 },
+  { "cxx_explicit_conversions", cxx11 },
+  { "cxx_generalized_initializers", cxx11 },
+  { "cxx_implicit_moves", cxx11 },
+  { "cxx_inheriting_constructors", cxx11 },
+  { "cxx_inline_namespaces", { cxx11, cxx98 } },
+  { "cxx_lambdas", cxx11 },
+  { "cxx_local_type_template_args", cxx11 },
+  { "cxx_noexcept", cxx11 },
+  { "cxx_nonstatic_member_init", cxx11 },
+  { "cxx_nullptr", cxx11 },
+  { "cxx_override_control", cxx11 },
+  { "cxx_reference_qualified_functions", cxx11 },
+  { "cxx_range_for", cxx11 },
+  { "cxx_raw_string_literals", cxx11 },
+  { "cxx_rvalue_references", cxx11 },
+  { "cxx_static_assert", cxx11 },
+  { "cxx_thread_local", cxx11 },
+  { "cxx_auto_type", cxx11 },
+  { "cxx_strong_enums", cxx11 },
+  { "cxx_trailing_return", cxx11 },
+  { "cxx_unicode_literals", cxx11 },
+  { "cxx_unrestricted_unions", cxx11 },
+  { "cxx_user_literals", cxx11 },
+  { "cxx_variadic_templates", { cxx11, cxx98 } },
+  { "cxx_binary_literals", { cxx14, cxx98 } },
+  { "cxx_contextual_conversions", { cxx14, cxx98 } },
+  { "cxx_decltype_auto", cxx14 },
+  { "cxx_aggregate_nsdmi", cxx14 },
+  { "cxx_init_captures", { cxx14, cxx11 } },
+  { "cxx_generic_lambdas", cxx14 },
+  { "cxx_relaxed_constexpr", cxx14 },
+  { "cxx_return_type_deduction", cxx14 },
+  { "cxx_variable_templates", cxx14 },
+  { "modules", &flag_modules },
+};
+
+/* Register C++ language features for __has_{feature,extension}.  */
+
+void
+cp_register_features ()
+{
+  using result = cp_feature_selector::result;
+
+  for (unsigned i = 0; i < ARRAY_SIZE (cp_feature_table); i++)
+    {
+      const cp_feature_info *info = cp_feature_table + i;
+      const auto res = info->selector.has_feature ();
+      if (res == result::NONE)
+	continue;
+
+      c_common_register_feature (info->ident, res == result::FEAT);
+    }
+}
 
 /* Special routine to get the alias set for C++.  */
 
@@ -35,12 +178,6 @@ cxx_get_alias_set (tree t)
     /* The base variant of a type must be in the same alias set as the
        complete type.  */
     return get_alias_set (TYPE_CONTEXT (t));
-
-  /* Punt on PMFs until we canonicalize functions properly.  */
-  if (TYPE_PTRMEMFUNC_P (t)
-      || (INDIRECT_TYPE_P (t)
-	  && TYPE_PTRMEMFUNC_P (TREE_TYPE (t))))
-    return 0;
 
   return c_common_get_alias_set (t);
 }
@@ -86,6 +223,10 @@ cp_tree_size (enum tree_code code)
     case CONSTRAINT_INFO:       return sizeof (tree_constraint_info);
     case USERDEF_LITERAL:	return sizeof (tree_userdef_literal);
     case TEMPLATE_DECL:		return sizeof (tree_template_decl);
+    case ASSERTION_STMT:	return sizeof (tree_exp);
+    case PRECONDITION_STMT:	return sizeof (tree_exp);
+    case POSTCONDITION_STMT:	return sizeof (tree_exp);
+    case TU_LOCAL_ENTITY:	return sizeof (tree_tu_local_entity);
     default:
       switch (TREE_CODE_CLASS (code))
 	{
@@ -148,7 +289,7 @@ cp_get_debug_type (const_tree type)
      the debug info depend on the collection points.  */
   if (dtype)
     {
-      tree ktype = CONST_CAST_TREE (type);
+      tree ktype = const_cast<tree> (type);
       if (tree *slot = hash_map_safe_get (debug_type_map, ktype))
 	return *slot;
       hash_map_safe_put<hm_ggc> (debug_type_map, ktype, dtype);
@@ -201,7 +342,7 @@ cp_decl_dwarf_attribute (const_tree decl, int attr)
 
     case DW_AT_reference:
       if (TREE_CODE (decl) == FUNCTION_DECL
-	  && DECL_NONSTATIC_MEMBER_FUNCTION_P (decl)
+	  && DECL_IOBJ_MEMBER_FUNCTION_P (decl)
 	  && FUNCTION_REF_QUALIFIED (TREE_TYPE (decl))
 	  && !FUNCTION_RVALUE_QUALIFIED (TREE_TYPE (decl)))
 	return 1;
@@ -209,7 +350,7 @@ cp_decl_dwarf_attribute (const_tree decl, int attr)
 
     case DW_AT_rvalue_reference:
       if (TREE_CODE (decl) == FUNCTION_DECL
-	  && DECL_NONSTATIC_MEMBER_FUNCTION_P (decl)
+	  && DECL_IOBJ_MEMBER_FUNCTION_P (decl)
 	  && FUNCTION_REF_QUALIFIED (TREE_TYPE (decl))
 	  && FUNCTION_RVALUE_QUALIFIED (TREE_TYPE (decl)))
 	return 1;
@@ -260,6 +401,11 @@ cp_type_dwarf_attribute (const_tree type, int attr)
       if (FUNC_OR_METHOD_TYPE_P (type)
 	  && FUNCTION_REF_QUALIFIED (type)
 	  && FUNCTION_RVALUE_QUALIFIED (type))
+	return 1;
+      break;
+
+    case DW_AT_export_symbols:
+      if (ANON_AGGR_TYPE_P (type))
 	return 1;
       break;
 
@@ -392,10 +538,10 @@ identifier_global_tag (tree name)
   return ret;
 }
 
-/* Returns true if NAME refers to a built-in function or function-like
-   operator.  */
+/* Returns non-zero (result of __has_builtin) if NAME refers to a built-in
+   function or function-like operator.  */
 
-bool
+int
 names_builtin_p (const char *name)
 {
   tree id = get_identifier (name);
@@ -403,19 +549,23 @@ names_builtin_p (const char *name)
     {
       if (TREE_CODE (binding) == FUNCTION_DECL
 	  && DECL_IS_UNDECLARED_BUILTIN (binding))
-	return true;
+	return 1;
 
       /* Handle the case when an overload for a  built-in name exists.  */
       if (TREE_CODE (binding) != OVERLOAD)
-	return false;
+	return 0;
 
       for (ovl_iterator it (binding); it; ++it)
 	{
 	  tree decl = *it;
 	  if (DECL_IS_UNDECLARED_BUILTIN (decl))
-	    return true;
+	    return 1;
 	}
     }
+
+  /* Check for built-in traits.  */
+  if (IDENTIFIER_TRAIT_P (id))
+    return 1;
 
   /* Also detect common reserved C++ words that aren't strictly built-in
      functions.  */
@@ -430,43 +580,17 @@ names_builtin_p (const char *name)
     case RID_BUILTIN_ASSOC_BARRIER:
     case RID_BUILTIN_BIT_CAST:
     case RID_OFFSETOF:
-    case RID_HAS_NOTHROW_ASSIGN:
-    case RID_HAS_NOTHROW_CONSTRUCTOR:
-    case RID_HAS_NOTHROW_COPY:
-    case RID_HAS_TRIVIAL_ASSIGN:
-    case RID_HAS_TRIVIAL_CONSTRUCTOR:
-    case RID_HAS_TRIVIAL_COPY:
-    case RID_HAS_TRIVIAL_DESTRUCTOR:
-    case RID_HAS_UNIQUE_OBJ_REPRESENTATIONS:
-    case RID_HAS_VIRTUAL_DESTRUCTOR:
-    case RID_IS_ABSTRACT:
-    case RID_IS_AGGREGATE:
-    case RID_IS_BASE_OF:
-    case RID_IS_CLASS:
-    case RID_IS_EMPTY:
-    case RID_IS_ENUM:
-    case RID_IS_FINAL:
-    case RID_IS_LAYOUT_COMPATIBLE:
-    case RID_IS_LITERAL_TYPE:
-    case RID_IS_POINTER_INTERCONVERTIBLE_BASE_OF:
-    case RID_IS_POD:
-    case RID_IS_POLYMORPHIC:
-    case RID_IS_SAME_AS:
-    case RID_IS_STD_LAYOUT:
-    case RID_IS_TRIVIAL:
-    case RID_IS_TRIVIALLY_ASSIGNABLE:
-    case RID_IS_TRIVIALLY_CONSTRUCTIBLE:
-    case RID_IS_TRIVIALLY_COPYABLE:
-    case RID_IS_UNION:
-    case RID_IS_ASSIGNABLE:
-    case RID_IS_CONSTRUCTIBLE:
-    case RID_UNDERLYING_TYPE:
-      return true;
+    case RID_VA_ARG:
+    case RID_C23_VA_START:
+      return 1;
+    case RID_BUILTIN_OPERATOR_NEW:
+    case RID_BUILTIN_OPERATOR_DELETE:
+      return 201802L;
     default:
       break;
     }
 
-  return false;
+  return 0;
 }
 
 /* Register c++-specific dumps.  */
@@ -482,6 +606,10 @@ cp_register_dumps (gcc::dump_manager *dumps)
 
   raw_dump_id = dumps->dump_register
     (".raw", "lang-raw", "lang-raw", DK_lang, OPTGROUP_NONE, false);
+  coro_dump_id = dumps->dump_register
+    (".coro", "lang-coro", "lang-coro", DK_lang, OPTGROUP_NONE, false);
+  tinst_dump_id = dumps->dump_register
+    (".tinst", "lang-tinst", "lang-tinst", DK_lang, OPTGROUP_NONE, false);
 }
 
 void
@@ -491,6 +619,7 @@ cp_common_init_ts (void)
   MARK_TS_TYPED (PTRMEM_CST);
   MARK_TS_TYPED (LAMBDA_EXPR);
   MARK_TS_TYPED (TYPE_ARGUMENT_PACK);
+  MARK_TS_TYPED (TRAIT_EXPR);
 
   /* Random new trees.  */
   MARK_TS_COMMON (BASELINK);
@@ -499,8 +628,6 @@ cp_common_init_ts (void)
 
   /* New decls.  */
   MARK_TS_DECL_COMMON (TEMPLATE_DECL);
-  MARK_TS_DECL_COMMON (WILDCARD_DECL);
-  MARK_TS_DECL_COMMON (CONCEPT_DECL);
 
   MARK_TS_DECL_NON_COMMON (USING_DECL);
 
@@ -512,11 +639,14 @@ cp_common_init_ts (void)
   MARK_TS_TYPE_NON_COMMON (DECLTYPE_TYPE);
   MARK_TS_TYPE_NON_COMMON (TYPENAME_TYPE);
   MARK_TS_TYPE_NON_COMMON (TYPEOF_TYPE);
-  MARK_TS_TYPE_NON_COMMON (UNDERLYING_TYPE);
+  MARK_TS_TYPE_NON_COMMON (TRAIT_TYPE);
   MARK_TS_TYPE_NON_COMMON (BOUND_TEMPLATE_TEMPLATE_PARM);
   MARK_TS_TYPE_NON_COMMON (TEMPLATE_TEMPLATE_PARM);
   MARK_TS_TYPE_NON_COMMON (TEMPLATE_TYPE_PARM);
   MARK_TS_TYPE_NON_COMMON (TYPE_PACK_EXPANSION);
+  MARK_TS_TYPE_NON_COMMON (PACK_INDEX_TYPE);
+  MARK_TS_TYPE_NON_COMMON (META_TYPE);
+  MARK_TS_TYPE_NON_COMMON (SPLICE_SCOPE);
 
   /* Statements.  */
   MARK_TS_EXP (CLEANUP_STMT);
@@ -525,6 +655,7 @@ cp_common_init_ts (void)
   MARK_TS_EXP (IF_STMT);
   MARK_TS_EXP (OMP_DEPOBJ);
   MARK_TS_EXP (RANGE_FOR_STMT);
+  MARK_TS_EXP (TEMPLATE_FOR_STMT);
   MARK_TS_EXP (TRY_BLOCK);
   MARK_TS_EXP (USING_STMT);
 
@@ -549,7 +680,6 @@ cp_common_init_ts (void)
   MARK_TS_EXP (MUST_NOT_THROW_EXPR);
   MARK_TS_EXP (NEW_EXPR);
   MARK_TS_EXP (NOEXCEPT_EXPR);
-  MARK_TS_EXP (NON_DEPENDENT_EXPR);
   MARK_TS_EXP (OFFSETOF_EXPR);
   MARK_TS_EXP (OFFSET_REF);
   MARK_TS_EXP (PSEUDO_DTOR_EXPR);
@@ -560,7 +690,6 @@ cp_common_init_ts (void)
   MARK_TS_EXP (TAG_DEFN);
   MARK_TS_EXP (TEMPLATE_ID_EXPR);
   MARK_TS_EXP (THROW_EXPR);
-  MARK_TS_EXP (TRAIT_EXPR);
   MARK_TS_EXP (TYPEID_EXPR);
   MARK_TS_EXP (TYPE_EXPR);
   MARK_TS_EXP (UNARY_PLUS_EXPR);
@@ -568,6 +697,8 @@ cp_common_init_ts (void)
   MARK_TS_EXP (VEC_INIT_EXPR);
   MARK_TS_EXP (VEC_NEW_EXPR);
   MARK_TS_EXP (SPACESHIP_EXPR);
+  MARK_TS_EXP (SPLICE_EXPR);
+  MARK_TS_EXP (REFLECT_EXPR);
 
   /* Fold expressions.  */
   MARK_TS_EXP (BINARY_LEFT_FOLD_EXPR);
@@ -576,9 +707,9 @@ cp_common_init_ts (void)
   MARK_TS_EXP (NONTYPE_ARGUMENT_PACK);
   MARK_TS_EXP (UNARY_LEFT_FOLD_EXPR);
   MARK_TS_EXP (UNARY_RIGHT_FOLD_EXPR);
+  MARK_TS_EXP (PACK_INDEX_EXPR);
 
   /* Constraints.  */
-  MARK_TS_EXP (CHECK_CONSTR);
   MARK_TS_EXP (COMPOUND_REQ);
   MARK_TS_EXP (CONJ_CONSTR);
   MARK_TS_EXP (DISJ_CONSTR);
@@ -592,6 +723,10 @@ cp_common_init_ts (void)
   MARK_TS_EXP (CO_YIELD_EXPR);
   MARK_TS_EXP (CO_RETURN_EXPR);
 
+  MARK_TS_EXP (ASSERTION_STMT);
+  MARK_TS_EXP (PRECONDITION_STMT);
+  MARK_TS_EXP (POSTCONDITION_STMT);
+
   c_common_init_ts ();
 }
 
@@ -604,6 +739,7 @@ cp_handle_option (size_t scode, const char *arg, HOST_WIDE_INT value,
 {
   if (handle_module_option (unsigned (scode), arg, value))
     return true;
+
   return c_common_handle_option (scode, arg, value, kind, loc, handlers);
 }
 

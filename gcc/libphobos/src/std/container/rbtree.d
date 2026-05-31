@@ -88,6 +88,14 @@ struct RBNode(V)
     private Node _right;
     private Node _parent;
 
+    private this(Node left, Node right, Node parent, V value)
+    {
+        this._left = left;
+        this._right = right;
+        this._parent = parent;
+        this.value = value;
+    }
+
     /**
      * The value held by this node
      */
@@ -679,7 +687,7 @@ private struct RBRange(N)
     /**
      * Returns the first element in the range
      */
-    @property Elem front()
+    ref @property Elem front()
     {
         return _begin.value;
     }
@@ -687,7 +695,7 @@ private struct RBRange(N)
     /**
      * Returns the last element in the range
      */
-    @property Elem back()
+    ref @property Elem back()
     {
         return _end.prev.value;
     }
@@ -737,13 +745,17 @@ private struct RBRange(N)
  * elements `a` and `b`, $(D less(a, b) == !less(b, a)). $(D less(a, a)) should
  * always equal `false`.
  *
+ * Care should also be taken to not modify elements in the tree (e.g. via `front` /
+ * `back`, which return by `ref`) in a way which would affect the order defined by
+ * the `less` predicate.
+ *
  * If `allowDuplicates` is set to `true`, then inserting the same element more than
  * once continues to add more elements.  If it is `false`, duplicate elements are
  * ignored on insertion.  If duplicates are allowed, then new elements are
  * inserted after all existing duplicate elements.
  */
 final class RedBlackTree(T, alias less = "a < b", bool allowDuplicates = false)
-if (is(typeof(binaryFun!less(T.init, T.init))))
+if (isSuitablePredicate!(less, T))
 {
     import std.meta : allSatisfy;
     import std.range : Take;
@@ -1036,7 +1048,7 @@ if (is(typeof(binaryFun!less(T.init, T.init))))
      *
      * Complexity: $(BIGOH 1)
      */
-    inout(Elem) front() inout
+    ref inout(Elem) front() inout
     {
         return _begin.value;
     }
@@ -1046,7 +1058,7 @@ if (is(typeof(binaryFun!less(T.init, T.init))))
      *
      * Complexity: $(BIGOH log(n))
      */
-    inout(Elem) back() inout
+    ref inout(Elem) back() inout
     {
         return _end.prev.value;
     }
@@ -1057,7 +1069,8 @@ if (is(typeof(binaryFun!less(T.init, T.init))))
 
        Complexity: $(BIGOH log(n))
      +/
-    bool opBinaryRight(string op)(Elem e) const if (op == "in")
+    bool opBinaryRight(string op)(Elem e) const
+    if (op == "in")
     {
         return _find(e) !is null;
     }
@@ -1261,7 +1274,8 @@ if (is(typeof(binaryFun!less(T.init, T.init))))
      *
      * Complexity: $(BIGOH log(n))
      */
-    size_t stableInsert(Stuff)(Stuff stuff) if (isImplicitlyConvertible!(Stuff, Elem))
+    size_t stableInsert(Stuff)(Stuff stuff)
+    if (isImplicitlyConvertible!(Stuff, Elem))
     {
         static if (allowDuplicates)
         {
@@ -1283,8 +1297,8 @@ if (is(typeof(binaryFun!less(T.init, T.init))))
      * Complexity: $(BIGOH m * log(n))
      */
     size_t stableInsert(Stuff)(scope Stuff stuff)
-        if (isInputRange!Stuff &&
-            isImplicitlyConvertible!(ElementType!Stuff, Elem))
+    if (isInputRange!Stuff &&
+        isImplicitlyConvertible!(ElementType!Stuff, Elem))
     {
         size_t result = 0;
         static if (allowDuplicates)
@@ -1525,16 +1539,21 @@ if (is(typeof(binaryFun!less(T.init, T.init))))
        Complexity: $(BIGOH m log(n)) (where m is the number of elements to remove)
 
        Example:
+$(RUNNABLE_EXAMPLE
 --------------------
+import std.algorithm, std.container;
+
 auto rbt = redBlackTree!true(0, 1, 1, 1, 4, 5, 7);
 rbt.removeKey(1, 4, 7);
 assert(equal(rbt[], [0, 1, 1, 5]));
+
 rbt.removeKey(1, 1, 0);
 assert(equal(rbt[], [5]));
 --------------------
+)
       +/
     size_t removeKey(U...)(U elems)
-        if (allSatisfy!(isImplicitlyConvertibleToElem, U))
+    if (allSatisfy!(isImplicitlyConvertibleToElem, U))
     {
         Elem[U.length] toRemove = [elems];
         return removeKey(toRemove[]);
@@ -1542,7 +1561,7 @@ assert(equal(rbt[], [5]));
 
     /++ Ditto +/
     size_t removeKey(U)(scope U[] elems)
-        if (isImplicitlyConvertible!(U, Elem))
+    if (isImplicitlyConvertible!(U, Elem))
     {
         immutable lenBefore = length;
 
@@ -1564,9 +1583,9 @@ assert(equal(rbt[], [5]));
 
     /++ Ditto +/
     size_t removeKey(Stuff)(Stuff stuff)
-        if (isInputRange!Stuff &&
-           isImplicitlyConvertible!(ElementType!Stuff, Elem) &&
-           !isDynamicArray!Stuff)
+    if (isInputRange!Stuff &&
+        isImplicitlyConvertible!(ElementType!Stuff, Elem) &&
+        !isDynamicArray!Stuff)
     {
         import std.array : array;
         //We use array in case stuff is a Range from this RedBlackTree - either
@@ -1735,6 +1754,26 @@ assert(equal(rbt[], [5]));
         }
     }
 
+    /**
+     * Returns a static array of 3 ranges `r` such that `r[0]` is the
+     * same as the result of `lowerBound(value)`, `r[1]` is the same
+     * as the result of $(D equalRange(value)), and `r[2]` is the same
+     * as the result of $(D upperBound(value)).
+     *
+     * Complexity: $(BIGOH log(n))
+     */
+    auto trisect(this This)(Elem e)
+    {
+        auto equalRange = this.equalRange(e);
+        alias RangeType = typeof(equalRange);
+        RangeType[3] result = [
+            RangeType(_begin, equalRange._begin),
+            equalRange,
+            RangeType(equalRange._end, _end)
+        ];
+        return result;
+    }
+
     static if (doUnittest) @safe pure unittest
     {
         import std.algorithm.comparison : equal;
@@ -1873,7 +1912,8 @@ assert(equal(rbt[], [5]));
     /**
      * Constructor. Pass in a range of elements to initialize the tree with.
      */
-    this(Stuff)(Stuff stuff) if (isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, Elem))
+    this(Stuff)(Stuff stuff)
+    if (isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, Elem))
     {
         _setup();
         stableInsert(stuff);
@@ -1963,7 +2003,9 @@ assert(equal(rbt[], [5]));
 }
 
 import std.range.primitives : isInputRange, ElementType;
-import std.traits : isArray, isSomeString;
+import std.traits : isArray, isSomeString, lvalueOf;
+
+private enum isSuitablePredicate(alias less, T) = is(typeof(binaryFun!less(lvalueOf!(const T), lvalueOf!(const T))));
 
 /++
     Convenience function for creating a `RedBlackTree!E` from a list of
@@ -1988,14 +2030,14 @@ auto redBlackTree(bool allowDuplicates, E)(E[] elems...)
 
 /++ Ditto +/
 auto redBlackTree(alias less, E)(E[] elems...)
-if (is(typeof(binaryFun!less(E.init, E.init))))
+if (isSuitablePredicate!(less, E))
 {
     return new RedBlackTree!(E, less)(elems);
 }
 
 /++ Ditto +/
 auto redBlackTree(alias less, bool allowDuplicates, E)(E[] elems...)
-if (is(typeof(binaryFun!less(E.init, E.init))))
+if (isSuitablePredicate!(less, E))
 {
     //We shouldn't need to instantiate less here, but for some reason,
     //dmd can't handle it if we don't (even though the template which
@@ -2019,7 +2061,7 @@ if (isInputRange!Stuff && !isArray!(Stuff))
 
 /++ Ditto +/
 auto redBlackTree(alias less, Stuff)(Stuff range)
-if ( is(typeof(binaryFun!less((ElementType!Stuff).init, (ElementType!Stuff).init)))
+if (isSuitablePredicate!(less, ElementType!Stuff)
     && isInputRange!Stuff && !isArray!(Stuff))
 {
     return new RedBlackTree!(ElementType!Stuff, less)(range);
@@ -2027,7 +2069,7 @@ if ( is(typeof(binaryFun!less((ElementType!Stuff).init, (ElementType!Stuff).init
 
 /++ Ditto +/
 auto redBlackTree(alias less, bool allowDuplicates, Stuff)(Stuff range)
-if ( is(typeof(binaryFun!less((ElementType!Stuff).init, (ElementType!Stuff).init)))
+if (isSuitablePredicate!(less, ElementType!Stuff)
     && isInputRange!Stuff && !isArray!(Stuff))
 {
     //We shouldn't need to instantiate less here, but for some reason,
@@ -2055,7 +2097,7 @@ if ( is(typeof(binaryFun!less((ElementType!Stuff).init, (ElementType!Stuff).init
 }
 
 //Combinations not in examples.
-@safe pure unittest
+@system pure unittest
 {
     auto rbt1 = redBlackTree!(true, string)("hello", "hello");
     auto rbt2 = redBlackTree!((a, b){return a < b;}, double)(5.1, 2.3);
@@ -2183,6 +2225,11 @@ if ( is(typeof(binaryFun!less((ElementType!Stuff).init, (ElementType!Stuff).init
     assert(rt1.lowerBound(3).equal([1, 2]));
     assert(rt1.equalRange(3).equal([3]));
     assert(rt1[].equal([1, 2, 3, 4, 5]));
+
+    auto t = rt1.trisect(3);
+    assert(t[0].equal(rt1.lowerBound(3)));
+    assert(t[1].equal(rt1.equalRange(3)));
+    assert(t[2].equal(rt1.upperBound(3)));
 }
 
 //immutable checks
@@ -2227,4 +2274,29 @@ if ( is(typeof(binaryFun!less((ElementType!Stuff).init, (ElementType!Stuff).init
     auto t = new RedBlackTree!(int, delegate(a, b) => a > b);
     t.insert([1, 3, 5, 4, 2]);
     assert(t[].equal([5, 4, 3, 2, 1]));
+}
+
+// should support `less` predicate taking `ref const`
+@safe pure unittest
+{
+    struct S
+    {
+        int* value;
+    }
+
+    cast(void) new RedBlackTree!(S, (ref const S a, ref const S b) => a.value > b.value);
+}
+
+// struct with move constructor
+@safe unittest
+{
+    static struct S {
+        int i;
+        this(S s) { this.i = s.i; }
+        this(int i) { this.i = i; }
+        int opCmp(ref const S other) const @safe nothrow  { return i - other.i; }
+    }
+
+    auto tree = new RedBlackTree!(S, "a.i < b.i", false);
+    tree.insert(S(0));
 }

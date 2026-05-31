@@ -5,7 +5,7 @@
 
 .macro offset_insn insn_name, offset
 	.p2align 5
-\insn_name\()_offset_\offset\():
+\insn_name\()_offset_\offset:
 	.if \offset
 	.space \offset, 0xf4
 	.endif
@@ -105,7 +105,7 @@ test_offsets test_12
 .macro jmp_2
 	jmp jmp_2_\@
 	movl $0xdeadbeef,%eax
-jmp_2_\@\():
+jmp_2_\@:
 	movl $0xb00b,%eax
 .endm
 .macro jmp_5
@@ -113,14 +113,14 @@ jmp_2_\@\():
 	.rept 128
 	inc %eax
 	.endr
-jmp_5_\@\():
+jmp_5_\@:
 	movl $0xb00b,%eax
 .endm
 
 .macro cjmp_2
 	jz cjmp_2_\@
 	movl $0xdeadbeef,%eax
-cjmp_2_\@\():
+cjmp_2_\@:
 	movl $0xb00b,%eax
 .endm
 .macro cjmp_6
@@ -128,14 +128,14 @@ cjmp_2_\@\():
 	.rept 128
 	inc %eax
 	.endr
-cjmp_6_\@\():
+cjmp_6_\@:
 	movl $0xb00b,%eax
 .endm
 
 .macro pjmp_3
 	jz,pt pjmp_3_\@
 	movl $0xdeadbeef,%eax
-pjmp_3_\@\():
+pjmp_3_\@:
 	movl $0xb00b,%eax
 .endm
 .macro pjmp_7
@@ -143,7 +143,7 @@ pjmp_3_\@\():
 	.rept 128
 	inc %eax
 	.endr
-pjmp_7_\@\():
+pjmp_7_\@:
 	movl $0xb00b,%eax
 .endm
 

@@ -1,14 +1,14 @@
 /* { dg-do compile } */
-/* { dg-options "-O3 -march=armv8.2-a+sve" } */
+/* { dg-options "-fpermissive -O3 -march=armv8.2-a+sve -fno-tree-sink" } */
 
 int d;
 
 void
 f1(char f, char *g, char *h, char *l, char *n) {
-  double i = d, j = 1.0 - f, k = j ? d : j;
-  if (k == 1.0)
-    i = 0.0;
-  *l = *n = *g = *h = i * 0.5;
+  double j = 1.0 - f, k = j ? d : j;
+
+  char i = (k == 1.0) ? 10 : 50;
+  *l = *n = *g = *h = i;
 }
 
 void

@@ -1,5 +1,5 @@
 /* Prototypes of target machine for GNU compiler for Xtensa.
-   Copyright (C) 2001-2022 Free Software Foundation, Inc.
+   Copyright (C) 2001-2026 Free Software Foundation, Inc.
    Contributed by Bob Wilson (bwilson@tensilica.com) at Tensilica.
 
 This file is part of GCC.
@@ -27,6 +27,7 @@ extern bool xtensa_simm8x256 (HOST_WIDE_INT);
 extern bool xtensa_simm12b (HOST_WIDE_INT);
 extern bool xtensa_b4const_or_zero (HOST_WIDE_INT);
 extern bool xtensa_b4constu (HOST_WIDE_INT);
+extern bool xtensa_m1_or_1_thru_15 (HOST_WIDE_INT);
 extern bool xtensa_mask_immediate (HOST_WIDE_INT);
 extern bool xtensa_mem_offset (unsigned, machine_mode);
 
@@ -34,13 +35,15 @@ extern bool xtensa_mem_offset (unsigned, machine_mode);
 #ifdef RTX_CODE
 extern int xt_true_regnum (rtx);
 extern int xtensa_valid_move (machine_mode, rtx *);
-extern int smalloffset_mem_p (rtx);
+extern bool smalloffset_address_p (const_rtx);
+extern bool constantpool_address_p (const_rtx);
 extern int constantpool_mem_p (rtx);
 extern void xtensa_extend_reg (rtx, rtx);
 extern void xtensa_expand_conditional_branch (rtx *, machine_mode);
 extern int xtensa_expand_conditional_move (rtx *, int);
 extern int xtensa_expand_scc (rtx *, machine_mode);
 extern int xtensa_expand_block_move (rtx *);
+extern int xtensa_expand_block_set (rtx *);
 extern void xtensa_split_operand_pair (rtx *, machine_mode);
 extern int xtensa_emit_move_sequence (rtx *, machine_mode);
 extern rtx xtensa_copy_incoming_a7 (rtx);
@@ -48,11 +51,15 @@ extern void xtensa_expand_nonlocal_goto (rtx *);
 extern void xtensa_expand_compare_and_swap (rtx, rtx, rtx, rtx);
 extern void xtensa_expand_atomic (enum rtx_code, rtx, rtx, rtx, bool);
 extern void xtensa_emit_loop_end (rtx_insn *, rtx *);
-extern char *xtensa_emit_branch (bool, bool, rtx *);
-extern char *xtensa_emit_bit_branch (bool, bool, rtx *);
+extern char *xtensa_emit_branch (bool, rtx *);
 extern char *xtensa_emit_movcc (bool, bool, bool, rtx *);
+extern void xtensa_expand_call (int, rtx *);
 extern char *xtensa_emit_call (int, rtx *);
+extern char *xtensa_emit_sibcall (int, rtx *);
 extern bool xtensa_tls_referenced_p (rtx);
+extern enum rtx_code xtensa_shlrd_which_direction (rtx, rtx);
+extern bool xtensa_postreload_completed_p (void);
+extern char *xtensa_bswapsi2_output (rtx_insn *, const char *);
 
 #ifdef TREE_CODE
 extern void init_cumulative_args (CUMULATIVE_ARGS *, int);
@@ -66,13 +73,15 @@ extern rtx xtensa_return_addr (int, rtx);
 #endif /* RTX_CODE */
 
 extern void xtensa_setup_frame_addresses (void);
-extern int xtensa_dbx_register_number (int);
+extern int xtensa_debugger_regno (int);
 extern long compute_frame_size (poly_int64);
-extern bool xtensa_use_return_instruction_p (void);
 extern void xtensa_expand_prologue (void);
 extern void xtensa_expand_epilogue (void);
-extern void order_regs_for_local_alloc (void);
+extern void xtensa_adjust_reg_alloc_order (void);
 extern enum reg_class xtensa_regno_to_class (int regno);
 extern HOST_WIDE_INT xtensa_initial_elimination_offset (int from, int to);
+extern const char **xtensa_get_config_strings (void);
+extern rtl_opt_pass *make_pass_xtensa_largeconst1 (gcc::context *);
+extern rtl_opt_pass *make_pass_xtensa_largeconst2 (gcc::context *);
 
 #endif /* !__XTENSA_PROTOS_H__ */

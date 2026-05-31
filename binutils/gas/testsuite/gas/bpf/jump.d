@@ -1,6 +1,7 @@
-#as: --EL
-#objdump: -dr
-#name: eBPF JUMP instructions
+#as: -EL -mdialect=normal
+#objdump: -dr -M dec
+#source: jump.s
+#name: eBPF JUMP instructions, normal syntax
 
 .*: +file format .*bpf.*
 
@@ -29,3 +30,5 @@ Disassembly of section .text:
   98:	cd 43 00 00 00 00 00 00 	jslt %r3,%r4,0
   a0:	d5 03 01 00 03 00 00 00 	jsle %r3,3,1
   a8:	dd 43 00 00 00 00 00 00 	jsle %r3,%r4,0
+  b0:	06 00 00 00 01 00 00 00 	jal 1
+  b8:	06 00 00 00 00 00 00 00 	jal 0

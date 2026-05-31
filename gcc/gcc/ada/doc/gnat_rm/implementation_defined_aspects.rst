@@ -66,6 +66,12 @@ Aspect Abstract_State
 
 This aspect is equivalent to :ref:`pragma Abstract_State<Pragma-Abstract_State>`.
 
+Aspect Always_Terminates
+========================
+.. index:: Always_Terminates
+
+This boolean aspect is equivalent to :ref:`pragma Always_Terminates<Pragma-Always_Terminates>`.
+
 Aspect Annotate
 ===============
 
@@ -237,6 +243,113 @@ Aspect Effective_Writes
 
 This aspect is equivalent to :ref:`pragma Effective_Writes<Pragma-Effective_Writes>`.
 
+Aspect Exceptional_Cases
+========================
+.. index:: Exceptional_Cases
+
+This aspect may be specified for procedures and functions with side effects;
+it can be used to list exceptions that might be propagated by the subprogram
+with side effects in the context of its precondition, and associate them
+with a specific postcondition.
+
+For the syntax and semantics of this aspect, see the SPARK 2014 Reference
+Manual, section 6.1.9.
+
+Aspect Exit_Cases
+=================
+.. index:: Exit_Cases
+
+This aspect may be specified for procedures and functions with side effects;
+it can be used to partition the input state into a list of cases and specify,
+for each case, how the subprogram is allowed to terminate (i.e. return normally
+or propagate an exception).
+
+For the syntax and semantics of this aspect, see the SPARK 2014 Reference
+Manual, section 6.1.10.
+
+Aspect Extended_Access
+======================
+
+This nonoverridable boolean-valued type-related representation aspect can be
+specified as part of a full_type_declaration for a general access type
+designating an unconstrained array subtype.
+
+The absence of an Extended_Access aspect specification for such a
+full_type_declaration is equivalent to an explicit
+"Extended_Access => False" specification. This implies
+that the aspect is never unspecified for an eligible access type.
+An access type for which this aspect is True is said to be an extended access
+type; this includes the case of a type derived from an extended access type.
+Similarly, a value of such a type is said to be an extended access value.
+
+The representation of an extended access value is different than that of
+other access values. This representation makes it possible to designate
+objects that cannot be designated using the usual "thin" or "fat" access
+representations for an access type designating an unconstrained array
+subtype (notably slices and array objects imported from other languages).
+
+In particular, two rules are modified in determining the legality of an Access
+or Unchecked_Access attribute reference if the expected access type is
+an extended access type:
+
+* A slice of an aliased array object of a non-bitpacked type (more precisely,
+  of an array type having independently addressable components) is considered
+  to be aliased (and the accessibility level of a slice of an array object is
+  defined to be that of the array object); this also applies to renamings
+  of such slices, slices of such renamings, etc.
+
+* The requirement that the nominal subtype of the prefix shall statically
+  match the designated subtype of the access type need not be met.
+
+The Size aspect (and other aspects including Stream_Size, Object_Size,
+and Alignment) of an extended access type may depend on the properties of the
+designated type. Further details of this dependence are not documented.
+
+An extended access value is not convertible to a non-extended access type,
+although conversions in the opposite direction are allowed. We don't want
+to allow
+
+.. code-block:: ada
+
+   type Big_Ref is access all String with Extended_Access;
+   type Small_Ref is access all String;
+   Obj : aliased String := "abcde";
+   Big_Ptr : Big_Ref := Obj (2 .. 4)'Access; -- OK
+   Small_Ptr : Small_Ref := Small_Ref (Big_Ptr); -- ERROR: illegal conversion
+
+because there is no way to represent the result of such a conversion.
+
+A dereference of an extended access value (or a reference to a renaming
+thereof) shall not occur in any of the following contexts:
+
+* as an operative constituent of the prefix of an Access or
+  Unchecked_Access attribute reference whose expected type is not extended; or
+
+* as an operative constituent of an actual parameter in a call where
+  the corresponding formal parameter is explicitly aliased.
+
+For the same reasons that explicit conversions from an extended access type to a
+non-extended access type are forbidden, we also need to disallow getting the
+same effect via a Extended_Ptr.all'Access reference; this includes the case
+of passing Extended_Ptr.all as an actual parameter in a call where the
+corresponding formal parameter is explicitly aliased (because the callee
+could evaluate Formal_Parameter'Access). This goal is accomplished by
+adjusting the definition of the term "aliased". A dereference of an extended
+value occurring in one of these contexts is defined to denote
+a nonaliased view. This has the desired effect because these contexts require
+an aliased view. Continuing the preceding example, this rule disallows
+
+.. code-block:: ada
+
+   Sneaky_1 : Small_Ptr := Big_Ptr.all'Access; -- ERROR: illegal 'Access prefix
+
+   function Make (Str : aliased in out String) return Small_Ptr
+     is (Str'Access); -- OK
+
+   Sneaky_2 : Small_Ptr := Make (Str => Big_Ptr.all); -- ERROR: bad parameter
+
+for the same reason given above in the case of an explicit type conversion.
+
 Aspect Extensions_Visible
 =========================
 .. index:: Extensions_Visible
@@ -254,6 +367,16 @@ Aspect Ghost
 .. index:: Ghost
 
 This aspect is equivalent to :ref:`pragma Ghost<Pragma-Ghost>`.
+
+Aspect Ghost_Predicate
+======================
+.. index:: Ghost_Predicate
+
+This aspect introduces a subtype predicate that can reference ghost
+entities. The subtype cannot appear as a subtype_mark in a membership test.
+
+For the detailed semantics of this aspect, see the entry for subtype predicates
+in the SPARK Reference Manual, section 3.2.4.
 
 Aspect Global
 =============
@@ -315,25 +438,29 @@ The following is a typical example of use:
 .. code-block:: ada
 
   type List is private with
-      Iterable => (First        => First_Cursor,
-                   Next         => Advance,
-                   Has_Element  => Cursor_Has_Element,
-                  [Element      => Get_Element]);
+      Iterable => (First       => First_Cursor,
+                   Next        => Advance,
+                   Has_Element => Cursor_Has_Element
+                 [,Element     => Get_Element]
+                 [,Last        => Last_Cursor]
+                 [,Previous    => Retreat]);
 
-* The value denoted by ``First`` must denote a primitive operation of the
-  container type that returns a ``Cursor``, which must a be a type declared in
+* The values of ``First`` and ``Last`` are primitive operations of the
+  container type that return a ``Cursor``, which must be a type declared in
   the container package or visible from it. For example:
 
 .. code-block:: ada
 
   function First_Cursor (Cont : Container) return Cursor;
+  function Last_Cursor  (Cont : Container) return Cursor;
 
-* The value of ``Next`` is a primitive operation of the container type that takes
-  both a container and a cursor and yields a cursor. For example:
+* The values of ``Next`` and ``Previous`` are primitive operations of the container type that take
+  both a container and a cursor and yield a cursor. For example:
 
 .. code-block:: ada
 
   function Advance (Cont : Container; Position : Cursor) return Cursor;
+  function Retreat (Cont : Container; Position : Cursor) return Cursor;
 
 * The value of ``Has_Element`` is a primitive operation of the container type
   that takes both a container and a cursor and yields a boolean. For example:
@@ -357,6 +484,58 @@ Aspect Linker_Section
 .. index:: Linker_Section
 
 This aspect is equivalent to :ref:`pragma Linker_Section<Pragma-Linker_Section>`.
+
+Aspect Local_Restrictions
+=========================
+.. index:: Local_Restrictions
+
+This aspect may be specified for a subprogram (and for other declarations
+as described below). It is used to specify that a particular subprogram does
+not violate one or more local restrictions, nor can it call a subprogram
+that is not subject to the same requirement. Positional aggregate syntax
+(with parentheses, not square brackets) may be used to specify more than one
+local restriction, as in
+
+.. code-block:: ada
+
+  procedure Do_Something
+    with Local_Restrictions => (Some_Restriction, Another_Restriction);
+
+Parentheses are currently required even in the case of specifying a single
+local restriction (this requirement may be relaxed in the future).
+Supported local restrictions currently include (only) No_Heap_Allocations and
+No_Secondary_Stack.
+No_Secondary_Stack corresponds to the GNAT-defined (global) restriction
+of the same name. No_Heap_Allocations corresponds to the conjunction of the
+Ada-defined restrictions No_Allocators and No_Implicit_Heap_Allocations.
+
+Additional requirements are imposed in order to ensure that restriction
+violations cannot be achieved via overriding dispatching operations,
+calling through an access-to-subprogram value, calling a generic formal
+subprogram, or calling through a subprogram renaming.
+For a dispatching operation, an overrider must be subject to (at least) the
+same restrictions as the overridden inherited subprogram; similarly, the
+actual subprogram corresponding to a generic formal subprogram
+in an instantiation must be subject to (at least) the same restrictions
+as the formal subprogram. A call through an access-to-subprogram value
+is conservatively assumed to violate all local restrictions; tasking-related
+constructs (notably entry calls) are treated similarly. A renaming-as-body is
+treated like a subprogram body containing a call to the renamed subprogram.
+
+The Local_Restrictions aspect can be specified for a package specification,
+in which case the aspect specification also applies to all eligible entities
+declared with the package. This includes types. Default initialization of an
+object of a given type is treated like a call to an implicitly-declared
+initialization subprogram. Such a "call" is subject to the same local
+restriction checks as any other call. If a type is subject to a local
+restriction, then any violations of that restriction within the default
+initialization expressions (if any) of the type are rejected. This may
+include "calls" to the default initialization subprograms of other types.
+
+Local_Restrictions aspect specifications are additive (for example, in the
+case of a declaration that occurs within nested packages that each have
+a Local_Restrictions specification).
+
 
 Aspect Lock_Free
 ================
@@ -389,6 +568,12 @@ Aspect No_Inline
 
 This boolean aspect is equivalent to :ref:`pragma No_Inline<Pragma-No_Inline>`.
 
+Aspect No_Raise
+===============
+.. index:: No_Raise
+
+This boolean aspect is equivalent to :ref:`pragma No_Raise<Pragma-No_Raise>`.
+
 Aspect No_Tagged_Streams
 ========================
 .. index:: No_Tagged_Streams
@@ -418,7 +603,7 @@ This aspect is equivalent to :ref:`attribute Object_Size<Attribute-Object_Size>`
 
 Aspect Obsolescent
 ==================
-.. index:: Obsolsecent
+.. index:: Obsolescent
 
 This aspect is equivalent to :ref:`pragma Obsolescent<Pragma_Obsolescent>`. Note that the
 evaluation of this aspect happens at the point of occurrence, it is not
@@ -436,6 +621,14 @@ Aspect Persistent_BSS
 
 This boolean aspect is equivalent to :ref:`pragma Persistent_BSS<Pragma-Persistent_BSS>`.
 
+Aspect Potentially_Invalid
+==========================
+.. index:: Potentially_Invalid
+
+For the syntax and semantics of this aspect, see the SPARK 2014 Reference
+Manual, section 13.9.1.
+
+
 Aspect Predicate
 ================
 .. index:: Predicate
@@ -446,6 +639,12 @@ and ``Static_Predicate`` except that whether the resulting
 predicate is static or dynamic is controlled by the form of the
 expression. It is also separately controllable using pragma
 ``Assertion_Policy``.
+
+Aspect Program_Exit
+===================
+.. index:: Program_Exit
+
+This boolean aspect is equivalent to :ref:`pragma Program_Exit<Pragma-Program_Exit>`.
 
 Aspect Pure_Function
 ====================
@@ -490,6 +689,12 @@ Aspect Remote_Access_Type
 
 This aspect is equivalent to :ref:`pragma Remote_Access_Type<Pragma-Remote_Access_Type>`.
 
+Aspect Scalar_Storage_Order
+===========================
+.. index:: Scalar_Storage_Order
+
+This aspect is equivalent to a :ref:`attribute Scalar_Storage_Order<Attribute-Scalar_Storage_Order>`.
+
 Aspect Secondary_Stack_Size
 ===========================
 
@@ -497,19 +702,18 @@ Aspect Secondary_Stack_Size
 
 This aspect is equivalent to :ref:`pragma Secondary_Stack_Size<Pragma-Secondary_Stack_Size>`.
 
-
-Aspect Scalar_Storage_Order
-===========================
-.. index:: Scalar_Storage_Order
-
-This aspect is equivalent to a :ref:`attribute Scalar_Storage_Order<Attribute-Scalar_Storage_Order>`.
-
 Aspect Shared
 =============
 .. index:: Shared
 
 This boolean aspect is equivalent to :ref:`pragma Shared<Pragma-Shared>`
 and is thus a synonym for aspect ``Atomic``.
+
+Aspect Side_Effects
+===================
+.. index:: Side_Effects
+
+This aspect is equivalent to :ref:`pragma Side_Effects<Pragma-Side_Effects>`.
 
 Aspect Simple_Storage_Pool
 ==========================
@@ -530,6 +734,13 @@ Aspect SPARK_Mode
 This aspect is equivalent to :ref:`pragma SPARK_Mode<Pragma-SPARK_Mode>` and
 may be specified for either or both of the specification and body
 of a subprogram or package.
+
+Aspect Subprogram_Variant
+=========================
+.. index:: Subprogram_Variant
+
+For the syntax and semantics of this aspect, see the SPARK 2014 Reference
+Manual, section 6.1.8.
 
 Aspect Suppress_Debug_Info
 ==========================
@@ -582,6 +793,16 @@ Aspect Unreferenced_Objects
 .. index:: Unreferenced_Objects
 
 This boolean aspect is equivalent to :ref:`pragma Unreferenced_Objects<Pragma-Unreferenced_Objects>`.
+
+Aspect User_Aspect
+==================
+.. index:: User_Aspect
+
+This aspect takes an argument that is the name of an aspect defined by a
+User_Aspect_Definition configuration pragma.
+A User_Aspect aspect specification is semantically equivalent to
+replicating the set of aspect specifications associated with the named
+pragma-defined aspect.
 
 Aspect Value_Size
 =================

@@ -1,6 +1,6 @@
 /* RTX cost tables shared between arm and aarch64.
 
-   Copyright (C) 2013-2022 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -123,9 +123,9 @@ const struct cpu_cost_table generic_extra_costs =
   {
     COSTS_N_INSNS (1),	/* alu.  */
     COSTS_N_INSNS (4),  /* mult.  */
-    COSTS_N_INSNS (1),  /* movi.  */
-    COSTS_N_INSNS (2),  /* dup.  */
-    COSTS_N_INSNS (2)   /* extract.  */
+    COSTS_N_INSNS (0),  /* movi.  */
+    COSTS_N_INSNS (1),  /* dup.  */
+    COSTS_N_INSNS (1)   /* extract.  */
   }
 };
 
@@ -230,9 +230,9 @@ const struct cpu_cost_table cortexa53_extra_costs =
   {
     COSTS_N_INSNS (1),	/* alu.  */
     COSTS_N_INSNS (4),  /* mult.  */
-    COSTS_N_INSNS (1),  /* movi.  */
-    COSTS_N_INSNS (2),  /* dup.  */
-    COSTS_N_INSNS (2)   /* extract.  */
+    COSTS_N_INSNS (0),  /* movi.  */
+    COSTS_N_INSNS (1),  /* dup.  */
+    COSTS_N_INSNS (1)   /* extract.  */
   }
 };
 
@@ -337,9 +337,9 @@ const struct cpu_cost_table cortexa57_extra_costs =
   {
     COSTS_N_INSNS (1),  /* alu.  */
     COSTS_N_INSNS (4),  /* mult.  */
-    COSTS_N_INSNS (1),  /* movi.  */
-    COSTS_N_INSNS (2),  /* dup.  */
-    COSTS_N_INSNS (2)   /* extract.  */
+    COSTS_N_INSNS (0),  /* movi.  */
+    COSTS_N_INSNS (1),  /* dup.  */
+    COSTS_N_INSNS (1)   /* extract.  */
   }
 };
 
@@ -444,9 +444,9 @@ const struct cpu_cost_table cortexa76_extra_costs =
   {
     COSTS_N_INSNS (1),  /* alu.  */
     COSTS_N_INSNS (4),  /* mult.  */
-    COSTS_N_INSNS (1),  /* movi.  */
-    COSTS_N_INSNS (2),  /* dup.  */
-    COSTS_N_INSNS (2)   /* extract.  */
+    COSTS_N_INSNS (0),  /* movi.  */
+    COSTS_N_INSNS (1),  /* dup.  */
+    COSTS_N_INSNS (1)   /* extract.  */
   }
 };
 
@@ -551,9 +551,9 @@ const struct cpu_cost_table exynosm1_extra_costs =
   {
     COSTS_N_INSNS (0),  /* alu.  */
     COSTS_N_INSNS (4),  /* mult.  */
-    COSTS_N_INSNS (1),  /* movi.  */
-    COSTS_N_INSNS (2),  /* dup.  */
-    COSTS_N_INSNS (2)   /* extract.  */
+    COSTS_N_INSNS (0),  /* movi.  */
+    COSTS_N_INSNS (1),  /* dup.  */
+    COSTS_N_INSNS (1)   /* extract.  */
   }
 };
 
@@ -658,9 +658,9 @@ const struct cpu_cost_table xgene1_extra_costs =
   {
     COSTS_N_INSNS (2),  /* alu.  */
     COSTS_N_INSNS (8),  /* mult.  */
-    COSTS_N_INSNS (1),  /* movi.  */
-    COSTS_N_INSNS (2),  /* dup.  */
-    COSTS_N_INSNS (2)   /* extract.  */
+    COSTS_N_INSNS (0),  /* movi.  */
+    COSTS_N_INSNS (1),  /* dup.  */
+    COSTS_N_INSNS (1)   /* extract.  */
   }
 };
 

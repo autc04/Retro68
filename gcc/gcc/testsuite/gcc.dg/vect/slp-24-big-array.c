@@ -42,6 +42,7 @@ main1 (unsigned char x, unsigned char max_result, unsigned char min_result, s *a
     pIn++;
   }
 
+#pragma GCC novector
   for (i = 0; i < N; i++) {
     if (ua1[2*i] != ub[2*i]
         || ua1[2*i+1] != ub[2*i+1]
@@ -91,4 +92,4 @@ int main (void)
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { xfail { vect_no_align && ilp32 } } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 2 "vect" { xfail { vect_no_align && ilp32 } } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 3 "vect" { xfail { vect_no_align && ilp32 } } } } */

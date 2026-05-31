@@ -8,6 +8,7 @@
  */
 module core.sys.posix.aio;
 
+import core.stdc.config;
 import core.sys.posix.signal;
 import core.sys.posix.sys.types;
 
@@ -23,7 +24,6 @@ else version (WatchOS)
 version (Posix):
 
 extern (C):
-@system:
 @nogc:
 nothrow:
 
@@ -386,6 +386,18 @@ else version (OpenBSD)
 {
     // OpenBSD does not implement aio.h
 }
+else version (NetBSD)
+{
+    int aio_cancel(int fd, aiocb* aiocbp);
+    int aio_error(const(aiocb)* aiocbp);
+    int aio_fsync(int op, aiocb* aiocbp);
+    int aio_read(aiocb* aiocbp);
+    ssize_t aio_return(aiocb* aiocbp);
+    pragma(mangle, "__aio_suspend50")
+    int aio_suspend(const(aiocb*)* aiocb_list, int nitems, const(timespec)* timeout);
+    int aio_write(aiocb* aiocbp);
+    int lio_listio(int mode, const(aiocb*)* aiocb_list, int nitems, sigevent* sevp);
+}
 else
 {
     int aio_read(aiocb* aiocbp);
@@ -393,6 +405,7 @@ else
     int aio_fsync(int op, aiocb* aiocbp);
     int aio_error(const(aiocb)* aiocbp);
     ssize_t aio_return(aiocb* aiocbp);
+    pragma(mangle, muslRedirTime64Mangle!("aio_suspend", "__aio_suspend_time64"))
     int aio_suspend(const(aiocb*)* aiocb_list, int nitems, const(timespec)* timeout);
     int aio_cancel(int fd, aiocb* aiocbp);
     int lio_listio(int mode, const(aiocb*)* aiocb_list, int nitems, sigevent* sevp);

@@ -1,4 +1,4 @@
-#ld: -Tnote-1.t
+#ld: -Tnote-1.t --no-warn-rwx-segments
 #readelf: -l --wide
 
 #...

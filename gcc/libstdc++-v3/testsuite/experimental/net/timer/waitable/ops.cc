@@ -1,4 +1,4 @@
-// Copyright (C) 2015-2022 Free Software Foundation, Inc.
+// Copyright (C) 2015-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -17,6 +17,7 @@
 
 // { dg-do run { target c++14 } }
 // { dg-add-options libatomic }
+// { dg-xfail-if "poll not available" { *-*-rtems* } }
 
 #include <experimental/timer>
 #include <testsuite_hooks.h>
@@ -28,8 +29,6 @@ using std::error_code;
 void
 test01()
 {
-  bool test __attribute__((unused)) = false;
-
   io_context ctx;
   error_code ec;
   bool complete = false;
@@ -56,8 +55,6 @@ test01()
 void
 test02()
 {
-  bool test __attribute__((unused)) = false;
-
   io_context ctx;
   error_code ec1, ec2;
 

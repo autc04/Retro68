@@ -1,5 +1,5 @@
 /* Implementation of the MAXLOC intrinsic
-   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -32,13 +32,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define HAVE_BACK_ARG 1
 
 
-extern void maxloc1_16_r4 (gfc_array_i16 * const restrict, 
+extern void maxloc1_16_r4 (gfc_array_i16 * const restrict,
 	gfc_array_r4 * const restrict, const index_type * const restrict, GFC_LOGICAL_4 back);
 export_proto(maxloc1_16_r4);
 
 void
-maxloc1_16_r4 (gfc_array_i16 * const restrict retarray, 
-	gfc_array_r4 * const restrict array, 
+maxloc1_16_r4 (gfc_array_i16 * const restrict retarray,
+	gfc_array_r4 * const restrict array,
 	const index_type * const restrict pdim, GFC_LOGICAL_4 back)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -109,12 +109,7 @@ maxloc1_16_r4 (gfc_array_i16 * const restrict retarray,
 
       retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_16));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-
-	}
+	return;
     }
   else
     {
@@ -221,15 +216,15 @@ maxloc1_16_r4 (gfc_array_i16 * const restrict retarray,
 }
 
 
-extern void mmaxloc1_16_r4 (gfc_array_i16 * const restrict, 
+extern void mmaxloc1_16_r4 (gfc_array_i16 * const restrict,
 	gfc_array_r4 * const restrict, const index_type * const restrict,
 	gfc_array_l1 * const restrict, GFC_LOGICAL_4 back);
 export_proto(mmaxloc1_16_r4);
 
 void
-mmaxloc1_16_r4 (gfc_array_i16 * const restrict retarray, 
-	gfc_array_r4 * const restrict array, 
-	const index_type * const restrict pdim, 
+mmaxloc1_16_r4 (gfc_array_i16 * const restrict retarray,
+	gfc_array_r4 * const restrict array,
+	const index_type * const restrict pdim,
 	gfc_array_l1 * const restrict mask, GFC_LOGICAL_4 back)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -270,8 +265,8 @@ mmaxloc1_16_r4 (gfc_array_i16 * const restrict retarray,
     }
 
   len = GFC_DESCRIPTOR_EXTENT(array,dim);
-  if (len <= 0)
-    return;
+  if (len < 0)
+    len = 0;
 
   mbase = mask->base_addr;
 
@@ -329,15 +324,9 @@ mmaxloc1_16_r4 (gfc_array_i16 * const restrict retarray,
       retarray->offset = 0;
       retarray->dtype.rank = rank;
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_16));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_16));
-
+	return;
     }
   else
     {
@@ -460,15 +449,15 @@ mmaxloc1_16_r4 (gfc_array_i16 * const restrict retarray,
 }
 
 
-extern void smaxloc1_16_r4 (gfc_array_i16 * const restrict, 
+extern void smaxloc1_16_r4 (gfc_array_i16 * const restrict,
 	gfc_array_r4 * const restrict, const index_type * const restrict,
 	GFC_LOGICAL_4 *, GFC_LOGICAL_4 back);
 export_proto(smaxloc1_16_r4);
 
 void
-smaxloc1_16_r4 (gfc_array_i16 * const restrict retarray, 
-	gfc_array_r4 * const restrict array, 
-	const index_type * const restrict pdim, 
+smaxloc1_16_r4 (gfc_array_i16 * const restrict retarray,
+	gfc_array_r4 * const restrict array,
+	const index_type * const restrict pdim,
 	GFC_LOGICAL_4 * mask, GFC_LOGICAL_4 back)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -537,14 +526,9 @@ smaxloc1_16_r4 (gfc_array_i16 * const restrict retarray,
 
       alloc_size = GFC_DESCRIPTOR_STRIDE(retarray,rank-1) * extent[rank-1];
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_16));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_16));
+	return;
     }
   else
     {

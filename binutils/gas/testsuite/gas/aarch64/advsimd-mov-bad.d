@@ -1,5 +1,7 @@
 #source: advsimd-mov-bad.s
 #readelf: -s --wide
+# This test is only valid on ELF based ports.
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 Symbol table '.symtab' contains 6 entries:
  +Num:.*

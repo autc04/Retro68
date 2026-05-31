@@ -1,5 +1,5 @@
 /* Special implementation of the SPREAD intrinsic
-   Copyright (C) 2008-2022 Free Software Foundation, Inc.
+   Copyright (C) 2008-2026 Free Software Foundation, Inc.
    Contributed by Thomas Koenig <tkoenig@gcc.gnu.org>, based on
    spread_generic.c written by Paul Brook <paul@nowt.org>
 
@@ -56,6 +56,8 @@ spread_r16 (gfc_array_r16 *ret, const gfc_array_r16 *source,
 
   srank = GFC_DESCRIPTOR_RANK(source);
 
+  sstride[0] = 0; /* Avoid warnings if not initialized.  */
+  
   rrank = srank + 1;
   if (rrank > GFC_MAX_DIMENSIONS)
     runtime_error ("return rank too large in spread()");
@@ -241,7 +243,8 @@ spread_scalar_r16 (gfc_array_r16 *ret, const GFC_REAL_16 *source,
 
   if (ret->base_addr == NULL)
     {
-      ret->base_addr = xmallocarray (ncopies, sizeof (GFC_REAL_16));
+      ret->base_addr = xmallocarray (ncopies > 0 ? ncopies : 0,
+				     sizeof (GFC_REAL_16));
       ret->offset = 0;
       GFC_DIMENSION_SET(ret->dim[0], 0, ncopies - 1, 1);
     }

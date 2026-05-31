@@ -1,6 +1,7 @@
 /* PR tree-optimization/96779 */
 /* { dg-do run } */
 /* { dg-options "-O -fdump-tree-optimized" } */
+/* { dg-require-effective-target int32plus } */
 
 #include <stdbool.h>
 
@@ -75,5 +76,5 @@ main (void)
   return 0;
 }
 
-/* Verify that we transfered to "= -" pattern from "_2 = -_1;".  */
+/* Verify that we transferred to "= -" pattern from "_2 = -_1;".  */
 /* { dg-final { scan-tree-dump-not "= -" "optimized" } } */

@@ -1,5 +1,5 @@
 #source: size-1.s
-#ld: -T size-1.t
+#ld: -T size-1.t --no-warn-rwx-segments
 #objdump: -s
 # v850 .tdata/.tbss are not TLS sections
 #xfail: v850*-*-*

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -45,19 +45,12 @@ with System.Task_Info;
 with System.Tasking.Debug;
 with System.Win32.Ext;
 
-with System.Soft_Links;
---  We use System.Soft_Links instead of System.Tasking.Initialization because
---  the later is a higher level package that we shouldn't depend on. For
---  example when using the restricted run time, it is replaced by
---  System.Tasking.Restricted.Stages.
-
 package body System.Task_Primitives.Operations is
-
-   package SSL renames System.Soft_Links;
-
    use Interfaces.C;
    use Interfaces.C.Strings;
+
    use System.OS_Interface;
+   use System.OS_Locks;
    use System.OS_Primitives;
    use System.Parameters;
    use System.Task_Info;
@@ -66,36 +59,12 @@ package body System.Task_Primitives.Operations is
    use System.Win32;
    use System.Win32.Ext;
 
-   pragma Link_With ("-Xlinker --stack=0x200000,0x1000");
-   --  Change the default stack size (2 MB) for tasking programs on Windows.
-   --  This allows about 1000 tasks running at the same time. Note that
-   --  we set the stack size for non tasking programs on System unit.
-   --  Also note that under Windows XP, we use a Windows XP extension to
+   pragma Link_With ("-Xlinker --stack=0x800000,0x1000");
+   --  Change the default stack size (8 MB) for tasking programs on Windows.
+   --  This allows at least 1000 tasks running at the same time. Note that
+   --  we set the stack size for non tasking programs in the System unit.
+   --  Also note that under Windows, we use a Windows extension to
    --  specify the stack size on a per task basis, as done under other OSes.
-
-   ---------------------
-   -- Local Functions --
-   ---------------------
-
-   procedure InitializeCriticalSection (pCriticalSection : access RTS_Lock);
-   procedure InitializeCriticalSection
-     (pCriticalSection : access CRITICAL_SECTION);
-   pragma Import
-     (Stdcall, InitializeCriticalSection, "InitializeCriticalSection");
-
-   procedure EnterCriticalSection (pCriticalSection : access RTS_Lock);
-   procedure EnterCriticalSection
-     (pCriticalSection : access CRITICAL_SECTION);
-   pragma Import (Stdcall, EnterCriticalSection, "EnterCriticalSection");
-
-   procedure LeaveCriticalSection (pCriticalSection : access RTS_Lock);
-   procedure LeaveCriticalSection (pCriticalSection : access CRITICAL_SECTION);
-   pragma Import (Stdcall, LeaveCriticalSection, "LeaveCriticalSection");
-
-   procedure DeleteCriticalSection (pCriticalSection : access RTS_Lock);
-   procedure DeleteCriticalSection
-     (pCriticalSection : access CRITICAL_SECTION);
-   pragma Import (Stdcall, DeleteCriticalSection, "DeleteCriticalSection");
 
    ----------------
    -- Local Data --
@@ -421,7 +390,8 @@ package body System.Task_Primitives.Operations is
    end Initialize_Lock;
 
    procedure Initialize_Lock
-     (L : not null access RTS_Lock; Level : Lock_Level)
+     (L     : not null access RTS_Lock;
+      Level : Lock_Level)
    is
       pragma Unreferenced (Level);
    begin
@@ -696,7 +666,10 @@ package body System.Task_Primitives.Operations is
       Res :=
         SetThreadPriority
           (T.Common.LL.Thread,
-           Interfaces.C.int (Underlying_Priorities (Prio)));
+           Interfaces.C.int ((if Dispatching_Policy = 'F' then
+                                 FIFO_Underlying_Priorities (Prio)
+                              else
+                                 Underlying_Priorities (Prio))));
       pragma Assert (Res = Win32.TRUE);
 
       --  Note: Annex D (RM D.2.3(5/2)) requires the task to be placed at the
@@ -767,6 +740,34 @@ package body System.Task_Primitives.Operations is
       Get_Stack_Bounds
         (Self_ID.Common.Compiler_Data.Pri_Stack_Info.Base'Address,
          Self_ID.Common.Compiler_Data.Pri_Stack_Info.Limit'Address);
+
+      if Self_ID.Common.Task_Image_Len > 0 then
+         declare
+            function Set_Thread_Description
+              (H : Thread_Id; Descr : Address; Length : Integer)
+               return Integer;
+            pragma
+              Import
+                (C, Set_Thread_Description, "__gnat_set_thread_description");
+
+            Nul_Terminated_Image : constant String :=
+              Self_ID.Common.Task_Image
+                (Self_ID.Common.Task_Image'First
+                 ..
+                   Self_ID.Common.Task_Image'First
+                   + Self_ID.Common.Task_Image_Len
+                   - 1)
+              & ASCII.NUL;
+
+            Result : constant Integer :=
+              Set_Thread_Description
+                (Self_ID.Common.LL.Thread,
+                 Nul_Terminated_Image'Address,
+                 Self_ID.Common.Task_Image_Len);
+         begin
+            pragma Assert (Result = 1);
+         end;
+      end if;
    end Enter_Task;
 
    -------------------
@@ -1053,168 +1054,11 @@ package body System.Task_Primitives.Operations is
    -------------------
 
    function RT_Resolution return Duration is
-      Ticks_Per_Second : aliased LARGE_INTEGER;
+      Ticks_Per_Second : aliased System.OS_Interface.LARGE_INTEGER;
    begin
       QueryPerformanceFrequency (Ticks_Per_Second'Access);
       return Duration (1.0 / Ticks_Per_Second);
    end RT_Resolution;
-
-   ----------------
-   -- Initialize --
-   ----------------
-
-   procedure Initialize (S : in out Suspension_Object) is
-   begin
-      --  Initialize internal state. It is always initialized to False (ARM
-      --  D.10 par. 6).
-
-      S.State := False;
-      S.Waiting := False;
-
-      --  Initialize internal mutex
-
-      InitializeCriticalSection (S.L'Access);
-
-      --  Initialize internal condition variable
-
-      S.CV := CreateEvent (null, Win32.TRUE, Win32.FALSE, Null_Ptr);
-      pragma Assert (S.CV /= 0);
-   end Initialize;
-
-   --------------
-   -- Finalize --
-   --------------
-
-   procedure Finalize (S : in out Suspension_Object) is
-      Result : BOOL;
-
-   begin
-      --  Destroy internal mutex
-
-      DeleteCriticalSection (S.L'Access);
-
-      --  Destroy internal condition variable
-
-      Result := CloseHandle (S.CV);
-      pragma Assert (Result = Win32.TRUE);
-   end Finalize;
-
-   -------------------
-   -- Current_State --
-   -------------------
-
-   function Current_State (S : Suspension_Object) return Boolean is
-   begin
-      --  We do not want to use lock on this read operation. State is marked
-      --  as Atomic so that we ensure that the value retrieved is correct.
-
-      return S.State;
-   end Current_State;
-
-   ---------------
-   -- Set_False --
-   ---------------
-
-   procedure Set_False (S : in out Suspension_Object) is
-   begin
-      SSL.Abort_Defer.all;
-
-      EnterCriticalSection (S.L'Access);
-
-      S.State := False;
-
-      LeaveCriticalSection (S.L'Access);
-
-      SSL.Abort_Undefer.all;
-   end Set_False;
-
-   --------------
-   -- Set_True --
-   --------------
-
-   procedure Set_True (S : in out Suspension_Object) is
-      Result : BOOL;
-
-   begin
-      SSL.Abort_Defer.all;
-
-      EnterCriticalSection (S.L'Access);
-
-      --  If there is already a task waiting on this suspension object then
-      --  we resume it, leaving the state of the suspension object to False,
-      --  as it is specified in ARM D.10 par. 9. Otherwise, it just leaves
-      --  the state to True.
-
-      if S.Waiting then
-         S.Waiting := False;
-         S.State := False;
-
-         Result := SetEvent (S.CV);
-         pragma Assert (Result = Win32.TRUE);
-
-      else
-         S.State := True;
-      end if;
-
-      LeaveCriticalSection (S.L'Access);
-
-      SSL.Abort_Undefer.all;
-   end Set_True;
-
-   ------------------------
-   -- Suspend_Until_True --
-   ------------------------
-
-   procedure Suspend_Until_True (S : in out Suspension_Object) is
-      Result      : DWORD;
-      Result_Bool : BOOL;
-
-   begin
-      SSL.Abort_Defer.all;
-
-      EnterCriticalSection (S.L'Access);
-
-      if S.Waiting then
-
-         --  Program_Error must be raised upon calling Suspend_Until_True
-         --  if another task is already waiting on that suspension object
-         --  (ARM D.10 par. 10).
-
-         LeaveCriticalSection (S.L'Access);
-
-         SSL.Abort_Undefer.all;
-
-         raise Program_Error;
-
-      else
-         --  Suspend the task if the state is False. Otherwise, the task
-         --  continues its execution, and the state of the suspension object
-         --  is set to False (ARM D.10 par. 9).
-
-         if S.State then
-            S.State := False;
-
-            LeaveCriticalSection (S.L'Access);
-
-            SSL.Abort_Undefer.all;
-
-         else
-            S.Waiting := True;
-
-            --  Must reset CV BEFORE L is unlocked
-
-            Result_Bool := ResetEvent (S.CV);
-            pragma Assert (Result_Bool = Win32.TRUE);
-
-            LeaveCriticalSection (S.L'Access);
-
-            SSL.Abort_Undefer.all;
-
-            Result := WaitForSingleObject (S.CV, Wait_Infinite);
-            pragma Assert (Result = 0);
-         end if;
-      end if;
-   end Suspend_Until_True;
 
    ----------------
    -- Check_Exit --
@@ -1326,7 +1170,13 @@ package body System.Task_Primitives.Operations is
          Result :=
            SetThreadIdealProcessor
              (T.Common.LL.Thread, ProcessorId (T.Common.Base_CPU) - 1);
-         pragma Assert (Result = 1);
+
+         --  The documentation for SetThreadIdealProcessor states:
+         --
+         --      If the function fails, the return value is (DWORD) - 1.
+         --
+         --  That should map to DWORD'Last in Ada.
+         pragma Assert (Result /= DWORD'Last);
 
       --  Task_Info
 
@@ -1335,7 +1185,10 @@ package body System.Task_Primitives.Operations is
             Result :=
               SetThreadIdealProcessor
                 (T.Common.LL.Thread, T.Common.Task_Info.CPU);
-            pragma Assert (Result = 1);
+
+            --  See the comment above about the return value of
+            --  SetThreadIdealProcessor.
+            pragma Assert (Result /= DWORD'Last);
          end if;
 
       --  Dispatching domains
@@ -1349,7 +1202,7 @@ package body System.Task_Primitives.Operations is
       then
          declare
             CPU_Set : DWORD := 0;
-
+            Mask_Result : DWORD_PTR;
          begin
             for Proc in T.Common.Domain'Range loop
                if T.Common.Domain (Proc) then
@@ -1361,10 +1214,18 @@ package body System.Task_Primitives.Operations is
                end if;
             end loop;
 
-            Result := SetThreadAffinityMask (T.Common.LL.Thread, CPU_Set);
-            pragma Assert (Result = 1);
+            Mask_Result := SetThreadAffinityMask (T.Common.LL.Thread, CPU_Set);
+            pragma Assert (Mask_Result /= 0);
          end;
       end if;
    end Set_Task_Affinity;
 
+   ---------------------
+   -- Is_Task_Context --
+   ---------------------
+
+   function Is_Task_Context return Boolean is
+   begin
+      return True;
+   end Is_Task_Context;
 end System.Task_Primitives.Operations;

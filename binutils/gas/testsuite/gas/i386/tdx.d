@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: TDX insns
 #source: tdx.s

@@ -6,13 +6,16 @@
 [^:]*:10: Warning: no size modifier after period, .w assumed
 [^:]*:10: Warning: a NOP might be needed here, before this interrupt state change
 [^:]*:11: Error: instruction bis.a does not exist
-[^:]*:16: Warning: a NOP might also be needed here, after the instruction that changed interrupt state
-[^:]*:16: Warning: a NOP might be needed here, before an interrupt enable instruction
-[^:]*:25: Warning: a NOP might be needed here, after an interrupt disable instruction
-[^:]*:26: Warning: a NOP might be needed here, after an interrupt enable instruction
-[^:]*:29: Warning: a NOP might be needed here, after an interrupt disable instruction
-[^:]*:31: Warning: a NOP might be needed here, after an interrupt disable instruction
-[^:]*:32: Warning: a NOP might be needed here, after an interrupt disable instruction
-[^:]*:33: Warning: a NOP might be needed here, after an interrupt disable instruction
-[^:]*:34: Warning: a NOP might be needed here, after an interrupt enable instruction
+[^:]*:14: Warning: a NOP might also be needed here, after the instruction that changed interrupt state
+[^:]*:14: Error: expected value of first argument of adda to fit into 20-bits
+[^:]*:15: Error: expected value of first argument of adda to fit into 20-bits
+[^:]*:22: Error: expected value of first argument of adda to fit into 20-bits
+[^:]*:27: Warning: a NOP might be needed here, before an interrupt enable instruction
+[^:]*:36: Warning: a NOP might be needed here, after an interrupt disable instruction
+[^:]*:37: Warning: a NOP might be needed here, after an interrupt enable instruction
+[^:]*:40: Warning: a NOP might be needed here, after an interrupt disable instruction
+[^:]*:42: Warning: a NOP might be needed here, after an interrupt disable instruction
+[^:]*:43: Warning: a NOP might be needed here, after an interrupt disable instruction
+[^:]*:44: Warning: a NOP might be needed here, after an interrupt disable instruction
+[^:]*:45: Warning: a NOP might be needed here, after an interrupt enable instruction
 [^:]*: Warning: a NOP might be needed after the interrupt state change at the end of the file

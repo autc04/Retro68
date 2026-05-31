@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,7 +23,8 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Types; use Types;
+with Einfo.Entities; use Einfo.Entities;
+with Types;          use Types;
 package Sem_Ch8 is
 
    -----------------------------------
@@ -99,11 +100,6 @@ package Sem_Ch8 is
    --  entries in the current scope, and that will give all homonyms that are
    --  declared before the point of call in the current scope. This is useful
    --  for example in the processing for pragma Inline.
-   --
-   --  Flag Errors_OK should be set when error diagnostics are desired. Flag
-   --  Marker_OK should be set when a N_Variable_Reference_Marker needs to be
-   --  generated for a SPARK object in order to detect elaboration issues. Flag
-   --  Reference_OK should be set when N must generate a cross reference.
 
    procedure Find_Selected_Component (N : Node_Id);
    --  Resolve various cases of selected components, recognize expanded names
@@ -148,7 +144,7 @@ package Sem_Ch8 is
    --  Mark a given entity or node Id's relevant use clauses as effective,
    --  including redundant ones and ones outside of the current scope.
 
-   procedure Push_Scope (S : Entity_Id);
+   procedure Push_Scope (S : Scope_Kind_Id);
    --  Make new scope stack entry, pushing S, the entity for a scope onto the
    --  top of the scope table. The current setting of the scope suppress flags
    --  is saved for restoration on exit.

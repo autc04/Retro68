@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2022 Free Software Foundation, Inc.
+# Copyright (C) 2004-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ dg-init
 
 # Main loop.
 et-dg-runtest g++-dg-runtest [lsort [glob -nocomplain \
-	$srcdir/$subdir/{pr,simd}*.{c,cc,S} ]] "" $DEFAULT_VECTCFLAGS
+	$srcdir/$subdir/{pr,simd,vect-}*.{c,cc,S} ]] "" $DEFAULT_VECTCFLAGS
 et-dg-runtest g++-dg-runtest [lsort [glob -nocomplain \
 	$srcdir/$subdir/slp-pr*.{c,cc,S} ]] "" $VECT_SLP_CFLAGS
 
@@ -72,12 +72,6 @@ et-dg-runtest g++-dg-runtest [lsort [glob -nocomplain \
 global SAVED_DEFAULT_VECTCFLAGS
 set SAVED_DEFAULT_VECTCFLAGS $DEFAULT_VECTCFLAGS
     
-# --param max-aliased-vops=0
-set DEFAULT_VECTCFLAGS $SAVED_DEFAULT_VECTCFLAGS
-lappend DEFAULT_VECTCFLAGS "--param max-aliased-vops=0"
-et-dg-runtest g++-dg-runtest [lsort [glob -nocomplain \
-	$srcdir/$subdir/param-max-aliased*.\[cS\]]] "" $DEFAULT_VECTCFLAGS
-
 # Clean up.
 set dg-do-what-default ${save-dg-do-what-default} 
 

@@ -1,5 +1,5 @@
 /* Call stacks at program points.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,23 +18,10 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#include "system.h"
-#include "coretypes.h"
-#include "pretty-print.h"
-#include "tree.h"
-#include "options.h"
-#include "json.h"
+#include "analyzer/common.h"
+
+#include "analyzer/analyzer-logging.h"
 #include "analyzer/call-string.h"
-#include "ordered-hash-map.h"
-#include "options.h"
-#include "cgraph.h"
-#include "function.h"
-#include "cfg.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "gimple-iterator.h"
-#include "digraph.h"
 #include "analyzer/supergraph.h"
 
 #if ENABLE_ANALYZER
@@ -52,7 +39,8 @@ along with GCC; see the file COPYING3.  If not see
 bool
 call_string::element_t::operator== (const call_string::element_t &other) const
 {
-  return (m_caller == other.m_caller && m_callee == other.m_callee);
+  return (m_call_sedge == other.m_call_sedge
+	  && m_called_fun == other.m_called_fun);
 }
 
 /* call_string::element_t's inequality operator.  */
@@ -62,55 +50,41 @@ call_string::element_t::operator!= (const call_string::element_t &other) const
   return !(*this == other);
 }
 
+int
+call_string::element_t::cmp (const element_t &a, const element_t &b)
+{
+  if (int src_id_cmp = (a.m_call_sedge->m_src->m_id
+			- b.m_call_sedge->m_src->m_id))
+    return src_id_cmp;
+
+  /* We don't expect multiple call sedges with the same src.  */
+  gcc_assert (a.m_call_sedge->m_dest == b.m_call_sedge->m_dest);
+
+  return a.m_called_fun->funcdef_no - b.m_called_fun->funcdef_no;
+}
+
 function *
 call_string::element_t::get_caller_function () const
 {
-  return m_caller->get_function ();
+  return m_call_sedge->m_src->get_function ();
 }
 
-function *
-call_string::element_t::get_callee_function () const
+const supernode *
+call_string::element_t::get_call_snode_in_caller () const
 {
-  return m_callee->get_function ();
+  return m_call_sedge->m_src;
 }
 
-/* call_string's copy ctor.  */
-
-call_string::call_string (const call_string &other)
-: m_elements (other.m_elements.length ())
+const supernode *
+call_string::element_t::get_return_snode_in_caller () const
 {
-  for (const call_string::element_t &e : other.m_elements)
-    m_elements.quick_push (e);
+  return m_call_sedge->m_dest;
 }
 
-/* call_string's assignment operator.  */
-
-call_string&
-call_string::operator= (const call_string &other)
+const gcall &
+call_string::element_t::get_call_stmt () const
 {
-  // would be much simpler if we could rely on vec<> assignment op
-  m_elements.truncate (0);
-  m_elements.reserve (other.m_elements.length (), true);
-  call_string::element_t *e;
-  int i;
-  FOR_EACH_VEC_ELT (other.m_elements, i, e)
-    m_elements.quick_push (*e);
-  return *this;
-}
-
-/* call_string's equality operator.  */
-
-bool
-call_string::operator== (const call_string &other) const
-{
-  if (m_elements.length () != other.m_elements.length ())
-    return false;
-  call_string::element_t *e;
-  int i;
-  FOR_EACH_VEC_ELT (m_elements, i, e)
-    if (*e != other.m_elements[i])
-      return false;
-  return true;
+  return m_call_op->get_gcall ();
 }
 
 /* Print this to PP.  */
@@ -127,76 +101,54 @@ call_string::print (pretty_printer *pp) const
       if (i > 0)
 	pp_string (pp, ", ");
       pp_printf (pp, "(SN: %i -> SN: %i in %s)",
-		 e->m_callee->m_index, e->m_caller->m_index,
-		 function_name (e->m_caller->m_fun));
+		 e->get_call_snode_in_caller ()->m_id,
+		 e->get_return_snode_in_caller ()->m_id,
+		 function_name (e->get_caller_function ()));
     }
 
   pp_string (pp, "]");
 }
 
 /* Return a new json::array of the form
-   [{"src_snode_idx" : int,
-     "dst_snode_idx" : int,
-     "funcname" : str},
+   [{"call_sedge_src" : int,
+     "call_sedge_dest" : int,
+     "called_fun" : str},
      ...for each element in the callstring].  */
 
-json::value *
+std::unique_ptr<json::value>
 call_string::to_json () const
 {
-  json::array *arr = new json::array ();
+  auto arr = std::make_unique<json::array> ();
 
   for (const call_string::element_t &e : m_elements)
     {
-      json::object *e_obj = new json::object ();
-      e_obj->set ("src_snode_idx",
-		  new json::integer_number (e.m_callee->m_index));
-      e_obj->set ("dst_snode_idx",
-		  new json::integer_number (e.m_caller->m_index));
-      e_obj->set ("funcname",
-		  new json::string (function_name (e.m_caller->m_fun)));
-      arr->append (e_obj);
+      auto e_obj = std::make_unique<json::object> ();
+      e_obj->set_integer ("call_sedge_src", e.m_call_sedge->m_src->m_id);
+      e_obj->set_integer ("call_sedge_dest", e.m_call_sedge->m_dest->m_id);
+      e_obj->set_string ("called_fun", function_name (e.m_called_fun));
+      arr->append (std::move (e_obj));
     }
 
   return arr;
 }
 
-/* Generate a hash value for this call_string.  */
 
-hashval_t
-call_string::hash () const
+/* Get or create the call_string resulting from pushing the call
+   (caller, callee) onto the end of this call_string.  */
+
+const call_string *
+call_string::push_call (const superedge &call_sedge,
+			const call_and_return_op &call_op,
+			function &called_fun) const
 {
-  inchash::hash hstate;
-  for (const call_string::element_t &e : m_elements)
-    hstate.add_ptr (e.m_caller);
-  return hstate.end ();
-}
+  call_string::element_t e (&call_sedge, &call_op, &called_fun);
 
-/* Push the return superedge for CALL_SEDGE onto the end of this
-   call_string.  */
+  if (const call_string **slot = m_children.get (e))
+    return *slot;
 
-void
-call_string::push_call (const supergraph &sg,
-			const call_superedge *call_sedge)
-{
-  gcc_assert (call_sedge);
-  const return_superedge *return_sedge = call_sedge->get_edge_for_return (sg);
-  gcc_assert (return_sedge);
-  call_string::element_t e (return_sedge->m_dest, return_sedge->m_src);
-  m_elements.safe_push (e);
-}
-
-void
-call_string::push_call (const supernode *caller,
-			const supernode *callee)
-{
-  call_string::element_t e (caller, callee);
-  m_elements.safe_push (e);
-}
-
-call_string::element_t
-call_string::pop ()
-{
-  return m_elements.pop();
+  call_string *result = new call_string (*this, e);
+  m_children.put (e, result);
+  return result;
 }
 
 /* Count the number of times the top-most call site appears in the
@@ -206,13 +158,29 @@ call_string::calc_recursion_depth () const
 {
   if (m_elements.is_empty ())
     return 0;
-  const call_string::element_t top_return_sedge 
+  const call_string::element_t top_return_sedge
     = m_elements[m_elements.length () - 1];
 
   int result = 0;
   for (const call_string::element_t &e : m_elements)
     if (e == top_return_sedge)
       ++result;
+  return result;
+}
+
+/* Count the number of times FUN appears in the string.  */
+
+int
+call_string::count_occurrences_of_function (function *fun) const
+{
+  int result = 0;
+  for (const call_string::element_t &e : m_elements)
+    {
+      if (e.get_caller_function () == fun)
+	result++;
+      if (e.get_callee_function () == fun)
+	result++;
+    }
   return result;
 }
 
@@ -244,40 +212,32 @@ call_string::cmp (const call_string &a,
       if (i >= len_b)
 	return -1;
 
-      /* Otherwise, compare the node pairs.  */
-      const call_string::element_t a_node_pair = a[i];
-      const call_string::element_t b_node_pair = b[i];
-      int src_cmp 
-      	= a_node_pair.m_callee->m_index - b_node_pair.m_callee->m_index;
-      if (src_cmp)
-	return src_cmp;
-      int dest_cmp 
-      	= a_node_pair.m_caller->m_index - b_node_pair.m_caller->m_index;
-      if (dest_cmp)
-	return dest_cmp;
+      /* Otherwise, compare the elements.  */
+      if (int element_cmp = call_string::element_t::cmp (a[i], b[i]))
+	return element_cmp;
       i++;
       // TODO: test coverage for this
     }
 }
 
-/* Return the pointer to callee of the topmost call in the stack,
-   or NULL if stack is empty.  */
-const supernode *
-call_string::get_callee_node () const
+/* Comparator for use by vec<const call_string *>::qsort.  */
+
+int
+call_string::cmp_ptr_ptr (const void *pa, const void *pb)
 {
-  if(m_elements.is_empty ())
-    return NULL;
-  return m_elements[m_elements.length () - 1].m_callee;
+  const call_string *cs_a = *static_cast <const call_string * const *> (pa);
+  const call_string *cs_b = *static_cast <const call_string * const *> (pb);
+  return cmp (*cs_a, *cs_b);
 }
 
 /* Return the pointer to caller of the topmost call in the stack,
-   or NULL if stack is empty.  */
-const supernode * 
-call_string::get_caller_node () const
+   or nullptr if stack is empty.  */
+const supernode *
+call_string::get_return_node_in_caller () const
 {
   if(m_elements.is_empty ())
-    return NULL;
-  return m_elements[m_elements.length () - 1].m_caller;
+    return nullptr;
+  return m_elements[m_elements.length () - 1].get_return_snode_in_caller ();
 }
 
 /* Assert that this object is sane.  */
@@ -290,15 +250,85 @@ call_string::validate () const
   return;
 #endif
 
-  /* Each entry's "caller" should be the "callee" of the previous entry.  */
+  gcc_assert ((m_parent != nullptr)
+	      ^ (m_elements.length () == 0));
+
   call_string::element_t *e;
   int i;
   FOR_EACH_VEC_ELT (m_elements, i, e)
-    if (i > 0)
     {
-      gcc_assert (e->get_caller_function () == 
-      		  m_elements[i - 1].get_callee_function ());
+      gcc_assert (e->m_call_op == e->m_call_sedge->get_op ());
+      /* Each entry's "caller" should be the "callee" of the
+	 previous entry.  */
+      if (i > 0)
+	gcc_assert (e->get_caller_function () ==
+		    m_elements[i - 1].get_callee_function ());
     }
+}
+
+/* ctor for the root/empty call_string.  */
+
+call_string::call_string ()
+: m_parent (nullptr), m_elements ()
+{
+}
+
+/* ctor for a child call_string.  */
+
+call_string::call_string (const call_string &parent, const element_t &to_push)
+: m_parent (&parent),
+  m_elements (parent.m_elements.length () + 1)
+{
+  m_elements.splice (parent.m_elements);
+  m_elements.quick_push (to_push);
+}
+
+/* dtor for call_string: recursively delete children.  */
+
+call_string::~call_string ()
+{
+  for (auto child_iter : m_children)
+    delete child_iter.second;
+}
+
+/* Log this call_string and all its descendents recursively to LOGGER,
+   using indentation and elision to highlight the hierarchy.  */
+
+void
+call_string::recursive_log (logger *logger) const
+{
+  logger->start_log_line ();
+  pretty_printer *pp = logger->get_printer ();
+  for (unsigned i = 0; i < length (); i++)
+    pp_string (pp, "  ");
+  if (length () > 0)
+    {
+      pp_string (pp, "[");
+      /* Elide all but the final element, since they are shared with
+	 the parent call_string.  */
+      for (unsigned i = 0; i < length (); i++)
+	pp_string (pp, "..., ");
+      /* Log the final element in detail.  */
+      const element_t *e = &m_elements[m_elements.length () - 1];
+      pp_printf (pp, "(SN: %i -> SN: %i in %s)]",
+		 e->m_call_sedge->m_src->m_id,
+		 e->m_call_sedge->m_dest->m_id,
+		 function_name (e->get_caller_function ()));
+    }
+  else
+    pp_string (pp, "[]");
+  logger->end_log_line ();
+
+  /* Recurse into children.  */
+  {
+    auto_vec<const call_string *> children (m_children.elements ());
+    for (auto iter : m_children)
+      children.safe_push (iter.second);
+    children.qsort (call_string::cmp_ptr_ptr);
+
+    for (auto iter : children)
+      iter->recursive_log (logger);
+  }
 }
 
 #endif /* #if ENABLE_ANALYZER */

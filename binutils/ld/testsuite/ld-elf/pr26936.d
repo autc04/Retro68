@@ -6,10 +6,10 @@
 #readelf: -wL -W
 #target: [check_shared_lib_support]
 # Assembly source file for the HPPA assembler is renamed and modifed by
-# sed.  mn10300 and riscv put different numbers of local symbols in
+# sed. loongarch and mn10300 and riscv put different numbers of local symbols in
 # linkonce section and comdat sections.  xtensa has more than one member
 # in comdat groups.
-#xfail: am33_2.0-*-* hppa*-*-hpux* mn10300-*-* riscv*-*-* xtensa*-*-* loongarch*-*-*
+#xfail: am33_2.0-*-* hppa*-*-hpux* loongarch*-*-* mn10300-*-* riscv*-*-* xtensa*-*-*
 
 #...
 CU: .*/pr26936c.s:

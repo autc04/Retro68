@@ -1,4 +1,5 @@
 // { dg-do run }
+// { dg-skip-if "requires hosted libstdc++ for cstdlib abort" { ! hostedlib } }
 
 #include "../coro.h"
 #include "../coro1-ret-int-yield-int.h"
@@ -45,6 +46,6 @@ int main ()
       PRINTF ("main: y is wrong : %d, should be 100\n", y);
       abort ();
     }
-  puts ("main: done");
+  PRINT ("main: done");
   return 0;
 }

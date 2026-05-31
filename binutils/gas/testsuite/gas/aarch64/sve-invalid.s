@@ -1143,6 +1143,7 @@
 	dup	z0.b, z1.b[63]				// OK
 	dup	z0.b, z1.b[64]
 	dup	z0.b, z1.b[x0]
+	dup	z0.b, z1[0]
 
 	dup	z0.h, z1.h[-1]
 	dup	z0.h, z1.h[0]				// OK
@@ -1324,3 +1325,10 @@
 	udot	z0.h, z1.h, z2.h[0]
 	udot	z0.s, z1.s, z2.s[0]
 	udot	z0.d, z1.d, z2.d[0]
+
+	ld2b	{}, p0/z, [x0]
+	ld2b	{.b}, p0/z, [x0]
+	ld2b	{z0.b-}, p0/z, [x0]
+	ld2b	{z0.b,}, p0/z, [x0]
+	ld2b	{z0.b-z32.b}, p0/z, [x0]
+	ld2b	{z0.b-v1.16b}, p0/z, [x0]

@@ -11,6 +11,9 @@
 // Shadow memory poisoning by ASan RTL and by user application.
 //===----------------------------------------------------------------------===//
 
+#ifndef ASAN_POISONING_H
+#define ASAN_POISONING_H
+
 #include "asan_interceptors.h"
 #include "asan_internal.h"
 #include "asan_mapping.h"
@@ -18,6 +21,19 @@
 #include "sanitizer_common/sanitizer_platform.h"
 
 namespace __asan {
+
+struct PoisonRecord {
+  u32 stack_id;
+  u32 thread_id;
+  uptr begin;
+  uptr end;
+};
+
+void AddPoisonRecord(const PoisonRecord& new_record);
+bool FindPoisonRecord(uptr addr, PoisonRecord& match);
+
+void AcquirePoisonRecords();
+void ReleasePoisonRecords();
 
 // Enable/disable memory poisoning.
 void SetCanPoisonMemory(bool value);
@@ -44,8 +60,8 @@ ALWAYS_INLINE void FastPoisonShadow(uptr aligned_beg, uptr aligned_size,
                           common_flags()->clear_shadow_mmap_threshold);
 #else
   uptr shadow_beg = MEM_TO_SHADOW(aligned_beg);
-  uptr shadow_end = MEM_TO_SHADOW(
-      aligned_beg + aligned_size - SHADOW_GRANULARITY) + 1;
+  uptr shadow_end =
+      MEM_TO_SHADOW(aligned_beg + aligned_size - ASAN_SHADOW_GRANULARITY) + 1;
   // FIXME: Page states are different on Windows, so using the same interface
   // for mapping shadow and zeroing out pages doesn't "just work", so we should
   // probably provide higher-level interface for these operations.
@@ -78,11 +94,12 @@ ALWAYS_INLINE void FastPoisonShadowPartialRightRedzone(
   DCHECK(CanPoisonMemory());
   bool poison_partial = flags()->poison_partial;
   u8 *shadow = (u8*)MEM_TO_SHADOW(aligned_addr);
-  for (uptr i = 0; i < redzone_size; i += SHADOW_GRANULARITY, shadow++) {
-    if (i + SHADOW_GRANULARITY <= size) {
+  for (uptr i = 0; i < redzone_size; i += ASAN_SHADOW_GRANULARITY, shadow++) {
+    if (i + ASAN_SHADOW_GRANULARITY <= size) {
       *shadow = 0;  // fully addressable
     } else if (i >= size) {
-      *shadow = (SHADOW_GRANULARITY == 128) ? 0xff : value;  // unaddressable
+      *shadow =
+          (ASAN_SHADOW_GRANULARITY == 128) ? 0xff : value;  // unaddressable
     } else {
       // first size-i bytes are addressable
       *shadow = poison_partial ? static_cast<u8>(size - i) : 0;
@@ -95,3 +112,5 @@ ALWAYS_INLINE void FastPoisonShadowPartialRightRedzone(
 void FlushUnneededASanShadowMemory(uptr p, uptr size);
 
 }  // namespace __asan
+
+#endif  // ASAN_POISONING_H

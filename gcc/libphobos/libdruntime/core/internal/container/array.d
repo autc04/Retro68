@@ -9,7 +9,7 @@ module core.internal.container.array;
 
 static import common = core.internal.container.common;
 
-import core.exception : onOutOfMemoryErrorNoGC;
+import core.exception : onOutOfMemoryError;
 
 struct Array(T)
 {
@@ -47,7 +47,7 @@ nothrow:
             _length = nlength;
         }
         else
-            onOutOfMemoryErrorNoGC();
+            onOutOfMemoryError();
 
     }
 
@@ -89,7 +89,7 @@ nothrow:
         return _ptr[a .. b];
     }
 
-    alias length opDollar;
+    alias opDollar = length;
 
     void insertBack()(auto ref T val)
     {
@@ -103,7 +103,7 @@ nothrow:
             back = val;
         }
         else
-            onOutOfMemoryErrorNoGC();
+            onOutOfMemoryError();
     }
 
     void popBack()
@@ -215,6 +215,13 @@ unittest
     {
         // Overflow ary.length.
         auto ary = Array!size_t(cast(size_t*)0xdeadbeef, -1);
+        scope(failure)
+        {
+            // prevent destructor from cleaning up invalid memory.
+            ary._length = 0;
+            ary._ptr = null;
+        }
+
         ary.insertBack(0);
     }
     catch (OutOfMemoryError)
@@ -224,6 +231,12 @@ unittest
     {
         // Overflow requested memory size for common.xrealloc().
         auto ary = Array!size_t(cast(size_t*)0xdeadbeef, -2);
+        scope(failure)
+        {
+            // prevent destructor from cleaning up invalid memory.
+            ary._length = 0;
+            ary._ptr = null;
+        }
         ary.insertBack(0);
     }
     catch (OutOfMemoryError)

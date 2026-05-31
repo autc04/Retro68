@@ -6,6 +6,7 @@
 // is not available on the following targets.  The test is skipped rather than
 // xfailed to suppress the warning that would otherwise arise.
 // { dg-skip-if "" { "hppa*-*-hpux*" "*-*-aix*" "nvptx-*-*" } }
+// { dg-skip-if PR119369 { amdgcn-*-* } }
 
 // For kernel modules and static RTPs, the loader treats undefined weak
 // symbols in the same way as undefined strong symbols.  The test
@@ -14,6 +15,8 @@
 // { dg-options "-O2" }
 // { dg-additional-options "-Wl,-undefined,dynamic_lookup" { target *-*-darwin* } }
 // { dg-additional-options "-Wl,-flat_namespace" { target *-*-darwin[89]* } }
+// One subtest doesn't assemble with the Solaris/x86 as (PR ipa/70582)
+// { dg-additional-options "-DSOLARIS_X86_AS" { target { *86*-*-solaris2* && { ! gas } } } }
 // { dg-additional-sources "attr-weakref-1a.c" }
 
 // Copyright 2005 Free Software Foundation, Inc.
@@ -46,9 +49,11 @@ vtype gv2;
 static vtype Wv2a __attribute__((weakref ("gv2")));
 static vtype *pv2a USED = &Wv2a;
 
+#if !defined SOLARIS_X86_AS
 static vtype lv3;
 static vtype Wv3a __attribute__((weakref ("lv3")));
 static vtype *pv3a USED = &Wv3a;
+#endif
 
 extern vtype uv4;
 static vtype Wv4a __attribute__((weakref ("uv4")));
@@ -192,7 +197,9 @@ extern ftype wf14 __attribute__((weak));
 int main () {
   chk (!pv1a);
   chk (pv2a);
+#if !defined(SOLARIS_X86_AS)
   chk (pv3a);
+#endif
   chk (pv4a);
   chk (pv4);
   chk (pv5a);

@@ -1,5 +1,5 @@
 /* FMA steering optimization pass for Cortex-A57.
-   Copyright (C) 2015-2022 Free Software Foundation, Inc.
+   Copyright (C) 2015-2026 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GCC.
@@ -948,6 +948,11 @@ func_fma_steering::analyze ()
 
 	  /* Search the chain where this instruction is (one of) the root.  */
 	  dest_op_info = insn_rr[INSN_UID (insn)].op_info;
+
+	  /* Register rename could fail. */
+	  if (!dest_op_info)
+	    continue;
+
 	  dest_regno = REGNO (SET_DEST (PATTERN (insn)));
 	  for (i = 0; i < dest_op_info->n_chains; i++)
 	    {

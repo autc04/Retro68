@@ -1,7 +1,7 @@
 #source: start1.s
 #source: dso-2.s
 #source: dso-1.s
-#as: --pic --no-underscore --em=criself
+#as: --pic --no-underscore --emulation=criself
 #ld: -m crislinux --as-needed tmpdir/libdso-1.so
 #objdump: -p
 

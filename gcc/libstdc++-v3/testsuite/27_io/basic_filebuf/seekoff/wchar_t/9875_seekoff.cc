@@ -1,4 +1,4 @@
-// Copyright (C) 2003-2022 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -66,7 +66,7 @@ protected:
   
   virtual int
   do_length(std::mbstate_t&, const char* from, const char* end,
-	    std::size_t max)
+	    std::size_t max) const
   {
     std::size_t len = (end - from) / sizeof(wchar_t);
     return std::min(len, max) * sizeof(wchar_t);

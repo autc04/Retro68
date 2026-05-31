@@ -2,7 +2,7 @@
 #source: archv8m-cmse-main.s
 #as:
 #readelf: -A
-# target: *-*-*eabi* *-*-nacl*
+# target: *-*-*eabi*
 
 Attribute Section: aeabi
 File Attributes

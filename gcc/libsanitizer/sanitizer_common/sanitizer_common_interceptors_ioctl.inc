@@ -48,35 +48,41 @@ static void ioctl_table_fill() {
     ++ioctl_table_size;                                  \
   }
 
+  _(FIONBIO, READ, sizeof(int));
+#if !SANITIZER_HAIKU
   _(FIOASYNC, READ, sizeof(int));
   _(FIOCLEX, NONE, 0);
   _(FIOGETOWN, WRITE, sizeof(int));
-  _(FIONBIO, READ, sizeof(int));
   _(FIONCLEX, NONE, 0);
   _(FIOSETOWN, READ, sizeof(int));
+#endif
   _(SIOCATMARK, WRITE, sizeof(int));
   _(SIOCGIFCONF, CUSTOM, 0);
   _(SIOCGPGRP, WRITE, sizeof(int));
   _(SIOCSPGRP, READ, sizeof(int));
-#if !SANITIZER_SOLARIS
+#if !SANITIZER_SOLARIS && !SANITIZER_HAIKU
   _(TIOCCONS, NONE, 0);
 #endif
-  _(TIOCEXCL, NONE, 0);
+#if !SANITIZER_HAIKU
   _(TIOCGETD, WRITE, sizeof(int));
+  _(TIOCNOTTY, NONE, 0);
+  _(TIOCPKT, READ, sizeof(int));
+  _(TIOCSETD, READ, sizeof(int));
+  _(TIOCSTI, READ, sizeof(char));
+#endif
+  _(TIOCEXCL, NONE, 0);
   _(TIOCGPGRP, WRITE, pid_t_sz);
   _(TIOCGWINSZ, WRITE, struct_winsize_sz);
   _(TIOCMBIC, READ, sizeof(int));
   _(TIOCMBIS, READ, sizeof(int));
   _(TIOCMGET, WRITE, sizeof(int));
   _(TIOCMSET, READ, sizeof(int));
-  _(TIOCNOTTY, NONE, 0);
   _(TIOCNXCL, NONE, 0);
   _(TIOCOUTQ, WRITE, sizeof(int));
-  _(TIOCPKT, READ, sizeof(int));
+#  if !SANITIZER_AIX
   _(TIOCSCTTY, NONE, 0);
-  _(TIOCSETD, READ, sizeof(int));
+#  endif
   _(TIOCSPGRP, READ, pid_t_sz);
-  _(TIOCSTI, READ, sizeof(char));
   _(TIOCSWINSZ, READ, struct_winsize_sz);
 
 #if !SANITIZER_IOS
@@ -115,11 +121,19 @@ static void ioctl_table_fill() {
   // _(SOUND_MIXER_WRITE_MUTE, WRITE, sizeof(int)); // same as ...WRITE_ENHANCE
   _(BLKFLSBUF, NONE, 0);
   _(BLKGETSIZE, WRITE, sizeof(uptr));
-  _(BLKRAGET, WRITE, sizeof(int));
+  _(BLKRAGET, WRITE, sizeof(uptr));
   _(BLKRASET, NONE, 0);
   _(BLKROGET, WRITE, sizeof(int));
   _(BLKROSET, READ, sizeof(int));
   _(BLKRRPART, NONE, 0);
+  _(BLKFRASET, NONE, 0);
+  _(BLKFRAGET, WRITE, sizeof(uptr));
+  _(BLKSECTSET, READ, sizeof(short));
+  _(BLKSECTGET, WRITE, sizeof(short));
+  _(BLKSSZGET, WRITE, sizeof(int));
+  _(BLKBSZGET, WRITE, sizeof(int));
+  _(BLKBSZSET, READ, sizeof(uptr));
+  _(BLKGETSIZE64, WRITE, sizeof(u64));
   _(CDROMEJECT, NONE, 0);
   _(CDROMEJECT_SW, NONE, 0);
   _(CDROMMULTISESSION, WRITE, struct_cdrom_multisession_sz);
@@ -330,20 +344,16 @@ static void ioctl_table_fill() {
   _(SOUND_PCM_WRITE_CHANNELS, WRITE, sizeof(int));
   _(SOUND_PCM_WRITE_FILTER, WRITE, sizeof(int));
   _(TCFLSH, NONE, 0);
-#if SANITIZER_GLIBC
-  _(TCGETA, WRITE, struct_termio_sz);
-#endif
+#    if SANITIZER_TERMIOS_IOCTL_CONSTANTS
   _(TCGETS, WRITE, struct_termios_sz);
+#    endif
   _(TCSBRK, NONE, 0);
   _(TCSBRKP, NONE, 0);
-#if SANITIZER_GLIBC
-  _(TCSETA, READ, struct_termio_sz);
-  _(TCSETAF, READ, struct_termio_sz);
-  _(TCSETAW, READ, struct_termio_sz);
-#endif
+#    if SANITIZER_TERMIOS_IOCTL_CONSTANTS
   _(TCSETS, READ, struct_termios_sz);
   _(TCSETSF, READ, struct_termios_sz);
   _(TCSETSW, READ, struct_termios_sz);
+#    endif
   _(TCXONC, NONE, 0);
   _(TIOCGLCKTRMIOS, WRITE, struct_termios_sz);
   _(TIOCGSOFTCAR, WRITE, sizeof(int));

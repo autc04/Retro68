@@ -1,0 +1,59 @@
+# Expect library used by AArch64 ELF test scripts.
+# Copyright (C) 2009-2026 Free Software Foundation, Inc.
+#
+# This file is part of the GNU Binutils.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+# MA 02110-1301, USA.
+
+# Exclude non-aarch64-ELF targets.
+if { ![is_elf_format] || ![istarget "aarch64*-*-*"] } {
+  return
+}
+
+proc aarch64_choose_ilp32_emul {} {
+  if [istarget *linux*] then {
+    if [istarget aarch64_be-*] {
+      return "aarch64linux32b"
+    }
+    return "aarch64linux32"
+  }
+  if [istarget aarch64_be-*] {
+    return "aarch64elf32b"
+  }
+  return "aarch64elf32"
+}
+
+proc aarch64_choose_lp64_emul {} {
+  if [istarget *linux*] then {
+    if [istarget aarch64_be-*] {
+      return "aarch64linuxb"
+    }
+    return "aarch64linux"
+  }
+  if [istarget *nto*] then {
+    return "aarch64nto"
+  }
+  if [istarget aarch64_be-*] {
+    return "aarch64elfb"
+  }
+  return "aarch64elf"
+}
+
+proc run_dump_test_lp64 { testname } {
+  run_dump_test $testname \
+    [list [list as "-mabi=lp64 -I\$srcdir/\$subdir"] \
+	  [list ld [concat "-m " [aarch64_choose_lp64_emul]]]]
+}

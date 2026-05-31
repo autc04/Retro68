@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -93,7 +93,7 @@ package body Switch is
          Set_Standard_Output;
          Usage;
          Write_Eol;
-         Write_Line ("Report bugs to report@adacore.com");
+         Write_Line ("Report bugs to support@adacore.com");
          Exit_Program (E_Success);
       end if;
    end Check_Version_And_Help_G;

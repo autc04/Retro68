@@ -127,14 +127,16 @@ if (is(Unqual!Char == Char))
 
        Counting starts with `1`. Set to `0` if not used. Default: `0`.
      */
-    ubyte indexStart;
+    ushort indexStart;
 
     /**
        Index of the last argument for positional parameter ranges.
 
        Counting starts with `1`. Set to `0` if not used. Default: `0`.
+
+       The maximum value of this field is used as a sentinel to indicate the arguments' length.
     */
-    ubyte indexEnd;
+    ushort indexEnd;
 
     version (StdDdoc)
     {
@@ -296,6 +298,8 @@ if (is(Unqual!Char == Char))
         }
 
         width = 0;
+        indexStart = 0;
+        indexEnd = 0;
         precision = UNSPECIFIED;
         nested = null;
         // Parse the spec (we assume we're past '%' already)
@@ -371,7 +375,8 @@ if (is(Unqual!Char == Char))
             case '0': flZero = true; ++i; break;
             case ' ': flSpace = true; ++i; break;
             case '*':
-                if (isDigit(trailing[++i]))
+                ++i;
+                if (i < trailing.length && isDigit(trailing[i]))
                 {
                     // a '*' followed by digits and '$' is a
                     // positional format
@@ -423,17 +428,17 @@ if (is(Unqual!Char == Char))
                 }
                 break;
             case ',':
-                // Precision
+                // Separator (default 3 digits)
                 ++i;
                 flSeparator = true;
 
-                if (trailing[i] == '*')
+                if (i < trailing.length && trailing[i] == '*')
                 {
                     ++i;
                     // read result
                     separators = DYNAMIC;
                 }
-                else if (isDigit(trailing[i]))
+                else if (i < trailing.length && isDigit(trailing[i]))
                 {
                     auto tmp = trailing[i .. $];
                     separators = parse!int(tmp);
@@ -445,7 +450,7 @@ if (is(Unqual!Char == Char))
                     separators = 3;
                 }
 
-                if (trailing[i] == '?')
+                if (i < trailing.length && trailing[i] == '?')
                 {
                     dynamicSeparatorChar = true;
                     ++i;
@@ -454,9 +459,11 @@ if (is(Unqual!Char == Char))
                 break;
             case '.':
                 // Precision
-                if (trailing[++i] == '*')
+                ++i;
+                if (i < trailing.length && trailing[i] == '*')
                 {
-                    if (isDigit(trailing[++i]))
+                    ++i;
+                    if (i < trailing.length && isDigit(trailing[i]))
                     {
                         // a '.*' followed by digits and '$' is a
                         // positional precision
@@ -472,7 +479,7 @@ if (is(Unqual!Char == Char))
                         precision = DYNAMIC;
                     }
                 }
-                else if (trailing[i] == '-')
+                else if (i < trailing.length && trailing[i] == '-')
                 {
                     // negative precision, as good as 0
                     precision = 0;
@@ -480,7 +487,7 @@ if (is(Unqual!Char == Char))
                     parse!int(tmp); // skip digits
                     i = trailing.length - tmp.length;
                 }
-                else if (isDigit(trailing[i]))
+                else if (i < trailing.length && isDigit(trailing[i]))
                 {
                     auto tmp = trailing[i .. $];
                     precision = parse!int(tmp);
@@ -681,7 +688,7 @@ if (is(Unqual!Char == Char))
     auto fmt = "Number: %6.4e\nString: %s";
     auto f = FormatSpec!char(fmt);
 
-    assert(f.writeUpToNextSpec(a) == true);
+    assert(f.writeUpToNextSpec(a));
 
     assert(a.data == "Number: ");
     assert(f.trailing == "\nString: %s");
@@ -689,13 +696,13 @@ if (is(Unqual!Char == Char))
     assert(f.width == 6);
     assert(f.precision == 4);
 
-    assert(f.writeUpToNextSpec(a) == true);
+    assert(f.writeUpToNextSpec(a));
 
     assert(a.data == "Number: \nString: ");
     assert(f.trailing == "");
     assert(f.spec == 's');
 
-    assert(f.writeUpToNextSpec(a) == false);
+    assert(!f.writeUpToNextSpec(a));
 
     assert(a.data == "Number: \nString: ");
 }
@@ -834,6 +841,33 @@ if (is(Unqual!Char == Char))
            == "$ expected after '*10' in format string");
 }
 
+// https://github.com/dlang/phobos/issues/10713
+@safe pure unittest
+{
+    import std.array : appender;
+    auto f = FormatSpec!char("%3$d%d");
+
+    auto w = appender!(char[])();
+    f.writeUpToNextSpec(w);
+    assert(f.indexStart == 3);
+
+    f.writeUpToNextSpec(w);
+    assert(w.data.length == 0);
+    assert(f.indexStart == 0);
+}
+
+// https://github.com/dlang/phobos/issues/10699
+@safe pure unittest
+{
+    import std.array : appender;
+    auto f = FormatSpec!char("%1:$d");
+    auto w = appender!(char[])();
+
+    f.writeUpToNextSpec(w);
+    assert(f.indexStart == 1);
+    assert(f.indexEnd == ushort.max);
+}
+
 /**
 Helper function that returns a `FormatSpec` for a single format specifier.
 
@@ -907,6 +941,11 @@ FormatSpec!Char singleSpec(Char)(Char[] fmt)
     assertThrown!FormatException(singleSpec("Test%2.3e"));
     assertThrown!FormatException(singleSpec("%2.3eTest"));
     assertThrown!FormatException(singleSpec("%%"));
+    assertThrown!FormatException(singleSpec("%."));
+    assertThrown!FormatException(singleSpec("%.*"));
+    assertThrown!FormatException(singleSpec("%*"));
+    assertThrown!FormatException(singleSpec("%,"));
+    assertThrown!FormatException(singleSpec("%,*"));
 }
 
 // @@@DEPRECATED_[2.107.0]@@@

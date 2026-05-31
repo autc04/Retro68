@@ -1,5 +1,5 @@
 /* Hooks for cfg representation specific functions.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <s.pop@laposte.net>
 
 This file is part of GCC.
@@ -23,6 +23,9 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "predict.h"
 
+namespace diagnostics { class sarif_builder; }
+namespace json { class object; }
+
 /* Structure to gather statistic about profile consistency, per pass.
    An array of this structure, indexed by pass static number, is allocated
    in passes.cc.  The structure is defined here so that different CFG modes
@@ -31,7 +34,7 @@ along with GCC; see the file COPYING3.  If not see
    For every field[2], field[0] is the count before the pass runs, and
    field[1] is the post-pass count.  This allows us to monitor the effect
    of each individual pass on the profile consistency.
-   
+
    This structure is not supposed to be used by anything other than passes.cc
    and one CFG hook per CFG mode.  */
 struct profile_record
@@ -78,9 +81,13 @@ struct cfg_hooks
   const char *name;
 
   /* Debugging.  */
-  int (*verify_flow_info) (void);
+  bool (*verify_flow_info) (void);
   void (*dump_bb) (FILE *, basic_block, int, dump_flags_t);
   void (*dump_bb_for_graph) (pretty_printer *, basic_block);
+  void
+  (*dump_bb_as_sarif_properties) (diagnostics::sarif_builder *,
+				  json::object &,
+				  basic_block);
 
   /* Basic CFG manipulation.  */
 
@@ -189,7 +196,7 @@ struct cfg_hooks
   /* Add PHI arguments queued in PENDINT_STMT list on edge E to edge
      E->dest (only in tree-ssa loop versioning.  */
   void (*flush_pending_stmts) (edge);
-  
+
   /* True if a block contains no executable instructions.  */
   bool (*empty_block_p) (basic_block);
 
@@ -206,7 +213,7 @@ extern void verify_flow_info (void);
 /* Check control flow invariants, if internal consistency checks are
    enabled.  */
 
-static inline void
+inline void
 checking_verify_flow_info (void)
 {
   /* TODO: Add a separate option for -fchecking=cfg.  */
@@ -216,6 +223,9 @@ checking_verify_flow_info (void)
 
 extern void dump_bb (FILE *, basic_block, int, dump_flags_t);
 extern void dump_bb_for_graph (pretty_printer *, basic_block);
+extern void dump_bb_as_sarif_properties (diagnostics::sarif_builder *,
+					 json::object &,
+					 basic_block);
 extern void dump_flow_info (FILE *, dump_flags_t);
 
 extern edge redirect_edge_and_branch (edge, basic_block);

@@ -6,8 +6,8 @@ start address 0x.*
 Disassembly of section .plt:
 
 .* <.plt>:
- .*:	e52de004 	push	{lr}		; \(str lr, \[sp, #-4\]!\)
- .*:	e59fe004 	ldr	lr, \[pc, #4\]	; .* <.*>
+ .*:	e52de004 	push	{lr}		@ \(str lr, \[sp, #-4\]!\)
+ .*:	e59fe004 	ldr	lr, \[pc, #4\]	@ .* <.*>
  .*:	e08fe00e 	add	lr, pc, lr
  .*:	e5bef008 	ldr	pc, \[lr, #8\]!
  .*:	.* 	.word	.*
@@ -15,26 +15,26 @@ Disassembly of section .plt:
  .*:	4778      	bx	pc
  .*:	e7fd      	b.n	.+ <.+>
  .*:	e28fc6.* 	add	ip, pc, #.*
- .*:	e28cca.* 	add	ip, ip, #.*	; 0x.*
- .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!	; .*
+ .*:	e28cca.* 	add	ip, ip, #.*	@ 0x.*
+ .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!	@ .*
 .* <app_func_weak@plt>:
  .*:	4778      	bx	pc
  .*:	e7fd      	b.n	.+ <.+>
  .*:	e28fc6.* 	add	ip, pc, #.*
- .*:	e28cca.* 	add	ip, ip, #.*	; 0x.*
- .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!	; 0x.*
+ .*:	e28cca.* 	add	ip, ip, #.*	@ 0x.*
+ .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!	@ 0x.*
 .* <lib_func3@plt>:
  .*:	4778      	bx	pc
  .*:	e7fd      	b.n	.+ <.+>
  .*:	e28fc6.* 	add	ip, pc, #.*
- .*:	e28cca.* 	add	ip, ip, #.*	; 0x.*
- .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!	; 0x.*
+ .*:	e28cca.* 	add	ip, ip, #.*	@ 0x.*
+ .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!	@ 0x.*
 .* <lib_func4@plt>:
  .*:	4778      	bx	pc
  .*:	e7fd      	b.n	.+ <.+>
  .*:	e28fc6.* 	add	ip, pc, #.*
- .*:	e28cca.* 	add	ip, ip, #.*	; 0x.*
- .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!	; 0x.*
+ .*:	e28cca.* 	add	ip, ip, #.*	@ 0x.*
+ .*:	e5bcf.* 	ldr	pc, \[ip, #.*\]!	@ 0x.*
 
 Disassembly of section .text:
 
@@ -60,28 +60,28 @@ Disassembly of section .text:
 .* <__app_func_from_thumb>:
  .*:	4778      	bx	pc
  .*:	e7fd      	b.n	.+ <.+>
- .*:	e59fc000 	ldr	ip, \[pc\]	; .* <__app_func_from_thumb\+0xc>
+ .*:	e59fc000 	ldr	ip, \[pc\]	@ .* <__app_func_from_thumb\+0xc>
  .*:	e08cf00f 	add	pc, ip, pc
  .*:	feffff.. 	.word	0xfeffff..
 
 .* <__lib_func4_from_thumb>:
  .*:	4778      	bx	pc
  .*:	e7fd      	b.n	.+ <.+>
- .*:	e59fc000 	ldr	ip, \[pc\]	; .* <__lib_func4_from_thumb\+0xc>
+ .*:	e59fc000 	ldr	ip, \[pc\]	@ .* <__lib_func4_from_thumb\+0xc>
  .*:	e08cf00f 	add	pc, ip, pc
  .*:	feffff.. 	.word	0xfeffff..
 
 .* <__app_func_weak_from_thumb>:
  .*:	4778      	bx	pc
  .*:	e7fd      	b.n	.+ <.+>
- .*:	e59fc000 	ldr	ip, \[pc\]	; .* <__app_func_weak_from_thumb\+0xc>
+ .*:	e59fc000 	ldr	ip, \[pc\]	@ .* <__app_func_weak_from_thumb\+0xc>
  .*:	e08cf00f 	add	pc, ip, pc
  .*:	feffff.. 	.word	0xfeffff..
 
 .* <__lib_func3_from_thumb>:
  .*:	4778      	bx	pc
  .*:	e7fd      	b.n	.+ <.+>
- .*:	e59fc000 	ldr	ip, \[pc\]	; .* <__lib_func3_from_thumb\+0xc>
+ .*:	e59fc000 	ldr	ip, \[pc\]	@ .* <__lib_func3_from_thumb\+0xc>
  .*:	e08cf00f 	add	pc, ip, pc
  .*:	feffff.. 	.word	0xfeffff..
 	...
@@ -95,25 +95,25 @@ Disassembly of section .text:
 .* <__app_func_weak_from_thumb>:
  .*:	4778      	bx	pc
  .*:	e7fd      	b.n	.+ <.+>
- .*:	e59fc000 	ldr	ip, \[pc\]	; .* <__app_func_weak_from_thumb\+0xc>
+ .*:	e59fc000 	ldr	ip, \[pc\]	@ .* <__app_func_weak_from_thumb\+0xc>
  .*:	e08cf00f 	add	pc, ip, pc
  .*:	fdffff34 	.word	0xfdffff34
 
 .* <__app_func_from_thumb>:
  .*:	4778      	bx	pc
  .*:	e7fd      	b.n	.+ <.+>
- .*:	e59fc000 	ldr	ip, \[pc\]	; .* <__app_func_from_thumb\+0xc>
+ .*:	e59fc000 	ldr	ip, \[pc\]	@ .* <__app_func_from_thumb\+0xc>
  .*:	e08cf00f 	add	pc, ip, pc
  .*:	fdffff14 	.word	0xfdffff14
 
 .* <lib_func3>:
- .*:	e59fc004 	ldr	ip, \[pc, #4\]	; .* <lib_func3\+0xc>
+ .*:	e59fc004 	ldr	ip, \[pc, #4\]	@ .* <lib_func3\+0xc>
  .*:	e08cc00f 	add	ip, ip, pc
  .*:	e12fff1c 	bx	ip
  .*:	ffffffc5 	.word	0xffffffc5
 
 .* <lib_func2>:
- .*:	e59fc004 	ldr	ip, \[pc, #4\]	; .* <lib_func2\+0xc>
+ .*:	e59fc004 	ldr	ip, \[pc, #4\]	@ .* <lib_func2\+0xc>
  .*:	e08cc00f 	add	ip, ip, pc
  .*:	e12fff1c 	bx	ip
  .*:	feffff55 	.word	0xfeffff55

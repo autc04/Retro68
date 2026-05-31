@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,11 +15,9 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a -pthread" }
 // { dg-add-options libatomic }
-// { dg-do run }
-// { dg-require-effective-target c++2a }
-// { dg-require-effective-target pthread }
+// { dg-do run { target c++20 } }
+// { dg-additional-options "-pthread" { target pthread } }
 
 #include <condition_variable>
 #include <thread>
@@ -63,7 +61,7 @@ void test_wait_until(bool ck = true)
 
   std::stop_source src;
 
-  auto abst = std::chrono::steady_clock::now() + 1.0s;
+  auto abst = std::chrono::steady_clock::now() + (ck ? 5.0s : 1.0s);
   auto tok = src.get_token();
   std::thread t([ck, &ready, &mtx, &cv, abst, tok]
                 {

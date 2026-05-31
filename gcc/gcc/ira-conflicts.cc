@@ -1,5 +1,5 @@
 /* IRA conflict builder.
-   Copyright (C) 2006-2022 Free Software Foundation, Inc.
+   Copyright (C) 2006-2026 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov <vmakarov@redhat.com>.
 
 This file is part of GCC.
@@ -115,10 +115,10 @@ build_conflict_bit_table (void)
 	    > (uint64_t) param_ira_max_conflict_table_size * 1024 * 1024)
 	  {
 	    if (internal_flag_ira_verbose > 0 && ira_dump_file != NULL)
-	      fprintf
-		(ira_dump_file,
-		 "+++Conflict table will be too big(>%dMB) -- don't use it\n",
-		 param_ira_max_conflict_table_size);
+	      fprintf (ira_dump_file,
+		       "+++Conflict table will be too big(>%dMB) "
+		       "-- don't use it\n",
+		       param_ira_max_conflict_table_size);
 	    return false;
 	  }
       }
@@ -148,11 +148,13 @@ build_conflict_bit_table (void)
 
   object_set_words = (ira_objects_num + IRA_INT_BITS - 1) / IRA_INT_BITS;
   if (internal_flag_ira_verbose > 0 && ira_dump_file != NULL)
-    fprintf
-      (ira_dump_file,
-       "+++Allocating %ld bytes for conflict table (uncompressed size %ld)\n",
-       (long) allocated_words_num * sizeof (IRA_INT_TYPE),
-       (long) object_set_words * ira_objects_num * sizeof (IRA_INT_TYPE));
+    fprintf (ira_dump_file,
+	     "+++Allocating " HOST_SIZE_T_PRINT_UNSIGNED
+	     " bytes for conflict table (uncompressed size "
+	     HOST_SIZE_T_PRINT_UNSIGNED ")\n",
+	     (fmt_size_t) (sizeof (IRA_INT_TYPE) * allocated_words_num),
+	     (fmt_size_t) (sizeof (IRA_INT_TYPE) * object_set_words
+			   * ira_objects_num));
 
   objects_live = sparseset_alloc (ira_objects_num);
   for (i = 0; i < ira_max_point; i++)
@@ -225,8 +227,9 @@ go_through_subreg (rtx x, int *offset)
   if (REGNO (reg) < FIRST_PSEUDO_REGISTER)
     *offset = subreg_regno_offset (REGNO (reg), GET_MODE (reg),
 				   SUBREG_BYTE (x), GET_MODE (x));
+  /* The offset is always 0 for paradoxical subregs.  */
   else if (!can_div_trunc_p (SUBREG_BYTE (x),
-			     REGMODE_NATURAL_SIZE (GET_MODE (x)), offset))
+			     REGMODE_NATURAL_SIZE (GET_MODE (reg)), offset))
     /* Checked by validate_subreg.  We must know at compile time which
        inner hard registers are being accessed.  */
     gcc_unreachable ();
@@ -398,6 +401,9 @@ can_use_same_reg_p (rtx_insn *insn, int output, int input)
       if (op_alt[input].matches == output)
 	return true;
 
+      if (op_alt[output].earlyclobber)
+	continue;
+
       if (ira_reg_class_intersect[op_alt[input].cl][op_alt[output].cl]
 	  != NO_REGS)
 	return true;
@@ -442,7 +448,7 @@ process_reg_shuffles (rtx_insn *insn, rtx reg, int op_num, int freq,
 static void
 add_insn_allocno_copies (rtx_insn *insn)
 {
-  rtx set, operand, dup;
+  rtx set = single_set (insn), operand, dup;
   bool bound_p[MAX_RECOG_OPERANDS];
   int i, n, freq;
   alternative_mask alts;
@@ -450,7 +456,15 @@ add_insn_allocno_copies (rtx_insn *insn)
   freq = REG_FREQ_FROM_BB (BLOCK_FOR_INSN (insn));
   if (freq == 0)
     freq = 1;
-  if ((set = single_set (insn)) != NULL_RTX
+
+  /* Tie output register operands of two consecutive single_sets
+     marked as a fused pair.  */
+  if (single_output_fused_pair_p (insn))
+    process_regs_for_copy (SET_DEST (set),
+		   SET_DEST (single_set (prev_nonnote_nondebug_insn (insn))),
+		   true, NULL, freq);
+
+  if (set != NULL_RTX
       && REG_SUBREG_P (SET_DEST (set)) && REG_SUBREG_P (SET_SRC (set))
       && ! side_effects_p (set)
       && find_reg_note (insn, REG_DEAD,

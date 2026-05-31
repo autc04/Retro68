@@ -1,17 +1,15 @@
 # Check if objdump works correctly when some bits in instruction
 # has non-default value
 
-# vrndscalesd	{sae}, $123, %xmm4, %xmm5, %xmm6{%k7}	 # with null RC
-.byte 0x62, 0xf3, 0xd5, 0x1f, 0x0b, 0xf4, 0x7b
+	vrndscalesd	$123, {sae}, %xmm4, %xmm5, %xmm6{%k7} # with null RC
 # vrndscalesd	{sae}, $123, %xmm4, %xmm5, %xmm6{%k7}	 # with not-null RC
-.byte 0x62, 0xf3, 0xd5, 0x5f, 0x0b, 0xf4, 0x7b
-# vpminud	%zmm4, %zmm5, %zmm6{%k7}	# with 11 EVEX.{B,R'}
-.byte 0x62, 0xf2, 0x55, 0x4f, 0x3b, 0xf4
-# vpminud	%zmm4, %zmm5, %zmm6{%k7}	# with not-11 EVEX.{B,R'}
-.byte 0x62, 0xc2, 0x55, 0x4f, 0x3b, 0xf4
+	.insn EVEX.66.0f3a.W1 0x0b, $123, {ru-sae}, %xmm4, %xmm5, %xmm6{%k7}
+
+	vpminud	%zmm4, %zmm5, %zmm6{%k7}	# with 11 EVEX.{B,R'}
+	vpminud	%zmm12, %zmm5, %zmm22{%k7}	# with not-11 EVEX.{B,R'}
 # vpminud	%zmm4, %zmm5, %zmm6{%k7}	# with set EVEX.b bit
-.byte 0x62, 0xf2, 0x55, 0x1f, 0x3b, 0xf4
-# vpmovdb	%zmm6, 2032(%rdx)		# with unset EVEX.b bit
-.byte 0x62, 0xf2, 0x7e, 0x48, 0x31, 0x72, 0x7f
+	.insn EVEX.66.0F38.W0 0x3b, {rn-sae}, %zmm4, %zmm5, %zmm6{%k7}
+
+	vpmovdb	%zmm6, 2032(%rdx)		# with unset EVEX.b bit
 # vpmovdb	%zmm6, 2032(%rdx)		# with set EVEX.b bit - we should get (bad) operand
-.byte 0x62, 0xf2, 0x7e, 0x58, 0x31, 0x72, 0x7f
+	.insn EVEX.f3.0f38.W0 0x31, %zmm6, 2032(%rdx){1to4}

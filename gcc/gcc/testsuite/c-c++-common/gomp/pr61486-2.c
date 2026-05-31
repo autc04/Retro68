@@ -1,7 +1,6 @@
 /* PR middle-end/61486 */
 /* { dg-do compile } */
-/* { dg-require-effective-target alloca } */
-
+// { dg-additional-options "-Wno-deprecated-openmp" }
 #pragma omp declare target
 void dosomething (int *a, int n, int m);
 #pragma omp end declare target

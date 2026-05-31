@@ -1,6 +1,6 @@
 // Safe sequence implementation  -*- C++ -*-
 
-// Copyright (C) 2010-2022 Free Software Foundation, Inc.
+// Copyright (C) 2010-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -35,7 +35,7 @@ namespace __gnu_debug
     template<typename _Predicate>
       void
       _Safe_sequence<_Sequence>::
-      _M_invalidate_if(_Predicate __pred)
+      _M_invalidate_if_impl(_Predicate __pred) const
       {
 	typedef typename _Sequence::iterator iterator;
 	typedef typename _Sequence::const_iterator const_iterator;
@@ -66,7 +66,7 @@ namespace __gnu_debug
     template<typename _Predicate>
       void
       _Safe_sequence<_Sequence>::
-      _M_transfer_from_if(_Safe_sequence& __from, _Predicate __pred)
+      _M_transfer_from_if(const _Safe_sequence& __from, _Predicate __pred) const
       {
 	if (this == std::__addressof(__from))
 	  return;
@@ -104,7 +104,7 @@ namespace __gnu_debug
 	    }
 
 	  for (_Safe_iterator_base* __iter2 = __from._M_const_iterators;
-		 __iter2;)
+	       __iter2;)
 	    {
 	      _Safe_iterator_base* __victim_base = __iter2;
 	      const_iterator* __victim =

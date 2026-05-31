@@ -1,6 +1,6 @@
-/* Process the ObjC-specific declarations and variables for 
+/* Process the ObjC-specific declarations and variables for
    the Objective-C++ compiler.
-   Copyright (C) 2005-2022 Free Software Foundation, Inc.
+   Copyright (C) 2005-2026 Free Software Foundation, Inc.
    Contributed by Ziemowit Laski  <zlaski@apple.com>
 
 This file is part of GCC.
@@ -32,7 +32,7 @@ extern int objcp_comptypes (tree, tree);
 extern tree objcp_begin_compound_stmt (int);
 extern tree objcp_end_compound_stmt (tree, int);
 
-/* Now "cover up" the corresponding C++ functions if required (NB: the 
+/* Now "cover up" the corresponding C++ functions if required (NB: the
    OBJCP_ORIGINAL_FUNCTION macro, shown below, can still be used to
    invoke the original C++ functions if needed).  */
 #ifdef OBJCP_REMAP_FUNCTIONS
@@ -60,7 +60,7 @@ extern tree objcp_end_compound_stmt (tree, int);
 #define OBJC_SET_TYPE_NAME(type, name) (TYPE_IDENTIFIER (type) = (name))
 
 #undef TYPE_OBJC_INFO
-#define TYPE_OBJC_INFO(TYPE) LANG_TYPE_CLASS_CHECK (TYPE)->objc_info
+#define TYPE_OBJC_INFO(TYPE) LANG_TYPE_CLASS_CHECK (TYPE)->info.objc_info
 #undef SIZEOF_OBJC_TYPE_LANG_SPECIFIC
 #define SIZEOF_OBJC_TYPE_LANG_SPECIFIC sizeof (struct lang_type)
 #undef ALLOC_OBJC_TYPE_LANG_SPECIFIC

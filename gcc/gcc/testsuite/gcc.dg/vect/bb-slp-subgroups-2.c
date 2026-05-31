@@ -1,3 +1,4 @@
+/* { dg-additional-options "-std=gnu17" } */
 /* { dg-require-effective-target vect_int } */
 /* { dg-require-effective-target vect_perm } */
 /* PR tree-optimization/67682.  */
@@ -39,4 +40,5 @@ main (int argc, char **argv)
 }
 
 /* { dg-final { scan-tree-dump-times "Basic block will be vectorized using SLP" 1 "slp2" } } */
-/* { dg-final { scan-tree-dump-times "optimized: basic block" 1 "slp2" } } */
+/* { dg-final { scan-tree-dump-times "optimized: basic block" 2 "slp2" { target { ! vect256 } } } } */
+/* { dg-final { scan-tree-dump-times "optimized: basic block" 1 "slp2" { target { vect256 } } } } */

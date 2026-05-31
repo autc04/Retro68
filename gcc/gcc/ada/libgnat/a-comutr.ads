@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -54,11 +54,11 @@ is
      with Constant_Indexing => Constant_Reference,
           Variable_Indexing => Reference,
           Default_Iterator  => Iterate,
-          Iterator_Element  => Element_Type;
-   pragma Preelaborable_Initialization (Tree);
+          Iterator_Element  => Element_Type,
+          Preelaborable_Initialization;
 
-   type Cursor is private;
-   pragma Preelaborable_Initialization (Cursor);
+   type Cursor is private
+     with Preelaborable_Initialization;
 
    Empty_Tree : constant Tree;
 
@@ -107,12 +107,14 @@ is
       Process   : not null access procedure (Element : in out Element_Type));
 
    type Constant_Reference_Type
-     (Element : not null access constant Element_Type) is private
-        with Implicit_Dereference => Element;
+     (Element : not null access constant Element_Type) is limited private
+   with
+      Implicit_Dereference => Element;
 
    type Reference_Type
-     (Element : not null access Element_Type) is private
-        with Implicit_Dereference => Element;
+     (Element : not null access Element_Type) is limited private
+   with
+      Implicit_Dereference => Element;
 
    function Constant_Reference
      (Container : aliased Tree;
@@ -491,10 +493,46 @@ private
 
    for Reference_Type'Write use Write;
 
-   --  Three operations are used to optimize in the expansion of "for ... of"
-   --  loops: the Next(Cursor) procedure in the visible part, and the following
-   --  Pseudo_Reference and Get_Element_Access functions. See Exp_Ch5 for
-   --  details.
+   --  Base iterator type for shared functionality between Child_Iterator
+   --  and Subtree_Iterator - namely finalization.
+   type Root_Iterator is abstract new Limited_Controlled and
+     Tree_Iterator_Interfaces.Forward_Iterator with
+   record
+      Container : Tree_Access;
+      Subtree   : Tree_Node_Access;
+   end record
+     with Disable_Controlled => not T_Check;
+
+   overriding procedure Finalize (Object : in out Root_Iterator);
+
+   --  Iterator to handle traversal within a specific subtree.
+   type Subtree_Iterator is new Root_Iterator with null record;
+
+   overriding function First (Object : Subtree_Iterator) return Cursor;
+
+   overriding function Next
+     (Object   : Subtree_Iterator;
+      Position : Cursor) return Cursor;
+
+   --  Iterator to handle bidirectional traversal of a node's immediate
+   --  children for operations like reverse enumeration and selective
+   --  insertion.
+   type Child_Iterator is new Root_Iterator and
+     Tree_Iterator_Interfaces.Reversible_Iterator with null record
+       with Disable_Controlled => not T_Check;
+
+   overriding function First (Object : Child_Iterator) return Cursor;
+
+   overriding function Next
+     (Object   : Child_Iterator;
+      Position : Cursor) return Cursor;
+
+   overriding function Last (Object : Child_Iterator) return Cursor;
+
+   overriding function Previous
+     (Object   : Child_Iterator;
+      Position : Cursor) return Cursor;
+   --  See Ada.Containers.Vectors for documentation on the following
 
    function Pseudo_Reference
      (Container : aliased Tree'Class) return Reference_Control_Type;

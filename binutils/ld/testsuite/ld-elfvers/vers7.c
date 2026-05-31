@@ -2,8 +2,8 @@
  * Test program that goes with test7.so
  */
 
-extern int hide_a();
-extern int show_b();
+extern int hide_a(int e);
+extern int show_b(int e);
 
 int
 main()

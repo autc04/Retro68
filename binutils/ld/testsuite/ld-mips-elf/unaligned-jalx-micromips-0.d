@@ -1,7 +1,7 @@
 #name: microMIPS JALX to unaligned symbol 0
 #source: unaligned-jalx-0.s -mmicromips
 #source: unaligned-insn.s
-#as: -EB -32
+#as: -EB
 #ld: -EB -Ttext 0x1c000000 -e 0x1c000000
 #objdump: -dr --prefix-addresses --show-raw-insn
 

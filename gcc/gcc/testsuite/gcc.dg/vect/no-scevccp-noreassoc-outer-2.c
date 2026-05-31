@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-additional-options "-fno-tree-scev-cprop -fno-tree-reassoc" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -31,6 +32,7 @@ int main (void)
   foo ();
 
     /* check results:  */
+#pragma GCC novector
   for (i=0; i<200*N; i++)
     {
       sum = 0;

@@ -20,6 +20,7 @@ _start:
 	prefetcht1 (%ebp)
 	prefetcht2 (%ebp)
 	prefetchw (%ebp)
+	prefetchrst2 (%ebp)
 	pop %ds
 	popf
 	popa

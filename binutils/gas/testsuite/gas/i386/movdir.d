@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 MOVDIR[I,64B] insns
 #source: movdir.s

@@ -37,6 +37,7 @@ test (void)
       foo (a[i], &v1, &v2);
       a[i] = v1 * v2;
     }
+#pragma GCC novector
   for (i = 0; i < N; i++)
     if (a[i] != i * i * i * i - 1)
       __builtin_abort ();
@@ -49,6 +50,7 @@ test (void)
       bar (a[i], &v1, &v2);
       a[i] = v1 * v2;
     }
+#pragma GCC novector
   for (i = 0; i < N; i++)
     if (a[i] != i * i * i * i - 1)
       __builtin_abort ();
@@ -62,3 +64,7 @@ main ()
   return 0;
 }
 
+/* { dg-final { scan-tree-dump "31:17: optimized: loop vectorized" "vect" } } */
+/* { dg-final { scan-tree-dump "37:7: optimized: loop vectorized" "vect" } } */
+/* { dg-final { scan-tree-dump "44:17: optimized: loop vectorized" "vect" } } */
+/* { dg-final { scan-tree-dump "50:7: optimized: loop vectorized" "vect" } } */

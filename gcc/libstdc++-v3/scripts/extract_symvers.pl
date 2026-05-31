@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (C) 2010-2022 Free Software Foundation, Inc.
+# Copyright (C) 2010-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU ISO C++ Library.  This library is free
 # software; you can redistribute it and/or modify it under the
@@ -34,8 +34,18 @@ while (<PVS>) {
     # Remove trailing semicolon.
     s/;$//;
 
-    # shared object, dash, version, symbol, [size]
-    (undef, undef, $version, $symbol, $size) = split;
+    if (/\[WEAK\]/) {
+	# Allow for weak versions like
+	# libstdc++.so.6.0.34 -	CXXABI_1.3.16 [WEAK]: {CXXABI_1.3.15};
+	#
+	# shared object, dash, version "[WEAK]", symbol, [size]
+	(undef, undef, $version, undef, $symbol, $size) = split;
+    } else {
+	# libstdc++.so.6.0.34 -	CXXABI_1.3.16: {CXXABI_1.3.15};
+	#
+	# shared object, dash, version, symbol, [size]
+	(undef, undef, $version, $symbol, $size) = split;
+    }
 
     # Remove colon separator from version field.
     $version =~ s/:$//;
@@ -85,7 +95,7 @@ close PVS or die "pvs error";
 # Ignore error output to avoid getting confused by
 # .gnu.version_r: zero sh_entsize information, expected 0x1
 # warning with Solaris 11 elfdump on gld-produced shared objects.
-open ELFDUMP, "/usr/ccs/bin/elfdump -s -N .dynsym $lib 2>/dev/null |" or die $!;
+open ELFDUMP, "/usr/bin/elfdump -s -N .dynsym $lib 2>/dev/null |" or die $!;
 while (<ELFDUMP>) {
     chomp;
 

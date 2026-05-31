@@ -7,7 +7,7 @@
 --                                  S p e c                                 --
 --                                                                          --
 --             Copyright (C) 1991-2017, Florida State University            --
---          Copyright (C) 1995-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1995-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,9 +39,13 @@
 --  Preelaborate. This package is designed to be a bottom-level (leaf) package.
 
 with Ada.Unchecked_Conversion;
+
 with Interfaces.C;
+
+with System.C_Time;
 with System.Linux;
 with System.OS_Constants;
+with System.OS_Locks;
 
 package System.OS_Interface is
    pragma Preelaborate;
@@ -50,8 +54,6 @@ package System.OS_Interface is
    --  Needed for clock_getres with glibc versions prior to 2.17
 
    pragma Linker_Options ("-lpthread");
-
-   use type System.Linux.time_t;
 
    subtype int            is Interfaces.C.int;
    subtype char           is Interfaces.C.char;
@@ -226,25 +228,16 @@ package System.OS_Interface is
    -- Time --
    ----------
 
-   subtype time_t    is System.Linux.time_t;
-   subtype timespec  is System.Linux.timespec;
-   subtype timeval   is System.Linux.timeval;
    subtype clockid_t is System.Linux.clockid_t;
 
    function clock_gettime
-     (clock_id : clockid_t; tp : access timespec) return int;
+     (clock_id : clockid_t; tp : access C_Time.timespec) return int;
    pragma Import (C, clock_gettime, "clock_gettime");
 
    function clock_getres
      (clock_id : clockid_t;
-      res      : access timespec) return int;
+      res      : access C_Time.timespec) return int;
    pragma Import (C, clock_getres, "clock_getres");
-
-   function To_Duration (TS : timespec) return Duration;
-   pragma Inline (To_Duration);
-
-   function To_Timespec (D : Duration) return timespec;
-   pragma Inline (To_Timespec);
 
    function sysconf (name : int) return long;
    pragma Import (C, sysconf);
@@ -301,7 +294,7 @@ package System.OS_Interface is
    function To_pthread_t is
      new Ada.Unchecked_Conversion (unsigned_long, pthread_t);
 
-   type pthread_mutex_t      is limited private;
+   subtype pthread_mutex_t   is System.OS_Locks.pthread_mutex_t;
    type pthread_rwlock_t     is limited private;
    type pthread_cond_t       is limited private;
    type pthread_attr_t       is limited private;
@@ -454,7 +447,7 @@ package System.OS_Interface is
    function pthread_cond_timedwait
      (cond    : access pthread_cond_t;
       mutex   : access pthread_mutex_t;
-      abstime : access timespec) return int;
+      abstime : access C_Time.timespec) return int;
    pragma Import (C, pthread_cond_timedwait, "pthread_cond_timedwait");
 
    --------------------------
@@ -652,15 +645,9 @@ private
 
    type pthread_mutexattr_t is record
       Data : char_array (1 .. OS_Constants.PTHREAD_MUTEXATTR_SIZE);
-   end  record;
+   end record;
    pragma Convention (C, pthread_mutexattr_t);
    for pthread_mutexattr_t'Alignment use Interfaces.C.int'Alignment;
-
-   type pthread_mutex_t is record
-      Data : char_array (1 .. OS_Constants.PTHREAD_MUTEX_SIZE);
-   end record;
-   pragma Convention (C, pthread_mutex_t);
-   for pthread_mutex_t'Alignment use Interfaces.C.unsigned_long'Alignment;
 
    type pthread_rwlockattr_t is record
       Data : char_array (1 .. OS_Constants.PTHREAD_RWLOCKATTR_SIZE);

@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-additional-options "--param vect-max-version-for-alias-checks=0" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -130,6 +131,7 @@ main1 (void)
 	case 7: f8 (); break;
 	}
 
+#pragma GCC novector
       for (i = 0; i <= N; i++)
 	{
 	  int ea = i + 3;

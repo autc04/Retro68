@@ -7,5 +7,5 @@ SECTIONS
 {
 	.text : ALIGN (4) { *(.text) } > region
 	.rodata : ALIGN (4) { *(.rodata) } > region
-	/DISCARD/ : { *(.reginfo) *(.MIPS.abiflags) *(.trampolines) *(.riscv.attributes) }
+	/DISCARD/ : { *(.reginfo) *(.MIPS.abiflags) *(.MIPS.options) *(.trampolines) *(.riscv.attributes) }
 }

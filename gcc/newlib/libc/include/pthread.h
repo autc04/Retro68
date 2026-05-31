@@ -87,11 +87,11 @@ int	pthread_mutex_timedlock (pthread_mutex_t *__mutex,
 
 #endif /* _POSIX_TIMEOUTS */
 
-#if __GNU_VISIBLE
+#if (__GNU_VISIBLE || __POSIX_VISIBLE >= 202405)
 /* The Issue 8 standard adds pthread_mutex_clocklock() */
 int pthread_mutex_clocklock(pthread_mutex_t *__restrict, clockid_t,
 				   const struct timespec *__restrict);
-#endif /* __GNU_VISIBLE */
+#endif /* __GNU_VISIBLE || __POSIX_VISIBLE >= 202405 */
 
 /* Condition Variable Initialization Attributes, P1003.1c/Draft 10, p. 96 */
  
@@ -133,12 +133,12 @@ int	pthread_cond_timedwait (pthread_cond_t *__cond,
 				pthread_mutex_t *__mutex,
 				const struct timespec *__abstime);
 
-#if __GNU_VISIBLE
+#if (__GNU_VISIBLE || __POSIX_VISIBLE >= 202405)
 /* The Issue 8 standard adds pthread_cond_clockwait() */
 int pthread_cond_clockwait(pthread_cond_t *__restrict,
                    pthread_mutex_t *__restrict, clockid_t,
 				   const struct timespec *__restrict);
-#endif /* __GNU_VISIBLE */
+#endif /* __GNU_VISIBLE || __POSIX_VISIBLE >= 202405 */
  
 #if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
 
@@ -436,14 +436,14 @@ int	pthread_rwlock_trywrlock (pthread_rwlock_t *__rwlock);
 int	pthread_rwlock_timedwrlock (pthread_rwlock_t *__rwlock,
 				    const struct timespec *__abstime);
 
-#if __GNU_VISIBLE
+#if (__GNU_VISIBLE || __POSIX_VISIBLE >= 202405)
 /* The Issue 8 standard adds pthread_rwlock_clockrdlock()
 *  and pthread_rwlock_clockwrlock()*/
 int pthread_rwlock_clockrdlock(pthread_rwlock_t *__restrict, clockid_t,
 				   const struct timespec *__restrict);
 int pthread_rwlock_clockwrlock(pthread_rwlock_t *__restrict, clockid_t,
 				   const struct timespec *__restrict);
-#endif /* __GNU_VISIBLE */
+#endif /* __GNU_VISIBLE || __POSIX_VISIBLE >= 202405 */
 
 #endif /* defined(_POSIX_READER_WRITER_LOCKS) */
 

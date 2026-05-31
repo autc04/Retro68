@@ -1,5 +1,5 @@
 /* Support for offering suggestions for handling unrecognized names.
-   Copyright (C) 2016-2022 Free Software Foundation, Inc.
+   Copyright (C) 2016-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -19,14 +19,6 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifndef GCC_NAME_HINT_H
 #define GCC_NAME_HINT_H
-
-/* This header uses std::unique_ptr, but <memory> can't be directly
-   included due to issues with macros.  Hence it must be included from
-   system.h by defining INCLUDE_MEMORY in any source file using it.  */
-
-#ifndef INCLUDE_MEMORY
-# error "You must define INCLUDE_MEMORY before including system.h to use name-hint.h"
-#endif
 
 enum lookup_name_fuzzy_kind {
   /* Names of types.  */
@@ -93,8 +85,10 @@ class name_hint
 public:
   name_hint () : m_suggestion (NULL), m_deferred () {}
 
-  name_hint (const char *suggestion, deferred_diagnostic *deferred)
-  : m_suggestion (suggestion), m_deferred (deferred)
+  name_hint (const char *suggestion,
+	     std::unique_ptr<deferred_diagnostic> deferred)
+  : m_suggestion (suggestion),
+    m_deferred (std::move (deferred))
   {
   }
 
@@ -106,7 +100,7 @@ public:
 
   /* Take ownership of this name_hint's deferred_diagnostic, for use
      in chaining up deferred diagnostics.  */
-  std::unique_ptr<deferred_diagnostic> take_deferred () { return move (m_deferred); }
+  std::unique_ptr<deferred_diagnostic> take_deferred () { return std::move (m_deferred); }
 
   /* Call this on a name_hint if the corresponding warning was not emitted,
      in which case we should also not emit the deferred_diagnostic.  */

@@ -1,6 +1,6 @@
 // Core concepts and definitions for <ranges> -*- C++ -*-
 
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,12 +30,29 @@
 #ifndef _GLIBCXX_RANGES_BASE_H
 #define _GLIBCXX_RANGES_BASE_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #if __cplusplus > 201703L
-#include <bits/iterator_concepts.h>
+#include <initializer_list>
+#include <bits/stl_iterator.h>
 #include <ext/numeric_traits.h>
 #include <bits/max_size_type.h>
+#include <bits/version.h>
+
+#if __glibcxx_containers_ranges // C++ >= 23
+# include <bits/utility.h> // for tuple_element_t
+#endif
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic" // __int128
+
+#if __glibcxx_algorithm_default_value_type // C++ >= 26
+# define _GLIBCXX26_RANGE_ALGO_DEF_VAL_T(_I, _P) = projected_value_t<_I, _P>
+#else
+# define _GLIBCXX26_RANGE_ALGO_DEF_VAL_T(_I, _P)
+#endif
 
 #ifdef __cpp_lib_concepts
 namespace std _GLIBCXX_VISIBILITY(default)
@@ -51,28 +68,21 @@ namespace ranges
 
   namespace __detail
   {
+    [[__gnu__::__always_inline__]]
     constexpr __max_size_type
     __to_unsigned_like(__max_size_type __t) noexcept
     { return __t; }
 
+    [[__gnu__::__always_inline__]]
     constexpr __max_size_type
     __to_unsigned_like(__max_diff_type __t) noexcept
     { return __max_size_type(__t); }
 
     template<integral _Tp>
+      [[__gnu__::__always_inline__]]
       constexpr auto
       __to_unsigned_like(_Tp __t) noexcept
       { return static_cast<make_unsigned_t<_Tp>>(__t); }
-
-#if defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
-    constexpr unsigned __int128
-    __to_unsigned_like(__int128 __t) noexcept
-    { return __t; }
-
-    constexpr unsigned __int128
-    __to_unsigned_like(unsigned __int128 __t) noexcept
-    { return __t; }
-#endif
 
     template<typename _Tp>
       using __make_unsigned_like_t
@@ -86,7 +96,8 @@ namespace ranges
 
   } // namespace __detail
 
-  namespace __cust_access
+  // Namespace for helpers for the <ranges> customization points.
+  namespace __access
   {
     using std::ranges::__detail::__maybe_borrowed_range;
     using std::__detail::__range_iter_t;
@@ -95,23 +106,24 @@ namespace ranges
     {
     private:
       template<typename _Tp>
-	static constexpr bool
+	static consteval bool
 	_S_noexcept()
 	{
 	  if constexpr (is_array_v<remove_reference_t<_Tp>>)
 	    return true;
 	  else if constexpr (__member_begin<_Tp>)
-	    return noexcept(__decay_copy(std::declval<_Tp&>().begin()));
+	    return noexcept(_GLIBCXX_AUTO_CAST(std::declval<_Tp&>().begin()));
 	  else
-	    return noexcept(__decay_copy(begin(std::declval<_Tp&>())));
+	    return noexcept(_GLIBCXX_AUTO_CAST(begin(std::declval<_Tp&>())));
 	}
 
     public:
       template<__maybe_borrowed_range _Tp>
 	requires is_array_v<remove_reference_t<_Tp>> || __member_begin<_Tp>
 	  || __adl_begin<_Tp>
+	[[nodiscard, __gnu__::__always_inline__]]
 	constexpr auto
-	operator()[[nodiscard]](_Tp&& __t) const noexcept(_S_noexcept<_Tp&>())
+	operator()(_Tp&& __t) const noexcept(_S_noexcept<_Tp&>())
 	{
 	  if constexpr (is_array_v<remove_reference_t<_Tp>>)
 	    {
@@ -128,41 +140,41 @@ namespace ranges
     template<typename _Tp>
       concept __member_end = requires(_Tp& __t)
 	{
-	  { __decay_copy(__t.end()) } -> sentinel_for<__range_iter_t<_Tp>>;
+	  { _GLIBCXX_AUTO_CAST(__t.end()) } -> sentinel_for<__range_iter_t<_Tp>>;
 	};
 
-    // Poison pills so that unqualified lookup doesn't find std::end.
-    void end(auto&) = delete;
-    void end(const auto&) = delete;
+    // Poison pill so that unqualified lookup doesn't find std::end.
+    void end() = delete;
 
     template<typename _Tp>
       concept __adl_end = __class_or_enum<remove_reference_t<_Tp>>
 	&& requires(_Tp& __t)
 	{
-	  { __decay_copy(end(__t)) } -> sentinel_for<__range_iter_t<_Tp>>;
+	  { _GLIBCXX_AUTO_CAST(end(__t)) } -> sentinel_for<__range_iter_t<_Tp>>;
 	};
 
     struct _End
     {
     private:
       template<typename _Tp>
-	static constexpr bool
+	static consteval bool
 	_S_noexcept()
 	{
 	  if constexpr (is_bounded_array_v<remove_reference_t<_Tp>>)
 	    return true;
 	  else if constexpr (__member_end<_Tp>)
-	    return noexcept(__decay_copy(std::declval<_Tp&>().end()));
+	    return noexcept(_GLIBCXX_AUTO_CAST(std::declval<_Tp&>().end()));
 	  else
-	    return noexcept(__decay_copy(end(std::declval<_Tp&>())));
+	    return noexcept(_GLIBCXX_AUTO_CAST(end(std::declval<_Tp&>())));
 	}
 
     public:
       template<__maybe_borrowed_range _Tp>
 	requires is_bounded_array_v<remove_reference_t<_Tp>>
 	  || __member_end<_Tp> || __adl_end<_Tp>
+	[[nodiscard, __gnu__::__always_inline__]]
 	constexpr auto
-	operator()[[nodiscard]](_Tp&& __t) const noexcept(_S_noexcept<_Tp&>())
+	operator()(_Tp&& __t) const noexcept(_S_noexcept<_Tp&>())
 	{
 	  if constexpr (is_bounded_array_v<remove_reference_t<_Tp>>)
 	    {
@@ -176,59 +188,19 @@ namespace ranges
 	}
     };
 
-    // If _To is an lvalue-reference, return const _Tp&, otherwise const _Tp&&.
-    template<typename _To, typename _Tp>
-      constexpr decltype(auto)
-      __as_const(_Tp& __t) noexcept
-      {
-	static_assert(std::is_same_v<_To&, _Tp&>);
-
-	if constexpr (is_lvalue_reference_v<_To>)
-	  return const_cast<const _Tp&>(__t);
-	else
-	  return static_cast<const _Tp&&>(__t);
-      }
-
-    struct _CBegin
-    {
-      template<typename _Tp>
-	[[nodiscard]]
-	constexpr auto
-	operator()(_Tp&& __e) const
-	noexcept(noexcept(_Begin{}(__cust_access::__as_const<_Tp>(__e))))
-	requires requires { _Begin{}(__cust_access::__as_const<_Tp>(__e)); }
-	{
-	  return _Begin{}(__cust_access::__as_const<_Tp>(__e));
-	}
-    };
-
-    struct _CEnd final
-    {
-      template<typename _Tp>
-	[[nodiscard]]
-	constexpr auto
-	operator()(_Tp&& __e) const
-	noexcept(noexcept(_End{}(__cust_access::__as_const<_Tp>(__e))))
-	requires requires { _End{}(__cust_access::__as_const<_Tp>(__e)); }
-	{
-	  return _End{}(__cust_access::__as_const<_Tp>(__e));
-	}
-    };
-
     template<typename _Tp>
       concept __member_rbegin = requires(_Tp& __t)
 	{
-	  { __decay_copy(__t.rbegin()) } -> input_or_output_iterator;
+	  { _GLIBCXX_AUTO_CAST(__t.rbegin()) } -> input_or_output_iterator;
 	};
 
-    void rbegin(auto&) = delete;
-    void rbegin(const auto&) = delete;
+    void rbegin() = delete;
 
     template<typename _Tp>
       concept __adl_rbegin = __class_or_enum<remove_reference_t<_Tp>>
 	&& requires(_Tp& __t)
 	{
-	  { __decay_copy(rbegin(__t)) } -> input_or_output_iterator;
+	  { _GLIBCXX_AUTO_CAST(rbegin(__t)) } -> input_or_output_iterator;
 	};
 
     template<typename _Tp>
@@ -242,13 +214,13 @@ namespace ranges
     {
     private:
       template<typename _Tp>
-	static constexpr bool
+	static consteval bool
 	_S_noexcept()
 	{
 	  if constexpr (__member_rbegin<_Tp>)
-	    return noexcept(__decay_copy(std::declval<_Tp&>().rbegin()));
+	    return noexcept(_GLIBCXX_AUTO_CAST(std::declval<_Tp&>().rbegin()));
 	  else if constexpr (__adl_rbegin<_Tp>)
-	    return noexcept(__decay_copy(rbegin(std::declval<_Tp&>())));
+	    return noexcept(_GLIBCXX_AUTO_CAST(rbegin(std::declval<_Tp&>())));
 	  else
 	    {
 	      if constexpr (noexcept(_End{}(std::declval<_Tp&>())))
@@ -265,8 +237,9 @@ namespace ranges
     public:
       template<__maybe_borrowed_range _Tp>
 	requires __member_rbegin<_Tp> || __adl_rbegin<_Tp> || __reversable<_Tp>
+	[[nodiscard, __gnu__::__always_inline__]]
 	constexpr auto
-	operator()[[nodiscard]](_Tp&& __t) const
+	operator()(_Tp&& __t) const
 	noexcept(_S_noexcept<_Tp&>())
 	{
 	  if constexpr (__member_rbegin<_Tp>)
@@ -281,18 +254,17 @@ namespace ranges
     template<typename _Tp>
       concept __member_rend = requires(_Tp& __t)
 	{
-	  { __decay_copy(__t.rend()) }
+	  { _GLIBCXX_AUTO_CAST(__t.rend()) }
 	    -> sentinel_for<decltype(_RBegin{}(std::forward<_Tp>(__t)))>;
 	};
 
-    void rend(auto&) = delete;
-    void rend(const auto&) = delete;
+    void rend() = delete;
 
     template<typename _Tp>
       concept __adl_rend = __class_or_enum<remove_reference_t<_Tp>>
 	&& requires(_Tp& __t)
 	{
-	  { __decay_copy(rend(__t)) }
+	  { _GLIBCXX_AUTO_CAST(rend(__t)) }
 	    -> sentinel_for<decltype(_RBegin{}(std::forward<_Tp>(__t)))>;
 	};
 
@@ -300,13 +272,13 @@ namespace ranges
     {
     private:
       template<typename _Tp>
-	static constexpr bool
+	static consteval bool
 	_S_noexcept()
 	{
 	  if constexpr (__member_rend<_Tp>)
-	    return noexcept(__decay_copy(std::declval<_Tp&>().rend()));
+	    return noexcept(_GLIBCXX_AUTO_CAST(std::declval<_Tp&>().rend()));
 	  else if constexpr (__adl_rend<_Tp>)
-	    return noexcept(__decay_copy(rend(std::declval<_Tp&>())));
+	    return noexcept(_GLIBCXX_AUTO_CAST(rend(std::declval<_Tp&>())));
 	  else
 	    {
 	      if constexpr (noexcept(_Begin{}(std::declval<_Tp&>())))
@@ -323,8 +295,9 @@ namespace ranges
     public:
       template<__maybe_borrowed_range _Tp>
 	requires __member_rend<_Tp> || __adl_rend<_Tp> || __reversable<_Tp>
+	[[nodiscard, __gnu__::__always_inline__]]
 	constexpr auto
-	operator()[[nodiscard]](_Tp&& __t) const
+	operator()(_Tp&& __t) const
 	noexcept(_S_noexcept<_Tp&>())
 	{
 	  if constexpr (__member_rend<_Tp>)
@@ -336,48 +309,21 @@ namespace ranges
 	}
     };
 
-    struct _CRBegin
-    {
-      template<typename _Tp>
-	[[nodiscard]]
-	constexpr auto
-	operator()(_Tp&& __e) const
-	noexcept(noexcept(_RBegin{}(__cust_access::__as_const<_Tp>(__e))))
-	requires requires { _RBegin{}(__cust_access::__as_const<_Tp>(__e)); }
-	{
-	  return _RBegin{}(__cust_access::__as_const<_Tp>(__e));
-	}
-    };
-
-    struct _CREnd
-    {
-      template<typename _Tp>
-	[[nodiscard]]
-	constexpr auto
-	operator()(_Tp&& __e) const
-	noexcept(noexcept(_REnd{}(__cust_access::__as_const<_Tp>(__e))))
-	requires requires { _REnd{}(__cust_access::__as_const<_Tp>(__e)); }
-	{
-	  return _REnd{}(__cust_access::__as_const<_Tp>(__e));
-	}
-    };
-
     template<typename _Tp>
       concept __member_size = !disable_sized_range<remove_cvref_t<_Tp>>
 	&& requires(_Tp& __t)
 	{
-	  { __decay_copy(__t.size()) } -> __detail::__is_integer_like;
+	  { _GLIBCXX_AUTO_CAST(__t.size()) } -> __detail::__is_integer_like;
 	};
 
-    void size(auto&) = delete;
-    void size(const auto&) = delete;
+    void size() = delete;
 
     template<typename _Tp>
       concept __adl_size = __class_or_enum<remove_reference_t<_Tp>>
 	&& !disable_sized_range<remove_cvref_t<_Tp>>
 	&& requires(_Tp& __t)
 	{
-	  { __decay_copy(size(__t)) } -> __detail::__is_integer_like;
+	  { _GLIBCXX_AUTO_CAST(size(__t)) } -> __detail::__is_integer_like;
 	};
 
     template<typename _Tp>
@@ -396,15 +342,15 @@ namespace ranges
     {
     private:
       template<typename _Tp>
-	static constexpr bool
+	static consteval bool
 	_S_noexcept()
 	{
 	  if constexpr (is_bounded_array_v<remove_reference_t<_Tp>>)
 	    return true;
 	  else if constexpr (__member_size<_Tp>)
-	    return noexcept(__decay_copy(std::declval<_Tp&>().size()));
+	    return noexcept(_GLIBCXX_AUTO_CAST(std::declval<_Tp&>().size()));
 	  else if constexpr (__adl_size<_Tp>)
-	    return noexcept(__decay_copy(size(std::declval<_Tp&>())));
+	    return noexcept(_GLIBCXX_AUTO_CAST(size(std::declval<_Tp&>())));
 	  else if constexpr (__sentinel_size<_Tp>)
 	    return noexcept(_End{}(std::declval<_Tp&>())
 			    - _Begin{}(std::declval<_Tp&>()));
@@ -414,8 +360,9 @@ namespace ranges
       template<typename _Tp>
 	requires is_bounded_array_v<remove_reference_t<_Tp>>
 	  || __member_size<_Tp> || __adl_size<_Tp> || __sentinel_size<_Tp>
+	[[nodiscard, __gnu__::__always_inline__]]
 	constexpr auto
-	operator()[[nodiscard]](_Tp&& __t) const noexcept(_S_noexcept<_Tp&>())
+	operator()(_Tp&& __t) const noexcept(_S_noexcept<_Tp&>())
 	{
 	  if constexpr (is_bounded_array_v<remove_reference_t<_Tp>>)
 	    return extent_v<remove_reference_t<_Tp>>;
@@ -434,8 +381,9 @@ namespace ranges
       // 3403. Domain of ranges::ssize(E) doesn't match ranges::size(E)
       template<typename _Tp>
 	requires requires (_Tp& __t) { _Size{}(__t); }
+	[[nodiscard, __gnu__::__always_inline__]]
 	constexpr auto
-	operator()[[nodiscard]](_Tp&& __t) const noexcept(noexcept(_Size{}(__t)))
+	operator()(_Tp&& __t) const noexcept(noexcept(_Size{}(__t)))
 	{
 	  auto __size = _Size{}(__t);
 	  using __size_type = decltype(__size);
@@ -449,11 +397,6 @@ namespace ranges
 	      else
 		return static_cast<make_signed_t<__size_type>>(__size);
 	    }
-#if defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
-	  // For strict-ansi modes integral<__int128> is false
-	  else if constexpr (__detail::__is_int128<__size_type>)
-	    return static_cast<__int128>(__size);
-#endif
 	  else // Must be one of __max_diff_type or __max_size_type.
 	    return __detail::__max_diff_type(__size);
 	}
@@ -479,7 +422,7 @@ namespace ranges
     {
     private:
       template<typename _Tp>
-	static constexpr bool
+	static consteval bool
 	_S_noexcept()
 	{
 	  if constexpr (__member_empty<_Tp>)
@@ -495,8 +438,9 @@ namespace ranges
       template<typename _Tp>
 	requires __member_empty<_Tp> || __size0_empty<_Tp>
 	  || __eq_iter_empty<_Tp>
+	[[nodiscard, __gnu__::__always_inline__]]
 	constexpr bool
-	operator()[[nodiscard]](_Tp&& __t) const noexcept(_S_noexcept<_Tp&>())
+	operator()(_Tp&& __t) const noexcept(_S_noexcept<_Tp&>())
 	{
 	  if constexpr (__member_empty<_Tp>)
 	    return bool(__t.empty());
@@ -514,7 +458,7 @@ namespace ranges
     template<typename _Tp>
       concept __member_data = requires(_Tp& __t)
 	{
-	  { __decay_copy(__t.data()) } -> __pointer_to_object;
+	  { _GLIBCXX_AUTO_CAST(__t.data()) } -> __pointer_to_object;
 	};
 
     template<typename _Tp>
@@ -524,11 +468,11 @@ namespace ranges
     {
     private:
       template<typename _Tp>
-	static constexpr bool
+	static consteval bool
 	_S_noexcept()
 	{
 	  if constexpr (__member_data<_Tp>)
-	    return noexcept(__decay_copy(std::declval<_Tp&>().data()));
+	    return noexcept(_GLIBCXX_AUTO_CAST(std::declval<_Tp&>().data()));
 	  else
 	    return noexcept(_Begin{}(std::declval<_Tp&>()));
 	}
@@ -536,8 +480,9 @@ namespace ranges
     public:
       template<__maybe_borrowed_range _Tp>
 	requires __member_data<_Tp> || __begin_data<_Tp>
+	[[nodiscard, __gnu__::__always_inline__]]
 	constexpr auto
-	operator()[[nodiscard]](_Tp&& __t) const noexcept(_S_noexcept<_Tp>())
+	operator()(_Tp&& __t) const noexcept(_S_noexcept<_Tp>())
 	{
 	  if constexpr (__member_data<_Tp>)
 	    return __t.data();
@@ -546,36 +491,18 @@ namespace ranges
 	}
     };
 
-    struct _CData
-    {
-      template<typename _Tp>
-	[[nodiscard]]
-	constexpr auto
-	operator()(_Tp&& __e) const
-	noexcept(noexcept(_Data{}(__cust_access::__as_const<_Tp>(__e))))
-	requires requires { _Data{}(__cust_access::__as_const<_Tp>(__e)); }
-	{
-	  return _Data{}(__cust_access::__as_const<_Tp>(__e));
-	}
-    };
+  } // namespace __access
 
-  } // namespace __cust_access
-
-  inline namespace __cust
+  inline namespace _Cpo
   {
-    inline constexpr __cust_access::_Begin begin{};
-    inline constexpr __cust_access::_End end{};
-    inline constexpr __cust_access::_CBegin cbegin{};
-    inline constexpr __cust_access::_CEnd cend{};
-    inline constexpr __cust_access::_RBegin rbegin{};
-    inline constexpr __cust_access::_REnd rend{};
-    inline constexpr __cust_access::_CRBegin crbegin{};
-    inline constexpr __cust_access::_CREnd crend{};
-    inline constexpr __cust_access::_Size size{};
-    inline constexpr __cust_access::_SSize ssize{};
-    inline constexpr __cust_access::_Empty empty{};
-    inline constexpr __cust_access::_Data data{};
-    inline constexpr __cust_access::_CData cdata{};
+    inline constexpr ranges::__access::_Begin begin{};
+    inline constexpr ranges::__access::_End end{};
+    inline constexpr ranges::__access::_RBegin rbegin{};
+    inline constexpr ranges::__access::_REnd rend{};
+    inline constexpr ranges::__access::_Size size{};
+    inline constexpr ranges::__access::_SSize ssize{};
+    inline constexpr ranges::__access::_Empty empty{};
+    inline constexpr ranges::__access::_Data data{};
   }
 
   /// [range.range] The range concept.
@@ -597,6 +524,13 @@ namespace ranges
   template<range _Range>
     using sentinel_t = decltype(ranges::end(std::declval<_Range&>()));
 
+#if __glibcxx_ranges_as_const // >= C++23
+  // const_iterator_t and const_sentinel_t defined below.
+
+  template<range _Range>
+    using range_const_reference_t = iter_const_reference_t<iterator_t<_Range>>;
+#endif
+
   template<range _Range>
     using range_difference_t = iter_difference_t<iterator_t<_Range>>;
 
@@ -609,6 +543,12 @@ namespace ranges
   template<range _Range>
     using range_rvalue_reference_t
       = iter_rvalue_reference_t<iterator_t<_Range>>;
+
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 3860. range_common_reference_t is missing
+  template<range _Range>
+    using range_common_reference_t
+      = iter_common_reference_t<iterator_t<_Range>>;
 
   /// [range.sized] The sized_range concept.
   template<typename _Tp>
@@ -689,6 +629,198 @@ namespace ranges
     concept common_range
       = range<_Tp> && same_as<iterator_t<_Tp>, sentinel_t<_Tp>>;
 
+#if __glibcxx_ranges_as_const // >= C++23
+  template<typename _Tp>
+    concept constant_range
+      = input_range<_Tp> && std::__detail::__constant_iterator<iterator_t<_Tp>>;
+#endif
+
+  namespace __access
+  {
+#if __glibcxx_ranges_as_const // >= C++23
+    template<input_range _Range>
+      [[__gnu__::__always_inline__]]
+      constexpr auto&
+      __possibly_const_range(_Range& __r) noexcept
+      {
+	// _GLIBCXX_RESOLVE_LIB_DEFECTS
+	// 4027. possibly-const-range should prefer returning const R&
+	if constexpr (input_range<const _Range>)
+	  return const_cast<const _Range&>(__r);
+	else
+	  return __r;
+      }
+#else
+    // If _To is an lvalue-reference, return const _Tp&, otherwise const _Tp&&.
+    template<typename _To, typename _Tp>
+      [[__gnu__::__always_inline__]]
+      constexpr decltype(auto)
+      __as_const(_Tp& __t) noexcept
+      {
+	static_assert(std::is_same_v<_To&, _Tp&>);
+
+	if constexpr (is_lvalue_reference_v<_To>)
+	  return const_cast<const _Tp&>(__t);
+	else
+	  return static_cast<const _Tp&&>(__t);
+      }
+#endif
+
+    struct _CBegin
+    {
+#if __glibcxx_ranges_as_const // >= C++23
+      template<__maybe_borrowed_range _Tp>
+	[[nodiscard]]
+	constexpr auto
+	operator()(_Tp&& __t) const
+	noexcept(noexcept(std::make_const_iterator
+			  (ranges::begin(__access::__possibly_const_range(__t)))))
+	requires requires { std::make_const_iterator
+			    (ranges::begin(__access::__possibly_const_range(__t))); }
+	{
+	  auto& __r = __access::__possibly_const_range(__t);
+	  return const_iterator<decltype(ranges::begin(__r))>(ranges::begin(__r));
+	}
+#else
+      template<typename _Tp>
+	[[nodiscard]]
+	constexpr auto
+	operator()(_Tp&& __e) const
+	noexcept(noexcept(_Begin{}(__access::__as_const<_Tp>(__e))))
+	requires requires { _Begin{}(__access::__as_const<_Tp>(__e)); }
+	{
+	  return _Begin{}(__access::__as_const<_Tp>(__e));
+	}
+#endif
+    };
+
+    struct _CEnd final
+    {
+#if __glibcxx_ranges_as_const // >= C++23
+      template<__maybe_borrowed_range _Tp>
+	[[nodiscard]]
+	constexpr auto
+	operator()(_Tp&& __t) const
+	noexcept(noexcept(std::make_const_sentinel
+			  (ranges::end(__access::__possibly_const_range(__t)))))
+	requires requires { std::make_const_sentinel
+			    (ranges::end(__access::__possibly_const_range(__t))); }
+	{
+	  auto& __r = __access::__possibly_const_range(__t);
+	  return const_sentinel<decltype(ranges::end(__r))>(ranges::end(__r));
+	}
+#else
+      template<typename _Tp>
+	[[nodiscard]]
+	constexpr auto
+	operator()(_Tp&& __e) const
+	noexcept(noexcept(_End{}(__access::__as_const<_Tp>(__e))))
+	requires requires { _End{}(__access::__as_const<_Tp>(__e)); }
+	{
+	  return _End{}(__access::__as_const<_Tp>(__e));
+	}
+#endif
+    };
+
+    struct _CRBegin
+    {
+#if __glibcxx_ranges_as_const // >= C++23
+      template<__maybe_borrowed_range _Tp>
+	[[nodiscard]]
+	constexpr auto
+	operator()(_Tp&& __t) const
+	noexcept(noexcept(std::make_const_iterator
+			  (ranges::rbegin(__access::__possibly_const_range(__t)))))
+	requires requires { std::make_const_iterator
+			    (ranges::rbegin(__access::__possibly_const_range(__t))); }
+	{
+	  auto& __r = __access::__possibly_const_range(__t);
+	  return const_iterator<decltype(ranges::rbegin(__r))>(ranges::rbegin(__r));
+	}
+#else
+      template<typename _Tp>
+	[[nodiscard]]
+	constexpr auto
+	operator()(_Tp&& __e) const
+	noexcept(noexcept(_RBegin{}(__access::__as_const<_Tp>(__e))))
+	requires requires { _RBegin{}(__access::__as_const<_Tp>(__e)); }
+	{
+	  return _RBegin{}(__access::__as_const<_Tp>(__e));
+	}
+#endif
+    };
+
+    struct _CREnd
+    {
+#if __glibcxx_ranges_as_const // >= C++23
+      template<__maybe_borrowed_range _Tp>
+	[[nodiscard]]
+	constexpr auto
+	operator()(_Tp&& __t) const
+	noexcept(noexcept(std::make_const_sentinel
+			  (ranges::rend(__access::__possibly_const_range(__t)))))
+	requires requires { std::make_const_sentinel
+			    (ranges::rend(__access::__possibly_const_range(__t))); }
+	{
+	  auto& __r = __access::__possibly_const_range(__t);
+	  return const_sentinel<decltype(ranges::rend(__r))>(ranges::rend(__r));
+	}
+#else
+      template<typename _Tp>
+	[[nodiscard]]
+	constexpr auto
+	operator()(_Tp&& __e) const
+	noexcept(noexcept(_REnd{}(__access::__as_const<_Tp>(__e))))
+	requires requires { _REnd{}(__access::__as_const<_Tp>(__e)); }
+	{
+	  return _REnd{}(__access::__as_const<_Tp>(__e));
+	}
+#endif
+    };
+
+    struct _CData
+    {
+#if __glibcxx_ranges_as_const // >= C++23
+      template<__maybe_borrowed_range _Tp>
+	[[nodiscard]]
+	constexpr const auto*
+	operator()(_Tp&& __t) const
+	noexcept(noexcept(ranges::data(__access::__possibly_const_range(__t))))
+	requires requires { ranges::data(__access::__possibly_const_range(__t)); }
+	{ return ranges::data(__access::__possibly_const_range(__t)); }
+#else
+      template<typename _Tp>
+	[[nodiscard]]
+	constexpr auto
+	operator()(_Tp&& __e) const
+	noexcept(noexcept(_Data{}(__access::__as_const<_Tp>(__e))))
+	requires requires { _Data{}(__access::__as_const<_Tp>(__e)); }
+	{
+	  return _Data{}(__access::__as_const<_Tp>(__e));
+	}
+#endif
+    };
+  } // namespace __access
+
+  inline namespace _Cpo
+  {
+    inline constexpr ranges::__access::_CBegin cbegin{};
+    inline constexpr ranges::__access::_CEnd cend{};
+    inline constexpr ranges::__access::_CRBegin crbegin{};
+    inline constexpr ranges::__access::_CREnd crend{};
+    inline constexpr ranges::__access::_CData cdata{};
+  }
+
+#if __glibcxx_ranges_as_const // >= C++23
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 3946. The definition of const_iterator_t should be reworked
+  template<range _Range>
+    using const_iterator_t = decltype(ranges::cbegin(std::declval<_Range&>()));
+
+  template<range _Range>
+    using const_sentinel_t = decltype(ranges::cend(std::declval<_Range&>()));
+#endif
+
   namespace __detail
   {
     template<typename _Tp>
@@ -766,10 +898,17 @@ namespace ranges
       {
 	if constexpr (sized_sentinel_for<_Sent, _It>)
 	  {
-	    const auto __diff = __bound - __it;
+	    const iter_difference_t<_It> __diff = __bound - __it;
 
 	    if (__diff == 0)
-	      return __n;
+	      {
+		// inline any possible side effects of advance(it, bound)
+		if constexpr (assignable_from<_It&, _Sent>)
+		  __it = std::move(__bound);
+		else if constexpr (random_access_iterator<_It>)
+		  __it += iter_difference_t<_It>(0);
+		return __n;
+	      }
 	    else if (__diff > 0 ? __n >= __diff : __n <= __diff)
 	      {
 		(*this)(__it, __bound);
@@ -778,15 +917,20 @@ namespace ranges
 	    else if (__n != 0) [[likely]]
 	      {
 		// n and bound must not lead in opposite directions:
-		__glibcxx_assert(__n < 0 == __diff < 0);
+		__glibcxx_assert((__n < 0) == (__diff < 0));
 
 		(*this)(__it, __n);
 		return 0;
 	      }
 	    else
-	      return 0;
+	      {
+		// inline any possible side effects of advance(it, n)
+		if constexpr (random_access_iterator<_It>)
+		  __it += iter_difference_t<_It>(0);
+		return 0;
+	      }
 	  }
-	else if (__it == __bound || __n == 0)
+	else if (__n == 0 || __it == __bound)
 	  return __n;
 	else if (__n > 0)
 	  {
@@ -825,7 +969,7 @@ namespace ranges
 
   struct __distance_fn final
   {
-    template<input_or_output_iterator _It, sentinel_for<_It> _Sent>
+    template<typename _It, sentinel_for<_It> _Sent>
       requires (!sized_sentinel_for<_Sent, _It>)
       constexpr iter_difference_t<_It>
       operator()[[nodiscard]](_It __first, _Sent __last) const
@@ -839,16 +983,23 @@ namespace ranges
 	return __n;
       }
 
-    template<input_or_output_iterator _It, sized_sentinel_for<_It> _Sent>
-      [[nodiscard]]
-      constexpr iter_difference_t<_It>
-      operator()(const _It& __first, const _Sent& __last) const
+    // _GLIBCXX_RESOLVE_LIB_DEFECTS
+    // 3392. cannot be used on a move-only iterator with a sized sentinel
+    // 3664. LWG 3392 broke std::ranges::distance(a, a+3)
+    // 4242. ranges::distance does not work with volatile iterators
+    template<typename _It, sized_sentinel_for<decay_t<_It>> _Sent>
+      [[nodiscard, __gnu__::__always_inline__]]
+      constexpr iter_difference_t<decay_t<_It>>
+      operator()(_It&& __first, _Sent __last) const
       {
-	return __last - __first;
+	if constexpr (!is_array_v<remove_reference_t<_It>>)
+	  return __last - __first;
+	else
+	  return __last - static_cast<decay_t<_It>>(__first);
       }
 
     template<range _Range>
-      [[nodiscard]]
+      [[nodiscard, __gnu__::__always_inline__]]
       constexpr range_difference_t<_Range>
       operator()(_Range&& __r) const
       {
@@ -866,7 +1017,7 @@ namespace ranges
   struct __next_fn final
   {
     template<input_or_output_iterator _It>
-      [[nodiscard]]
+      [[nodiscard, __gnu__::__always_inline__]]
       constexpr _It
       operator()(_It __x) const
       {
@@ -875,7 +1026,7 @@ namespace ranges
       }
 
     template<input_or_output_iterator _It>
-      [[nodiscard]]
+      [[nodiscard, __gnu__::__always_inline__]]
       constexpr _It
       operator()(_It __x, iter_difference_t<_It> __n) const
       {
@@ -884,7 +1035,7 @@ namespace ranges
       }
 
     template<input_or_output_iterator _It, sentinel_for<_It> _Sent>
-      [[nodiscard]]
+      [[nodiscard, __gnu__::__always_inline__]]
       constexpr _It
       operator()(_It __x, _Sent __bound) const
       {
@@ -893,7 +1044,7 @@ namespace ranges
       }
 
     template<input_or_output_iterator _It, sentinel_for<_It> _Sent>
-      [[nodiscard]]
+      [[nodiscard, __gnu__::__always_inline__]]
       constexpr _It
       operator()(_It __x, iter_difference_t<_It> __n, _Sent __bound) const
       {
@@ -909,7 +1060,7 @@ namespace ranges
   struct __prev_fn final
   {
     template<bidirectional_iterator _It>
-      [[nodiscard]]
+      [[nodiscard, __gnu__::__always_inline__]]
       constexpr _It
       operator()(_It __x) const
       {
@@ -918,7 +1069,7 @@ namespace ranges
       }
 
     template<bidirectional_iterator _It>
-      [[nodiscard]]
+      [[nodiscard, __gnu__::__always_inline__]]
       constexpr _It
       operator()(_It __x, iter_difference_t<_It> __n) const
       {
@@ -927,7 +1078,7 @@ namespace ranges
       }
 
     template<bidirectional_iterator _It>
-      [[nodiscard]]
+      [[nodiscard, __gnu__::__always_inline__]]
       constexpr _It
       operator()(_It __x, iter_difference_t<_It> __n, _It __bound) const
       {
@@ -952,10 +1103,46 @@ namespace ranges
     using borrowed_iterator_t = __conditional_t<borrowed_range<_Range>,
 						iterator_t<_Range>,
 						dangling>;
-
 } // namespace ranges
+
+#if __glibcxx_ranges_to_container // C++ >= 23
+  struct from_range_t { explicit from_range_t() = default; };
+  inline constexpr from_range_t from_range{};
+#endif
+
+#if __glibcxx_containers_ranges // C++ >= 23
+/// @cond undocumented
+  template<typename _T1, typename _T2>
+    struct pair;
+
+namespace __detail
+{
+  template<typename _Rg, typename _Tp>
+    concept __container_compatible_range
+      = ranges::input_range<_Rg>
+	  && convertible_to<ranges::range_reference_t<_Rg>, _Tp>;
+
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 4223. Deduction guides for maps are mishandling tuples and references
+  template<ranges::input_range _Range>
+    using __range_key_type
+      = remove_cvref_t<tuple_element_t<0, ranges::range_value_t<_Range>>>;
+
+  template<ranges::input_range _Range>
+    using __range_mapped_type
+      = remove_cvref_t<tuple_element_t<1, ranges::range_value_t<_Range>>>;
+
+  // The allocator's value_type for map-like containers.
+  template<ranges::input_range _Range>
+    using __range_to_alloc_type
+      = pair<const __range_key_type<_Range>, __range_mapped_type<_Range>>;
+}
+/// @endcond
+#endif
+
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 #endif // library concepts
+#pragma GCC diagnostic pop
 #endif // C++20
 #endif // _GLIBCXX_RANGES_BASE_H

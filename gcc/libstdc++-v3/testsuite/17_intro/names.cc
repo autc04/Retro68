@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2022 Free Software Foundation, Inc.
+// Copyright (C) 2017-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,6 +20,8 @@
 
 // Define macros for some common variables names that we must not use for
 // naming variables, parameters etc. in the library.
+// N.B. we cannot use '#pragma GCC poison A' because that also prevents using
+// these names even as macro arguments, e.g. #define FOO(A) BAR(A)
 #define A (
 #define B (
 #define C (
@@ -28,7 +30,7 @@
 #define F (
 #define G (
 #define H (
-#define I (
+// <complex.h> defines I
 #define J (
 #define K (
 #define L (
@@ -82,15 +84,17 @@
 #define n (
 #endif
 #define o (
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || defined(_GLIBCXX_PARALLEL)
 // <random> defines member functions called p()
+// (and <tr1/random> defines them too, which is included by Parallel Mode).
 #else
 #define p (
 #endif
 #define q (
 #define r (
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || defined(_GLIBCXX_PARALLEL)
 // <random> defines member functions called s() and t()
+// (and <tr1/random> defines them too, which is included by Parallel Mode).
 // <chrono> and <string> define operator ""s in C++14
 #else
 #define s (
@@ -106,12 +110,27 @@
 #endif
 #define z (
 
+#define attributes (
+#define bin_op (
+#define clockid (
+#define ext (
 #define func (
-#define tmp (
+#define max_iter (
+#define max_val (
+#define min_val (
+#define object (
+#define ostr (
+#define policy (
+#define ret (
+#define subs (
 #define sz (
+#define tinfo (
+#define tmp (
 #define token (
+#define value_t (
 
 #if __cplusplus < 201103L
+#define mutex  (
 #define uses_allocator  (
 #endif
 
@@ -124,11 +143,29 @@
 // <charconv> defines to_chars_result::ptr and to_chars_result::ec
 #define ec (
 #define ptr (
+// <map> and <unordered_map> define try_emplace
+#define try_emplace (
 #endif
 
-// This clashes with newlib so don't use it.
-# define __lockable		cannot be used as an identifier
+#if __cplusplus < 202002L
+#define ranges (
+#endif
 
+// These clash with newlib so don't use them.
+# define __lockable		cannot be used as an identifier
+# define __null_sentinel	cannot be used as an identifier
+# define __packed		cannot be used as an identifier
+# define __unused		cannot be used as an identifier
+# define __used			cannot be used as an identifier
+
+// These are function-like macros in mingw stdlib.h
+#define __min(A,B)              cannot use __min with parentheses
+#define __max(A,B)              cannot use __max with parentheses
+
+#ifndef __APPLE__
+#define __weak   predefined qualifier on darwin
+#define __strong predefined qualifier on darwin
+#endif
 
 // Common template parameter names
 #define OutputIterator		OutputIterator is not a reserved name
@@ -146,6 +183,7 @@
 #define Alloc			Alloc is not a reserved name
 #define BinaryFunction1		BinaryFunction1 is not a reserved name
 #define BinaryFunction2		BinaryFunction2 is not a reserved name
+#define BinaryOperation		BinaryOperation is not a reserved name
 #define Char			Char is not a reserved name
 #define CharT			CharT is not a reserved name
 #define Cmp			Cmp is not a reserved name
@@ -169,6 +207,7 @@
 #define H1			H1 is not a reserved name
 #define H2			H2 is not a reserved name
 #define Head			Head is not a reserved name
+#define IsVector		IsVector is not a reserved name
 #define It			It is not a reserved name
 #define Iter			Iter is not a reserved name
 #define Iterator		Iterator is not a reserved name
@@ -181,19 +220,38 @@
 #define Pointer			Pointer is not a reserved name
 #define Policy			Policy is not a reserved name
 #define Pred			Pred is not a reserved name
+#define Proj			Proj is not a reserved name
+#define Proj1			Proj1 is not a reserved name
+#define Proj2			Proj2 is not a reserved name
 #define Ptr			Ptr is not a reserved name
 #define Reference		Reference is not a reserved name
+#define Rg			Rg is not a reserved name
+#define Rs			Rs is not a reserved name
 #define Seq			Seq is not a reserved name
 #define Seq_RAIter		Seq_RAIter is not a reserved name
 #define Series			Series is not a reserved name
 #define Set			Set is not a reserved name
+#define Size			Size is not a reserved name
 #define String			String is not a reserved name
 #define Tp			Tp is not a reserved name
+#define TQual			TQual is not a reserved name
 #define Traits			Traits is not a reserved name
 #define Type			Type is not a reserved name
+#define UQual			UQual is not a reserved name
 #define Value			Value is not a reserved name
 #define ValueT			ValueT is not a reserved name
 #define ValueType		ValueType is not a reserved name
+
+#ifndef _WIN32
+// Windows SAL annotations
+#define _In_			cannot be used as an identifier
+#define _Inout_			cannot be used as an identifier
+#define _Out_			cannot be used as an identifier
+#define _Reserved_		cannot be used as an identifier
+#define __inout			cannot be used as an identifier
+#define __in_opt		cannot be used as an identifier
+#define __out_opt		cannot be used as an identifier
+#endif
 
 #ifdef _AIX
 // See https://gcc.gnu.org/ml/libstdc++/2017-03/msg00015.html
@@ -201,10 +259,18 @@
 #undef r
 #undef x
 #undef y
+// <stdlib.h> defines drand48_data::a
+#undef a
+// <sys/localedef.h> defines _LC_weight_t::n
+#undef n
+// <sys/poll.h> defines pollfd_ext::u on AIX 7.3
+#undef u
 // <sys/var.h> defines vario::v
 #undef v
 // <sys/timer.h> defines trb::func and cputime_tmr::func
 #undef func
+// <sys/thread.h> defines tstate::policy
+#undef policy
 #endif
 
 #ifdef __APPLE__
@@ -227,13 +293,40 @@
 #undef u
 #endif
 
+#if defined (__linux__) && defined (__s390__)
+// <sys/ucontext.h> defines fpreg_t::d and fpreg_t::f
+#undef d
+#undef f
+// <asm/types.h> defines __vector128::u
+#undef u
+#endif
+
 #if defined (__linux__) && defined (__sparc__)
 #undef y
 #endif
 
+#if defined (__linux__) && defined (__ia64__)
+// <bits/sigcontext.h> defines __ia64_fpreg::u
+// <sys/ucontext.h> defines __ia64_fpreg_mcontext::u
+#undef u
+#endif
+
+#if defined (__linux__) || defined (__gnu_hurd__)
+#if __has_include(<features.h>)
+#include <features.h>
+#if __GLIBC__ == 2 && (__GLIBC_MINOR__ < 19 || __GLIBC_MINOR__ == 43)
+// Glibc defines this prior to 2.19
+#undef __unused
+#endif
+#endif
+#endif
+
 #if __has_include(<newlib.h>)
-// newlib's <sys/cdefs.h> defines __lockable as a macro.
+// newlib's <sys/cdefs.h> defines these as macros.
 #undef __lockable
+#undef __packed
+#undef __unused
+#undef __used
 // newlib's <time.h> defines __tzrule_type with these members.
 #undef d
 #undef m
@@ -247,6 +340,7 @@
 
 #ifdef __sun__
 // <fenv.h> defines these as members of fex_numeric_t
+#undef i
 #undef l
 #undef f
 #undef d
@@ -256,8 +350,11 @@
 #undef ptr
 // <sys/timespec_util.h> uses this as parameter
 #undef r
-// <stdlib.h> uses this as member of drand48_data
+// <stdlib.h> uses these as members of drand48_data
+#undef a
 #undef x
+// <string.h> defines this as a parameter of timingsafe_memcmp
+#undef n
 #endif
 
 #ifdef __VXWORKS__
@@ -295,6 +392,8 @@
 #undef d
 #undef e
 #undef f
+// in sysLib.h, func appears as a formal parameter name
+#undef func
 #endif // __RTP__
 
 #endif // VxWorks Major >= 7
@@ -310,5 +409,16 @@
 // <math.h> defines _complex::x and _complex::y
 #undef y
 #endif
+
+#if defined __GLIBC_PREREQ && defined _FORTIFY_SOURCE
+# if ! __GLIBC_PREREQ(2,41)
+// https://sourceware.org/bugzilla/show_bug.cgi?id=32052
+#  undef sz
+# endif
+#endif
+
+// PR libstdc++/119496
+// _Temporary_buffer used to have a member with this name
+#define requested_size 1
 
 #include <bits/stdc++.h>

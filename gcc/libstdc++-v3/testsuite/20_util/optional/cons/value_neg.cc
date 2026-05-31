@@ -1,6 +1,6 @@
 // { dg-do compile { target c++17 }  }
 
-// Copyright (C) 2013-2022 Free Software Foundation, Inc.
+// Copyright (C) 2013-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -37,3 +37,4 @@ int main()
   }
 }
 // { dg-prune-output "no type .*enable_if" }
+// { dg-prune-output "no matching function for call to 'main..::U::U..'" }

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -69,13 +69,14 @@ package body System.Image_U is
       loop
          Value := Value / 10;
          Nb_Digits := Nb_Digits + 1;
+
          exit when Value = 0;
       end loop;
 
       Value := V;
 
       --  We now populate digits from the end of the string to the beginning
-      for J in reverse  1 .. Nb_Digits loop
+      for J in reverse 1 .. Nb_Digits loop
          S (P + J) := Character'Val (48 + (Value rem 10));
          Value := Value / 10;
       end loop;

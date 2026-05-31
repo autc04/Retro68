@@ -12,7 +12,7 @@
 .*: Error: constant expression required at operand 1 -- `tcancel wsp'
 .*: Error: constant expression required at operand 1 -- `tcancel xsp'
 .*: Error: constant expression required at operand 1 -- `tcancel sp'
-.*: Error: operand 1 must be an integer register -- `tstart'
+.*: Error: expected an integer or zero register at operand 1 -- `tstart'
 .*: Error: operand mismatch -- `tstart w1'
 .*: Info:    did you mean this\?
 .*: Info:    	tstart x1
@@ -22,5 +22,5 @@
 .*: Error: operand mismatch -- `tstart wzr'
 .*: Info:    did you mean this\?
 .*: Info:    	tstart xzr
-.*: Error: operand 1 must be an integer register -- `tstart wsp'
-.*: Error: operand 1 must be an integer register -- `tstart xsp'
+.*: Error: expected an integer or zero register at operand 1 -- `tstart wsp'
+.*: Error: expected an integer or zero register at operand 1 -- `tstart xsp'

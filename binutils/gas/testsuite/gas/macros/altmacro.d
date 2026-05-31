@@ -1,3 +1,2 @@
-local
-.LL0001
-.LL0002
+#name: Local label generation in alternate macros (altmacro)
+

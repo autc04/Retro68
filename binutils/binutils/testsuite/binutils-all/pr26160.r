@@ -1,15 +1,15 @@
 Contents of the .debug_info.dwo section:
 
-  Compilation Unit @ offset 0x0:
+  Compilation Unit @ offset (0x)?0:
    Length:        0x178 \(32-bit\)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  8
    Section contributions:
-    .debug_abbrev.dwo:       0x0  0x154
-    .debug_line.dwo:         0x0  0x40
-    .debug_loc.dwo:          0x0  0x0
-    .debug_str_offsets.dwo:  0x0  0x14
+    .debug_abbrev.dwo:       (0x)?0  0x154
+    .debug_line.dwo:         (0x)?0  0x40
+    .debug_loc.dwo:          (0x)?0  (0x)?0
+    .debug_str_offsets.dwo:  (0x)?0  0x14
  <0><b>: Abbrev Number: 12 \(DW_TAG_compile_unit\)
     <c>   DW_AT_producer    : GNU C\+\+ 4.7.x-google 20120720 \(prerelease\)
     <37>   DW_AT_language    : 4	\(C\+\+\)
@@ -30,13 +30,15 @@ Contents of the .debug_info.dwo section:
     <a5>   DW_AT_decl_file   : 1
     <a6>   DW_AT_decl_line   : 30
     <a7>   DW_AT_type        : <0x90>
-    <ab>   DW_AT_low_pc      : \(addr_index: 0x0\): <no .debug_addr section>
+    <ab>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: (0x)?0\): 0
     <ac>   DW_AT_high_pc     : 0x304
     <b4>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <b6>   DW_AT_GNU_all_tail_call_sites: 1
     <b6>   DW_AT_sibling     : <0x11b>
  <2><ba>: Abbrev Number: 14 \(DW_TAG_lexical_block\)
-    <bb>   DW_AT_low_pc      : \(addr_index: 0x1\): <no .debug_addr section>
+    <bb>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x1\): 0
     <bc>   DW_AT_high_pc     : 0x2fa
  <3><c4>: Abbrev Number: 15 \(DW_TAG_variable\)
     <c5>   DW_AT_name        : c1
@@ -56,7 +58,8 @@ Contents of the .debug_info.dwo section:
     <ff>   DW_AT_artificial  : 1
     <ff>   DW_AT_location    : 2 byte block: fb 2 	\(DW_OP_GNU_addr_index <0x2>\)
  <3><102>: Abbrev Number: 14 \(DW_TAG_lexical_block\)
-    <103>   DW_AT_low_pc      : \(addr_index: 0x3\): <no .debug_addr section>
+    <103>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x3\): 0
     <104>   DW_AT_high_pc     : 0x2f
  <4><10c>: Abbrev Number: 17 \(DW_TAG_variable\)
     <10d>   DW_AT_name        : i
@@ -121,12 +124,12 @@ Contents of the .debug_info.dwo section:
   Compilation Unit @ offset 0x17c:
    Length:        0x5af \(32-bit\)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  8
    Section contributions:
     .debug_abbrev.dwo:       0x154  0x21d
     .debug_line.dwo:         0x40  0x3d
-    .debug_loc.dwo:          0x0  0x0
+    .debug_loc.dwo:          (0x)?0  (0x)?0
     .debug_str_offsets.dwo:  0x14  0x44
  <0><187>: Abbrev Number: 12 \(DW_TAG_compile_unit\)
     <188>   DW_AT_producer    : GNU C\+\+ 4.7.x-google 20120720 \(prerelease\)
@@ -141,7 +144,7 @@ Contents of the .debug_info.dwo section:
     <215>   DW_AT_sibling     : <0x242>
  <2><219>: Abbrev Number: 14 \(DW_TAG_subprogram\)
     <21a>   DW_AT_external    : 1
-    <21a>   DW_AT_name        : \(indexed string: 0x0\): testcase1
+    <21a>   DW_AT_name        : \(indexed string: (0x)?0\): testcase1
     <21b>   DW_AT_decl_file   : 1
     <21c>   DW_AT_decl_line   : 28
     <21d>   DW_AT_linkage_name: \(indexed string: 0xc\): _ZN2C19testcase1Ev
@@ -194,7 +197,7 @@ Contents of the .debug_info.dwo section:
     <267>   DW_AT_sibling     : <0x294>
  <2><26b>: Abbrev Number: 14 \(DW_TAG_subprogram\)
     <26c>   DW_AT_external    : 1
-    <26c>   DW_AT_name        : \(indexed string: 0x0\): testcase1
+    <26c>   DW_AT_name        : \(indexed string: (0x)?0\): testcase1
     <26d>   DW_AT_decl_file   : 1
     <26e>   DW_AT_decl_line   : 40
     <26f>   DW_AT_linkage_name: \(indexed string: 0x7\): _ZN2C29testcase1Ev
@@ -239,7 +242,7 @@ Contents of the .debug_info.dwo section:
     <2aa>   DW_AT_sibling     : <0x2cd>
  <2><2ae>: Abbrev Number: 14 \(DW_TAG_subprogram\)
     <2af>   DW_AT_external    : 1
-    <2af>   DW_AT_name        : \(indexed string: 0x0\): testcase1
+    <2af>   DW_AT_name        : \(indexed string: (0x)?0\): testcase1
     <2b0>   DW_AT_decl_file   : 1
     <2b1>   DW_AT_decl_line   : 50
     <2b2>   DW_AT_linkage_name: \(indexed string: 0x2\): _ZN2C39testcase1Ev
@@ -274,7 +277,8 @@ Contents of the .debug_info.dwo section:
     <2dd>   DW_AT_decl_file   : 1
     <2de>   DW_AT_decl_line   : 70
     <2df>   DW_AT_linkage_name: _Z4f13iv
-    <2e8>   DW_AT_low_pc      : \(addr_index: 0x0\): <no .debug_addr section>
+    <2e8>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: (0x)?0\): 0
     <2e9>   DW_AT_high_pc     : 0x6
     <2f1>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <2f3>   DW_AT_GNU_all_call_sites: 1
@@ -282,7 +286,8 @@ Contents of the .debug_info.dwo section:
     <2f4>   DW_AT_specification: <0x219>
     <2f8>   DW_AT_decl_file   : 2
     <2f9>   DW_AT_decl_line   : 30
-    <2fa>   DW_AT_low_pc      : \(addr_index: 0x1\): <no .debug_addr section>
+    <2fa>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x1\): 0
     <2fb>   DW_AT_high_pc     : 0x20
     <303>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <305>   DW_AT_object_pointer: <0x30d>
@@ -300,7 +305,8 @@ Contents of the .debug_info.dwo section:
     <31d>   DW_AT_specification: <0x223>
     <321>   DW_AT_decl_file   : 2
     <322>   DW_AT_decl_line   : 38
-    <323>   DW_AT_low_pc      : \(addr_index: 0x2\): <no .debug_addr section>
+    <323>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x2\): 0
     <324>   DW_AT_high_pc     : 0x18
     <32c>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <32e>   DW_AT_object_pointer: <0x336>
@@ -316,7 +322,8 @@ Contents of the .debug_info.dwo section:
     <341>   DW_AT_specification: <0x22d>
     <345>   DW_AT_decl_file   : 2
     <346>   DW_AT_decl_line   : 46
-    <347>   DW_AT_low_pc      : \(addr_index: 0x3\): <no .debug_addr section>
+    <347>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x3\): 0
     <348>   DW_AT_high_pc     : 0x18
     <350>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <352>   DW_AT_object_pointer: <0x35a>
@@ -332,7 +339,8 @@ Contents of the .debug_info.dwo section:
     <365>   DW_AT_specification: <0x237>
     <369>   DW_AT_decl_file   : 2
     <36a>   DW_AT_decl_line   : 54
-    <36b>   DW_AT_low_pc      : \(addr_index: 0x4\): <no .debug_addr section>
+    <36b>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x4\): 0
     <36c>   DW_AT_high_pc     : 0x16
     <374>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <376>   DW_AT_object_pointer: <0x37e>
@@ -348,7 +356,8 @@ Contents of the .debug_info.dwo section:
     <389>   DW_AT_specification: <0x26b>
     <38d>   DW_AT_decl_file   : 2
     <38e>   DW_AT_decl_line   : 62
-    <38f>   DW_AT_low_pc      : \(addr_index: 0x5\): <no .debug_addr section>
+    <38f>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x5\): 0
     <390>   DW_AT_high_pc     : 0x16
     <398>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <39a>   DW_AT_object_pointer: <0x3a2>
@@ -366,7 +375,8 @@ Contents of the .debug_info.dwo section:
     <3b2>   DW_AT_specification: <0x275>
     <3b6>   DW_AT_decl_file   : 2
     <3b7>   DW_AT_decl_line   : 72
-    <3b8>   DW_AT_low_pc      : \(addr_index: 0x6\): <no .debug_addr section>
+    <3b8>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x6\): 0
     <3b9>   DW_AT_high_pc     : 0x1b
     <3c1>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <3c3>   DW_AT_object_pointer: <0x3cb>
@@ -382,7 +392,8 @@ Contents of the .debug_info.dwo section:
     <3d6>   DW_AT_specification: <0x27f>
     <3da>   DW_AT_decl_file   : 2
     <3db>   DW_AT_decl_line   : 82
-    <3dc>   DW_AT_low_pc      : \(addr_index: 0x7\): <no .debug_addr section>
+    <3dc>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x7\): 0
     <3dd>   DW_AT_high_pc     : 0x1b
     <3e5>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <3e7>   DW_AT_object_pointer: <0x3ef>
@@ -398,7 +409,8 @@ Contents of the .debug_info.dwo section:
     <3fa>   DW_AT_specification: <0x289>
     <3fe>   DW_AT_decl_file   : 2
     <3ff>   DW_AT_decl_line   : 92
-    <400>   DW_AT_low_pc      : \(addr_index: 0x8\): <no .debug_addr section>
+    <400>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x8\): 0
     <401>   DW_AT_high_pc     : 0x19
     <409>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <40b>   DW_AT_object_pointer: <0x413>
@@ -414,7 +426,8 @@ Contents of the .debug_info.dwo section:
     <41e>   DW_AT_specification: <0x2ae>
     <422>   DW_AT_decl_file   : 2
     <423>   DW_AT_decl_line   : 102
-    <424>   DW_AT_low_pc      : \(addr_index: 0x9\): <no .debug_addr section>
+    <424>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x9\): 0
     <425>   DW_AT_high_pc     : 0x19
     <42d>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <42f>   DW_AT_object_pointer: <0x437>
@@ -432,7 +445,8 @@ Contents of the .debug_info.dwo section:
     <447>   DW_AT_specification: <0x2b8>
     <44b>   DW_AT_decl_file   : 2
     <44c>   DW_AT_decl_line   : 112
-    <44d>   DW_AT_low_pc      : \(addr_index: 0xa\): <no .debug_addr section>
+    <44d>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0xa\): 0
     <44e>   DW_AT_high_pc     : 0x1f
     <456>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <458>   DW_AT_object_pointer: <0x460>
@@ -451,7 +465,8 @@ Contents of the .debug_info.dwo section:
     <471>   DW_AT_decl_line   : 120
     <472>   DW_AT_linkage_name: _Z4f11av
     <47b>   DW_AT_type        : <0x242>
-    <47f>   DW_AT_low_pc      : \(addr_index: 0xb\): <no .debug_addr section>
+    <47f>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0xb\): 0
     <480>   DW_AT_high_pc     : 0xb
     <488>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <48a>   DW_AT_GNU_all_call_sites: 1
@@ -459,7 +474,8 @@ Contents of the .debug_info.dwo section:
     <48b>   DW_AT_specification: <0x2c2>
     <48f>   DW_AT_decl_file   : 2
     <490>   DW_AT_decl_line   : 126
-    <491>   DW_AT_low_pc      : \(addr_index: 0xc\): <no .debug_addr section>
+    <491>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0xc\): 0
     <492>   DW_AT_high_pc     : 0x20
     <49a>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <49c>   DW_AT_object_pointer: <0x4a4>
@@ -478,7 +494,8 @@ Contents of the .debug_info.dwo section:
     <4b4>   DW_AT_decl_line   : 134
     <4b5>   DW_AT_linkage_name: _Z3t12v
     <4bd>   DW_AT_type        : <0x249>
-    <4c1>   DW_AT_low_pc      : \(addr_index: 0xd\): <no .debug_addr section>
+    <4c1>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0xd\): 0
     <4c2>   DW_AT_high_pc     : 0x19
     <4ca>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <4cc>   DW_AT_GNU_all_tail_call_sites: 1
@@ -489,7 +506,8 @@ Contents of the .debug_info.dwo section:
     <4d2>   DW_AT_decl_line   : 142
     <4d3>   DW_AT_linkage_name: _Z3t13v
     <4db>   DW_AT_type        : <0x249>
-    <4df>   DW_AT_low_pc      : \(addr_index: 0xe\): <no .debug_addr section>
+    <4df>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0xe\): 0
     <4e0>   DW_AT_high_pc     : 0x14
     <4e8>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <4ea>   DW_AT_GNU_all_tail_call_sites: 1
@@ -500,13 +518,15 @@ Contents of the .debug_info.dwo section:
     <4f0>   DW_AT_decl_line   : 150
     <4f1>   DW_AT_linkage_name: _Z3t14v
     <4f9>   DW_AT_type        : <0x249>
-    <4fd>   DW_AT_low_pc      : \(addr_index: 0xf\): <no .debug_addr section>
+    <4fd>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0xf\): 0
     <4fe>   DW_AT_high_pc     : 0x61
     <506>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <508>   DW_AT_GNU_all_tail_call_sites: 1
     <508>   DW_AT_sibling     : <0x532>
  <2><50c>: Abbrev Number: 24 \(DW_TAG_lexical_block\)
-    <50d>   DW_AT_low_pc      : \(addr_index: 0x10\): <no .debug_addr section>
+    <50d>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x10\): 0
     <50e>   DW_AT_high_pc     : 0x57
  <3><516>: Abbrev Number: 25 \(DW_TAG_variable\)
     <517>   DW_AT_name        : s1
@@ -538,13 +558,15 @@ Contents of the .debug_info.dwo section:
     <54b>   DW_AT_decl_line   : 163
     <54c>   DW_AT_linkage_name: _Z3t15v
     <554>   DW_AT_type        : <0x249>
-    <558>   DW_AT_low_pc      : \(addr_index: 0x11\): <no .debug_addr section>
+    <558>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x11\): 0
     <559>   DW_AT_high_pc     : 0x5d
     <561>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <563>   DW_AT_GNU_all_tail_call_sites: 1
     <563>   DW_AT_sibling     : <0x58d>
  <2><567>: Abbrev Number: 24 \(DW_TAG_lexical_block\)
-    <568>   DW_AT_low_pc      : \(addr_index: 0x12\): <no .debug_addr section>
+    <568>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x12\): 0
     <569>   DW_AT_high_pc     : 0x53
  <3><571>: Abbrev Number: 25 \(DW_TAG_variable\)
     <572>   DW_AT_name        : s1
@@ -576,7 +598,8 @@ Contents of the .debug_info.dwo section:
     <5a9>   DW_AT_decl_line   : 176
     <5aa>   DW_AT_linkage_name: _Z3t16v
     <5b2>   DW_AT_type        : <0x249>
-    <5b6>   DW_AT_low_pc      : \(addr_index: 0x13\): <no .debug_addr section>
+    <5b6>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x13\): 0
     <5b7>   DW_AT_high_pc     : 0x13
     <5bf>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <5c1>   DW_AT_GNU_all_tail_call_sites: 1
@@ -587,13 +610,15 @@ Contents of the .debug_info.dwo section:
     <5c7>   DW_AT_decl_line   : 184
     <5c8>   DW_AT_linkage_name: _Z3t17v
     <5d0>   DW_AT_type        : <0x249>
-    <5d4>   DW_AT_low_pc      : \(addr_index: 0x14\): <no .debug_addr section>
+    <5d4>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x14\): 0
     <5d5>   DW_AT_high_pc     : 0x5f
     <5dd>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <5df>   DW_AT_GNU_all_call_sites: 1
     <5df>   DW_AT_sibling     : <0x612>
  <2><5e3>: Abbrev Number: 24 \(DW_TAG_lexical_block\)
-    <5e4>   DW_AT_low_pc      : \(addr_index: 0x15\): <no .debug_addr section>
+    <5e4>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x15\): 0
     <5e5>   DW_AT_high_pc     : 0x59
  <3><5ed>: Abbrev Number: 25 \(DW_TAG_variable\)
     <5ee>   DW_AT_name        : c
@@ -602,7 +627,8 @@ Contents of the .debug_info.dwo section:
     <5f2>   DW_AT_type        : <0x53d>
     <5f6>   DW_AT_location    : 2 byte block: 91 6f 	\(DW_OP_fbreg: -17\)
  <3><5f9>: Abbrev Number: 24 \(DW_TAG_lexical_block\)
-    <5fa>   DW_AT_low_pc      : \(addr_index: 0x16\): <no .debug_addr section>
+    <5fa>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x16\): 0
     <5fb>   DW_AT_high_pc     : 0x50
  <4><603>: Abbrev Number: 25 \(DW_TAG_variable\)
     <604>   DW_AT_name        : i
@@ -620,13 +646,15 @@ Contents of the .debug_info.dwo section:
     <618>   DW_AT_decl_line   : 199
     <619>   DW_AT_linkage_name: _Z3t18v
     <621>   DW_AT_type        : <0x249>
-    <625>   DW_AT_low_pc      : \(addr_index: 0x17\): <no .debug_addr section>
+    <625>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x17\): 0
     <626>   DW_AT_high_pc     : 0x5f
     <62e>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <630>   DW_AT_GNU_all_tail_call_sites: 1
     <630>   DW_AT_sibling     : <0x67a>
  <2><634>: Abbrev Number: 24 \(DW_TAG_lexical_block\)
-    <635>   DW_AT_low_pc      : \(addr_index: 0x18\): <no .debug_addr section>
+    <635>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x18\): 0
     <636>   DW_AT_high_pc     : 0x55
  <3><63e>: Abbrev Number: 25 \(DW_TAG_variable\)
     <63f>   DW_AT_name        : c
@@ -635,7 +663,8 @@ Contents of the .debug_info.dwo section:
     <643>   DW_AT_type        : <0x53d>
     <647>   DW_AT_location    : 2 byte block: 91 6f 	\(DW_OP_fbreg: -17\)
  <3><64a>: Abbrev Number: 24 \(DW_TAG_lexical_block\)
-    <64b>   DW_AT_low_pc      : \(addr_index: 0x19\): <no .debug_addr section>
+    <64b>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x19\): 0
     <64c>   DW_AT_high_pc     : 0x4c
  <4><654>: Abbrev Number: 25 \(DW_TAG_variable\)
     <655>   DW_AT_name        : i
@@ -644,7 +673,8 @@ Contents of the .debug_info.dwo section:
     <659>   DW_AT_type        : <0x242>
     <65d>   DW_AT_location    : 2 byte block: 91 68 	\(DW_OP_fbreg: -24\)
  <4><660>: Abbrev Number: 24 \(DW_TAG_lexical_block\)
-    <661>   DW_AT_low_pc      : \(addr_index: 0x1a\): <no .debug_addr section>
+    <661>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x1a\): 0
     <662>   DW_AT_high_pc     : 0x34
  <5><66a>: Abbrev Number: 25 \(DW_TAG_variable\)
     <66b>   DW_AT_name        : s
@@ -758,13 +788,13 @@ Contents of the .debug_info.dwo section:
   Compilation Unit @ offset 0x72f:
    Length:        0xcb \(32-bit\)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  8
    Section contributions:
     .debug_abbrev.dwo:       0x371  0xbd
     .debug_line.dwo:         0x7d  0x3e
-    .debug_loc.dwo:          0x0  0x0
-    .debug_str_offsets.dwo:  0x0  0x0
+    .debug_loc.dwo:          (0x)?0  (0x)?0
+    .debug_str_offsets.dwo:  (0x)?0  (0x)?0
  <0><73a>: Abbrev Number: 10 \(DW_TAG_compile_unit\)
     <73b>   DW_AT_producer    : GNU C\+\+ 4.7.x-google 20120720 \(prerelease\)
     <766>   DW_AT_language    : 4	\(C\+\+\)
@@ -786,7 +816,8 @@ Contents of the .debug_info.dwo section:
     <7d3>   DW_AT_decl_line   : 32
     <7d4>   DW_AT_linkage_name: _Z4t16av
     <7dd>   DW_AT_type        : <0x7c4>
-    <7e1>   DW_AT_low_pc      : \(addr_index: 0x0\): <no .debug_addr section>
+    <7e1>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: (0x)?0\): 0
     <7e2>   DW_AT_high_pc     : 0x13
     <7ea>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <7ec>   DW_AT_GNU_all_tail_call_sites: 1
@@ -801,12 +832,12 @@ Contents of the .debug_info.dwo section:
   Compilation Unit @ offset 0x7fe:
    Length:        0x329 \(32-bit\)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  8
    Section contributions:
     .debug_abbrev.dwo:       0x42e  0x1f2
     .debug_line.dwo:         0xbb  0x3d
-    .debug_loc.dwo:          0x0  0x0
+    .debug_loc.dwo:          (0x)?0  (0x)?0
     .debug_str_offsets.dwo:  0x58  0x18
  <0><809>: Abbrev Number: 12 \(DW_TAG_compile_unit\)
     <80a>   DW_AT_producer    : GNU C\+\+ 4.7.x-google 20120720 \(prerelease\)
@@ -878,14 +909,16 @@ Contents of the .debug_info.dwo section:
     <908>   DW_AT_decl_file   : 1
     <909>   DW_AT_decl_line   : 70
     <90a>   DW_AT_linkage_name: _Z4f13iv
-    <913>   DW_AT_low_pc      : \(addr_index: 0x0\): <no .debug_addr section>
+    <913>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: (0x)?0\): 0
     <914>   DW_AT_high_pc     : 0x6
     <91c>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <91e>   DW_AT_GNU_all_call_sites: 1
  <1><91e>: Abbrev Number: 17 \(DW_TAG_subprogram\)
     <91f>   DW_AT_specification: <0x8a8>
     <923>   DW_AT_decl_file   : 2
-    <924>   DW_AT_low_pc      : \(addr_index: 0x1\): <no .debug_addr section>
+    <924>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x1\): 0
     <925>   DW_AT_high_pc     : 0xf
     <92d>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <92f>   DW_AT_object_pointer: <0x937>
@@ -903,7 +936,8 @@ Contents of the .debug_info.dwo section:
     <94b>   DW_AT_specification: <0x89b>
     <94f>   DW_AT_decl_file   : 2
     <950>   DW_AT_decl_line   : 36
-    <951>   DW_AT_low_pc      : \(addr_index: 0x2\): <no .debug_addr section>
+    <951>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x2\): 0
     <952>   DW_AT_high_pc     : 0x20
     <95a>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <95c>   DW_AT_object_pointer: <0x964>
@@ -922,7 +956,8 @@ Contents of the .debug_info.dwo section:
     <978>   DW_AT_decl_line   : 72
     <979>   DW_AT_linkage_name: _Z3f10v
     <981>   DW_AT_type        : <0x8b7>
-    <985>   DW_AT_low_pc      : \(addr_index: 0x3\): <no .debug_addr section>
+    <985>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x3\): 0
     <986>   DW_AT_high_pc     : 0xb
     <98e>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <990>   DW_AT_GNU_all_call_sites: 1
@@ -933,7 +968,8 @@ Contents of the .debug_info.dwo section:
     <997>   DW_AT_decl_line   : 80
     <998>   DW_AT_linkage_name: _Z4f11bPFivE
     <9a5>   DW_AT_type        : <0x8b7>
-    <9a9>   DW_AT_low_pc      : \(addr_index: 0x4\): <no .debug_addr section>
+    <9a9>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x4\): 0
     <9aa>   DW_AT_high_pc     : 0x14
     <9b2>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <9b4>   DW_AT_GNU_all_tail_call_sites: 1
@@ -954,7 +990,8 @@ Contents of the .debug_info.dwo section:
     <9d3>   DW_AT_specification: <0x8e0>
     <9d7>   DW_AT_decl_file   : 2
     <9d8>   DW_AT_decl_line   : 88
-    <9d9>   DW_AT_low_pc      : \(addr_index: 0x5\): <no .debug_addr section>
+    <9d9>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x5\): 0
     <9da>   DW_AT_high_pc     : 0xf
     <9e2>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <9e4>   DW_AT_object_pointer: <0x9ec>
@@ -976,7 +1013,8 @@ Contents of the .debug_info.dwo section:
     <a06>   DW_AT_decl_line   : 96
     <a07>   DW_AT_linkage_name: _Z3f13v
     <a0f>   DW_AT_type        : <0xa1e>
-    <a13>   DW_AT_low_pc      : \(addr_index: 0x6\): <no .debug_addr section>
+    <a13>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x6\): 0
     <a14>   DW_AT_high_pc     : 0xb
     <a1c>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <a1e>   DW_AT_GNU_all_call_sites: 1
@@ -990,7 +1028,8 @@ Contents of the .debug_info.dwo section:
     <a2a>   DW_AT_decl_line   : 104
     <a2b>   DW_AT_linkage_name: _Z3f14v
     <a33>   DW_AT_type        : <0xa42>
-    <a37>   DW_AT_low_pc      : \(addr_index: 0x7\): <no .debug_addr section>
+    <a37>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x7\): 0
     <a38>   DW_AT_high_pc     : 0xb
     <a40>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <a42>   DW_AT_GNU_all_call_sites: 1
@@ -1010,7 +1049,8 @@ Contents of the .debug_info.dwo section:
     <a5b>   DW_AT_decl_line   : 112
     <a5c>   DW_AT_linkage_name: _Z3f15v
     <a64>   DW_AT_type        : <0xa73>
-    <a68>   DW_AT_low_pc      : \(addr_index: 0x8\): <no .debug_addr section>
+    <a68>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x8\): 0
     <a69>   DW_AT_high_pc     : 0xb
     <a71>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <a73>   DW_AT_GNU_all_call_sites: 1
@@ -1030,7 +1070,8 @@ Contents of the .debug_info.dwo section:
     <a8f>   DW_AT_decl_line   : 127
     <a90>   DW_AT_linkage_name: _Z3f18i
     <a98>   DW_AT_type        : <0xa42>
-    <a9c>   DW_AT_low_pc      : \(addr_index: 0x9\): <no .debug_addr section>
+    <a9c>   DW_AT_low_pc      :readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+ \(index: 0x9\): 0
     <a9d>   DW_AT_high_pc     : 0x44
     <aa5>   DW_AT_frame_base  : 1 byte block: 9c 	\(DW_OP_call_frame_cfa\)
     <aa7>   DW_AT_GNU_all_call_sites: 1
@@ -1099,22 +1140,22 @@ Contents of the .debug_info.dwo section:
 
 Contents of the .debug_types.dwo section:
 
-  Compilation Unit @ offset 0x0:
+  Compilation Unit @ offset (0x)?0:
    Length:        0xf7 \(32-bit\)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  8
    Signature:     0xb534bdc1f01629bb
    Type Offset:   0x25
    Section contributions:
-    .debug_abbrev.dwo:       0x0  0x154
-    .debug_line.dwo:         0x0  0x40
-    .debug_loc.dwo:          0x0  0x0
-    .debug_str_offsets.dwo:  0x0  0x14
+    .debug_abbrev.dwo:       (0x)?0  0x154
+    .debug_line.dwo:         (0x)?0  0x40
+    .debug_loc.dwo:          (0x)?0  (0x)?0
+    .debug_str_offsets.dwo:  (0x)?0  0x14
  <0><17>: Abbrev Number: 1 \(DW_TAG_type_unit\)
     <18>   DW_AT_language    : 4	\(C\+\+\)
     <19>   DW_AT_GNU_odr_signature: 0x880a5c4d6e59da8a
-    <21>   DW_AT_stmt_list   : 0x0
+    <21>   DW_AT_stmt_list   : (0x)?0
  <1><25>: Abbrev Number: 2 \(DW_TAG_class_type\)
     <26>   DW_AT_name        : C3
     <29>   DW_AT_byte_size   : 4
@@ -1130,7 +1171,7 @@ Contents of the .debug_types.dwo section:
     <39>   DW_AT_accessibility: 1	\(public\)
  <2><3a>: Abbrev Number: 4 \(DW_TAG_subprogram\)
     <3b>   DW_AT_external    : 1
-    <3b>   DW_AT_name        : \(indexed string: 0x0\): testcase1
+    <3b>   DW_AT_name        : \(indexed string: (0x)?0\): testcase1
     <3c>   DW_AT_decl_file   : 2
     <3d>   DW_AT_decl_line   : 50
     <3e>   DW_AT_linkage_name: _ZN2C39testcase1Ev
@@ -1208,19 +1249,19 @@ Contents of the .debug_types.dwo section:
   Compilation Unit @ offset 0xfb:
    Length:        0xf1 \(32-bit\)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  8
    Signature:     0xab98c7bc886f5266
    Type Offset:   0x25
    Section contributions:
-    .debug_abbrev.dwo:       0x0  0x154
-    .debug_line.dwo:         0x0  0x40
-    .debug_loc.dwo:          0x0  0x0
-    .debug_str_offsets.dwo:  0x0  0x14
+    .debug_abbrev.dwo:       (0x)?0  0x154
+    .debug_line.dwo:         (0x)?0  0x40
+    .debug_loc.dwo:          (0x)?0  (0x)?0
+    .debug_str_offsets.dwo:  (0x)?0  0x14
  <0><112>: Abbrev Number: 1 \(DW_TAG_type_unit\)
     <113>   DW_AT_language    : 4	\(C\+\+\)
     <114>   DW_AT_GNU_odr_signature: 0xae4af0d8bfcef94b
-    <11c>   DW_AT_stmt_list   : 0x0
+    <11c>   DW_AT_stmt_list   : (0x)?0
  <1><120>: Abbrev Number: 2 \(DW_TAG_class_type\)
     <121>   DW_AT_name        : C2
     <124>   DW_AT_byte_size   : 4
@@ -1236,7 +1277,7 @@ Contents of the .debug_types.dwo section:
     <134>   DW_AT_accessibility: 1	\(public\)
  <2><135>: Abbrev Number: 4 \(DW_TAG_subprogram\)
     <136>   DW_AT_external    : 1
-    <136>   DW_AT_name        : \(indexed string: 0x0\): testcase1
+    <136>   DW_AT_name        : \(indexed string: (0x)?0\): testcase1
     <137>   DW_AT_decl_file   : 2
     <138>   DW_AT_decl_line   : 40
     <139>   DW_AT_linkage_name: _ZN2C29testcase1Ev
@@ -1309,19 +1350,19 @@ Contents of the .debug_types.dwo section:
   Compilation Unit @ offset 0x1f0:
    Length:        0x141 \(32-bit\)
    Version:       4
-   Abbrev Offset: 0x0
+   Abbrev Offset: (0x)?0
    Pointer Size:  8
    Signature:     0xb5faa2a4b7a919c4
    Type Offset:   0x25
    Section contributions:
-    .debug_abbrev.dwo:       0x0  0x154
-    .debug_line.dwo:         0x0  0x40
-    .debug_loc.dwo:          0x0  0x0
-    .debug_str_offsets.dwo:  0x0  0x14
+    .debug_abbrev.dwo:       (0x)?0  0x154
+    .debug_line.dwo:         (0x)?0  0x40
+    .debug_loc.dwo:          (0x)?0  (0x)?0
+    .debug_str_offsets.dwo:  (0x)?0  0x14
  <0><207>: Abbrev Number: 1 \(DW_TAG_type_unit\)
     <208>   DW_AT_language    : 4	\(C\+\+\)
     <209>   DW_AT_GNU_odr_signature: 0xc7fbeb753b05ade3
-    <211>   DW_AT_stmt_list   : 0x0
+    <211>   DW_AT_stmt_list   : (0x)?0
  <1><215>: Abbrev Number: 2 \(DW_TAG_class_type\)
     <216>   DW_AT_name        : C1
     <219>   DW_AT_byte_size   : 4
@@ -1337,7 +1378,7 @@ Contents of the .debug_types.dwo section:
     <229>   DW_AT_accessibility: 1	\(public\)
  <2><22a>: Abbrev Number: 4 \(DW_TAG_subprogram\)
     <22b>   DW_AT_external    : 1
-    <22b>   DW_AT_name        : \(indexed string: 0x0\): testcase1
+    <22b>   DW_AT_name        : \(indexed string: (0x)?0\): testcase1
     <22c>   DW_AT_decl_file   : 2
     <22d>   DW_AT_decl_line   : 28
     <22e>   DW_AT_linkage_name: _ZN2C19testcase1Ev

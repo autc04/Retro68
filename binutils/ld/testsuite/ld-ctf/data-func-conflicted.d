@@ -1,4 +1,5 @@
 #as:
+#cc: -O2
 #source: data-func-1.c
 #source: data-func-2.c
 #objdump: --ctf

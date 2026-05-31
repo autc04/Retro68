@@ -9,7 +9,7 @@ Disassembly of section .text:
 
 00001008 <__bar_veneer>:
     1008:	b401      	push	{r0}
-    100a:	4802      	ldr	r0, \[pc, #8\]	; \(1014 <__bar_veneer\+0xc>\)
+    100a:	4802      	ldr	r0, \[pc, #8\]	@ \(1014 <__bar_veneer\+0xc>\)
     100c:	4684      	mov	ip, r0
     100e:	bc01      	pop	{r0}
     1010:	4760      	bx	ip

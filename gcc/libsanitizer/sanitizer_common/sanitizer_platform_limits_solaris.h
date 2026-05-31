@@ -43,7 +43,7 @@ extern unsigned struct_sched_param_sz;
 extern unsigned struct_statfs64_sz;
 extern unsigned struct_statfs_sz;
 extern unsigned struct_sockaddr_sz;
-extern unsigned ucontext_t_sz;
+unsigned ucontext_t_sz(void *ctx);
 
 extern unsigned struct_timespec_sz;
 extern unsigned struct_rlimit_sz;
@@ -417,6 +417,8 @@ extern unsigned struct_winsize_sz;
 
 extern unsigned struct_sioc_sg_req_sz;
 extern unsigned struct_sioc_vif_req_sz;
+
+extern unsigned fpos_t_sz;
 
 // ioctl request identifiers
 

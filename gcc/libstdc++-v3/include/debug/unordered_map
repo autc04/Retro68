@@ -1,6 +1,6 @@
 // Debugging unordered_map/unordered_multimap implementation -*- C++ -*-
 
-// Copyright (C) 2003-2022 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,7 +29,9 @@
 #ifndef _GLIBCXX_DEBUG_UNORDERED_MAP
 #define _GLIBCXX_DEBUG_UNORDERED_MAP 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #if __cplusplus < 201103L
 # include <bits/c++0x_warning.h>
@@ -173,6 +175,12 @@ namespace __debug
 
       template<typename _InputIterator>
 	unordered_map(_InputIterator __first, _InputIterator __last,
+		      const allocator_type& __a)
+	: unordered_map(__first, __last, 0, hasher(), key_equal(), __a)
+	{ }
+
+      template<typename _InputIterator>
+	unordered_map(_InputIterator __first, _InputIterator __last,
 		      size_type __n,
 		      const allocator_type& __a)
 	: unordered_map(__first, __last, __n, hasher(), key_equal(), __a)
@@ -187,6 +195,11 @@ namespace __debug
 	{ }
 
       unordered_map(initializer_list<value_type> __l,
+		    const allocator_type& __a)
+      : unordered_map(__l, 0, hasher(), key_equal(), __a)
+      { }
+
+      unordered_map(initializer_list<value_type> __l,
 		    size_type __n,
 		    const allocator_type& __a)
       : unordered_map(__l, __n, hasher(), key_equal(), __a)
@@ -198,6 +211,34 @@ namespace __debug
 		    const allocator_type& __a)
       : unordered_map(__l, __n, __hf, key_equal(), __a)
       { }
+
+#if __glibcxx_containers_ranges // C++ >= 23
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	unordered_map(from_range_t, _Rg&& __rg,
+		      size_type __n = 0,
+		      const hasher& __hf = hasher(),
+		      const key_equal& __eql = key_equal(),
+		      const allocator_type& __a = allocator_type())
+	: _Base(from_range, std::forward<_Rg>(__rg), __n, __hf, __eql, __a)
+        { }
+
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	unordered_map(from_range_t, _Rg&& __rg, const allocator_type& __a)
+	: _Base(from_range, std::forward<_Rg>(__rg), __a)
+        { }
+
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	unordered_map(from_range_t, _Rg&& __rg, size_type __n,
+		      const allocator_type& __a)
+	: _Base(from_range, std::forward<_Rg>(__rg), __n, __a)
+        { }
+
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	unordered_map(from_range_t, _Rg&& __rg, size_type __n,
+		      const hasher& __hf, const allocator_type& __a)
+	: _Base(from_range, std::forward<_Rg>(__rg), __n, __hf, __a)
+        { }
+#endif
 
       ~unordered_map() = default;
 
@@ -440,7 +481,7 @@ namespace __debug
 	  _M_check_rehashed(__bucket_count);
 	}
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_unordered_map_try_emplace // C++ >= 17 && HOSTED
       template <typename... _Args>
 	pair<iterator, bool>
 	try_emplace(const key_type& __k, _Args&&... __args)
@@ -459,6 +500,17 @@ namespace __debug
 	  return { { __res.first, this }, __res.second };
 	}
 
+# ifdef __glibcxx_associative_heterogeneous_insertion
+      template <__heterogeneous_hash_key<unordered_map> _Kt, typename... _Args>
+	pair<iterator, bool>
+	try_emplace(_Kt&& __k, _Args&&... __args)
+	{
+	  auto __res = _Base::try_emplace(std::forward<_Kt>(__k),
+	    std::forward<_Args>(__args)...);
+	  return { { __res.first, this }, __res.second };
+	}
+# endif
+
       template <typename... _Args>
 	iterator
 	try_emplace(const_iterator __hint, const key_type& __k,
@@ -475,10 +527,21 @@ namespace __debug
 	try_emplace(const_iterator __hint, key_type&& __k, _Args&&... __args)
 	{
 	  __glibcxx_check_insert(__hint);
-	  return { _Base::try_emplace(__hint.base(), std::move(__k),
-				      std::forward<_Args>(__args)...),
-		   this };
+	  auto __it = _Base::try_emplace(__hint.base(), std::move(__k),
+	    std::forward<_Args>(__args)...);
+	  return { __it, this };
 	}
+# ifdef __glibcxx_associative_heterogeneous_insertion
+      template <__heterogeneous_hash_key<unordered_map> _Kt, typename... _Args>
+	iterator
+	try_emplace(const_iterator __hint, _Kt&& __k, _Args&&... __args)
+	{
+	  __glibcxx_check_insert(__hint);
+	  auto __it = _Base::try_emplace(__hint.base(),
+	    std::forward<_Kt>(__k), std::forward<_Args>(__args)...);
+	  return { __it, this };
+	}
+# endif
 
       template <typename _Obj>
 	pair<iterator, bool>
@@ -498,15 +561,26 @@ namespace __debug
 	  return { { __res.first, this }, __res.second };
 	}
 
+# ifdef __glibcxx_associative_heterogeneous_insertion
+      template <__heterogeneous_hash_key<unordered_map> _Kt, typename _Obj>
+	pair<iterator, bool>
+	insert_or_assign(_Kt&& __k, _Obj&& __obj)
+	{
+	  auto __res = _Base::insert_or_assign(
+	    std::forward<_Kt>(__k), std::forward<_Obj>(__obj));
+	  return { { __res.first, this }, __res.second };
+	}
+# endif
+
       template <typename _Obj>
 	iterator
 	insert_or_assign(const_iterator __hint, const key_type& __k,
 			 _Obj&& __obj)
 	{
 	  __glibcxx_check_insert(__hint);
-	  return { _Base::insert_or_assign(__hint.base(), __k,
-					   std::forward<_Obj>(__obj)),
-		   this };
+	  auto __it = _Base::insert_or_assign(__hint.base(), __k,
+	    std::forward<_Obj>(__obj));
+	  return { __it, this };
 	}
 
       template <typename _Obj>
@@ -514,13 +588,26 @@ namespace __debug
 	insert_or_assign(const_iterator __hint, key_type&& __k, _Obj&& __obj)
 	{
 	  __glibcxx_check_insert(__hint);
-	  return { _Base::insert_or_assign(__hint.base(), std::move(__k),
-					   std::forward<_Obj>(__obj)),
-		   this };
+	  auto __it = _Base::insert_or_assign(__hint.base(), std::move(__k),
+	    std::forward<_Obj>(__obj));
+	  return { __it, this };
 	}
+
+# ifdef __glibcxx_associative_heterogeneous_insertion
+      template <__heterogeneous_hash_key<unordered_map> _Kt, typename _Obj>
+	iterator
+	insert_or_assign(const_iterator __hint, _Kt&& __k, _Obj&& __obj)
+	{
+	  __glibcxx_check_insert(__hint);
+	  auto __it = _Base::insert_or_assign(__hint.base(),
+	    std::forward<_Kt>(__k), std::forward<_Obj>(__obj));
+	  return { __it, this };
+	}
+# endif
+
 #endif // C++17
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17 && HOSTED
       using node_type = typename _Base::node_type;
       using insert_return_type = _Node_insert_return<iterator, node_type>;
 
@@ -539,6 +626,18 @@ namespace __debug
 	  return _M_extract(__position);
 	return {};
       }
+
+# ifdef __glibcxx_associative_heterogeneous_erasure
+      template <__heterogeneous_hash_key<unordered_map> _Kt>
+	node_type
+	extract(_Kt&& __key)
+	{
+	  const auto __position = _Base::find(__key);
+	  if (__position != _Base::end())
+	    return _M_extract(__position);
+	  return {};
+	}
+#endif
 
       insert_return_type
       insert(node_type&& __nh)
@@ -591,7 +690,7 @@ namespace __debug
       find(const key_type& __key)
       { return { _Base::find(__key), this }; }
 
-#if __cplusplus > 201703L
+#ifdef __glibcxx_generic_unordered_lookup // C++ >= 20 && HOSTED
       template<typename _Kt,
 	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
 	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
@@ -604,7 +703,7 @@ namespace __debug
       find(const key_type& __key) const
       { return { _Base::find(__key), this }; }
 
-#if __cplusplus > 201703L
+#ifdef __glibcxx_generic_unordered_lookup // C++ >= 20 && HOSTED
       template<typename _Kt,
 	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
 	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
@@ -625,7 +724,7 @@ namespace __debug
 	return { { __res.first, this }, { __res.second, this } };
       }
 
-#if __cplusplus > 201703L
+#ifdef __glibcxx_generic_unordered_lookup // C++ >= 20 && HOSTED
       template<typename _Kt,
 	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
 	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
@@ -644,7 +743,7 @@ namespace __debug
 	return { { __res.first, this }, { __res.second, this } };
       }
 
-#if __cplusplus > 201703L
+#ifdef __glibcxx_generic_unordered_lookup // C++ >= 20 && HOSTED
       template<typename _Kt,
 	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
 	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
@@ -672,6 +771,18 @@ namespace __debug
 	return __ret;
       }
 
+# ifdef __glibcxx_associative_heterogeneous_erasure
+      template <__heterogeneous_hash_key<unordered_map> _Kt>
+	size_type
+	erase(_Kt&& __key)
+	{
+	  auto __victim = _Base::find(__key);
+	  if (__victim != _Base::end())
+	    return _M_erase(__victim), 1;
+	  return 0;
+	}
+#endif
+
       iterator
       erase(const_iterator __it)
       {
@@ -697,18 +808,19 @@ namespace __debug
       erase(const_iterator __first, const_iterator __last)
       {
 	__glibcxx_check_erase_range(__first, __last);
-	for (auto __tmp = __first.base(); __tmp != __last.base(); ++__tmp)
-	  {
-	    _GLIBCXX_DEBUG_VERIFY(__tmp != _Base::cend(),
-				  _M_message(__gnu_debug::__msg_valid_range)
-				  ._M_iterator(__first, "first")
-				  ._M_iterator(__last, "last"));
-	    _M_invalidate(__tmp);
-	  }
+	{
+	  __gnu_cxx::__scoped_lock sentry(_M_self()->_M_get_mutex());
+	  for (auto __tmp = __first.base(); __tmp != __last.base(); ++__tmp)
+	    {
+	      _GLIBCXX_DEBUG_VERIFY(__tmp != _Base::cend(),
+				    _M_message(__gnu_debug::__msg_valid_range)
+				    ._M_iterator(__first, "first")
+				    ._M_iterator(__last, "last"));
+	      this->_M_invalidate(__tmp, sentry);
+	    }
+	}
 
-	size_type __bucket_count = this->bucket_count();
 	auto __next = _Base::erase(__first.base(), __last.base());
-	_M_check_rehashed(__bucket_count);
 	return { __next, this };
       }
 
@@ -722,6 +834,10 @@ namespace __debug
       _M_base() const noexcept	{ return *this; }
 
     private:
+      const unordered_map*
+      _M_self() const noexcept
+      { return this; }
+
       void
       _M_check_rehashed(size_type __prev_count)
       {
@@ -729,31 +845,18 @@ namespace __debug
 	  this->_M_invalidate_all();
       }
 
-      void
-      _M_invalidate(_Base_const_iterator __victim)
-      {
-	this->_M_invalidate_if(
-	  [__victim](_Base_const_iterator __it) { return __it == __victim; });
-	this->_M_invalidate_local_if(
-	  [__victim](_Base_const_local_iterator __it)
-	  { return __it == __victim; });
-      }
-
       _Base_iterator
       _M_erase(_Base_const_iterator __victim)
       {
-	_M_invalidate(__victim);
-	size_type __bucket_count = this->bucket_count();
-	_Base_iterator __next = _Base::erase(__victim);
-	_M_check_rehashed(__bucket_count);
-	return __next;
+	this->_M_invalidate(__victim);
+	return _Base::erase(__victim);
       }
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17 && HOSTED
       node_type
       _M_extract(_Base_const_iterator __victim)
       {
-	_M_invalidate(__victim);
+	this->_M_invalidate(__victim);
 	return _Base::extract(__victim);
       }
 #endif
@@ -839,6 +942,47 @@ namespace __debug
 		  _Hash, _Allocator)
     -> unordered_map<_Key, _Tp, _Hash, equal_to<_Key>, _Allocator>;
 
+#if __glibcxx_containers_ranges // C++ >= 23
+  template<ranges::input_range _Rg,
+	   __not_allocator_like _Hash = hash<__detail::__range_key_type<_Rg>>,
+	   __not_allocator_like _Pred = equal_to<__detail::__range_key_type<_Rg>>,
+	   __allocator_like _Allocator =
+	     allocator<__detail::__range_to_alloc_type<_Rg>>>
+    unordered_map(from_range_t, _Rg&&, unordered_map<int, int>::size_type = {},
+		  _Hash = _Hash(), _Pred = _Pred(), _Allocator = _Allocator())
+    -> unordered_map<__detail::__range_key_type<_Rg>,
+		     __detail::__range_mapped_type<_Rg>,
+		     _Hash, _Pred, _Allocator>;
+
+  template<ranges::input_range _Rg,
+	   __allocator_like _Allocator>
+    unordered_map(from_range_t, _Rg&&, unordered_map<int, int>::size_type,
+		  _Allocator)
+    -> unordered_map<__detail::__range_key_type<_Rg>,
+		     __detail::__range_mapped_type<_Rg>,
+		     hash<__detail::__range_key_type<_Rg>>,
+		     equal_to<__detail::__range_key_type<_Rg>>,
+		     _Allocator>;
+
+  template<ranges::input_range _Rg,
+	   __allocator_like _Allocator>
+    unordered_map(from_range_t, _Rg&&, _Allocator)
+    -> unordered_map<__detail::__range_key_type<_Rg>,
+		     __detail::__range_mapped_type<_Rg>,
+		     hash<__detail::__range_key_type<_Rg>>,
+		     equal_to<__detail::__range_key_type<_Rg>>,
+		     _Allocator>;
+
+  template<ranges::input_range _Rg,
+	   __not_allocator_like _Hash,
+	   __allocator_like _Allocator>
+    unordered_map(from_range_t, _Rg&&, unordered_map<int, int>::size_type,
+		  _Hash, _Allocator)
+    -> unordered_map<__detail::__range_key_type<_Rg>,
+		     __detail::__range_mapped_type<_Rg>,
+		     _Hash, equal_to<__detail::__range_key_type<_Rg>>,
+		     _Allocator>;
+#endif
 #endif
 
   template<typename _Key, typename _Tp, typename _Hash,
@@ -982,6 +1126,12 @@ namespace __debug
 
       template<typename _InputIterator>
 	unordered_multimap(_InputIterator __first, _InputIterator __last,
+			   const allocator_type& __a)
+	: unordered_multimap(__first, __last, 0, hasher(), key_equal(), __a)
+	{ }
+
+      template<typename _InputIterator>
+	unordered_multimap(_InputIterator __first, _InputIterator __last,
 			   size_type __n,
 			   const allocator_type& __a)
 	: unordered_multimap(__first, __last, __n, hasher(), key_equal(), __a)
@@ -995,6 +1145,11 @@ namespace __debug
 	{ }
 
       unordered_multimap(initializer_list<value_type> __l,
+			 const allocator_type& __a)
+      : unordered_multimap(__l, 0, hasher(), key_equal(), __a)
+      { }
+
+      unordered_multimap(initializer_list<value_type> __l,
 			 size_type __n,
 			 const allocator_type& __a)
       : unordered_multimap(__l, __n, hasher(), key_equal(), __a)
@@ -1005,6 +1160,34 @@ namespace __debug
 			 const allocator_type& __a)
       : unordered_multimap(__l, __n, __hf, key_equal(), __a)
       { }
+
+#if __glibcxx_containers_ranges // C++ >= 23
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	unordered_multimap(from_range_t, _Rg&& __rg,
+		           size_type __n = 0,
+		           const hasher& __hf = hasher(),
+		           const key_equal& __eql = key_equal(),
+		           const allocator_type& __a = allocator_type())
+	: _Base(from_range, std::forward<_Rg>(__rg), __n, __hf, __eql, __a)
+        { }
+
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	unordered_multimap(from_range_t, _Rg&& __rg, const allocator_type& __a)
+	: _Base(from_range, std::forward<_Rg>(__rg), __a)
+        { }
+
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	unordered_multimap(from_range_t, _Rg&& __rg, size_type __n,
+		           const allocator_type& __a)
+	: _Base(from_range, std::forward<_Rg>(__rg), __n, __a)
+        { }
+
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	unordered_multimap(from_range_t, _Rg&& __rg, size_type __n,
+		           const hasher& __hf, const allocator_type& __a)
+	: _Base(from_range, std::forward<_Rg>(__rg), __n, __hf, __a)
+        { }
+#endif
 
       ~unordered_multimap() = default;
 
@@ -1241,7 +1424,7 @@ namespace __debug
 	  _M_check_rehashed(__bucket_count);
 	}
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17 && HOSTED
       using node_type = typename _Base::node_type;
 
       node_type
@@ -1259,6 +1442,18 @@ namespace __debug
 	  return _M_extract(__position);
 	return {};
       }
+
+# ifdef __glibcxx_associative_heterogeneous_erasure
+      template <__heterogeneous_hash_key<unordered_multimap> _Kt>
+	node_type
+	extract(_Kt&& __key)
+	{
+	  const auto __position = _Base::find(__key);
+	  if (__position != _Base::end())
+	    return _M_extract(__position);
+	  return {};
+	}
+#endif
 
       iterator
       insert(node_type&& __nh)
@@ -1307,7 +1502,7 @@ namespace __debug
       find(const key_type& __key)
       { return { _Base::find(__key), this }; }
 
-#if __cplusplus > 201703L
+#ifdef __glibcxx_generic_unordered_lookup // C++ >= 20 && HOSTED
       template<typename _Kt,
 	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
 	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
@@ -1320,7 +1515,7 @@ namespace __debug
       find(const key_type& __key) const
       { return { _Base::find(__key), this }; }
 
-#if __cplusplus > 201703L
+#ifdef __glibcxx_generic_unordered_lookup // C++ >= 20 && HOSTED
       template<typename _Kt,
 	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
 	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
@@ -1341,7 +1536,7 @@ namespace __debug
 	return { { __res.first, this }, { __res.second, this } };
       }
 
-#if __cplusplus > 201703L
+#ifdef __glibcxx_generic_unordered_lookup // C++ >= 20 && HOSTED
       template<typename _Kt,
 	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
 	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
@@ -1360,7 +1555,7 @@ namespace __debug
 	return { { __res.first, this }, { __res.second, this } };
       }
 
-#if __cplusplus > 201703L
+#ifdef __glibcxx_generic_unordered_lookup // C++ >= 20 && HOSTED
       template<typename _Kt,
 	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
 	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
@@ -1375,19 +1570,19 @@ namespace __debug
       size_type
       erase(const key_type& __key)
       {
-	size_type __ret(0);
-	size_type __bucket_count = this->bucket_count();
-	auto __pair = _Base::equal_range(__key);
-	for (auto __victim = __pair.first; __victim != __pair.second;)
-	  {
-	    _M_invalidate(__victim);
-	    __victim = _Base::erase(__victim);
-	    ++__ret;
-	  }
-
-	_M_check_rehashed(__bucket_count);
-	return __ret;
+	auto __victims = _Base::equal_range(__key);
+	return _M_erase(__victims.first, __victims.second);
       }
+
+# ifdef __glibcxx_associative_heterogeneous_erasure
+      template <__heterogeneous_hash_key<unordered_multimap> _Kt>
+	size_type
+	erase(_Kt&& __key)
+	{
+	  auto __victims = _Base::equal_range(__key);
+	  return _M_erase(__victims.first, __victims.second);
+	}
+#endif
 
       iterator
       erase(const_iterator __it)
@@ -1414,18 +1609,19 @@ namespace __debug
       erase(const_iterator __first, const_iterator __last)
       {
 	__glibcxx_check_erase_range(__first, __last);
-	for (auto __tmp = __first.base(); __tmp != __last.base(); ++__tmp)
-	  {
-	    _GLIBCXX_DEBUG_VERIFY(__tmp != _Base::cend(),
-				  _M_message(__gnu_debug::__msg_valid_range)
-				  ._M_iterator(__first, "first")
-				  ._M_iterator(__last, "last"));
-	    _M_invalidate(__tmp);
-	  }
+	{
+	  __gnu_cxx::__scoped_lock sentry(_M_self()->_M_get_mutex());
+	  for (auto __tmp = __first.base(); __tmp != __last.base(); ++__tmp)
+	    {
+	      _GLIBCXX_DEBUG_VERIFY(__tmp != _Base::cend(),
+				    _M_message(__gnu_debug::__msg_valid_range)
+				    ._M_iterator(__first, "first")
+				    ._M_iterator(__last, "last"));
+	      this->_M_invalidate(__tmp, sentry);
+	    }
+	}
 
-	size_type __bucket_count = this->bucket_count();
 	auto __next = _Base::erase(__first.base(), __last.base());
-	_M_check_rehashed(__bucket_count);
 	return { __next, this };
       }
 
@@ -1439,6 +1635,10 @@ namespace __debug
       _M_base() const noexcept { return *this; }
 
     private:
+      const unordered_multimap*
+      _M_self() const noexcept
+      { return this; }
+
       void
       _M_check_rehashed(size_type __prev_count)
       {
@@ -1446,31 +1646,35 @@ namespace __debug
 	  this->_M_invalidate_all();
       }
 
-      void
-      _M_invalidate(_Base_const_iterator __victim)
-      {
-	this->_M_invalidate_if(
-	  [__victim](_Base_const_iterator __it) { return __it == __victim; });
-	this->_M_invalidate_local_if(
-	  [__victim](_Base_const_local_iterator __it)
-	  { return __it == __victim; });
-      }
-
       _Base_iterator
       _M_erase(_Base_const_iterator __victim)
       {
-	_M_invalidate(__victim);
-	size_type __bucket_count = this->bucket_count();
-	_Base_iterator __next = _Base::erase(__victim);
-	_M_check_rehashed(__bucket_count);
-	return __next;
+	this->_M_invalidate(__victim);
+	return _Base::erase(__victim);
       }
 
-#if __cplusplus > 201402L
+      size_type
+      _M_erase(_Base_iterator __first, _Base_iterator __last)
+      {
+	size_type __ret(0);
+	{
+	  __gnu_cxx::__scoped_lock sentry(_M_self()->_M_get_mutex());
+	  for (auto __victim = __first; __victim != __last; ++__victim)
+	    {
+	      this->_M_invalidate(__victim, sentry);
+	      ++__ret;
+	    }
+	}
+
+	_Base::erase(__first, __last);
+	return __ret;
+      }
+
+#ifdef __glibcxx_node_extract // >= C++17 && HOSTED
       node_type
       _M_extract(_Base_const_iterator __victim)
       {
-	_M_invalidate(__victim);
+	this->_M_invalidate(__victim);
 	return _Base::extract(__victim);
       }
 #endif
@@ -1556,6 +1760,50 @@ namespace __debug
 		       _Hash, _Allocator)
     -> unordered_multimap<_Key, _Tp, _Hash, equal_to<_Key>, _Allocator>;
 
+#if __glibcxx_containers_ranges // C++ >= 23
+  template<ranges::input_range _Rg,
+	   __not_allocator_like _Hash = hash<__detail::__range_key_type<_Rg>>,
+	   __not_allocator_like _Pred = equal_to<__detail::__range_key_type<_Rg>>,
+	   __allocator_like _Allocator =
+	     allocator<__detail::__range_to_alloc_type<_Rg>>>
+    unordered_multimap(from_range_t, _Rg&&,
+		       unordered_multimap<int, int>::size_type = {},
+		       _Hash = _Hash(), _Pred = _Pred(),
+		       _Allocator = _Allocator())
+    -> unordered_multimap<__detail::__range_key_type<_Rg>,
+			  __detail::__range_mapped_type<_Rg>,
+			  _Hash, _Pred, _Allocator>;
+
+  template<ranges::input_range _Rg,
+	   __allocator_like _Allocator>
+    unordered_multimap(from_range_t, _Rg&&, unordered_multimap<int, int>::size_type,
+		  _Allocator)
+    -> unordered_multimap<__detail::__range_key_type<_Rg>,
+			  __detail::__range_mapped_type<_Rg>,
+			  hash<__detail::__range_key_type<_Rg>>,
+			  equal_to<__detail::__range_key_type<_Rg>>,
+			  _Allocator>;
+
+  template<ranges::input_range _Rg,
+	   __allocator_like _Allocator>
+    unordered_multimap(from_range_t, _Rg&&, _Allocator)
+    -> unordered_multimap<__detail::__range_key_type<_Rg>,
+			  __detail::__range_mapped_type<_Rg>,
+			  hash<__detail::__range_key_type<_Rg>>,
+			  equal_to<__detail::__range_key_type<_Rg>>,
+			  _Allocator>;
+
+  template<ranges::input_range _Rg,
+	   __not_allocator_like _Hash,
+	   __allocator_like _Allocator>
+    unordered_multimap(from_range_t, _Rg&&,
+		       unordered_multimap<int, int>::size_type,
+		       _Hash, _Allocator)
+    -> unordered_multimap<__detail::__range_key_type<_Rg>,
+			  __detail::__range_mapped_type<_Rg>,
+			  _Hash, equal_to<__detail::__range_key_type<_Rg>>,
+			  _Allocator>;
+#endif
 #endif
 
   template<typename _Key, typename _Tp, typename _Hash,
@@ -1583,6 +1831,26 @@ namespace __debug
 #endif
 
 } // namespace __debug
+
+#ifdef __glibcxx_erase_if // C++ >= 20 && HOSTED
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+  template<typename _Key, typename _Tp, typename _Hash, typename _CPred,
+	   typename _Alloc, typename _Predicate>
+    inline typename __debug::unordered_map<_Key, _Tp, _Hash,
+					   _CPred, _Alloc>::size_type
+    erase_if(__debug::unordered_map<_Key, _Tp, _Hash, _CPred, _Alloc>& __cont,
+	     _Predicate __pred)
+    { return __detail::__erase_nodes_if(__cont, __cont._M_base(), __pred); }
+
+  template<typename _Key, typename _Tp, typename _Hash, typename _CPred,
+	   typename _Alloc, typename _Predicate>
+    inline typename __debug::unordered_multimap<_Key, _Tp, _Hash,
+						_CPred, _Alloc>::size_type
+    erase_if(__debug::unordered_multimap<_Key, _Tp, _Hash, _CPred, _Alloc>& __cont,
+	     _Predicate __pred)
+    { return __detail::__erase_nodes_if(__cont, __cont._M_base(), __pred); }
+_GLIBCXX_END_NAMESPACE_VERSION
+#endif // __glibcxx_erase_if
 } // namespace std
 
 #endif // C++11

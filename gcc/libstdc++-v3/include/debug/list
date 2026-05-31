@@ -1,6 +1,6 @@
 // Debugging list implementation -*- C++ -*-
 
-// Copyright (C) 2003-2022 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,7 +29,9 @@
 #ifndef _GLIBCXX_DEBUG_LIST
 #define _GLIBCXX_DEBUG_LIST 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #include <bits/c++config.h>
 namespace std _GLIBCXX_VISIBILITY(default) { namespace __debug {
@@ -158,6 +160,13 @@ namespace __debug
 		__gnu_debug::__base(__last), __a)
 	{ }
 
+#if __glibcxx_containers_ranges // C++ >= 23
+      template<__detail::__container_compatible_range<_Tp> _Rg>
+	list(from_range_t, _Rg&& __rg, const _Allocator& __a = _Allocator())
+	: _Base(std::from_range, std::forward<_Rg>(__rg), __a)
+	{ }
+#endif
+
       list(_Base_ref __x)
       : _Base(__x._M_ref) { }
 
@@ -204,6 +213,32 @@ namespace __debug
 
 	  this->_M_invalidate_all();
 	}
+
+#if __glibcxx_containers_ranges // C++ >= 23
+      template<__detail::__container_compatible_range<_Tp> _Rg>
+	void
+	assign_range(_Rg&& __rg)
+	{
+	  // Have to reimplement this function, so that we use the debug
+	  // version of erase, which invalidates the correct iterators.
+
+	  static_assert(assignable_from<_Tp&, ranges::range_reference_t<_Rg>>);
+
+	  auto __first1 = _Base::begin();
+	  const auto __last1 = _Base::end();
+	  auto __first2 = ranges::begin(__rg);
+	  const auto __last2 = ranges::end(__rg);
+	  for (; __first1 != __last1 && __first2 != __last2;
+	       ++__first1, (void)++__first2)
+	    *__first1 = *__first2;
+	  if (__first2 == __last2)
+	    erase(const_iterator(__first1, this),
+		  const_iterator(__last1, this));
+	  else
+	    _Base::insert_range(__last1,
+				ranges::subrange(std::move(__first2), __last2));
+	}
+#endif
 
       void
       assign(size_type __n, const _Tp& __t)
@@ -286,7 +321,8 @@ namespace __debug
       void
       resize(size_type __sz)
       {
-	this->_M_detach_singular();
+	const list* __this = this;
+	__this->_M_detach_singular();
 
 	// if __sz < size(), invalidate all iterators in [begin + __sz, end())
 	_Base_iterator __victim = _Base::begin();
@@ -303,7 +339,7 @@ namespace __debug
 	  }
 	__catch(...)
 	  {
-	    this->_M_revalidate_singular();
+	    __this->_M_revalidate_singular();
 	    __throw_exception_again;
 	  }
       }
@@ -311,7 +347,8 @@ namespace __debug
       void
       resize(size_type __sz, const _Tp& __c)
       {
-	this->_M_detach_singular();
+	const list* __this = this;
+	__this->_M_detach_singular();
 
 	// if __sz < size(), invalidate all iterators in [begin + __sz, end())
 	_Base_iterator __victim = _Base::begin();
@@ -328,7 +365,7 @@ namespace __debug
 	  }
 	__catch(...)
 	  {
-	    this->_M_revalidate_singular();
+	    __this->_M_revalidate_singular();
 	    __throw_exception_again;
 	  }
       }
@@ -336,7 +373,8 @@ namespace __debug
       void
       resize(size_type __sz, _Tp __c = _Tp())
       {
-	this->_M_detach_singular();
+	const list* __this = this;
+	__this->_M_detach_singular();
 
 	// if __sz < size(), invalidate all iterators in [begin + __sz, end())
 	_Base_iterator __victim = _Base::begin();
@@ -353,7 +391,7 @@ namespace __debug
 	  }
 	__catch(...)
 	  {
-	    this->_M_revalidate_singular();
+	    __this->_M_revalidate_singular();
 	    __throw_exception_again;
 	  }
       }
@@ -397,6 +435,11 @@ namespace __debug
 
 #if __cplusplus >= 201103L
       using _Base::emplace_front;
+#endif
+
+#if __glibcxx_containers_ranges // C++ >= 23
+      using _Base::prepend_range;
+      using _Base::append_range;
 #endif
 
       void
@@ -506,6 +549,17 @@ namespace __debug
 					     __gnu_debug::__unsafe(__last));
 	  else
 	    _Base::insert(__position.base(), __first, __last);
+	}
+#endif
+
+#if __glibcxx_containers_ranges // C++ >= 23
+      template<__detail::__container_compatible_range<_Tp> _Rg>
+	iterator
+	insert_range(const_iterator __position, _Rg&& __rg)
+	{
+	  auto __ret = _Base::insert_range(__position.base(),
+					   std::forward<_Rg>(__rg));
+	  return { __ret, this };
 	}
 #endif
 
@@ -918,6 +972,13 @@ namespace __debug
 	   typename = _RequireAllocator<_Allocator>>
     list(size_t, _Tp, _Allocator = _Allocator())
       -> list<_Tp, _Allocator>;
+
+#if __glibcxx_containers_ranges // C++ >= 23
+  template<ranges::input_range _Rg,
+	   typename _Allocator = allocator<ranges::range_value_t<_Rg>>>
+    list(from_range_t, _Rg&&, _Allocator = _Allocator())
+      -> list<ranges::range_value_t<_Rg>, _Allocator>;
+#endif
 #endif
 
   template<typename _Tp, typename _Alloc>
@@ -970,6 +1031,27 @@ namespace __debug
     { __lhs.swap(__rhs); }
 
 } // namespace __debug
+
+#ifdef __glibcxx_erase_if // C++ >= 20 && HOSTED
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+  template<typename _Tp, typename _Alloc, typename _Predicate>
+    inline typename __debug::list<_Tp, _Alloc>::size_type
+    erase_if(__debug::list<_Tp, _Alloc>& __cont, _Predicate __pred)
+    { return __cont.remove_if(__pred); }
+
+  template<typename _Tp, typename _Alloc,
+	   typename _Up _GLIBCXX26_DEF_VAL_T(_Tp)>
+    inline typename __debug::list<_Tp, _Alloc>::size_type
+    erase(__debug::list<_Tp, _Alloc>& __cont, const _Up& __value)
+    {
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 4135. helper lambda of std::erase for list should specify return type
+      return std::erase_if(__cont, [&](const auto& __elem) -> bool {
+	  return __elem == __value;
+      });
+    }
+_GLIBCXX_END_NAMESPACE_VERSION
+#endif // __glibcxx_erase_if
 } // namespace std
 
 namespace __gnu_debug

@@ -22,7 +22,6 @@ version (Posix):
 extern (C):
 nothrow:
 @nogc:
-@system:
 
 version (OSX)
     version = Darwin;
@@ -125,9 +124,9 @@ version (linux)
 
             enum NGREG = 23;
 
-            alias long              greg_t;
-            alias greg_t[NGREG]     gregset_t;
-            alias _libc_fpstate*    fpregset_t;
+            alias greg_t = long;
+            alias gregset_t = greg_t[NGREG];
+            alias fpregset_t = _libc_fpstate*;
         }
 
         struct mcontext_t
@@ -197,9 +196,9 @@ version (linux)
 
             enum NGREG = 19;
 
-            alias int               greg_t;
-            alias greg_t[NGREG]     gregset_t;
-            alias _libc_fpstate*    fpregset_t;
+            alias greg_t = int;
+            alias gregset_t = greg_t[NGREG];
+            alias fpregset_t = _libc_fpstate*;
         }
 
         struct mcontext_t
@@ -229,7 +228,7 @@ version (linux)
             enum NGREG  = 80;
             enum NFPREG = 32;
 
-            alias c_ulong greg_t;
+            alias greg_t = c_ulong;
 
             struct gregset_t
             {
@@ -271,8 +270,8 @@ version (linux)
             enum NGREG  = 32;
             enum NFPREG = 32;
 
-            alias ulong         greg_t;
-            alias greg_t[NGREG] gregset_t;
+            alias greg_t = ulong;
+            alias gregset_t = greg_t[NGREG];
 
             struct fpregset_t
             {
@@ -350,8 +349,8 @@ version (linux)
             enum NGREG  = 32;
             enum NFPREG = 32;
 
-            alias ulong         greg_t;
-            alias greg_t[NGREG] gregset_t;
+            alias greg_t = ulong;
+            alias gregset_t = greg_t[NGREG];
 
             struct fpregset_t
             {
@@ -401,8 +400,8 @@ version (linux)
         {
             enum NGREG  = 48;
 
-            alias c_ulong        greg_t;
-            alias greg_t[NGREG]  gregset_t;
+            alias greg_t = c_ulong;
+            alias gregset_t = greg_t[NGREG];
 
             struct fpregset_t
             {
@@ -467,9 +466,9 @@ version (linux)
             enum NFPREG = 33;
             enum NVRREG = 34;
 
-            alias c_ulong        greg_t;
-            alias greg_t[NGREG]  gregset_t;
-            alias double[NFPREG] fpregset_t;
+            alias greg_t = c_ulong;
+            alias gregset_t = greg_t[NGREG];
+            alias fpregset_t = double[NFPREG];
 
             struct vscr_t
             {
@@ -574,7 +573,7 @@ version (linux)
         }
 
         //alias elf_fpregset_t fpregset_t;
-        alias sigcontext mcontext_t;
+        alias mcontext_t = sigcontext;
 
         struct ucontext_t
         {
@@ -588,7 +587,7 @@ version (linux)
     }
     else version (AArch64)
     {
-        alias int greg_t;
+        alias greg_t = int;
 
         struct sigcontext {
             ulong           fault_address;
@@ -601,7 +600,7 @@ version (linux)
             align(16) ubyte[4096] __reserved;
         }
 
-        alias sigcontext mcontext_t;
+        alias mcontext_t = sigcontext;
 
         struct ucontext_t
         {
@@ -616,7 +615,7 @@ version (linux)
     {
         private
         {
-            alias c_ulong[32] __riscv_mc_gp_state;
+            alias __riscv_mc_gp_state = c_ulong[32];
 
             struct __riscv_mc_f_ext_state
             {
@@ -786,6 +785,33 @@ version (linux)
 
         alias ucontext_t = ucontext;
     }
+    else version (LoongArch64)
+    {
+        private
+        {
+            enum LARCH_NGREG  = 32;
+
+            alias greg_t = ulong;
+            alias gregset_t = greg_t[LARCH_NGREG];
+        }
+
+        struct mcontext_t
+        {
+            c_ulong __pc;
+            c_ulong[32] __gregs;
+            int __flags;
+            align(16) c_ulong[0] __extcontext;
+        }
+
+        struct ucontext_t
+        {
+            c_ulong     __uc_flags;
+            ucontext_t* uc_link;
+            stack_t     uc_stack;
+            sigset_t    uc_sigmask;
+            mcontext_t  uc_mcontext;
+        }
+    }
     else
         static assert(0, "unimplemented");
 }
@@ -860,9 +886,9 @@ else version (FreeBSD)
     // <machine/ucontext.h>
     version (X86_64)
     {
-      alias long __register_t;
-      alias uint __uint32_t;
-      alias ushort __uint16_t;
+      alias __register_t = long;
+      alias __uint32_t = uint;
+      alias __uint16_t = ushort;
 
       struct mcontext_t {
        __register_t    mc_onstack;
@@ -911,7 +937,7 @@ else version (FreeBSD)
     }
     else version (X86)
     {
-        alias int __register_t;
+        alias __register_t = int;
 
         struct mcontext_t
         {
@@ -984,9 +1010,9 @@ else version (FreeBSD)
     }
     else version (PPC_Any)
     {
-        alias size_t __register_t;
-        alias uint   __uint32_t;
-        alias ulong  __uint64_t;
+        alias __register_t = size_t;
+        alias __uint32_t = uint;
+        alias __uint64_t = ulong;
 
         struct mcontext_t {
             int     mc_vers;
@@ -1273,9 +1299,9 @@ else version (DragonFlyBSD)
     // <machine/ucontext.h>
     version (X86_64)
     {
-      alias long __register_t;
-      alias uint __uint32_t;
-      alias ushort __uint16_t;
+      alias __register_t = long;
+      alias __uint32_t = uint;
+      alias __uint16_t = ushort;
 
       struct mcontext_t {
         __register_t    mc_onstack;
@@ -1335,202 +1361,10 @@ else version (DragonFlyBSD)
 }
 else version (Solaris)
 {
-    import core.stdc.stdint;
-
-    alias uint[4] upad128_t;
-
-    version (SPARC64)
-    {
-        enum _NGREG = 21;
-        alias long greg_t;
-    }
-    else version (SPARC)
-    {
-        enum _NGREG = 19;
-        alias int greg_t;
-    }
-    else version (X86_64)
-    {
-        enum _NGREG = 28;
-        alias long greg_t;
-    }
-    else version (X86)
-    {
-        enum _NGREG = 19;
-        alias int greg_t;
-    }
-    else
-        static assert(0, "unimplemented");
-
-    alias greg_t[_NGREG] gregset_t;
-
-    version (SPARC64)
-    {
-        private
-        {
-            struct _fpq
-            {
-                uint *fpq_addr;
-                uint fpq_instr;
-            }
-
-            struct fq
-            {
-                union
-                {
-                    double whole;
-                    _fpq fpq;
-                }
-            }
-        }
-
-        struct fpregset_t
-        {
-            union
-            {
-                uint[32]   fpu_regs;
-                double[32] fpu_dregs;
-                real[16]   fpu_qregs;
-            }
-            fq    *fpu_q;
-            ulong fpu_fsr;
-            ubyte fpu_qcnt;
-            ubyte fpu_q_entrysize;
-            ubyte fpu_en;
-        }
-    }
-    else version (SPARC)
-    {
-        private
-        {
-            struct _fpq
-            {
-                uint *fpq_addr;
-                uint fpq_instr;
-            }
-
-            struct fq
-            {
-                union
-                {
-                    double whole;
-                    _fpq fpq;
-                }
-            }
-        }
-
-        struct fpregset_t
-        {
-            union
-            {
-                uint[32]   fpu_regs;
-                double[16] fpu_dregs;
-            }
-            fq    *fpu_q;
-            uint  fpu_fsr;
-            ubyte fpu_qcnt;
-            ubyte fpu_q_entrysize;
-            ubyte fpu_en;
-        }
-    }
-    else version (X86_64)
-    {
-        private
-        {
-            union _u_st
-            {
-                ushort[5]   fpr_16;
-                upad128_t   __fpr_pad;
-            }
-        }
-
-        struct fpregset_t
-        {
-            union fp_reg_set
-            {
-                struct fpchip_state
-                {
-                    ushort          cw;
-                    ushort          sw;
-                    ubyte           fctw;
-                    ubyte           __fx_rsvd;
-                    ushort          fop;
-                    ulong           rip;
-                    ulong           rdp;
-                    uint            mxcsr;
-                    uint            mxcsr_mask;
-                    _u_st[8]        st;
-                    upad128_t[16]   xmm;
-                    upad128_t[6]    __fx_ign2;
-                    uint            status;
-                    uint            xstatus;
-                }
-                uint[130]   f_fpregs;
-            }
-        }
-    }
-    else version (X86)
-    {
-        struct fpregset_t
-        {
-            union u_fp_reg_set
-            {
-                struct s_fpchip_state
-                {
-                    uint[27]        state;
-                    uint            status;
-                    uint            mxcsr;
-                    uint            xstatus;
-                    uint[2]         __pad;
-                    upad128_t[8]    xmm;
-                }
-                s_fpchip_state    fpchip_state;
-
-                struct s_fp_emul_space
-                {
-                    ubyte[246]  fp_emul;
-                    ubyte[2]    fp_epad;
-                }
-                s_fp_emul_space   fp_emul_space;
-                uint[95]        f_fpregs;
-            }
-        u_fp_reg_set fp_reg_set;
-        }
-    }
-    else
-        static assert(0, "unimplemented");
-
     version (SPARC_Any)
     {
-        private
-        {
-            struct rwindow
-            {
-                greg_t[8]     rw_local;
-                greg_t[8]     rw_in;
-            }
-
-            struct gwindows_t
-            {
-                int         wbcnt;
-                greg_t[31] *spbuf;
-                rwindow[31] wbuf;
-            }
-
-            struct xrs_t
-            {
-                uint         xrs_id;
-                caddr_t      xrs_ptr;
-            }
-
-            struct cxrs_t
-            {
-                uint         cxrs_id;
-                caddr_t      cxrs_ptr;
-            }
-
-            alias int64_t[16] asrset_t;
-        }
+        import core.sys.solaris.sys.regset : gregset_t, fpregset_t,
+               gwindows_t, xrs_t, asrset_t, cxrs_t;
 
         struct mcontext_t
         {
@@ -1553,14 +1387,7 @@ else version (Solaris)
     }
     else version (X86_Any)
     {
-        private
-        {
-            struct xrs_t
-            {
-                uint         xrs_id;
-                caddr_t      xrs_ptr;
-            }
-        }
+        import core.sys.solaris.sys.regset : gregset_t, fpregset_t, xrs_t;
 
         struct mcontext_t
         {
@@ -1628,4 +1455,3 @@ version (Solaris)
     int addrtosymstr(uintptr_t, char*, int);
     int printstack(int);
 }
-

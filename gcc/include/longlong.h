@@ -1,5 +1,5 @@
 /* longlong.h -- definitions for mixed size 32/64 bit arithmetic.
-   Copyright (C) 1991-2022 Free Software Foundation, Inc.
+   Copyright (C) 1991-2026 Free Software Foundation, Inc.
 
    This file is part of the GNU C Library.
 
@@ -593,6 +593,14 @@ extern UDItype __umulsidi3 (USItype, USItype);
 #define UMUL_TIME 14
 #endif
 
+#ifdef __loongarch__
+# if W_TYPE_SIZE == 64
+#  define count_leading_zeros(count, x)  ((count) = __builtin_clzll (x))
+#  define count_trailing_zeros(count, x) ((count) = __builtin_ctzll (x))
+#  define COUNT_LEADING_ZEROS_0 64
+# endif
+#endif
+
 #if defined (__M32R__) && W_TYPE_SIZE == 32
 #define add_ssaaaa(sh, sl, ah, al, bh, bl) \
   /* The cmp clears the condition bit.  */ \
@@ -1053,6 +1061,20 @@ extern UDItype __umulsidi3 (USItype, USItype);
 #endif
 
 #if defined(__riscv)
+
+#ifdef __riscv_zbb
+#if W_TYPE_SIZE == 32
+#define count_leading_zeros(COUNT, X)   ((COUNT) = __builtin_clz (X))
+#define count_trailing_zeros(COUNT, X)   ((COUNT) = __builtin_ctz (X))
+#define COUNT_LEADING_ZEROS_0 32
+#endif /* W_TYPE_SIZE == 32 */
+#if W_TYPE_SIZE == 64
+#define count_leading_zeros(COUNT, X)   ((COUNT) = __builtin_clzll (X))
+#define count_trailing_zeros(COUNT, X)   ((COUNT) = __builtin_ctzll (X))
+#define COUNT_LEADING_ZEROS_0 64
+#endif /* W_TYPE_SIZE == 64 */
+#endif /* __riscv_zbb */
+
 #ifdef __riscv_mul
 #define __umulsidi3(u,v) ((UDWtype)(UWtype)(u) * (UWtype)(v))
 #define __muluw3(a, b) ((UWtype)(a) * (UWtype)(b))
@@ -1561,6 +1583,7 @@ extern UHItype __stormy16_count_leading_zeros (UHItype);
       for ((count) = 0, size = W_TYPE_SIZE; size; size -= 16)		\
 	{								\
 	  UHItype c;							\
+	  extern UHItype __clzhi2 (UHItype);				\
 									\
 	  c = __clzhi2 ((x) >> (size - 16));				\
 	  (count) += c;							\

@@ -180,12 +180,8 @@ extern _fpos_t __sseek (struct _reent *, void *, _fpos_t, int);
 extern int    __sclose (struct _reent *, void *);
 extern int    __stextmode (int);
 extern void   __sinit (struct _reent *);
-extern void   _cleanup_r (struct _reent *);
 extern void   __smakebuf_r (struct _reent *, FILE *);
 extern int    __swhatbuf_r (struct _reent *, FILE *, size_t *, int *);
-extern int    _fwalk (struct _reent *, int (*)(FILE *));
-extern int    _fwalk_reent (struct _reent *, int (*)(struct _reent *, FILE *));
-struct _glue * __sfmoreglue (struct _reent *,int n);
 extern int __submore (struct _reent *, FILE *);
 
 #ifdef __LARGE64_FILES
@@ -197,37 +193,12 @@ extern _READ_WRITE_RETURN_TYPE __swrite64 (struct _reent *, void *,
 
 /* Called by the main entry point fns to ensure stdio has been initialized.  */
 
-#if defined(_REENT_SMALL) && !defined(_REENT_GLOBAL_STDIO_STREAMS)
 #define CHECK_INIT(ptr, fp) \
   do								\
     {								\
       struct _reent *_check_init_ptr = (ptr);			\
-      if ((_check_init_ptr) && !(_check_init_ptr)->__sdidinit)	\
-	__sinit (_check_init_ptr);				\
-      if ((fp) == (FILE *)&__sf_fake_stdin)			\
-	(fp) = _stdin_r(_check_init_ptr);			\
-      else if ((fp) == (FILE *)&__sf_fake_stdout)		\
-	(fp) = _stdout_r(_check_init_ptr);			\
-      else if ((fp) == (FILE *)&__sf_fake_stderr)		\
-	(fp) = _stderr_r(_check_init_ptr);			\
-    }								\
-  while (0)
-#else /* !_REENT_SMALL || _REENT_GLOBAL_STDIO_STREAMS */
-#define CHECK_INIT(ptr, fp) \
-  do								\
-    {								\
-      struct _reent *_check_init_ptr = (ptr);			\
-      if ((_check_init_ptr) && !(_check_init_ptr)->__sdidinit)	\
-	__sinit (_check_init_ptr);				\
-    }								\
-  while (0)
-#endif /* !_REENT_SMALL || _REENT_GLOBAL_STDIO_STREAMS */
-
-#define CHECK_STD_INIT(ptr) \
-  do								\
-    {								\
-      struct _reent *_check_init_ptr = (ptr);			\
-      if ((_check_init_ptr) && !(_check_init_ptr)->__sdidinit)	\
+      if (!_REENT_IS_NULL(_check_init_ptr) &&			\
+	  !_REENT_CLEANUP(_check_init_ptr))			\
 	__sinit (_check_init_ptr);				\
     }								\
   while (0)
@@ -260,21 +231,57 @@ extern _READ_WRITE_RETURN_TYPE __swrite64 (struct _reent *, void *,
  * Set the orientation for a stream. If o > 0, the stream has wide-
  * orientation. If o < 0, the stream has byte-orientation.
  */
-#define ORIENT(fp,ori)					\
-  do								\
-    {								\
-      if (!((fp)->_flags & __SORD))	\
-	{							\
-	  (fp)->_flags |= __SORD;				\
-	  if (ori > 0)						\
-	    (fp)->_flags2 |= __SWID;				\
-	  else							\
-	    (fp)->_flags2 &= ~__SWID;				\
-	}							\
-    }								\
-  while (0)
+#define ORIENT(fp,ori)			\
+  (					\
+    (					\
+      ((fp)->_flags & __SORD) ?		\
+	0				\
+      :					\
+	(				\
+	  ((fp)->_flags |= __SORD),	\
+	  (ori > 0) ?			\
+	    ((fp)->_flags2 |= __SWID)	\
+	  :				\
+	    ((fp)->_flags2 &= ~__SWID)	\
+	)				\
+    ),					\
+    ((fp)->_flags2 & __SWID) ? 1 : -1	\
+  )
 #else
-#define ORIENT(fp,ori)
+#define ORIENT(fp,ori) (-1)
+#endif
+
+/* Same thing as the functions in stdio.h, but these are to be called
+   from inside the wide-char functions. */
+int	__swbufw_r (struct _reent *, int, FILE *);
+#ifdef __GNUC__
+_ELIDABLE_INLINE int __swputc_r(struct _reent *_ptr, int _c, FILE *_p) {
+#ifdef __SCLE
+	if ((_p->_flags & __SCLE) && _c == '\n')
+	  __swputc_r (_ptr, '\r', _p);
+#endif
+	if (--_p->_w >= 0 || (_p->_w >= _p->_lbfsize && (char)_c != '\n'))
+		return (*_p->_p++ = _c);
+	else
+		return (__swbufw_r(_ptr, _c, _p));
+}
+#else
+#define       __swputc_raw_r(__ptr, __c, __p) \
+	(--(__p)->_w < 0 ? \
+		(__p)->_w >= (__p)->_lbfsize ? \
+			(*(__p)->_p = (__c)), *(__p)->_p != '\n' ? \
+				(int)*(__p)->_p++ : \
+				__swbufw_r(__ptr, '\n', __p) : \
+			__swbufw_r(__ptr, (int)(__c), __p) : \
+		(*(__p)->_p = (__c), (int)*(__p)->_p++))
+#ifdef __SCLE
+#define __swputc_r(__ptr, __c, __p) \
+        ((((__p)->_flags & __SCLE) && ((__c) == '\n')) \
+          ? __swputc_raw_r(__ptr, '\r', (__p)) : 0 , \
+        __swputc_raw_r((__ptr), (__c), (__p)))
+#else
+#define __swputc_r(__ptr, __c, __p) __swputc_raw_r(__ptr, __c, __p)
+#endif
 #endif
 
 /* WARNING: _dcvt is defined in the stdlib directory, not here!  */
@@ -299,8 +306,6 @@ char *_llicvt (char *, long long, char);
 #else
 void __sfp_lock_acquire (void);
 void __sfp_lock_release (void);
-void __sinit_lock_acquire (void);
-void __sinit_lock_release (void);
 #endif
 
 /* Types used in positional argument support in vfprinf/vfwprintf.

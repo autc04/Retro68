@@ -66,11 +66,6 @@ import core.exception : onOutOfMemoryError;
 import core.stdc.stdlib : calloc, realloc, free;
 import std.stdio;
 
-// Special function for internal use only.
-// Use of this is where the slot had better be a delegate
-// to an object or an interface that is part of an object.
-extern (C) Object _d_toObject(void* p);
-
 // Used in place of Object.notifyRegister and Object.notifyUnRegister.
 alias DisposeEvt = void delegate(Object);
 extern (C) void  rt_attachDisposeEvent( Object obj, DisposeEvt evt );
@@ -624,7 +619,7 @@ void linkin() { }
     a.value6 = 46;
 }
 
-// Triggers bug from issue 15341
+// Triggers bug from https://issues.dlang.org/show_bug.cgi?id=15341
 @system unittest
 {
     class Observer
@@ -666,7 +661,7 @@ version (none) // Disabled because of https://issues.dlang.org/show_bug.cgi?id=5
     }
 }
 
-// Triggers bug from issue 16249
+// Triggers bug from https://issues.dlang.org/show_bug.cgi?id=16249
 @system unittest
 {
     class myLINE

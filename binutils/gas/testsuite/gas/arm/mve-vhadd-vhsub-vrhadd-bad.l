@@ -14,36 +14,66 @@
 [^:]*:22: Warning: instruction is UNPREDICTABLE with SP operand
 [^:]*:23: Warning: instruction is UNPREDICTABLE with PC operand
 [^:]*:24: Error: garbage following instruction -- `vrhadd.s8 q0,q1,r2'
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:25: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:25: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:25: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:25: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:25: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:25: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:25: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:26: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:26: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:26: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:26: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:26: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:26: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:27: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:27: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:27: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:27: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:27: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:27: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:28: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:28: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:28: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:28: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:28: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:28: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:29: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:29: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:29: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:29: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:29: *Info: macro .*
+[^:]*:4: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:29: *Info: macro .*
 [^:]*:31: Error: syntax error -- `vhaddeq.s8 q0,q1,r2'
 [^:]*:32: Error: syntax error -- `vhaddeq.s8 q0,q1,r2'
 [^:]*:34: Error: syntax error -- `vhaddeq.s8 q0,q1,r2'

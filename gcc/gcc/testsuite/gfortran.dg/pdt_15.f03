@@ -1,7 +1,7 @@
 ! { dg-do compile }
 ! { dg-options "-fdump-tree-original" }
 !
-! Test the fix for PR82375. This is a wrinkle on the the allocatable
+! Test the fix for PR82375. This is a wrinkle on the allocatable
 ! version of pdt_13.f03, pdt_14.f03, whereby 'root' is now declared
 ! in a subroutine so that it should be cleaned up automatically. This
 ! is best tested with valgrind or its like.
@@ -98,9 +98,9 @@ contains
     if (int (pop_8 (root)) .ne. 3) STOP 1
     if (int (pop_8 (root)) .ne. 2) STOP 2
     if (int (pop_8 (root)) .ne. 1) STOP 3
-!    if (int (pop_8 (root)) .ne. 0) STOP 4
+    if (int (pop_8 (root)) .ne. 0) STOP 4
   end subroutine
 end program ch2701
-! { dg-final { scan-tree-dump-times "Pdtlink_8._deallocate " 5 "original" } }
-! { dg-final { scan-tree-dump-times ".n.data = 0B" 8 "original" } }
-! { dg-final { scan-tree-dump-times "__builtin_free" 14 "original" } }
+! { dg-final { scan-tree-dump-times "PDTlink_8._deallocate " 5 "original" } }
+! { dg-final { scan-tree-dump-times ".n.data = 0B" 9 "original" } }
+! { dg-final { scan-tree-dump-times "__builtin_free" 15 "original" } }

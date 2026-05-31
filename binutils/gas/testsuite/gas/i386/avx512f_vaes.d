@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 AVX512F/VAES insns
 #source: avx512f_vaes.s

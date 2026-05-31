@@ -79,6 +79,7 @@ foo:
 	llihl	%r9,65535
 	llilh	%r9,65535
 	llill	%r9,65535
+	llghi	%r9,65535
 	lmd	%r9,%r6,4095(%r5),4095(%r10)
 	lmg	%r9,%r6,4095(%r5)
 	lmh	%r9,%r6,4095(%r5)
@@ -143,3 +144,9 @@ foo:
 	tracg	%r9,%r6,4095(%r5)
 	xg	%r9,4095(%r5,%r10)
 	xgr	%r9,%r6
+	brasl	%r6,.
+	jasl	%r6,.
+	brasl	%r6,.-0x100000000
+	jasl	%r6,.-0x100000000
+	brasl	%r6,.+0xfffffffe
+	jasl	%r6,.+0xfffffffe

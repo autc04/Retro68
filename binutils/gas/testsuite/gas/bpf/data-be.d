@@ -1,4 +1,4 @@
-#as: --EB
+#as: -EB -mdialect=normal
 #source: data.s
 #objdump: -s -j .data
 #name: eBPF data directives, big endian

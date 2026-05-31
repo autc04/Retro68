@@ -1,11 +1,13 @@
 #objdump: --dwarf=frames
+# This test is only valid on ELF based ports.
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 # Test assembling a file with functions signed by two different pointer
 # authentication keys. It must interpret .cfi_b_key_frame properly and emit a
 # 'B' character into the correct CIE's augmentation string.
 
 .+:     file .+
 
-Contents of the .eh_frame section:
+Contents of the \.eh_frame section:
 
 0+ 0+10 0+ CIE
   Version:               1

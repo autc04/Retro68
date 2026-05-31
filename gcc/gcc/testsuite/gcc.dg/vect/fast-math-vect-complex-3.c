@@ -1,3 +1,4 @@
+/* { dg-additional-options "-ffast-math" } */
 /* { dg-require-effective-target vect_float } */
 
 #include <stdarg.h>
@@ -47,6 +48,7 @@ main (void)
   foo ();
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
   {
     if (c[i] != res[i])

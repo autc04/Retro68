@@ -1,4 +1,4 @@
-# Copyright (C) 2001-2022 Free Software Foundation, Inc.
+# Copyright (C) 2001-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -289,7 +289,7 @@ proc auto-profopt-execute { src } {
         return
     }
     set profile_wrapper [profopt-perf-wrapper]
-    set profile_option "-gdwarf-4 -DFOR_AUTOFDO_TESTING"
+    set profile_option "-g -DFOR_AUTOFDO_TESTING"
     set feedback_option "-fauto-profile -DFOR_AUTOFDO_TESTING -fearly-inlining"
     set run_autofdo 1
     profopt-execute $src
@@ -312,6 +312,8 @@ proc profopt-execute { src } {
     global generate_final_code use_final_code
     global verbose
     global testname_with_flags
+    global additional_sources_used
+    global GCC_UNDER_TEST
 
     if ![info exists profile_option] {
         error "No profile option specified for first compile."
@@ -382,13 +384,14 @@ proc profopt-execute { src } {
 	    unsupported "$testcase"
 	    unset testname_with_flags
 	    verbose "$src not supported on this target, skipping it" 3
+	    cleanup-after-saved-dg-test
 	    return
 	}
 
 	# schedule removal of dump files et al
 	# Do this before the call below destroys additional_sources..
 	append use_final_code [schedule-cleanups "$option $extra_flags"]
-        set extra_options [dg-additional-files-options "" "$src"]
+        set extra_options [dg-additional-files-options "" "$src" $execname1 "executable"]
 
 	# Remove old profiling data files.  Make sure additional_sources_used is
 	# valid, by running it after dg-additional-files-options.
@@ -451,13 +454,22 @@ proc profopt-execute { src } {
 	    # convert profile
 	    if { $run_autofdo == 1 } {
                 set bprefix "afdo."
-		set cmd "create_gcov --binary $execname1 --profile=$tmpdir/$base.perf.data -gcov_version=2 --gcov=$tmpdir/$bprefix$base.$ext"
+		set compiler [lindex $GCC_UNDER_TEST 0]
+		set autofdo_version [string trim [lindex [remote_exec target "$compiler --print-autofdo-gcov-version"] 1] ]
+		set profiler_check [string trim [lindex [remote_exec target "perf --no-pager list | grep arm_spe"] 1]]
+		if {$profiler_check ne ""} {
+		    set profiler "perf_spe"
+		} else {
+		    set profiler "perf"
+		}
+		set cmd "create_gcov --binary $execname1 --profile=$tmpdir/$base.perf.data --profiler=$profiler --gcov_version=$autofdo_version --gcov=$tmpdir/$bprefix$base.$ext"
 		verbose "Running $cmd"
 		set id [remote_spawn "" $cmd]
 		if { $id < 0 } {
 		    unsupported "$testcase -fauto-profile: cannot run create_gcov"
 		    unset testname_with_flags
 		    set status "fail"
+		    cleanup-after-saved-dg-test
 		    return
 		}
 		set status [remote_wait "" 300]
@@ -471,6 +483,19 @@ proc profopt-execute { src } {
 		    set status "fail"
 		    set missing_file 1
 		    fail "$testcase execution: file $bprefix$base.$ext does not exist, $option $profile_option"
+		}
+		if [info exists additional_sources_used] {
+		    foreach srcfile $additional_sources_used {
+			set add_basename [file tail $srcfile]
+			set add_base [file rootname $add_basename]
+			remote_upload target $tmpdir/$bprefix$add_base.$ext
+			set files [glob -nocomplain $bprefix$add_base.$ext]
+			if { $files == "" } {
+			    set status "fail"
+			    set missing_file 1
+			    fail "$testcase execution: file $bprefix$add_base.$ext does not exist, $option $profile_option"
+			}
+		    }
 		}
 	    }
 	}
@@ -604,4 +629,5 @@ proc profopt-execute { src } {
 	}
     }
     unset testname_with_flags
+    cleanup-after-saved-dg-test
 }

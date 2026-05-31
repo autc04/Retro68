@@ -1,10 +1,28 @@
 dnl This is the newlib configure.in file.
 dnl Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.59)
 AC_INIT([newlib],[NEWLIB_VERSION])
 AC_CONFIG_SRCDIR([libc])
-AC_CONFIG_HEADERS([_newlib_version.h:_newlib_version.hin newlib.h:newlib.hin])
+
+dnl Since we can't control what defines autoheader picks up (various autoconf
+dnl macros will add their own), filter out all the ones w/out a _ prefix.  All
+dnl the ones we want to export use a _ prefix, and all the rest we don't want
+dnl to export as it'll pollute the namespace of newlib users.
+dnl We also filter out version defines that we want in _newlib_version.h.
+dnl NB: newlib.h must be the first AC_CONFIG_HEADERS call for autoheader.
+AC_CONFIG_HEADERS(
+  [newlib.h:newlib.hin],
+  [sed -i.tmp -E -e '/^#define [^_]/d' -e '/^\/\* #undef [^_]/d' -e '/_NEWLIB_VERSION|__NEWLIB_(MINOR|PATCHLEVEL)__|__NEWLIB__/d' newlib.h && rm -f newlib.h.tmp])
+AH_TOP([/* NB: The contents are filtered before being installed. */
+
+#ifndef __NEWLIB_H__
+#define __NEWLIB_H__ 1
+
+/* Newlib version */
+#include <_newlib_version.h>])
+AH_BOTTOM([#endif /* !__NEWLIB_H__ */])
+
+AC_CONFIG_HEADERS([_newlib_version.h:_newlib_version.hin])
 
 dnl Can't be done in NEWLIB_CONFIGURE because that confuses automake. 
 AC_CONFIG_AUX_DIR(..)
@@ -127,16 +145,16 @@ AC_ARG_ENABLE(newlib-atexit-dynamic-alloc,
 
 dnl Support --enable-newlib-global-atexit
 dnl Enable atexit data structure as global variables to save memory usage in
-dnl _reent.
+dnl _reent.  This is no longer optional.  It is enabled in all Newlib
+dnl configurations.
 AC_ARG_ENABLE(newlib-global-atexit,
 [  --enable-newlib-global-atexit	enable atexit data structure as global],
 [if test "${newlib_global_atexit+set}" != set; then
   case "${enableval}" in
     yes) newlib_global_atexit=yes ;;
-    no)  newlib_global_atexit=no  ;;
     *)   AC_MSG_ERROR(bad value ${enableval} for newlib-global-atexit option) ;;
   esac
- fi], [newlib_global_atexit=no])dnl
+ fi], [newlib_global_atexit=yes])dnl
 
 dnl Support --enable-newlib-reent-small
 AC_ARG_ENABLE(newlib-reent-small,
@@ -147,14 +165,36 @@ AC_ARG_ENABLE(newlib-reent-small,
   *)   AC_MSG_ERROR(bad value ${enableval} for newlib-reent-small option) ;;
  esac], [newlib_reent_small=])dnl
 
+dnl Support --enable-newlib-reent-binary-compat
+AC_ARG_ENABLE(newlib-reent-binary-compat,
+[  --enable-newlib-reent-binary-compat   enable backward binary compatibility for struct _reent],
+[if test "${newlib_reent_binary_compat+set}" != set; then
+  case "${enableval}" in
+    yes) newlib_reent_binary_compat=yes ;;
+    no)  newlib_reent_binary_compat=no  ;;
+    *)   AC_MSG_ERROR(bad value ${enableval} for newlib-enable-reent-binary-compat option) ;;
+  esac
+ fi], [newlib_reent_binary_compat=no])dnl
+
+dnl Support --enable-newlib-reent-thread-local
+AC_ARG_ENABLE(newlib-reent-thread-local,
+[  --enable-newlib-reent-thread-local   enable thread-local storage objects as a replacment for struct _reent members],
+[if test "${newlib_reent_thread_local+set}" != set; then
+  case "${enableval}" in
+    yes) newlib_reent_thread_local=yes ;;
+    no)  newlib_reent_thread_local=no  ;;
+    *)   AC_MSG_ERROR(bad value ${enableval} for newlib-enable-reent-thread-local option) ;;
+  esac
+ fi], [newlib_reent_thread_local=no])dnl
+
 dnl Support --enable-newlib-global-stdio-streams
+dnl This is no longer optional.  It is enabled in all Newlib configurations.
 AC_ARG_ENABLE(newlib-global-stdio-streams,
 [  --enable-newlib-global-stdio-streams   enable global stdio streams],
 [case "${enableval}" in
   yes) newlib_global_stdio_streams=yes;;
-  no)  newlib_global_stdio_streams=no ;;
   *)   AC_MSG_ERROR(bad value ${enableval} for newlib-global-stdio-streams option) ;;
- esac], [newlib_global_stdio_streams=])dnl
+ esac], [newlib_global_stdio_streams=yes])dnl
  
 dnl Support --disable-newlib-fvwrite-in-streamio
 AC_ARG_ENABLE(newlib-fvwrite-in-streamio,
@@ -201,6 +241,7 @@ AC_ARG_ENABLE(newlib-nano-malloc,
     *)   AC_MSG_ERROR(bad value ${enableval} for newlib-nano-malloc option) ;;
   esac
  fi], [newlib_nano_malloc=])dnl
+AM_CONDITIONAL(NEWLIB_NANO_MALLOC, test x$newlib_nano_malloc = xyes)
 
 dnl Support --disable-newlib-unbuf-stream-opt
 AC_ARG_ENABLE(newlib-unbuf-stream-opt,
@@ -230,12 +271,13 @@ dnl Support --enable-newlib-nano-formatted-io
 dnl This option is also read in libc/configure.in.  It is repeated
 dnl here so that it shows up in the help text.
 AC_ARG_ENABLE(newlib_nano_formatted_io,
-[  --enable-newlib-nano-formatted-io    Use nano version formatted IO],
+[  --enable-newlib-nano-formatted-io    Use small-footprint nano-formatted-IO implementation],
 [case "${enableval}" in
    yes) newlib_nano_formatted_io=yes ;;
    no)  newlib_nano_formatted_io=no ;;
    *) AC_MSG_ERROR(bad value ${enableval} for newlib-nano-formatted-io) ;;
  esac],[newlib_nano_formatted_io=no])
+AM_CONDITIONAL(NEWLIB_NANO_FORMATTED_IO, test x$newlib_nano_formatted_io = xyes)
 
 dnl Support --enable-retargetable-locking
 dnl This option is also read in libc/configure.in.  It is repeated
@@ -247,6 +289,7 @@ AC_ARG_ENABLE(newlib-retargetable-locking,
    no)  newlib_retargetable_locking=no ;;
    *) AC_MSG_ERROR(bad value ${enableval} for newlib-retargetable-locking) ;;
  esac],[newlib_retargetable_locking=no])
+AM_CONDITIONAL(NEWLIB_RETARGETABLE_LOCKING, test x$newlib_retargetable_locking = xyes)
 
 dnl Support --enable-newlib-long-time_t
 AC_ARG_ENABLE(newlib-long-time_t,
@@ -270,18 +313,28 @@ AC_ARG_ENABLE(newlib-use-gdtoa,
   esac
  fi], [newlib_use_gdtoa=yes])dnl
 
-NEWLIB_CONFIGURE(.)
+dnl Support --enable-newlib-use-malloc-in-execl
+AC_ARG_ENABLE(newlib-use-malloc-in-execl,
+[  --enable-newlib-use-malloc-in-execl   use malloc instead of alloca in execl, execle and execlp],
+[case "${enableval}" in
+  yes) newlib_use_malloc_in_execl=yes;;
+  no)  newlib_use_malloc_in_execl=no ;;
+  *)   AC_MSG_ERROR(bad value ${enableval} for newlib-use-malloc-in-execl option) ;;
+ esac], [newlib_use_malloc_in_execl=no])dnl
 
-dnl We have to enable libtool after NEWLIB_CONFIGURE because if we try and
-dnl add it into NEWLIB_CONFIGURE, executable tests are made before the first
-dnl line of the macro which fail because appropriate LDFLAGS are not set.
-_LT_DECL_SED
-_LT_PROG_ECHO_BACKSLASH
-AC_PROG_AWK
-if test "${use_libtool}" = "yes"; then
-AC_LIBTOOL_WIN32_DLL
-AM_PROG_LIBTOOL
-fi
+dnl Support --enable-newlib-hw-misaligned-access
+AC_ARG_ENABLE(newlib-hw-misaligned-access,
+[  --enable-newlib-hw-misaligned-access   Use hardware word-by-word access instead of byte-by-byte for misaligned memory ],
+[if test "${newlib_hw_misaligned_access+set}" != set; then
+  case "${enableval}" in
+  yes) newlib_hw_misaligned_access=yes;;
+  no)  newlib_hw_misaligned_access=no ;;
+  *)   AC_MSG_ERROR(bad value ${enableval} for newlib-hw-misaligned-access option) ;;
+  esac
+ fi], [newlib_hw_misaligned_access=])dnl
+
+AM_ENABLE_MULTILIB(, ..)
+NEWLIB_CONFIGURE(.)
 
 dnl The following is being disabled because the mathfp library is
 dnl not up to standard due to inaccuracies caused by some of the
@@ -301,7 +354,6 @@ AM_CONDITIONAL(NEWLIB_HW_FP, test x$newlib_hw_fp = xtrue)
 # These get added in the top-level configure.in, except in the case where
 # newlib is being built natively.
 LIBC_INCLUDE_GREP=`echo ${CC} | grep \/libc\/include`
-abs_newlib_basedir=`cd ${newlib_basedir} && pwd`
 if test -z "${LIBC_INCLUDE_GREP}"; then
   CC_FOR_NEWLIB="${CC} -I$PWD/targ-include -I${abs_newlib_basedir}/libc/include"
 else
@@ -309,8 +361,8 @@ else
 fi
 AC_SUBST(CC_FOR_NEWLIB)
 
-AC_CONFIG_SUBDIRS(libc)
-AC_CONFIG_SUBDIRS(libm)
+m4_include([libc/acinclude.m4])
+m4_include([libm/acinclude.m4])
 
 if test -z "${with_multisubdir}"; then
   have_multisubdir=no
@@ -334,20 +386,11 @@ AM_CONDITIONAL(HAVE_DOC, test x$have_multisubdir = xno)
 # subdirectory withing the build directory.
 AM_CONDITIONAL(HAVE_MULTISUBDIR, test x$have_multisubdir = xyes)
 
-EXTRA_DIRS=
-case $host in
-  i[[34567]]86-pc-linux-*)
-  	AC_CONFIG_SUBDIRS(iconvdata)
-	EXTRA_DIRS=iconvdata
-	;;
-esac
-AC_SUBST(EXTRA_DIRS)
-
 CRT0=
 CRT0_DIR=
 if test "x${have_crt0}" = "xyes"; then
   CRT0=crt0.o
-  CRT0_DIR=libc/
+  CRT0_DIR=libc/sys/${sys_dir}/
 fi
 AM_CONDITIONAL(HAVE_CRT0, test x$have_crt0 = xyes)
 AC_SUBST(CRT0)
@@ -360,51 +403,6 @@ if test -n "${crt1_dir}"; then
 fi
 AC_SUBST(CRT1)
 AC_SUBST(CRT1_DIR)
-
-if test -n "${libm_machine_dir}"; then
-  LIBM_MACHINE_OBJECTLIST=libm/machine/${libm_machine_dir}/objectlist.awk.in
-fi
-AC_SUBST(LIBM_MACHINE_OBJECTLIST)
-
-if test -n "${machine_dir}"; then
-  MACHINE_OBJECTLIST=libc/machine/${machine_dir}/objectlist.awk.in
-fi
-AC_SUBST(MACHINE_OBJECTLIST)
-
-if test -n "${sys_dir}"; then
-  SYS_OBJECTLIST=libc/sys/${sys_dir}/objectlist.awk.in
-fi
-AC_SUBST(SYS_OBJECTLIST)
-
-if test "${have_sys_mach_dir}" = "yes"; then
-  SYS_MACH_OBJECTLIST=libc/sys/${sys_dir}/machine/${machine_dir}/objectlist.awk.in
-fi
-AC_SUBST(SYS_MACH_OBJECTLIST)
-
-if test -n "${posix_dir}"; then
-  POSIX_OBJECTLIST=libc/${posix_dir}/objectlist.awk.in
-fi
-AC_SUBST(POSIX_OBJECTLIST)
-
-if test -n "${signal_dir}"; then
-  SIGNAL_OBJECTLIST=libc/${signal_dir}/objectlist.awk.in
-fi
-AC_SUBST(SIGNAL_OBJECTLIST)
-
-if test -n "${syscall_dir}"; then
-  SYSCALL_OBJECTLIST=libc/${syscall_dir}/objectlist.awk.in
-fi
-AC_SUBST(SYSCALL_OBJECTLIST)
-
-if test -n "${unix_dir}"; then
-  UNIX_OBJECTLIST=libc/${unix_dir}/objectlist.awk.in
-fi
-AC_SUBST(UNIX_OBJECTLIST)
-
-if test -n "${stdio64_dir}"; then
-  STDIO64_OBJECTLIST=libc/${stdio64_dir}/objectlist.awk.in
-fi
-AC_SUBST(STDIO64_OBJECTLIST)
 
 # Put a plausible default for CC_FOR_BUILD in Makefile.
 if test -z "$CC_FOR_BUILD"; then
@@ -435,121 +433,145 @@ EOF
 fi
 AC_SUBST(EXEEXT_FOR_BUILD)
 
+AC_DEFINE(_NEWLIB_VERSION, "NEWLIB_VERSION", [The newlib version in string format.])
+AC_DEFINE(__NEWLIB__, NEWLIB_MAJOR_VERSION, [The newlib major version number.])
+AC_DEFINE(__NEWLIB_MINOR__, NEWLIB_MINOR_VERSION, [The newlib minor version number.])
+AC_DEFINE(__NEWLIB_PATCHLEVEL__, NEWLIB_PATCHLEVEL_VERSION, [The newlib patch level.])
+
 if test "${newlib_elix_level}" -gt "0"; then
-AC_DEFINE_UNQUOTED(_ELIX_LEVEL,${newlib_elix_level})
+  AC_DEFINE_UNQUOTED(_ELIX_LEVEL, ${newlib_elix_level}, [EL/IX level])
 fi
 
 if test "${newlib_reent_check_verify}" = "yes"; then
-AC_DEFINE_UNQUOTED(_REENT_CHECK_VERIFY)
+  AC_DEFINE(_REENT_CHECK_VERIFY, 1, [Verify _REENT_CHECK macros allocate memory successfully.])
 fi
 
 if test "${newlib_io_c99_formats}" = "yes"; then
-AC_DEFINE_UNQUOTED(_WANT_IO_C99_FORMATS)
+  AC_DEFINE(_WANT_IO_C99_FORMATS, 1, [Enable C99 formats support (e.g. %a, %zu, ...) in IO functions like printf/scanf.])
 fi
 
 if test "${newlib_register_fini}" = "yes"; then
-AC_DEFINE_UNQUOTED(_WANT_REGISTER_FINI)
+  AC_DEFINE(_WANT_REGISTER_FINI, 1, [Register application finalization function using atexit.])
 fi
 
 if test "${newlib_io_long_long}" = "yes"; then
-AC_DEFINE_UNQUOTED(_WANT_IO_LONG_LONG)
+  AC_DEFINE(_WANT_IO_LONG_LONG, 1, [Define to enable long long type support in IO functions like printf/scanf.])
 fi
 
 if test "${newlib_io_long_double}" = "yes"; then
-AC_DEFINE_UNQUOTED(_WANT_IO_LONG_DOUBLE)
+  AC_DEFINE(_WANT_IO_LONG_DOUBLE, 1, [Define to enable long double type support in IO functions like printf/scanf.])
 fi
 
 if test "${newlib_io_pos_args}" = "yes"; then
-AC_DEFINE_UNQUOTED(_WANT_IO_POS_ARGS)
+  AC_DEFINE(_WANT_IO_POS_ARGS, 1, [Positional argument support in printf functions enabled.])
 fi
 
 if test "${newlib_reent_small}" = "yes"; then
-AC_DEFINE_UNQUOTED(_WANT_REENT_SMALL)
+  AC_DEFINE(_WANT_REENT_SMALL, 1, [Optional reentrant struct support.  Used mostly on platforms with very restricted storage.])
 fi
 
-if test "${newlib_global_stdio_streams}" = "yes"; then
-AC_DEFINE_UNQUOTED(_WANT_REENT_GLOBAL_STDIO_STREAMS)
+if test "${newlib_reent_binary_compat}" = "yes"; then
+  AC_DEFINE(_WANT_REENT_BACKWARD_BINARY_COMPAT, 1, [Define to enable backward binary compatibility for struct _reent.])
 fi
 
+if test "${newlib_reent_thread_local}" = "yes"; then
+  AC_DEFINE(_WANT_REENT_THREAD_LOCAL, 1, [Define to enable thread-local storage objects as a replacment for struct _reent members.])
+fi
+
+_mb_len_max=1
 if test "${newlib_mb}" = "yes"; then
-AC_DEFINE_UNQUOTED(_MB_CAPABLE)
-AC_DEFINE_UNQUOTED(_MB_LEN_MAX,8)
-else
-AC_DEFINE_UNQUOTED(_MB_LEN_MAX,1)
+  AC_DEFINE(_MB_CAPABLE, 1, [Multibyte supported.])
+  _mb_len_max=8
 fi
+AC_DEFINE_UNQUOTED(_MB_LEN_MAX, $_mb_len_max, [Multibyte max length.])
 
-if test "${newlib_iconv_external_ccs}" = "yes"; then
-AC_DEFINE_UNQUOTED(_ICONV_ENABLE_EXTERNAL_CCS)
-fi
-
-AC_DEFINE(_NEWLIB_VERSION,"NEWLIB_VERSION","The newlib version in string format.")
-AC_DEFINE(__NEWLIB__,NEWLIB_MAJOR_VERSION,"The newlib major version number.")
-AC_DEFINE(__NEWLIB_MINOR__,NEWLIB_MINOR_VERSION,"The newlib minor version number.")
-AC_DEFINE(__NEWLIB_PATCHLEVEL__,NEWLIB_PATCHLEVEL_VERSION,"The newlib patch level.")
-
-if test "${multilib}" = "yes"; then
-  multilib_arg="--enable-multilib"
-else
-  multilib_arg=
-fi
+dnl These are AC_SUBST instead of AC_DEFINE as they're hand maintained in a
+dnl dedicated _newlib_version.h, and we don't want them in newlib.h.
+AC_SUBST([NEWLIB_VERSION])
+AC_SUBST([NEWLIB_MAJOR_VERSION])
+AC_SUBST([NEWLIB_MINOR_VERSION])
+AC_SUBST([NEWLIB_PATCHLEVEL_VERSION])
 
 if test "${newlib_iconv}" = "yes"; then
-AC_DEFINE_UNQUOTED(_ICONV_ENABLED,1)
+  AC_DEFINE(_ICONV_ENABLED, 1, [ICONV enabled.])
 fi
 
 if test "x${newlib_iconv_external_ccs}" = "xyes"; then
   if test "x${newlib_iconv}" = "x"; then
       AC_MSG_ERROR(--enable-newlib-iconv-external-ccs option can't be used if iconv library is disabled, use --enable-newlib-iconv to enable it.)
   fi
-  AC_DEFINE_UNQUOTED(_ICONV_ENABLE_EXTERNAL_CCS,1)
+  AC_DEFINE(_ICONV_ENABLE_EXTERNAL_CCS, 1, [Enable ICONV external CCS files loading capabilities.])
 fi
 
 if test "${newlib_atexit_dynamic_alloc}" = "yes"; then
-AC_DEFINE_UNQUOTED(_ATEXIT_DYNAMIC_ALLOC)
-fi
-
-if test "${newlib_global_atexit}" = "yes"; then
-AC_DEFINE_UNQUOTED(_REENT_GLOBAL_ATEXIT)
+  AC_DEFINE(_ATEXIT_DYNAMIC_ALLOC, 1, [If atexit() may dynamically allocate space for cleanup functions.])
 fi
 
 if test "${newlib_fvwrite_in_streamio}" = "yes"; then
-AC_DEFINE_UNQUOTED(_FVWRITE_IN_STREAMIO)
+  AC_DEFINE(_FVWRITE_IN_STREAMIO, 1, [Define if ivo supported in streamio.])
 fi
 
 if test "${newlib_fseek_optimization}" = "yes"; then
-AC_DEFINE_UNQUOTED(_FSEEK_OPTIMIZATION)
+  AC_DEFINE(_FSEEK_OPTIMIZATION, 1, [Define if fseek functions support seek optimization.])
 fi
 
 if test "${newlib_wide_orient}" = "yes"; then
-AC_DEFINE_UNQUOTED(_WIDE_ORIENT)
+  AC_DEFINE(_WIDE_ORIENT, 1, [Define if wide char orientation is supported.])
 fi
 
 if test "${newlib_nano_malloc}" = "yes"; then
-AC_DEFINE_UNQUOTED(_NANO_MALLOC)
+  AC_DEFINE(_NANO_MALLOC, 1, [nano version of malloc is used.])
 fi
 
 if test "${newlib_unbuf_stream_opt}" = "yes"; then
-AC_DEFINE_UNQUOTED(_UNBUF_STREAM_OPT)
+  AC_DEFINE(_UNBUF_STREAM_OPT, 1, [Define if unbuffered stream file optimization is supported.])
 fi
 
 if test "${lite_exit}" = "yes"; then
-AC_DEFINE_UNQUOTED(_LITE_EXIT)
+  AC_DEFINE(_LITE_EXIT, 1, [Define if lite version of exit supported.])
 fi
 
 if test "${newlib_nano_formatted_io}" = "yes"; then
-AC_DEFINE_UNQUOTED(_NANO_FORMATTED_IO)
+  AC_DEFINE(_NANO_FORMATTED_IO, 1, [Define if small footprint nano-formatted-IO implementation used.])
 fi
 
 if test "${newlib_retargetable_locking}" = "yes"; then
-AC_DEFINE_UNQUOTED(_RETARGETABLE_LOCKING)
+  AC_DEFINE(_RETARGETABLE_LOCKING, 1, [Define if using retargetable functions for default lock routines.])
 fi
 
 if test "${newlib_long_time_t}" = "yes"; then
-AC_DEFINE_UNQUOTED(_WANT_USE_LONG_TIME_T)
+  AC_DEFINE(_WANT_USE_LONG_TIME_T, 1, [Define to use type long for time_t.])
 fi
 
 if test "${newlib_use_gdtoa}" = "yes"; then
-AC_DEFINE_UNQUOTED(_WANT_USE_GDTOA)
+  AC_DEFINE(_WANT_USE_GDTOA, 1, [Define if using gdtoa rather than legacy ldtoa.])
+fi
+
+if test "${newlib_use_malloc_in_execl}" = "yes"; then
+  AC_DEFINE(_EXECL_USE_MALLOC, 1, [Define if using malloc for execl, execle and execlp.])
+fi
+
+if test "x${newlib_hw_misaligned_access}" = "x"; then
+  AC_CACHE_CHECK([if $CC has enabled misaligned hardware access],
+              [newlib_cv_hw_misaligned_access], [dnl
+  cat > conftest.c <<EOF
+#if __riscv_misaligned_fast || __riscv_misaligned_slow
+void misalign_access_supported(void) {}
+#else
+#error "misaligned access is not supported"
+#endif
+EOF
+  newlib_cv_hw_misaligned_access=no
+  if AC_TRY_COMMAND([${CC-cc} $CFLAGS $CPPFLAGS -c conftest.c])
+  then
+    newlib_cv_hw_misaligned_access=yes
+  fi
+  rm -f conftest*])
+  newlib_hw_misaligned_access=$newlib_cv_hw_misaligned_access
+fi
+
+if test "${newlib_hw_misaligned_access}" = "yes"; then
+  AC_DEFINE(_HAVE_HW_MISALIGNED_ACCESS, 1, [Define if hardware has little to no penalty for misaligned memory access.])
 fi
 
 dnl
@@ -589,9 +611,9 @@ if test "x${iconv_encodings}" != "x" \
   dnl Enable appropriate option in newlib.h
   for encoding in ${iconv_encodings}; do
       opt=_ICONV_TO_ENCODING_`echo "${encoding}" | sed -e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/'`
-      AC_DEFINE_UNQUOTED($opt,1)
+      eval "$opt=1"
       opt=_ICONV_FROM_ENCODING_`echo "${encoding}" | sed -e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/'`
-      AC_DEFINE_UNQUOTED($opt,1)
+      eval "$opt=1"
   done
 
   dnl iconv_to_encodings
@@ -608,7 +630,7 @@ if test "x${iconv_encodings}" != "x" \
   dnl Enable appropriate option in newlib.h
   for encoding in ${iconv_to_encodings}; do
       opt=_ICONV_TO_ENCODING_`echo "${encoding}" | sed -e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/'`
-      AC_DEFINE_UNQUOTED($opt,1)
+      eval "$opt=1"
   done
 
   dnl iconv_from_encodings
@@ -625,12 +647,13 @@ if test "x${iconv_encodings}" != "x" \
   dnl Enable appropriate option in newlib.h
   for encoding in ${iconv_from_encodings}; do
       opt=_ICONV_FROM_ENCODING_`echo "${encoding}" | sed -e 'y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/'`
-      AC_DEFINE_UNQUOTED($opt,1)
+      eval "$opt=1"
   done
 fi;
+NEWLIB_ICONV_DEFINES
 
 AC_CACHE_CHECK(for .preinit_array/.init_array/.fini_array support,
-	       libc_cv_initfinit_array, [dnl
+	       newlib_cv_initfinit_array, [dnl
 cat > conftest.c <<EOF
 int _start (void) { return 0; }
 int __start (void) { return 0; }
@@ -641,71 +664,42 @@ if AC_TRY_COMMAND([${CC} $CFLAGS $CPPFLAGS -c -o conftest conftest.c
 							1>&AS_MESSAGE_LOG_FD])
 then
   if ${READELF} -S conftest | grep -e INIT_ARRAY > /dev/null; then
-    libc_cv_initfinit_array=yes
+    newlib_cv_initfinit_array=yes
   else
-    libc_cv_initfinit_array=no
+    newlib_cv_initfinit_array=no
   fi
 else
-  libc_cv_initfinit_array=no
+  newlib_cv_initfinit_array=no
 fi
 rm -f conftest*])
-AC_SUBST(libc_cv_initfinit_array)
-if test $libc_cv_initfinit_array = yes; then
-  AC_DEFINE_UNQUOTED(HAVE_INITFINI_ARRAY)
+if test $newlib_cv_initfinit_array = yes; then
+  AC_DEFINE(_HAVE_INITFINI_ARRAY, 1, [Define if the linker supports .preinit_array/.init_array/.fini_array sections.])
 fi
 
 AC_CACHE_CHECK(if $CC accepts -fno-tree-loop-distribute-patterns with \
-__attribute__ ((__optimize__)), libc_cv_cc_loop_to_function, [dnl
+__attribute__ ((__optimize__)), newlib_cv_cc_loop_to_function, [dnl
 cat > conftest.c <<EOF
 void
 __attribute__ ((__optimize__ ("-fno-tree-loop-distribute-patterns")))
 foo (void) {}
 EOF
-libc_cv_cc_loop_to_function=no
+newlib_cv_cc_loop_to_function=no
 if AC_TRY_COMMAND([${CC-cc} $CFLAGS $CPPFLAGS -c
 			    -fno-tree-loop-distribute-patterns conftest.c])
 then
-  libc_cv_cc_loop_to_function=yes
+  newlib_cv_cc_loop_to_function=yes
 fi
 rm -f conftest*])
-if test $libc_cv_cc_loop_to_function = yes; then
-  AC_DEFINE(_HAVE_CC_INHIBIT_LOOP_TO_LIBCALL)
+if test $newlib_cv_cc_loop_to_function = yes; then
+  AC_DEFINE(_HAVE_CC_INHIBIT_LOOP_TO_LIBCALL, 1, [Define if compiler supports -fno-tree-loop-distribute-patterns.])
 fi
-AC_SUBST(libc_cv_cc_loop_to_function)
 
-dnl Autoconf 2.59 doesn't support the AC_TYPE_LONG_DOUBLE macro. Instead of:
-dnl   AC_TYPE_LONG_DOUBLE
-dnl   AM_CONDITIONAL(HAVE_LONG_DOUBLE, test x"$ac_cv_type_long_double" = x"yes")
-dnl we specify our own long double test.
-dnl Additionally, ac_cv_objext is broken so that AC_COMPILE_IFELSE cannot be
-dnl used, so use AC_TRY_COMMAND instead.
-AC_CACHE_CHECK(whether long double type exists,
-	       acnewlib_cv_type_long_double, [dnl
-cat > conftest.c <<EOF
-/* Check two ways:  float.h defines and direct type declaration.  */
-#include <float.h>
-#if defined(LDBL_MANT_DIG)
-  #define _HAVE_LONG_DOUBLE
- #else
-  #error "LDBL != DBL"
-#endif
-long double test() {
-long double ld = 0.0L;
-return ld;
-}
-EOF
-if AC_TRY_COMMAND([${CC} $CFLAGS $CPPFLAGS -c -o conftest.o conftest.c
-							1>&AS_MESSAGE_LOG_FD])
-then
-  acnewlib_cv_type_long_double=yes;
-else
-  acnewlib_cv_type_long_double=no;
+AC_TYPE_LONG_DOUBLE
+dnl Export the setting for our installed headers to check.
+if test $ac_cv_type_long_double = yes; then
+  AC_DEFINE(_HAVE_LONG_DOUBLE, 1, [Define if the platform supports long double type.])
 fi
-rm -f conftest*])
-if test $acnewlib_cv_type_long_double = yes; then
-  AC_DEFINE_UNQUOTED(_HAVE_LONG_DOUBLE)
-fi
-AM_CONDITIONAL(HAVE_LONG_DOUBLE, test x"$acnewlib_cv_type_long_double" = x"yes")
+AM_CONDITIONAL(HAVE_LONG_DOUBLE, test x"$ac_cv_type_long_double" = x"yes")
 
 AC_CACHE_CHECK(whether long double equals double,
 	       newlib_cv_ldbl_eq_dbl, [dnl
@@ -727,23 +721,8 @@ else
 fi
 rm -f conftest*])
 if test $newlib_cv_ldbl_eq_dbl = yes; then
-  AC_DEFINE_UNQUOTED(_LDBL_EQ_DBL)
+  AC_DEFINE(_LDBL_EQ_DBL, 1, [Define if the platform long double type is equal to double.])
 fi
 
-AC_SUBST(CFLAGS)
-
-AC_CONFIG_FILES([Makefile],
-[if test -n "$CONFIG_FILES"; then
-  unset ac_file
-  . ${newlib_basedir}/../config-ml.in
-fi],
-srcdir=${srcdir}
-host=${host}
-with_multisubdir=${with_multisubdir}
-ac_configure_args="${multilib_arg} ${ac_configure_args}"
-CONFIG_SHELL=${CONFIG_SHELL-/bin/sh}
-newlib_basedir=${newlib_basedir}
-CC="${CC}"
-LDFLAGS="${LDFLAGS}"
-)
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

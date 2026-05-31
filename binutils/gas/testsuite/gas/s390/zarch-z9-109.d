@@ -1,4 +1,4 @@
-#name: s390x opcode
+#name: s390x opcodes (z9 109)
 #objdump: -drw
 
 .*: +file format .*
@@ -36,6 +36,7 @@ Disassembly of section .text:
 .*:	b9 85 00 69 [	 ]*llghr	%r6,%r9
 .*:	c0 6e ff ff ff ff [	 ]*llihf	%r6,4294967295
 .*:	c0 6f ff ff ff ff [	 ]*llilf	%r6,4294967295
+.*:	c0 6f ff ff ff ff [	 ]*llilf	%r6,4294967295
 .*:	c0 6c ff ff ff ff [	 ]*oihf	%r6,4294967295
 .*:	c0 6d ff ff ff ff [	 ]*oilf	%r6,4294967295
 .*:	c2 65 ff ff ff ff [	 ]*slfi	%r6,4294967295
@@ -70,4 +71,5 @@ Disassembly of section .text:
 .*:	ed 95 af ff 60 38 [	 ]*mayl	%f6,%f9,4095\(%r5,%r10\)
 .*:	b9 be 00 67 [	 ]*srstu	%r6,%r7
 .*:	d0 16 5f ff ad 05 [	 ]*trtr	4095\(23,%r5\),3333\(%r10\)
+.*:	c0 69 ff ff ff ff [	 ]*iilf	%r6,4294967295
 .*:	07 07 [	 ]*nopr	%r7

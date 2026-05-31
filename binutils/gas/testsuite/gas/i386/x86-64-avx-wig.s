@@ -1,6 +1,5 @@
 # Check AVX WIG instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vaddpd %ymm4,%ymm6,%ymm2

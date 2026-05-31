@@ -1,6 +1,6 @@
 #name: x86-64 rela relocs w/ non-zero relocated fields
 #as: --64
-#source: ${srcdir}/../../../gas/testsuite/gas/i386/rela.s
+#source: ../../../gas/testsuite/gas/i386/rela.s
 #ld: -melf_x86_64
 #objdump: -sj .data
 

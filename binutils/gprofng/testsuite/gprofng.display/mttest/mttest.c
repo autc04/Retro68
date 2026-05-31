@@ -1,4 +1,4 @@
-/* Copyright (C) 2021 Free Software Foundation, Inc.
+/* Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by Oracle.
 
    This file is part of GNU Binutils.
@@ -171,7 +171,7 @@ void computeJ (workStruct_t *x);
 void computeK (workStruct_t *x);
 void addone (workCtr_t *x);
 void init_arrays (int strat);
-void dump_arrays ();
+void dump_arrays (hrtime_t real, hrtime_t cpu, int case_index);
 void *do_work (void *v);
 void thread_work ();
 void nothreads (Workblk *array, struct scripttab *k);

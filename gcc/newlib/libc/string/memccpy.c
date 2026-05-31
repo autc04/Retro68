@@ -31,29 +31,7 @@ PORTABILITY
 #include <stddef.h>
 #include <string.h>
 #include <limits.h>
-
-/* Nonzero if either X or Y is not aligned on a "long" boundary.  */
-#define UNALIGNED(X, Y) \
-  (((long)X & (sizeof (long) - 1)) | ((long)Y & (sizeof (long) - 1)))
-
-/* How many bytes are copied each iteration of the word copy loop.  */
-#define LITTLEBLOCKSIZE (sizeof (long))
-
-/* Threshhold for punting to the byte copier.  */
-#define TOO_SMALL(LEN)  ((LEN) < LITTLEBLOCKSIZE)
-
-/* Macros for detecting endchar */
-#if LONG_MAX == 2147483647L
-#define DETECTNULL(X) (((X) - 0x01010101) & ~(X) & 0x80808080)
-#else
-#if LONG_MAX == 9223372036854775807L
-/* Nonzero if X (a long int) contains a NULL byte. */
-#define DETECTNULL(X) (((X) - 0x0101010101010101) & ~(X) & 0x8080808080808080)
-#else
-#error long int is not a 32bit or 64bit type.
-#endif
-#endif
-
+#include "local.h"
 
 void *
 memccpy (void *__restrict dst0,
@@ -80,18 +58,18 @@ memccpy (void *__restrict dst0,
   return ptr;
 #else
   void *ptr = NULL;
-  char *dst = dst0;
-  const char *src = src0;
+  unsigned char *dst = dst0;
+  const unsigned char *src = src0;
   long *aligned_dst;
   const long *aligned_src;
-  char endchar = endchar0 & 0xff;
+  unsigned char endchar = endchar0 & 0xff;
 
   /* If the size is small, or either SRC or DST is unaligned,
      then punt into the byte copy loop.  This should be rare.  */
-  if (!TOO_SMALL(len0) && !UNALIGNED (src, dst))
+  if (!TOO_SMALL_LITTLE_BLOCK(len0) && !UNALIGNED_X_Y(src, dst))
     {
       unsigned int i;
-      unsigned long mask = 0;
+      unsigned long mask;
 
       aligned_dst = (long*)dst;
       aligned_src = (long*)src;
@@ -102,24 +80,25 @@ memccpy (void *__restrict dst0,
          the word-sized segment with a word-sized block of the search
          character and then detecting for the presence of NULL in the
          result.  */
-      for (i = 0; i < LITTLEBLOCKSIZE; i++)
-        mask = (mask << 8) + endchar;
-
+      mask = endchar << 8 | endchar;
+      mask = mask << 16 | mask;
+      for (i = 32; i < sizeof(mask) * 8; i <<= 1)
+        mask = (mask << i) | mask;
 
       /* Copy one long word at a time if possible.  */
-      while (len0 >= LITTLEBLOCKSIZE)
+      while (!TOO_SMALL_LITTLE_BLOCK(len0))
         {
           unsigned long buffer = (unsigned long)(*aligned_src);
           buffer ^=  mask;
-          if (DETECTNULL (buffer))
+          if (DETECT_NULL(buffer))
             break; /* endchar is found, go byte by byte from here */
           *aligned_dst++ = *aligned_src++;
-          len0 -= LITTLEBLOCKSIZE;
+          len0 -= LITTLE_BLOCK_SIZE;
         }
 
        /* Pick up any residual with a byte copier.  */
-      dst = (char*)aligned_dst;
-      src = (char*)aligned_src;
+      dst = (unsigned char*)aligned_dst;
+      src = (unsigned char*)aligned_src;
     }
 
   while (len0--)

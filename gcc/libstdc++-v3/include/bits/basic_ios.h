@@ -1,6 +1,6 @@
 // Iostreams base classes -*- C++ -*-
 
-// Copyright (C) 1997-2022 Free Software Foundation, Inc.
+// Copyright (C) 1997-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,8 +30,11 @@
 #ifndef _BASIC_IOS_H
 #define _BASIC_IOS_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
+#include <bits/functexcept.h>
 #include <bits/localefwd.h>
 #include <bits/locale_classes.h>
 #include <bits/locale_facets.h>
@@ -53,7 +56,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   /**
    *  @brief Template class basic_ios, virtual base class for all
-   *  stream classes. 
+   *  stream classes.
    *  @ingroup io
    *
    *  @tparam _CharT  Type of character stream.
@@ -66,6 +69,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _CharT, typename _Traits>
     class basic_ios : public ios_base
     {
+#if __cplusplus >= 202002L
+      static_assert(is_same_v<_CharT, typename _Traits::char_type>);
+#endif
+
     public:
       ///@{
       /**
@@ -114,6 +121,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  <code>if (!a_stream) ...</code> and <code>while (a_stream) ...</code>
       */
 #if __cplusplus >= 201103L
+      _GLIBCXX_NODISCARD
       explicit operator bool() const
       { return !this->fail(); }
 #else
@@ -121,6 +129,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { return this->fail() ? 0 : const_cast<basic_ios*>(this); }
 #endif
 
+      _GLIBCXX_NODISCARD
       bool
       operator!() const
       { return this->fail(); }
@@ -133,6 +142,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  See std::ios_base::iostate for the possible bit values.  Most
        *  users will call one of the interpreting wrappers, e.g., good().
       */
+      _GLIBCXX_NODISCARD
       iostate
       rdstate() const
       { return _M_streambuf_state; }
@@ -157,9 +167,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       setstate(iostate __state)
       { this->clear(this->rdstate() | __state); }
 
-      // Flip the internal state on for the proper state bits, then
+      // Flips the internal state on for the proper state bits, then
       // rethrows the propagated exception if bit also set in
-      // exceptions().
+      // exceptions(). Must only be called within a catch handler.
       void
       _M_setstate(iostate __state)
       {
@@ -167,7 +177,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	// Turn this on without causing an ios::failure to be thrown.
 	_M_streambuf_state |= __state;
 	if (this->exceptions() & __state)
-	  __throw_exception_again;
+	  { __throw_exception_again; }
       }
 
       /**
@@ -176,6 +186,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *
        *  A wrapper around rdstate.
       */
+      _GLIBCXX_NODISCARD
       bool
       good() const
       { return this->rdstate() == 0; }
@@ -186,6 +197,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *
        *  Note that other iostate flags may also be set.
       */
+      _GLIBCXX_NODISCARD
       bool
       eof() const
       { return (this->rdstate() & eofbit) != 0; }
@@ -197,6 +209,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  Checking the badbit in fail() is historical practice.
        *  Note that other iostate flags may also be set.
       */
+      _GLIBCXX_NODISCARD
       bool
       fail() const
       { return (this->rdstate() & (badbit | failbit)) != 0; }
@@ -207,6 +220,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *
        *  Note that other iostate flags may also be set.
       */
+      _GLIBCXX_NODISCARD
       bool
       bad() const
       { return (this->rdstate() & badbit) != 0; }
@@ -218,6 +232,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  This changes nothing in the stream.  See the one-argument version
        *  of exceptions(iostate) for the meaning of the return value.
       */
+      _GLIBCXX_NODISCARD
       iostate
       exceptions() const
       { return _M_exception; }
@@ -291,6 +306,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  stream.  When this stream performs any I/O, the tied stream is
        *  first flushed.  For example, @c std::cin is tied to @c std::cout.
       */
+      _GLIBCXX_NODISCARD
       basic_ostream<_CharT, _Traits>*
       tie() const
       { return _M_tie; }
@@ -317,6 +333,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *
        *  This does not change the state of the stream.
       */
+      _GLIBCXX_NODISCARD
       basic_streambuf<_CharT, _Traits>*
       rdbuf() const
       { return _M_streambuf; }
@@ -366,14 +383,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *
        *  It defaults to a space (' ') in the current locale.
       */
+      _GLIBCXX_NODISCARD
       char_type
       fill() const
       {
-	if (!_M_fill_init)
-	  {
-	    _M_fill = this->widen(' ');
-	    _M_fill_init = true;
-	  }
+	if (__builtin_expect(!_M_fill_init, false))
+	  return this->widen(' ');
 	return _M_fill;
       }
 
@@ -389,8 +404,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       char_type
       fill(char_type __ch)
       {
-	char_type __old = this->fill();
+	char_type __old = _M_fill;
 	_M_fill = __ch;
+	_M_fill_init = true;
 	return __old;
       }
 
@@ -404,7 +420,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  with this stream, calls that buffer's @c pubimbue(loc).
        *
        *  Additional l10n notes are at
-       *  http://gcc.gnu.org/onlinedocs/libstdc++/manual/localization.html
+       *  https://gcc.gnu.org/onlinedocs/libstdc++/manual/localization.html
       */
       locale
       imbue(const locale& __loc);
@@ -424,7 +440,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  @endcode
        *
        *  Additional l10n notes are at
-       *  http://gcc.gnu.org/onlinedocs/libstdc++/manual/localization.html
+       *  https://gcc.gnu.org/onlinedocs/libstdc++/manual/localization.html
       */
       char
       narrow(char_type __c, char __dfault) const
@@ -443,7 +459,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  @endcode
        *
        *  Additional l10n notes are at
-       *  http://gcc.gnu.org/onlinedocs/libstdc++/manual/localization.html
+       *  https://gcc.gnu.org/onlinedocs/libstdc++/manual/localization.html
       */
       char_type
       widen(char __c) const
@@ -458,7 +474,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
        *  accessible to users.
       */
       basic_ios()
-      : ios_base(), _M_tie(0), _M_fill(char_type()), _M_fill_init(false), 
+      : ios_base(), _M_tie(0), _M_fill(char_type()), _M_fill_init(false),
 	_M_streambuf(0), _M_ctype(0), _M_num_put(0), _M_num_get(0)
       { }
 

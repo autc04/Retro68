@@ -1,5 +1,5 @@
 # Support routines for display-testing machinery in gprofng testsuite.
-#   Copyright (C) 1994-2021 Free Software Foundation, Inc.
+#   Copyright (C) 1994-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -21,28 +21,26 @@
 # Run the COMMAND on the host and return a list of the form
 # { exit-status OUTPUT }.
 proc run_native_host_cmd { command } {
-    global link_output
-    global ld
+    global TEST_TIMEOUT
 
     verbose -log "$command"
     set run_output ""
     try {
-	set run_output [exec "sh" "-c" "$command" "2>@1"]
+	send_log "% timeout $TEST_TIMEOUT sh -c '$command' 2>@1\n"
+	set run_output [exec "timeout" $TEST_TIMEOUT "sh" "-c" "$command" "2>@1"]
 	set status 0
     } trap CHILDSTATUS {results options} {
 	set status [lindex [dict get $options -errorcode] 2]
-	set run_output $results
+	set run_output "$results"
+	if { $status == 124 ||  $status == 133 } {
+	    send_log "  ERROR: TIMEOUT($TEST_TIMEOUT sec.)\n"
+	}
     }
     regsub "\n$" $run_output "" run_output
     if { [lindex $status 0] != 0 && [string match "" $run_output] } then {
 	append run_output "child process exited abnormally"
     }
-
-    if [string match "" $run_output] then {
-	return ""
-    }
-
-    return [list [lindex $status 0] $run_output]
+    return [list [lindex $status 0] "$run_output"]
 }
 
 # Run a display test in DIR.
@@ -50,7 +48,7 @@ proc run_native_host_cmd { command } {
 # display options, collect flags, app options?  Do we want these to be
 # set on a per-app basis? (If so, they should probably be driven by a
 # file in the test dir.)
-proc run_display_test { dir cflags gprofflags } {
+proc run_display_test { dir cflags gprofflags tflags } {
     global srcdir MAKE CC CFLAGS LDFLAGS LIBS BUILDDIR
     set stripped [string map {" " ""} $dir]
     set testdir [string map {" " ""} "$dir.$cflags,$gprofflags"]
@@ -58,7 +56,7 @@ proc run_display_test { dir cflags gprofflags } {
     set tdir "tmpdir/$testdir"
 	send_log "create dir: $tdir\n"
 	set output [run_native_host_cmd "mkdir -p $tdir"]
-	set gprofng [exec find $BUILDDIR/tmpdir -type f -name gprofng -perm -u+x | head -1]
+	set gprofng $::env(GPROFNG)
 
 	set fd [open "$tdir/rules.txt" "w"]
 	switch -regexp -- $testdir {
@@ -80,6 +78,7 @@ proc run_display_test { dir cflags gprofflags } {
 
     set make_args "-f $sdir/Makefile srcdir=\"$sdir\" builddir=\"$BUILDDIR\" \
         VPATH=\"$dir\" CC=\"$CC\" CFLAGS=\"$cflags\" LDFLAGS=\"$LDFLAGS\" \
+        TARGET_FLAGS=\"$tflags\" \
         DISPLAY_FLAGS=\"$DISPLAY_FLAGS\" \
         COLLECT_FLAGS=\"$gprofflags\" GPROFNG=\"$gprofng\" MAKE=\"$MAKE\""
     set output [run_native_host_cmd "cd $tdir && $MAKE $make_args all"]

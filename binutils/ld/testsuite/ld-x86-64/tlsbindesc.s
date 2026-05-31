@@ -126,3 +126,68 @@ fn2:
 
 	leave
 	ret
+
+	/* IE against global var  */
+	addq	sG2@gottpoff(%rip), %r16
+	addq	%rax, sG2@gottpoff(%rip), %r16
+	addq	sG2@gottpoff(%rip), %rax, %r16
+	{nf} addq	sG2@gottpoff(%rip), %r16
+	{nf} addq	%rax, sG2@gottpoff(%rip), %r16
+	{nf} addq	sG2@gottpoff(%rip), %rax, %r16
+
+	/* IE -> LE against global var defined in exec */
+	addq	sg1@gottpoff(%rip), %r17
+	addq	%r8, sg1@gottpoff(%rip), %r17
+	addq	sg1@gottpoff(%rip), %r8, %r17
+	{nf} addq	sg1@gottpoff(%rip), %r17
+	{nf} addq	%r8, sg1@gottpoff(%rip), %r17
+	{nf} addq	sg1@gottpoff(%rip), %r8, %r17
+
+	/* IE -> LE against local var */
+	addq	sl1@gottpoff(%rip), %r18
+	addq	%r8, sl1@gottpoff(%rip), %rax
+	addq	sl1@gottpoff(%rip), %r8, %rax
+	{nf} addq	sl1@gottpoff(%rip), %r18
+	{nf} addq	%r8, sl1@gottpoff(%rip), %rax
+	{nf} addq	sl1@gottpoff(%rip), %r8, %rax
+
+	/* IE -> LE against hidden var */
+	addq	sh1@gottpoff(%rip), %r19
+	addq	%r19, sh1@gottpoff(%rip), %r8
+	addq	sh1@gottpoff(%rip), %r19, %r8
+	{nf} addq	sh1@gottpoff(%rip), %r19
+	{nf} addq	%r19, sh1@gottpoff(%rip), %r8
+	{nf} addq	sh1@gottpoff(%rip), %r19, %r8
+
+	/* Direct access through %fs  */
+
+	/* IE against global var  */
+	movq	sG5@gottpoff(%rip), %r20
+	movrs	sG5@gottpoff(%rip), %r10
+	movrs	sG5@gottpoff(%rip), %r20
+
+	/* IE->LE against local var  */
+	movq	sl5@gottpoff(%rip), %r21
+	movrs	sl5@gottpoff(%rip), %r11
+	movrs	sl5@gottpoff(%rip), %r21
+
+	/* IE->LE against hidden var  */
+	movq	sh5@gottpoff(%rip), %r22
+	movrs	sh5@gottpoff(%rip), %r12
+	movrs	sh5@gottpoff(%rip), %r22
+
+	/* GD -> IE because variable is not defined in executable */
+	leaq	sG1@tlsdesc(%rip), %r16
+
+	/* GD -> IE because variable is not defined in executable where
+	   the variable is referenced through IE too */
+	leaq	sG2@tlsdesc(%rip), %r17
+
+	/* GD -> LE with global variable defined in executable */
+	leaq	sg1@tlsdesc(%rip), %r18
+
+	/* GD -> LE with local variable defined in executable */
+	leaq	sl1@tlsdesc(%rip), %r19
+
+	/* GD -> LE with hidden variable defined in executable */
+	leaq	sh1@tlsdesc(%rip), %r20

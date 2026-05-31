@@ -1,7 +1,7 @@
 # name: Big endian float16 literals (IEEE 754 & Alternative)
 # source: float16.s
 # objdump: -s --section=.data
-# as: -mbig-endian
+# as: -mbig-endian -mfpu=softvfp
 
 .*: +file format .*arm.*
 

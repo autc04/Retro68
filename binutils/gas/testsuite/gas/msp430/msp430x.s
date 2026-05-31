@@ -281,3 +281,9 @@ foo:
 	rpt r4 { rrax.a r4
 	rpt #5 { rlax.b r5
 	rpt #6 { rlcx.a r6
+
+	;;  Make sure that the range checking gets #imm20 correct.
+	adda    #-524288, r12
+	adda	#524287, r11
+	adda    #-0x80000, r12
+	adda	#0x7ffff, r11

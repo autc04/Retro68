@@ -1,5 +1,5 @@
 // EXTRA_CPP_SOURCES: cpp_abi_tests.cpp
-// CXXFLAGS(linux freebsd osx netbsd dragonflybsd): -std=c++11
+// CXXFLAGS(linux freebsd osx openbsd netbsd dragonflybsd): -std=c++11
 
 // N.B MSVC doesn't have a C++11 switch, but it defaults to the latest fully-supported standard
 // N.B MSVC 2013 doesn't support char16_t/char32_t
@@ -207,6 +207,8 @@ extern(C++, `ns1`)
 
 extern(C++)
 {
+    // https://issues.dlang.org/show_bug.cgi?id=19563
+
     struct SmallStruct
     {
         int i;
@@ -220,13 +222,56 @@ extern(C++)
     }
 }
 
+/*********************************************/
+// https://issues.dlang.org/show_bug.cgi?id=23195
+
+extern (C++)
+{
+    struct FF
+    {
+        float x, y;
+
+        ~this() { }
+    }
+
+    float draw(FF min, FF max);
+
+    void test23195()
+    {
+        FF a = { 1, 2 };
+        FF b = { 3, 4 };
+        float f = draw(a, b);
+        assert(f == 1234);
+    }
+
+    /*********************/
+
+    struct FF2
+    {
+        float x, y;
+
+        this(int i) { }
+    }
+
+    float draw2(FF2 min, FF2 max);
+
+    void test23195_2()
+    {
+        FF2 a; a.x = 1; a.y = 2;
+        FF2 b; b.x = 3; b.y = 4;
+        float f = draw2(a, b);
+        assert(f == 1234);
+    }
+}
+
+/*********************************************/
+
 void main()
 {
     foreach(bool val; values!bool())     check(val);
     foreach(byte val; values!byte())     check(val);
     foreach(ubyte val; values!ubyte())   check(val);
     foreach(char val; values!char())     check(val);
-version(CppRuntime_DigitalMars){} else
 version(CppRuntime_Microsoft)
 {
 // TODO: figure out how to detect VS2013 which doesn't support char16_t/char32_t
@@ -268,4 +313,6 @@ else
         doConsume2(sd);
         assert(Sdtor.counter == 2);
     }
+    test23195();
+    test23195_2();
 }

@@ -49,4 +49,7 @@ int main ()
    sub-optimal and causes memory explosion (even though the cost model
    should reject that in the end).  */
 
-/* { dg-final { scan-tree-dump-times "vectorized 0 loops in function" 2 "vect" } } */
+/* { dg-final { scan-tree-dump-times "vectorized 0 loops in function" 2 "vect" { target {! riscv*-*-* } } } } */
+/* We should end up using gathers for the strided load on RISC-V.  */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops in function" 1 "vect" { target { riscv*-*-* } } } } */
+/* { dg-final { scan-tree-dump "using gather/scatter for strided/grouped access" "vect" { target { riscv*-*-* } } } } */

@@ -3,9 +3,11 @@
 #name: mips jalx
 .*:     file format .*
 Disassembly of section .text:
-00000000 <.text>:
+0+000000 <.text>:
    0:	74000000 	jalx	0x0
 			0: R_MIPS_26	external_label
+#?.*R_MIPS_NONE.*
+#?.*R_MIPS_NONE.*
    4:	00000000 	nop
    8:	00000000 	nop
    c:	00000000 	nop

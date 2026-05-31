@@ -1,5 +1,6 @@
 /* Test for pr30485.  */
 /* { dg-require-effective-target vect_float } */
+/* { dg-additional-options "-fno-trapping-math" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -21,6 +22,7 @@ main1 (void)
     a[i] = (b[i] > 0 ? b[i] : 0);
   }
 
+#pragma GCC novector
   for (i = 0; i < N; i++)
   {
     if (a[i] != b[i])

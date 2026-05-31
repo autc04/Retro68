@@ -1,6 +1,6 @@
 // <semaphore> -*- C++ -*-
 
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,30 +29,34 @@
 #ifndef _GLIBCXX_SEMAPHORE
 #define _GLIBCXX_SEMAPHORE 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
-#if __cplusplus > 201703L
+#include <bits/requires_hosted.h> // concurrency
+
+#define __glibcxx_want_semaphore
+#include <bits/version.h>
+
+#ifdef __cpp_lib_semaphore // C++ >= 20 && hosted && atomic_wait
 #include <bits/semaphore_base.h>
 
-#if __cpp_lib_atomic_wait || _GLIBCXX_HAVE_POSIX_SEMAPHORE
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-#define __cpp_lib_semaphore 201907L
-
-  template<ptrdiff_t __least_max_value = __semaphore_impl::_S_max>
+  template<ptrdiff_t __least_max_value = _Semaphore_impl<2>::_S_max>
     class counting_semaphore
     {
       static_assert(__least_max_value >= 0);
-      static_assert(__least_max_value <= __semaphore_impl::_S_max);
 
-      __semaphore_impl _M_sem;
+      _Semaphore_impl<__least_max_value> _M_sem;
 
     public:
-      explicit counting_semaphore(ptrdiff_t __desired) noexcept
-	: _M_sem(__desired)
-      { }
+      constexpr explicit
+      counting_semaphore(ptrdiff_t __desired) noexcept
+      : _M_sem(__desired)
+      { __glibcxx_assert(__desired >= 0 && __desired <= max()); }
 
       ~counting_semaphore() = default;
 
@@ -64,8 +68,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       { return __least_max_value; }
 
       void
-      release(ptrdiff_t __update = 1) noexcept(noexcept(_M_sem._M_release(1)))
-      { _M_sem._M_release(__update); }
+      release(ptrdiff_t __update = 1) noexcept
+      {
+	[[maybe_unused]] ptrdiff_t __old = _M_sem._M_release(__update);
+	__glibcxx_assert(__update >= 0 && __update <= max() - __old);
+      }
 
       void
       acquire() noexcept(noexcept(_M_sem._M_acquire()))
@@ -86,10 +93,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	{ return _M_sem._M_try_acquire_until(__atime); }
     };
 
+  /** @brief A binary semaphore
+   *
+   * @since C++20
+   */
   using binary_semaphore = std::counting_semaphore<1>;
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
-#endif // cpp_lib_atomic_wait || _GLIBCXX_HAVE_POSIX_SEMAPHORE
-#endif // C++20
+#endif // __cpp_lib_semaphore
 #endif // _GLIBCXX_SEMAPHORE

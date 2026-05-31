@@ -1,6 +1,6 @@
 /* OpenACC Runtime initialization routines
 
-   Copyright (C) 2013-2022 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
    Contributed by Mentor Embedded.
 
@@ -171,21 +171,22 @@ acc_free (void *d)
 }
 
 static void
-memcpy_tofrom_device (bool from, void *d, void *h, size_t s, int async,
-		      const char *libfnname)
+memcpy_tofrom_device (bool dev_to, bool dev_from, void *dst, void *src,
+		      size_t s, int async, const char *libfnname)
 {
   /* No need to call lazy open here, as the device pointer must have
      been obtained from a routine that did that.  */
   struct goacc_thread *thr = goacc_thread ();
 
   assert (thr && thr->dev);
+  if (s == 0)
+    return;
 
   if (thr->dev->capabilities & GOMP_OFFLOAD_CAP_SHARED_MEM)
     {
-      if (from)
-	memmove (h, d, s);
-      else
-	memmove (d, h, s);
+      if (src == dst)
+	return;
+      memcpy (dst, src, s);
       return;
     }
 
@@ -199,10 +200,15 @@ memcpy_tofrom_device (bool from, void *d, void *h, size_t s, int async,
     }
 
   goacc_aq aq = get_goacc_asyncqueue (async);
-  if (from)
-    gomp_copy_dev2host (thr->dev, aq, h, d, s);
+  if (dev_to && dev_from)
+    {
+      if (dst != src)
+	gomp_copy_dev2dev (thr->dev, aq, dst, src, s);
+    }
+  else if (dev_from)
+    gomp_copy_dev2host (thr->dev, aq, dst, src, s);
   else
-    gomp_copy_host2dev (thr->dev, aq, d, h, s, false, /* TODO: cbuf? */ NULL);
+    gomp_copy_host2dev (thr->dev, aq, dst, src, s, false, /* TODO: cbuf? */ NULL);
 
   if (profiling_p)
     {
@@ -214,25 +220,37 @@ memcpy_tofrom_device (bool from, void *d, void *h, size_t s, int async,
 void
 acc_memcpy_to_device (void *d, void *h, size_t s)
 {
-  memcpy_tofrom_device (false, d, h, s, acc_async_sync, __FUNCTION__);
+  memcpy_tofrom_device (true, false, d, h, s, acc_async_sync, __FUNCTION__);
 }
 
 void
 acc_memcpy_to_device_async (void *d, void *h, size_t s, int async)
 {
-  memcpy_tofrom_device (false, d, h, s, async, __FUNCTION__);
+  memcpy_tofrom_device (true, false, d, h, s, async, __FUNCTION__);
 }
 
 void
 acc_memcpy_from_device (void *h, void *d, size_t s)
 {
-  memcpy_tofrom_device (true, d, h, s, acc_async_sync, __FUNCTION__);
+  memcpy_tofrom_device (false, true, h, d, s, acc_async_sync, __FUNCTION__);
 }
 
 void
 acc_memcpy_from_device_async (void *h, void *d, size_t s, int async)
 {
-  memcpy_tofrom_device (true, d, h, s, async, __FUNCTION__);
+  memcpy_tofrom_device (false, true, h, d, s, async, __FUNCTION__);
+}
+
+void
+acc_memcpy_device (void *dst, void *src, size_t s)
+{
+  memcpy_tofrom_device (true, true, dst, src, s, acc_async_sync, __FUNCTION__);
+}
+
+void
+acc_memcpy_device_async (void *dst, void *src, size_t s, int async)
+{
+  memcpy_tofrom_device (true, true, dst, src, s, async, __FUNCTION__);
 }
 
 /* Return the device pointer that corresponds to host data H.  Or NULL
@@ -411,7 +429,8 @@ acc_map_data (void *h, void *d, size_t s)
       assert (n->refcount == 1);
       assert (n->dynamic_refcount == 0);
       /* Special reference counting behavior.  */
-      n->refcount = REFCOUNT_INFINITY;
+      n->refcount = REFCOUNT_ACC_MAP_DATA;
+      n->dynamic_refcount = 1;
 
       if (profiling_p)
 	{
@@ -455,12 +474,7 @@ acc_unmap_data (void *h)
       gomp_fatal ("[%p,%d] surrounds %p",
 		  (void *) n->host_start, (int) host_size, (void *) h);
     }
-  /* TODO This currently doesn't catch 'REFCOUNT_INFINITY' usage different from
-     'acc_map_data'.  Maybe 'dynamic_refcount' can be used for disambiguating
-     the different 'REFCOUNT_INFINITY' cases, or simply separate
-     'REFCOUNT_INFINITY' values per different usage ('REFCOUNT_ACC_MAP_DATA'
-     etc.)?  */
-  else if (n->refcount != REFCOUNT_INFINITY)
+  else if (n->refcount != REFCOUNT_ACC_MAP_DATA)
     {
       gomp_mutex_unlock (&acc_dev->lock);
       gomp_fatal ("refusing to unmap block [%p,+%d] that has not been mapped"
@@ -468,13 +482,12 @@ acc_unmap_data (void *h)
 		  (void *) h, (int) host_size);
     }
 
-  struct target_mem_desc *tgt = n->tgt;
+  /* This should hold for all mappings created by acc_map_data. We are however
+     removing this mapping in a "finalize" manner, so dynamic_refcount > 1 does
+     not matter.  */
+  assert (n->dynamic_refcount >= 1);
 
-  if (tgt->refcount == REFCOUNT_INFINITY)
-    {
-      gomp_mutex_unlock (&acc_dev->lock);
-      gomp_fatal ("cannot unmap target block");
-    }
+  struct target_mem_desc *tgt = n->tgt;
 
   /* Above, we've verified that the mapping must have been set up by
      'acc_map_data'.  */
@@ -485,7 +498,7 @@ acc_unmap_data (void *h)
   tgt->tgt_end = 0;
   tgt->to_free = NULL;
 
-  bool is_tgt_unmapped = gomp_remove_var (acc_dev, n);
+  bool is_tgt_unmapped __attribute__((unused)) = gomp_remove_var (acc_dev, n);
   assert (is_tgt_unmapped);
 
   gomp_mutex_unlock (&acc_dev->lock);
@@ -519,7 +532,8 @@ goacc_map_var_existing (struct gomp_device_descr *acc_dev, void *hostaddr,
     }
 
   assert (n->refcount != REFCOUNT_LINK);
-  if (n->refcount != REFCOUNT_INFINITY)
+  if (n->refcount != REFCOUNT_INFINITY
+      && n->refcount != REFCOUNT_ACC_MAP_DATA)
     n->refcount++;
   n->dynamic_refcount++;
 
@@ -683,13 +697,30 @@ goacc_exit_datum_1 (struct gomp_device_descr *acc_dev, void *h, size_t s,
 
   assert (n->refcount != REFCOUNT_LINK);
   if (n->refcount != REFCOUNT_INFINITY
+      && n->refcount != REFCOUNT_ACC_MAP_DATA
       && n->refcount < n->dynamic_refcount)
     {
       gomp_mutex_unlock (&acc_dev->lock);
       gomp_fatal ("Dynamic reference counting assert fail\n");
     }
 
-  if (finalize)
+  if (n->refcount == REFCOUNT_ACC_MAP_DATA)
+    {
+      if (finalize)
+	{
+	  /* Mappings created by acc_map_data are returned to initial
+	     dynamic_refcount of 1. Can only be deleted by acc_unmap_data.  */
+	  n->dynamic_refcount = 1;
+	}
+      else if (n->dynamic_refcount)
+	{
+	  /* When mapping is created by acc_map_data, dynamic_refcount must be
+	     maintained at >= 1.  */
+	  if (n->dynamic_refcount > 1)
+	    n->dynamic_refcount--;
+	}
+    }
+  else if (finalize)
     {
       if (n->refcount != REFCOUNT_INFINITY)
 	n->refcount -= n->dynamic_refcount;
@@ -730,7 +761,8 @@ goacc_exit_datum_1 (struct gomp_device_descr *acc_dev, void *h, size_t s,
 	    if (n->tgt->list[l_i].key
 		&& !n->tgt->list[l_i].is_attach)
 	      ++num_mappings;
-	  bool is_tgt_unmapped = gomp_remove_var (acc_dev, n);
+	  bool is_tgt_unmapped __attribute__((unused))
+	    = gomp_remove_var (acc_dev, n);
 	  assert (is_tgt_unmapped || num_mappings > 1);
 	}
     }
@@ -937,7 +969,7 @@ acc_attach_async (void **hostaddr, int async)
     }
 
   gomp_attach_pointer (acc_dev, aq, &acc_dev->mem_map, n, (uintptr_t) hostaddr,
-		       0, NULL, false);
+		       0, NULL, false, true);
 
   gomp_mutex_unlock (&acc_dev->lock);
 }
@@ -1010,7 +1042,7 @@ static int
 find_group_last (int pos, size_t mapnum, size_t *sizes, unsigned short *kinds)
 {
   unsigned char kind0 = kinds[pos] & 0xff;
-  int first_pos = pos;
+  int first_pos __attribute__((unused)) = pos;
 
   switch (kind0)
     {
@@ -1028,6 +1060,7 @@ find_group_last (int pos, size_t mapnum, size_t *sizes, unsigned short *kinds)
       break;
 
     case GOMP_MAP_STRUCT:
+    case GOMP_MAP_STRUCT_UNORD:
       pos += sizes[pos];
       break;
 
@@ -1088,6 +1121,7 @@ goacc_enter_data_internal (struct gomp_device_descr *acc_dev, size_t mapnum,
       switch (kinds[i] & 0xff)
 	{
 	case GOMP_MAP_STRUCT:
+	case GOMP_MAP_STRUCT_UNORD:
 	  {
 	    size = (uintptr_t) hostaddrs[group_last] + sizes[group_last]
 		   - (uintptr_t) hostaddrs[i];
@@ -1129,7 +1163,8 @@ goacc_enter_data_internal (struct gomp_device_descr *acc_dev, size_t mapnum,
 	    }
 	  /* This is a special case because we must increment the refcount by
 	     the number of mapped struct elements, rather than by one.  */
-	  if (n->refcount != REFCOUNT_INFINITY)
+	  if (n->refcount != REFCOUNT_INFINITY
+	      && n->refcount != REFCOUNT_ACC_MAP_DATA)
 	    n->refcount += groupnum - 1;
 	  n->dynamic_refcount += groupnum - 1;
 	}
@@ -1141,7 +1176,7 @@ goacc_enter_data_internal (struct gomp_device_descr *acc_dev, size_t mapnum,
 	  if ((kinds[i] & 0xff) == GOMP_MAP_ATTACH)
 	    {
 	      gomp_attach_pointer (acc_dev, aq, &acc_dev->mem_map, n,
-				   (uintptr_t) h, s, NULL, false);
+				   (uintptr_t) h, s, NULL, false, true);
 	      /* OpenACC 'attach'/'detach' doesn't affect structured/dynamic
 		 reference counts ('n->refcount', 'n->dynamic_refcount').  */
 	    }
@@ -1150,8 +1185,7 @@ goacc_enter_data_internal (struct gomp_device_descr *acc_dev, size_t mapnum,
 	}
       else if (n && groupnum > 1)
 	{
-	  assert (n->refcount != REFCOUNT_INFINITY
-		  && n->refcount != REFCOUNT_LINK);
+	  assert (n->refcount != REFCOUNT_LINK);
 
 	  for (size_t j = i + 1; j <= group_last; j++)
 	    if ((kinds[j] & 0xff) == GOMP_MAP_ATTACH)
@@ -1160,12 +1194,51 @@ goacc_enter_data_internal (struct gomp_device_descr *acc_dev, size_t mapnum,
 		  = lookup_host (acc_dev, hostaddrs[j], sizeof (void *));
 		gomp_attach_pointer (acc_dev, aq, &acc_dev->mem_map, m,
 				     (uintptr_t) hostaddrs[j], sizes[j], NULL,
-				     false);
+				     false, true);
 	      }
 
 	  bool processed = false;
 
 	  struct target_mem_desc *tgt = n->tgt;
+
+	  /* Minimal OpenACC variant corresponding to PR96668
+	     "[OpenMP] Re-mapping allocated but previously unallocated
+	     allocatable does not work" 'libgomp/target.c' changes, so that
+	     OpenACC 'declare' code à la PR106643
+	     "[gfortran + OpenACC] Allocate in module causes refcount error"
+	     has a chance to work.  */
+	  if ((kinds[i] & 0xff) == GOMP_MAP_TO_PSET
+	      && tgt->list_count == 0)
+	    {
+	      /* 'declare target'.  */
+	      assert (n->refcount == REFCOUNT_INFINITY);
+
+	      for (size_t k = 1; k < groupnum; k++)
+		{
+		  /* The only thing we expect to see here.  */
+		  assert ((kinds[i + k] & 0xff) == GOMP_MAP_POINTER);
+		}
+
+	      /* Let 'goacc_map_vars' -> 'gomp_map_vars_internal' handle
+		 this.  */
+	      gomp_mutex_unlock (&acc_dev->lock);
+	      struct target_mem_desc *tgt_ __attribute__((unused))
+		= goacc_map_vars (acc_dev, aq, groupnum, &hostaddrs[i], NULL,
+				  &sizes[i], &kinds[i], true,
+				  GOMP_MAP_VARS_ENTER_DATA);
+	      assert (tgt_ == NULL);
+	      gomp_mutex_lock (&acc_dev->lock);
+
+	      /* Given that 'goacc_exit_data_internal'/'goacc_exit_datum_1'
+		 will always see 'n->refcount == REFCOUNT_INFINITY',
+		 there's no need to adjust 'n->dynamic_refcount' here.  */
+
+	      processed = true;
+	    }
+	  else
+	    assert (n->refcount != REFCOUNT_INFINITY
+		    && n->refcount != REFCOUNT_ACC_MAP_DATA);
+
 	  for (size_t j = 0; j < tgt->list_count; j++)
 	    if (tgt->list[j].key == n)
 	      {
@@ -1297,6 +1370,7 @@ goacc_exit_data_internal (struct gomp_device_descr *acc_dev, size_t mapnum,
 	  break;
 
 	case GOMP_MAP_STRUCT:
+	case GOMP_MAP_STRUCT_UNORD:
 	  /* Skip the 'GOMP_MAP_STRUCT' itself, and use the regular processing
 	     for all its entries.  This special handling exists for GCC 10.1
 	     compatibility; afterwards, we're not generating these no-op
@@ -1435,7 +1509,8 @@ GOACC_enter_exit_data (int flags_m, size_t mapnum, void **hostaddrs,
 
       if (kind == GOMP_MAP_POINTER
 	  || kind == GOMP_MAP_TO_PSET
-	  || kind == GOMP_MAP_STRUCT)
+	  || kind == GOMP_MAP_STRUCT
+	  || kind == GOMP_MAP_STRUCT_UNORD)
 	continue;
 
       if (kind == GOMP_MAP_FORCE_ALLOC

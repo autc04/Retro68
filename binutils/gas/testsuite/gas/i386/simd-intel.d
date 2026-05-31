@@ -188,13 +188,9 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	f2 0f c2 38 10       	cmpsd  xmm7,QWORD PTR \[eax\],0x10
 [ 	]*[a-f0-9]+:	f3 0f 2a c8          	cvtsi2ss xmm1,eax
 [ 	]*[a-f0-9]+:	f2 0f 2a c8          	cvtsi2sd xmm1,eax
-[ 	]*[a-f0-9]+:	f3 0f 2a c8          	cvtsi2ss xmm1,eax
-[ 	]*[a-f0-9]+:	f2 0f 2a c8          	cvtsi2sd xmm1,eax
 [ 	]*[a-f0-9]+:	f3 0f 2a 08          	cvtsi2ss xmm1,DWORD PTR \[eax\]
 [ 	]*[a-f0-9]+:	f3 0f 2a 08          	cvtsi2ss xmm1,DWORD PTR \[eax\]
 [ 	]*[a-f0-9]+:	f2 0f 2a 08          	cvtsi2sd xmm1,DWORD PTR \[eax\]
-[ 	]*[a-f0-9]+:	f2 0f 2a 08          	cvtsi2sd xmm1,DWORD PTR \[eax\]
-[ 	]*[a-f0-9]+:	f3 0f 2a 08          	cvtsi2ss xmm1,DWORD PTR \[eax\]
 [ 	]*[a-f0-9]+:	f2 0f 2a 08          	cvtsi2sd xmm1,DWORD PTR \[eax\]
 [ 	]*[a-f0-9]+:	0f 2c 00             	cvttps2pi mm0,QWORD PTR \[eax\]
 #pass

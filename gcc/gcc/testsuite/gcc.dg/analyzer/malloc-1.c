@@ -1,5 +1,3 @@
-/* { dg-require-effective-target alloca } */
-
 #include <stdlib.h>
 
 extern int foo (void);
@@ -124,7 +122,7 @@ void test_12 (void)
 
   while (1)
     {
-      free (ptr);
+      free (ptr); /* { dg-warning "infinite loop" } */
       free (ptr); /* { dg-warning "double-'free' of 'ptr'" } */
     }
 }
@@ -269,13 +267,13 @@ int *test_23a (int n)
   return ptr;
 }
 
-int test_24 (void)
+void test_24 (void)
 {
   void *ptr = __builtin_alloca (sizeof (int)); /* { dg-message "region created on stack here" } */
   free (ptr); /* { dg-warning "'free' of 'ptr' which points to memory on the stack \\\[CWE-590\\\]" } */
 }
 
-int test_25 (void)
+void test_25 (void)
 {
   char tmp[100]; /* { dg-message "region created on stack here" } */
   void *p = tmp;
@@ -285,7 +283,7 @@ int test_25 (void)
 
 char global_buffer[100]; /* { dg-message "region created here" } */
 
-int test_26 (void)
+void test_26 (void)
 {
   void *p = global_buffer;
   free (p); /* { dg-warning "'free' of 'p' which points to memory not on the heap \\\[CWE-590\\\]" } */
@@ -625,5 +623,14 @@ void test_50c (void)
   free (&&my_label); /* { dg-warning "'free' of '&my_label' which points to memory not on the heap \\\[CWE-590\\\]" } */
 }
 
+/* Double free after unconditional dereference.  */
+
+int test_51 (int *p)
+{
+  int result = *p;
+  free (p); /* { dg-message "first 'free' here" } */
+  free (p); /* { dg-warning "double-'free' of 'p'" } */
+  return result;
+}
 
 /* { dg-prune-output "\\\[-Wfree-nonheap-object" } */

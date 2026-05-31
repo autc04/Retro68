@@ -191,7 +191,11 @@ Parse::qualified_ident(std::string* pname, Named_object** ppackage)
   Named_object* package = this->gogo_->lookup(name, NULL);
   if (package == NULL || !package->is_package())
     {
-      go_error_at(this->location(), "expected package");
+      if (package == NULL)
+	go_error_at(this->location(), "reference to undefined name %qs",
+		    Gogo::message_name(name).c_str());
+      else
+	go_error_at(this->location(), "expected package");
       // We expect . IDENTIFIER; skip both.
       if (this->advance_token()->is_identifier())
 	this->advance_token();
@@ -507,7 +511,7 @@ Parse::struct_type()
 	{
 	  if (pi->field_name() == pj->field_name()
 	      && !Gogo::is_sink_name(pi->field_name()))
-	    go_error_at(pi->location(), "duplicate field name %<%s%>",
+	    go_error_at(pi->location(), "duplicate field name %qs",
 			Gogo::message_name(pi->field_name()).c_str());
 	}
     }
@@ -962,7 +966,7 @@ Parse::parameter_list(bool* is_varargs)
 		    type = Type::make_forward_declaration(no);
 		  else
 		    {
-		      go_error_at(p->location(), "expected %<%s%> to be a type",
+		      go_error_at(p->location(), "expected %qs to be a type",
 				  Gogo::message_name(p->name()).c_str());
 		      saw_error = true;
 		      type = Type::make_error_type();
@@ -1468,6 +1472,7 @@ Parse::const_spec(int iota, Type** last_type, Expression_list** last_expr_list)
 	{
 	  Expression* copy = (*p)->copy();
 	  copy->set_location(loc);
+	  this->update_references(&copy);
 	  expr_list->push_back(copy);
 	}
     }
@@ -1511,6 +1516,94 @@ Parse::const_spec(int iota, Type** last_type, Expression_list** last_expr_list)
     go_error_at(this->location(), "too many initializers");
 
   return;
+}
+
+// Update any references to names to refer to the current names,
+// for weird cases like
+//
+// const X = 1
+// func F() {
+// 	const (
+// 		X = X + X
+//		Y
+// 	)
+// }
+//
+// where the X + X for the first X is the outer X, but the X + X
+// copied for Y is the inner X.
+
+class Update_references : public Traverse
+{
+ public:
+  Update_references(Gogo* gogo)
+    : Traverse(traverse_expressions),
+      gogo_(gogo)
+  { }
+
+  int
+  expression(Expression**);
+
+ private:
+  Gogo* gogo_;
+};
+
+int
+Update_references::expression(Expression** pexpr)
+{
+  Named_object* old_no;
+  switch ((*pexpr)->classification())
+    {
+    case Expression::EXPRESSION_CONST_REFERENCE:
+      old_no = (*pexpr)->const_expression()->named_object();
+      break;
+    case Expression::EXPRESSION_VAR_REFERENCE:
+      old_no = (*pexpr)->var_expression()->named_object();
+      break;
+    case Expression::EXPRESSION_ENCLOSED_VAR_REFERENCE:
+      old_no = (*pexpr)->enclosed_var_expression()->variable();
+      break;
+    case Expression::EXPRESSION_FUNC_REFERENCE:
+      old_no = (*pexpr)->func_expression()->named_object();
+      break;
+    case Expression::EXPRESSION_UNKNOWN_REFERENCE:
+      old_no = (*pexpr)->unknown_expression()->named_object();
+      break;
+    default:
+      return TRAVERSE_CONTINUE;
+    }
+
+  if (old_no->package() != NULL)
+    {
+      // This is a qualified reference, so it can't have changed in
+      // scope.  FIXME: This probably doesn't handle dot imports
+      // correctly.
+      return TRAVERSE_CONTINUE;
+    }
+
+  Named_object* in_function;
+  Named_object* new_no = this->gogo_->lookup(old_no->name(), &in_function);
+  if (new_no == old_no)
+    return TRAVERSE_CONTINUE;
+
+  // The new name must be a constant, since that is all we have
+  // introduced into scope.
+  if (!new_no->is_const())
+    {
+      go_assert(saw_errors());
+      return TRAVERSE_CONTINUE;
+    }
+
+  *pexpr = Expression::make_const_reference(new_no, (*pexpr)->location());
+
+  return TRAVERSE_CONTINUE;
+}
+
+void
+Parse::update_references(Expression** pexpr)
+{
+  Update_references ur(this->gogo_);
+  ur.expression(pexpr);
+  (*pexpr)->traverse_subexpressions(&ur);
 }
 
 // TypeDecl = "type" Decl<TypeSpec> .
@@ -1888,7 +1981,11 @@ Parse::init_vars_from_map(const Typed_identifier_list* vars, Type* type,
   else if (!val_no->is_sink())
     {
       if (val_no->is_variable())
-	val_no->var_value()->add_preinit_statement(this->gogo_, s);
+	{
+	  val_no->var_value()->add_preinit_statement(this->gogo_, s);
+	  if (no->is_variable())
+	    this->gogo_->record_var_depends_on(no->var_value(), val_no);
+	}
     }
   else if (!no->is_sink())
     {
@@ -1955,7 +2052,11 @@ Parse::init_vars_from_receive(const Typed_identifier_list* vars, Type* type,
   else if (!val_no->is_sink())
     {
       if (val_no->is_variable())
-	val_no->var_value()->add_preinit_statement(this->gogo_, s);
+	{
+	  val_no->var_value()->add_preinit_statement(this->gogo_, s);
+	  if (no->is_variable())
+	    this->gogo_->record_var_depends_on(no->var_value(), val_no);
+	}
     }
   else if (!no->is_sink())
     {
@@ -2021,7 +2122,11 @@ Parse::init_vars_from_type_guard(const Typed_identifier_list* vars,
   else if (!val_no->is_sink())
     {
       if (val_no->is_variable())
-	val_no->var_value()->add_preinit_statement(this->gogo_, s);
+	{
+	  val_no->var_value()->add_preinit_statement(this->gogo_, s);
+	  if (no->is_variable())
+	    this->gogo_->record_var_depends_on(no->var_value(), val_no);
+	}
     }
   else if (!no->is_sink())
     {
@@ -2213,6 +2318,7 @@ Parse::simple_var_decl_or_assignment(const std::string& name,
 		      go_error_at(id_location,
 				  "%qs repeated on left side of %s",
 				  Gogo::message_name(id).c_str(), ":=");
+		      id = this->gogo_->pack_hidden_name("_", false);
 		    }
 		  til.push_back(Typed_identifier(id, NULL, location));
 		}
@@ -2225,10 +2331,12 @@ Parse::simple_var_decl_or_assignment(const std::string& name,
 
 	  id = this->gogo_->pack_hidden_name(id, is_id_exported);
 	  ins = uniq_idents.insert(id);
+	  std::string name = id;
 	  if (!ins.second && !Gogo::is_sink_name(id))
 	    {
 	      dup_name = Gogo::message_name(id);
 	      dup_loc = id_location;
+	      id = this->gogo_->pack_hidden_name("_", false);
 	    }
 	  til.push_back(Typed_identifier(id, NULL, location));
 	}
@@ -3406,9 +3514,9 @@ Parse::id_to_expression(const std::string& name, Location location,
       if (is_composite_literal_key)
 	{
 	  // This is a composite literal key, which means that it
-	  // could just be a struct field name, so avoid confusiong by
+	  // could just be a struct field name, so avoid confusion by
 	  // not adding it to the bindings.  We'll look up the name
-	  // later during the lowering phase if necessary.
+	  // later during the determine types phase if necessary.
 	  return Expression::make_composite_literal_key(name, location);
 	}
       named_object = this->gogo_->add_unknown_name(name, location);
@@ -4391,12 +4499,12 @@ Parse::return_stat()
   Expression_list* vals = NULL;
   if (this->expression_may_start_here())
     vals = this->expression_list(NULL, false, true);
-  this->gogo_->add_statement(Statement::make_return_statement(vals, location));
+  Named_object* function = this->gogo_->current_function();
+  this->gogo_->add_statement(Statement::make_return_statement(function, vals,
+							      location));
 
-  if (vals == NULL
-      && this->gogo_->current_function()->func_value()->results_are_named())
+  if (vals == NULL && function->func_value()->results_are_named())
     {
-      Named_object* function = this->gogo_->current_function();
       Function::Results* results = function->func_value()->result_variables();
       for (Function::Results::const_iterator p = results->begin();
 	   p != results->end();
@@ -4827,7 +4935,7 @@ Parse::type_switch_body(Label* label, const Type_switch& type_switch,
     }
 
   Type_switch_statement* statement =
-      Statement::make_type_switch_statement(var_name, init, location);
+      Statement::make_type_switch_statement(init, location);
   this->push_break_statement(statement, label);
 
   Type_case_clauses* case_clauses = new Type_case_clauses();

@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-additional-options "-fno-tree-dominator-opts" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -21,6 +22,7 @@ int main ()
   check_vect ();
   main1 (32);
 
+#pragma GCC novector
   for (si = 0; si < 32; ++si)
     if (stack_vars_sorted[si] != si)
       abort ();

@@ -2,6 +2,7 @@
 start:
 	lea	%ss:(%eax,%ecx), %eax
 	ss lea	(%eax,%ecx), %eax
+	{nooptimize} es lea (%ecx,%eax), %eax
 
 	.allow_index_reg
 	lea	1(%eax), %ecx
@@ -17,6 +18,7 @@ start:
 	lea	(%eax), %ecx
 	lea	1-1(%eax), %ecx
 	lea	%gs:(%eax), %ecx
+	{nooptimize} lea %fs:(%eax), %ecx
 
 	lea	(%si), %eax
 	lea	(%si), %esi

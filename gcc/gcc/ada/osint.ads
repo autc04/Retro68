@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -166,6 +166,9 @@ package Osint is
    function Is_Directory_Separator (C : Character) return Boolean;
    --  Returns True if C is a directory separator
 
+   function Get_Current_Dir return String;
+   --  Returns the current working directory for the execution environment
+
    function Get_Directory (Name : File_Name_Type) return File_Name_Type;
    --  Get the prefix directory name (if any) from Name. The last separator
    --  is preserved. Return the normalized current directory if there is no
@@ -230,6 +233,15 @@ package Osint is
      (Canonical_File : String) return String_Access;
    --  Convert a canonical syntax file specification to host syntax
 
+   function Relative_Path (Path : String; Ref : String) return String;
+   --  Given an absolute path Path calculate its relative path from a reference
+   --  directory Ref.
+   --
+   --  If the paths are the same it will return ".".
+   --
+   --  If the paths are on different drives on Windows based systems then it
+   --  will return the normalized version of Path.
+
    function Relocate_Path
      (Prefix : String;
       Path   : String) return String_Ptr;
@@ -237,8 +249,14 @@ package Osint is
    --  replace the Prefix substring with the root installation directory.
    --  By default, try to compute the root installation directory by looking
    --  at the executable name as it was typed on the command line and, if
-   --  needed, use the PATH environment variable. If the above computation
-   --  fails, return Path. This function assumes Prefix'First = Path'First.
+   --  needed, use the PATH environment variable. If the GNSA_ROOT environment
+   --  variable is set, then the content of this variable is used as the root
+   --  installation directory.
+   --  If the above computation fails, return Path. This function assumes
+   --  Prefix'First = Path'First.
+
+   function Root (Path : String) return String;
+   --  Return the root of an absolute Path.
 
    function Shared_Lib (Name : String) return String;
    --  Returns the runtime shared library in the form -l<name>-<version> where

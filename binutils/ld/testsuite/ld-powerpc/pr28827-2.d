@@ -1,5 +1,5 @@
 #as: -a64
-#ld: -melf64ppc --plt-align=0 -T pr28827-2.lnk
+#ld: -melf64ppc --plt-align=0 -T pr28827-2.lnk --no-error-rwx-segments
 #objdump: -dr
 
 .*:     file format .*

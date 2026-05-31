@@ -15,15 +15,14 @@
 module core.stdc.signal;
 
 extern (C):
-@system:
 nothrow:
 @nogc:
 
 // this should be volatile
 ///
-alias int sig_atomic_t;
+alias sig_atomic_t = int;
 
-private alias void function(int) sigfn_t;
+private alias sigfn_t = void function(int);
 
 version (Posix)
 {

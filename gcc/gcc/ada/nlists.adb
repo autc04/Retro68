@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,7 +30,6 @@ with Alloc;
 with Atree;       use Atree;
 with Debug;       use Debug;
 with Output;      use Output;
-with Sinfo;       use Sinfo;
 with Sinfo.Nodes; use Sinfo.Nodes;
 with Table;
 
@@ -125,19 +124,10 @@ package body Nlists is
    --------------------------
 
    procedure Allocate_List_Tables (N : Node_Or_Entity_Id) is
-      Old_Last : constant Node_Or_Entity_Id'Base := Next_Node.Last;
-
    begin
-      pragma Assert (N >= Old_Last);
+      pragma Assert (N >= Next_Node.Last);
       Next_Node.Set_Last (N);
       Prev_Node.Set_Last (N);
-
-      --  Make sure we have no uninitialized junk in any new entries added.
-
-      for J in Old_Last + 1 .. N loop
-         Next_Node.Table (J) := Empty;
-         Prev_Node.Table (J) := Empty;
-      end loop;
    end Allocate_List_Tables;
 
    ------------
@@ -1013,12 +1003,12 @@ package body Nlists is
    -- Parent --
    ------------
 
-   function Parent (List : List_Id) return Node_Or_Entity_Id is
+   function List_Parent (List : List_Id) return Node_Or_Entity_Id is
    begin
       pragma Assert (Present (List));
       pragma Assert (List <= Lists.Last);
       return Lists.Table (List).Parent;
-   end Parent;
+   end List_Parent;
 
    ----------
    -- Pick --
@@ -1442,12 +1432,12 @@ package body Nlists is
    -- Set_Parent --
    ----------------
 
-   procedure Set_Parent (List : List_Id; Node : Node_Or_Entity_Id) is
+   procedure Set_List_Parent (List : List_Id; Node : Node_Or_Entity_Id) is
    begin
       pragma Assert (not Locked);
       pragma Assert (List <= Lists.Last);
       Lists.Table (List).Parent := Node;
-   end Set_Parent;
+   end Set_List_Parent;
 
    --------------
    -- Set_Prev --

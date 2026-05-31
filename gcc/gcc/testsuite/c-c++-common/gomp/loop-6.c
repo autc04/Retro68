@@ -1,3 +1,4 @@
+// { dg-additional-options "-Wno-deprecated-openmp" }
 int bar (int);
 int baz (int *);
 
@@ -107,6 +108,20 @@ f2 (void)
     for (j = i; j < 64; j++)
       ;
   #pragma omp distribute simd collapse(2) dist_schedule(static)	/* { dg-error "'dist_schedule' clause may not appear on non-rectangular 'distribute'" } */
+  for (i = 0; i < 64; i++)
+    for (j = i; j < 64; j++)
+      ;
+}
+
+void
+f3 (void)
+{
+  int i = 0, j = 0;
+  #pragma omp taskloop collapse(2) grainsize(4)	/* { dg-error "'grainsize' clause may not appear on non-rectangular 'taskloop'" } */
+  for (i = 0; i < 64; i++)
+    for (j = i; j < 64; j++)
+      ;
+  #pragma omp taskloop collapse(2) num_tasks(4)	/* { dg-error "'num_tasks' clause may not appear on non-rectangular 'taskloop'" } */
   for (i = 0; i < 64; i++)
     for (j = i; j < 64; j++)
       ;

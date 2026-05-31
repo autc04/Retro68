@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 CLFLUSHOPT insns (Intel disassembly)
 #source: clflushopt.s

@@ -45,6 +45,7 @@ void *_sbrk_r(struct _reent *reent, ptrdiff_t increment)
     return NewPtrClear(increment);
 }
 
+__attribute__((weak))
 void _exit(int status)
 {
     //if(status != 0)
@@ -292,4 +293,10 @@ int _gettimeofday_r(struct _reent *reent, struct timeval *tp, void *__tz)
     }
 
     return 0;
+}
+
+extern int _getentropy_r (struct _reent *, void *, size_t)
+{
+    errno = ENOSYS;
+    return -1;
 }

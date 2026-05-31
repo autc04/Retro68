@@ -7,7 +7,8 @@
      * optimized code should use "ldr   x19, [sp], x" to restore x19 only.  */
 
 /* { dg-do compile } */
-/* { dg-options "-O2 -fomit-frame-pointer -fsanitize=shadow-call-stack -fno-exceptions -ffixed-x18 --save-temps" } */
+/* { dg-options "-O2 -fomit-frame-pointer -fsanitize=shadow-call-stack -fno-exceptions -ffixed-x18 --save-temps -fno-stack-protector" } */
+/* { dg-skip-if "conflicts with x18" { aarch64-*-vxworks* } } */
 
 #include "test_frame_common.h"
 

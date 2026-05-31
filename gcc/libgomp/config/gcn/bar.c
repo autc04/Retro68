@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2015-2026 Free Software Foundation, Inc.
    Contributed by Mentor Embedded.
 
    This file is part of the GNU Offloading and Multi Processing Library
@@ -79,7 +79,7 @@ gomp_team_barrier_wake (gomp_barrier_t *bar, int count)
 void
 gomp_team_barrier_wait_end (gomp_barrier_t *bar, gomp_barrier_state_t state)
 {
-  unsigned int generation, gen;
+  unsigned int gen;
 
   if (__builtin_expect (state & BAR_WAS_LAST, 0))
     {
@@ -89,7 +89,9 @@ gomp_team_barrier_wait_end (gomp_barrier_t *bar, gomp_barrier_state_t state)
 
       bar->awaited = bar->total;
       team->work_share_cancelled = 0;
-      if (__builtin_expect (team->task_count, 0))
+      unsigned task_count
+	= __atomic_load_n (&team->task_count, MEMMODEL_ACQUIRE);
+      if (__builtin_expect (task_count, 0))
 	{
 	  gomp_barrier_handle_tasks (state);
 	  state &= ~BAR_WAS_LAST;
@@ -105,7 +107,6 @@ gomp_team_barrier_wait_end (gomp_barrier_t *bar, gomp_barrier_state_t state)
 	}
     }
 
-  generation = state;
   state &= ~BAR_CANCELLED;
   int retry = 100;
   do
@@ -128,9 +129,8 @@ gomp_team_barrier_wait_end (gomp_barrier_t *bar, gomp_barrier_state_t state)
 	  gomp_barrier_handle_tasks (state);
 	  gen = __atomic_load_n (&bar->generation, MEMMODEL_ACQUIRE);
 	}
-      generation |= gen & BAR_WAITING_FOR_TASK;
     }
-  while (gen != state + BAR_INCR);
+  while (!gomp_barrier_state_is_incremented (gen, state));
 }
 
 void
@@ -152,7 +152,7 @@ bool
 gomp_team_barrier_wait_cancel_end (gomp_barrier_t *bar,
 				   gomp_barrier_state_t state)
 {
-  unsigned int generation, gen;
+  unsigned int gen;
 
   if (__builtin_expect (state & BAR_WAS_LAST, 0))
     {
@@ -166,7 +166,9 @@ gomp_team_barrier_wait_cancel_end (gomp_barrier_t *bar,
 
       bar->awaited = bar->total;
       team->work_share_cancelled = 0;
-      if (__builtin_expect (team->task_count, 0))
+      unsigned task_count
+	= __atomic_load_n (&team->task_count, MEMMODEL_ACQUIRE);
+      if (__builtin_expect (task_count, 0))
 	{
 	  gomp_barrier_handle_tasks (state);
 	  state &= ~BAR_WAS_LAST;
@@ -184,7 +186,6 @@ gomp_team_barrier_wait_cancel_end (gomp_barrier_t *bar,
   if (__builtin_expect (state & BAR_CANCELLED, 0))
     return true;
 
-  generation = state;
   int retry = 100;
   do
     {
@@ -209,9 +210,8 @@ gomp_team_barrier_wait_cancel_end (gomp_barrier_t *bar,
 	  gomp_barrier_handle_tasks (state);
 	  gen = __atomic_load_n (&bar->generation, MEMMODEL_RELAXED);
 	}
-      generation |= gen & BAR_WAITING_FOR_TASK;
     }
-  while (gen != state + BAR_INCR);
+  while (!gomp_barrier_state_is_incremented (gen, state));
 
   return false;
 }

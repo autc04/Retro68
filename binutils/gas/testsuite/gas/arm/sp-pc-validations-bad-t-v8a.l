@@ -1,49 +1,139 @@
 [^:]*: Assembler messages:
-[^:]*:27: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:27: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:27: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0\]'
-[^:]*:28: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:28: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:28: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#0\]'
-[^:]*:29: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:29: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:29: Error: branch must be last instruction in IT block -- `ldreq r15,\[sp\]'
-[^:]*:30: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:30: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:30: Error: branch must be last instruction in IT block -- `ldreq r15,\[sp,#0\]'
-[^:]*:31: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:31: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:31: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0\]'
-[^:]*:32: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:32: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:32: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,#0\]'
-[^:]*:33: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:33: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:33: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#-4\]'
-[^:]*:34: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:34: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:34: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0\],#4'
-[^:]*:35: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:35: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:35: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#0\]!'
-[^:]*:38: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:38: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:38: Error: branch must be last instruction in IT block -- `ldreq r15,label'
-[^:]*:39: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:39: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:39: Error: branch must be last instruction in IT block -- `ldreq.w r15,label'
-[^:]*:40: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:40: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:40: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[pc,#-0\]'
-[^:]*:43: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:43: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:43: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,r1\]'
-[^:]*:44: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:44: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:44: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,r1\]'
-[^:]*:45: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
-[^:]*:45: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
-[^:]*:45: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,r1,LSL#2\]'
+[^:]*:6: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:17: *Info: macro .*
+[^:]*:27: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:17: *Info: macro .*
+[^:]*:27: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0\]'
+[^:]*:17: *Info: macro .*
+[^:]*:27: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:17: *Info: macro .*
+[^:]*:28: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:17: *Info: macro .*
+[^:]*:28: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#0\]'
+[^:]*:17: *Info: macro .*
+[^:]*:28: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:17: *Info: macro .*
+[^:]*:29: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:17: *Info: macro .*
+[^:]*:29: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[sp\]'
+[^:]*:17: *Info: macro .*
+[^:]*:29: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:17: *Info: macro .*
+[^:]*:30: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:17: *Info: macro .*
+[^:]*:30: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[sp,#0\]'
+[^:]*:17: *Info: macro .*
+[^:]*:30: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:21: *Info: macro .*
+[^:]*:31: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:21: *Info: macro .*
+[^:]*:31: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0\]'
+[^:]*:21: *Info: macro .*
+[^:]*:31: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:21: *Info: macro .*
+[^:]*:32: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:21: *Info: macro .*
+[^:]*:32: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,#0\]'
+[^:]*:21: *Info: macro .*
+[^:]*:32: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:17: *Info: macro .*
+[^:]*:33: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:17: *Info: macro .*
+[^:]*:33: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#-4\]'
+[^:]*:17: *Info: macro .*
+[^:]*:33: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:17: *Info: macro .*
+[^:]*:34: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:17: *Info: macro .*
+[^:]*:34: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0\],#4'
+[^:]*:17: *Info: macro .*
+[^:]*:34: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:17: *Info: macro .*
+[^:]*:35: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:17: *Info: macro .*
+[^:]*:35: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,#0\]!'
+[^:]*:17: *Info: macro .*
+[^:]*:35: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:17: *Info: macro .*
+[^:]*:38: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:17: *Info: macro .*
+[^:]*:38: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,label'
+[^:]*:17: *Info: macro .*
+[^:]*:38: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:21: *Info: macro .*
+[^:]*:39: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:21: *Info: macro .*
+[^:]*:39: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,label'
+[^:]*:21: *Info: macro .*
+[^:]*:39: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:21: *Info: macro .*
+[^:]*:40: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:21: *Info: macro .*
+[^:]*:40: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[pc,#-0\]'
+[^:]*:21: *Info: macro .*
+[^:]*:40: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:17: *Info: macro .*
+[^:]*:43: *Info: macro .*
+[^:]*:6: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:17: *Info: macro .*
+[^:]*:43: *Info: macro .*
+[^:]*:6: Error: branch must be last instruction in IT block -- `ldreq r15,\[r0,r1\]'
+[^:]*:17: *Info: macro .*
+[^:]*:43: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:21: *Info: macro .*
+[^:]*:44: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:21: *Info: macro .*
+[^:]*:44: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,r1\]'
+[^:]*:21: *Info: macro .*
+[^:]*:44: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing 16-bit Thumb instructions of the following class are performance deprecated in ARMv8-A and ARMv8-R: Short branches, Undefined, SVC, LDM/STM
+[^:]*:21: *Info: macro .*
+[^:]*:45: *Info: macro .*
+[^:]*:12: Warning: IT blocks containing more than one conditional instruction are performance deprecated in ARMv8-A and ARMv8-R
+[^:]*:21: *Info: macro .*
+[^:]*:45: *Info: macro .*
+[^:]*:12: Error: branch must be last instruction in IT block -- `ldreq.w r15,\[r0,r1,LSL ?#2\]'
+[^:]*:21: *Info: macro .*
+[^:]*:45: *Info: macro .*
 [^:]*:48: Error: r15 not allowed here -- `ldrb pc,\[r0,#4\]'
 [^:]*:51: Error: r15 not allowed here -- `ldrb.w pc,\[r0,#4\]'
 [^:]*:52: Error: r15 not allowed here -- `ldrb pc,\[r0,#-4\]'
@@ -54,8 +144,8 @@
 [^:]*:66: Error: r15 not allowed here -- `ldrb pc,\[r0,r1\]'
 [^:]*:67: Error: cannot use register index with PC-relative addressing -- `ldrb r0,\[pc,r1\]'
 [^:]*:68: Error: r15 not allowed here -- `ldrb r0,\[r1,pc\]'
-[^:]*:69: Error: r15 not allowed here -- `ldrb.w pc,\[r0,r1,LSL#1\]'
-[^:]*:71: Error: r15 not allowed here -- `ldrb.w r2,\[r0,pc,LSL#2\]'
+[^:]*:69: Error: r15 not allowed here -- `ldrb.w pc,\[r0,r1,LSL ?#1\]'
+[^:]*:71: Error: r15 not allowed here -- `ldrb.w r2,\[r0,pc,LSL ?#2\]'
 [^:]*:75: Error: r15 not allowed here -- `ldrbt pc,\[r0,#4\]'
 [^:]*:79: Error: r15 not allowed here -- `ldrd pc,r0,\[r1\]'
 [^:]*:81: Error: r12 not allowed here -- `ldrd r12,\[r1\]'
@@ -94,8 +184,8 @@
 [^:]*:149: Error: r15 not allowed here -- `ldrh pc,\[r0,r1\]'
 [^:]*:150: Error: cannot use register index with PC-relative addressing -- `ldrh r0,\[pc,r1\]'
 [^:]*:151: Error: r15 not allowed here -- `ldrh r0,\[r1,pc\]'
-[^:]*:152: Error: r15 not allowed here -- `ldrh.w pc,\[r0,r1,LSL#1\]'
-[^:]*:154: Error: r15 not allowed here -- `ldrh.w r2,\[r0,pc,LSL#1\]'
+[^:]*:152: Error: r15 not allowed here -- `ldrh.w pc,\[r0,r1,LSL ?#1\]'
+[^:]*:154: Error: r15 not allowed here -- `ldrh.w r2,\[r0,pc,LSL ?#1\]'
 [^:]*:158: Error: r15 not allowed here -- `ldrht pc,\[r0,#4\]'
 [^:]*:162: Error: r15 not allowed here -- `ldrsb pc,\[r0,#4\]'
 [^:]*:165: Error: r15 not allowed here -- `ldrsb pc,\[r0,#-4\]'
@@ -106,8 +196,8 @@
 [^:]*:179: Error: r15 not allowed here -- `ldrsb pc,\[r0,r1\]'
 [^:]*:180: Error: cannot use register index with PC-relative addressing -- `ldrsb r0,\[pc,r1\]'
 [^:]*:181: Error: r15 not allowed here -- `ldrsb r0,\[r1,pc\]'
-[^:]*:182: Error: r15 not allowed here -- `ldrsb.w pc,\[r0,r1,LSL#2\]'
-[^:]*:185: Error: r15 not allowed here -- `ldrsb.w r2,\[r0,pc,LSL#2\]'
+[^:]*:182: Error: r15 not allowed here -- `ldrsb.w pc,\[r0,r1,LSL ?#2\]'
+[^:]*:185: Error: r15 not allowed here -- `ldrsb.w r2,\[r0,pc,LSL ?#2\]'
 [^:]*:190: Error: r15 not allowed here -- `ldrsbt pc,\[r0,#4\]'
 [^:]*:195: Error: r15 not allowed here -- `ldrsh pc,\[r0,#4\]'
 [^:]*:197: Error: r15 not allowed here -- `ldrsh pc,\[r0,#-4\]'
@@ -117,8 +207,8 @@
 [^:]*:210: Error: r15 not allowed here -- `ldrsh pc,\[r0,r1\]'
 [^:]*:211: Error: cannot use register index with PC-relative addressing -- `ldrsh r0,\[pc,r1\]'
 [^:]*:212: Error: r15 not allowed here -- `ldrsh r0,\[r1,pc\]'
-[^:]*:214: Error: r15 not allowed here -- `ldrsh.w pc,\[r0,r1,LSL#3\]'
-[^:]*:217: Error: r15 not allowed here -- `ldrsh.w r0,\[r1,pc,LSL#3\]'
+[^:]*:214: Error: r15 not allowed here -- `ldrsh.w pc,\[r0,r1,LSL ?#3\]'
+[^:]*:217: Error: r15 not allowed here -- `ldrsh.w r0,\[r1,pc,LSL ?#3\]'
 [^:]*:221: Error: r15 not allowed here -- `ldrsht pc,\[r0,#4\]'
 [^:]*:226: Error: r15 not allowed here -- `ldrt pc,\[r0,#4\]'
 [^:]*:232: Error: r15 not allowed here -- `str pc,\[r0,#4\]'
@@ -127,7 +217,7 @@
 [^:]*:235: Error: cannot use post-indexing with PC-relative addressing -- `str r0,\[pc\],#4'
 [^:]*:236: Error: cannot use writeback with PC-relative addressing -- `str r0,\[pc,#4\]!'
 [^:]*:239: Error: cannot use register index with PC-relative addressing -- `str.w r0,\[pc,r1\]'
-[^:]*:240: Error: cannot use register index with PC-relative addressing -- `str.w r0,\[pc,r1,LSL#2\]'
+[^:]*:240: Error: cannot use register index with PC-relative addressing -- `str.w r0,\[pc,r1,LSL ?#2\]'
 [^:]*:246: Error: cannot use register index with PC-relative addressing -- `strb.w r0,\[pc,#4\]'
 [^:]*:247: Error: r15 not allowed here -- `strb.w pc,\[r0,#4\]'
 [^:]*:249: Error: cannot use register index with PC-relative addressing -- `strb r0,\[pc,#-4\]'
@@ -137,11 +227,11 @@
 [^:]*:253: Error: r15 not allowed here -- `strb pc,\[r0\],#4'
 [^:]*:254: Error: r15 not allowed here -- `strb pc,\[r0,#4\]!'
 [^:]*:260: Error: cannot use register index with PC-relative addressing -- `strb.w r0,\[pc,r1\]'
-[^:]*:261: Error: cannot use register index with PC-relative addressing -- `strb.w r0,\[pc,r1,LSL#2\]'
+[^:]*:261: Error: cannot use register index with PC-relative addressing -- `strb.w r0,\[pc,r1,LSL ?#2\]'
 [^:]*:262: Error: r15 not allowed here -- `strb.w pc,\[r0,r1\]'
-[^:]*:263: Error: r15 not allowed here -- `strb.w pc,\[r0,r1,LSL#2\]'
+[^:]*:263: Error: r15 not allowed here -- `strb.w pc,\[r0,r1,LSL ?#2\]'
 [^:]*:266: Error: r15 not allowed here -- `strb.w r0,\[r1,pc\]'
-[^:]*:267: Error: r15 not allowed here -- `strb.w r0,\[r1,pc,LSL#2\]'
+[^:]*:267: Error: r15 not allowed here -- `strb.w r0,\[r1,pc,LSL ?#2\]'
 [^:]*:272: Error: cannot use register index with PC-relative addressing -- `strbt r0,\[pc,#4\]'
 [^:]*:273: Error: r15 not allowed here -- `strbt pc,\[r0,#4\]'
 [^:]*:277: Error: cannot use register index with PC-relative addressing -- `strd r0,r1,\[pc,#4\]'
@@ -175,7 +265,7 @@
 [^:]*:335: Error: cannot use post-indexing with PC-relative addressing -- `strh r0,\[pc\],#4'
 [^:]*:336: Error: cannot use writeback with PC-relative addressing -- `strh r0,\[pc,#4\]!'
 [^:]*:339: Error: cannot use register index with PC-relative addressing -- `strh.w r0,\[pc,r1\]'
-[^:]*:340: Error: cannot use register index with PC-relative addressing -- `strh.w r0,\[pc,r1,LSL#2\]'
+[^:]*:340: Error: cannot use register index with PC-relative addressing -- `strh.w r0,\[pc,r1,LSL ?#2\]'
 [^:]*:341: Error: r15 not allowed here -- `strh.w pc,\[r0,#4\]'
 [^:]*:342: Error: r15 not allowed here -- `strh.w pc,\[r0\]'
 [^:]*:345: Error: r15 not allowed here -- `strh pc,\[r0,#-4\]'
@@ -183,8 +273,8 @@
 [^:]*:347: Error: r15 not allowed here -- `strh pc,\[r0,#4\]!'
 [^:]*:351: Error: r15 not allowed here -- `strh.w pc,\[r0,r1\]'
 [^:]*:353: Error: r15 not allowed here -- `strh.w r0,\[r1,pc\]'
-[^:]*:355: Error: r15 not allowed here -- `strh.w pc,\[r0,r1,LSL#2\]'
-[^:]*:357: Error: r15 not allowed here -- `strh.w r0,\[r1,pc,LSL#2\]'
+[^:]*:355: Error: r15 not allowed here -- `strh.w pc,\[r0,r1,LSL ?#2\]'
+[^:]*:357: Error: r15 not allowed here -- `strh.w r0,\[r1,pc,LSL ?#2\]'
 [^:]*:361: Error: cannot use register index with PC-relative addressing -- `strht r0,\[pc,#4\]'
 [^:]*:362: Error: r15 not allowed here -- `strht pc,\[r0,#4\]'
 [^:]*:363: Error: cannot use register index with PC-relative addressing -- `strht sp,\[pc,#4\]'

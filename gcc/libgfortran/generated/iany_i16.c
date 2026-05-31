@@ -1,5 +1,5 @@
 /* Implementation of the IANY intrinsic
-   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
    Contributed by Tobias Burnus <burnus@net-b.de>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -29,13 +29,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #if defined (HAVE_GFC_INTEGER_16) && defined (HAVE_GFC_INTEGER_16)
 
 
-extern void iany_i16 (gfc_array_i16 * const restrict, 
+extern void iany_i16 (gfc_array_i16 * const restrict,
 	gfc_array_i16 * const restrict, const index_type * const restrict);
 export_proto(iany_i16);
 
 void
-iany_i16 (gfc_array_i16 * const restrict retarray, 
-	gfc_array_i16 * const restrict array, 
+iany_i16 (gfc_array_i16 * const restrict retarray,
+	gfc_array_i16 * const restrict array,
 	const index_type * const restrict pdim)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -106,12 +106,7 @@ iany_i16 (gfc_array_i16 * const restrict retarray,
 
       retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_16));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-
-	}
+	return;
     }
   else
     {
@@ -193,15 +188,15 @@ iany_i16 (gfc_array_i16 * const restrict retarray,
 }
 
 
-extern void miany_i16 (gfc_array_i16 * const restrict, 
+extern void miany_i16 (gfc_array_i16 * const restrict,
 	gfc_array_i16 * const restrict, const index_type * const restrict,
 	gfc_array_l1 * const restrict);
 export_proto(miany_i16);
 
 void
-miany_i16 (gfc_array_i16 * const restrict retarray, 
-	gfc_array_i16 * const restrict array, 
-	const index_type * const restrict pdim, 
+miany_i16 (gfc_array_i16 * const restrict retarray,
+	gfc_array_i16 * const restrict array,
+	const index_type * const restrict pdim,
 	gfc_array_l1 * const restrict mask)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -242,8 +237,8 @@ miany_i16 (gfc_array_i16 * const restrict retarray,
     }
 
   len = GFC_DESCRIPTOR_EXTENT(array,dim);
-  if (len <= 0)
-    return;
+  if (len < 0)
+    len = 0;
 
   mbase = mask->base_addr;
 
@@ -301,15 +296,9 @@ miany_i16 (gfc_array_i16 * const restrict retarray,
       retarray->offset = 0;
       retarray->dtype.rank = rank;
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_16));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_16));
-
+	return;
     }
   else
     {
@@ -389,15 +378,15 @@ miany_i16 (gfc_array_i16 * const restrict retarray,
 }
 
 
-extern void siany_i16 (gfc_array_i16 * const restrict, 
+extern void siany_i16 (gfc_array_i16 * const restrict,
 	gfc_array_i16 * const restrict, const index_type * const restrict,
 	GFC_LOGICAL_4 *);
 export_proto(siany_i16);
 
 void
-siany_i16 (gfc_array_i16 * const restrict retarray, 
-	gfc_array_i16 * const restrict array, 
-	const index_type * const restrict pdim, 
+siany_i16 (gfc_array_i16 * const restrict retarray,
+	gfc_array_i16 * const restrict array,
+	const index_type * const restrict pdim,
 	GFC_LOGICAL_4 * mask)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -466,14 +455,9 @@ siany_i16 (gfc_array_i16 * const restrict retarray,
 
       alloc_size = GFC_DESCRIPTOR_STRIDE(retarray,rank-1) * extent[rank-1];
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_16));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_16));
+	return;
     }
   else
     {

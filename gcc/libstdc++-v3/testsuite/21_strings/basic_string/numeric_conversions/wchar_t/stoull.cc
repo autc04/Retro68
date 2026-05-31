@@ -2,7 +2,7 @@
 // { dg-require-string-conversions "" }
 // 2008-06-15  Paolo Carlini  <paolo.carlini@oracle.com>
 
-// Copyright (C) 2008-2022 Free Software Foundation, Inc.
+// Copyright (C) 2008-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -88,7 +88,7 @@ test01()
     }
   VERIFY( test );
   VERIFY( ull1 == 7 );
-  VERIFY( idx1 = 1 );
+  VERIFY( idx1 == 1 );
 
   try
     {

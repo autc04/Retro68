@@ -1,7 +1,7 @@
 ! { dg-do run }
 ! { dg-additional-sources ISO_Fortran_binding_17.c }
 ! { dg-options "-fcheck=all" }
-! { dg-warning "command-line option '-fcheck=all' is valid for Fortran but not for C" "" { target *-*-* } 0 }
+! { dg-warning "command-line option '-fcheck=all' is valid for (\[a-zA-Z0-9]+/)*Fortran(/\[a-zA-Z0-9]+)* but not for C" "" { target *-*-* } 0 }
 !
 ! PR fortran/92470
 !
@@ -71,7 +71,7 @@
    end block blk2
 end
 
-! { dg-output "CFI_address: subscripts\\\[0\\\] is out of bounds. For dimension = 0, subscripts = -1, lower_bound = 0, upper bound = 4, extent = 4(\n|\r\n|\r)" }
-! { dg-output "CFI_address: subscripts\\\[0\\\] is out of bounds. For dimension = 0, subscripts = 5, lower_bound = 0, upper bound = 4, extent = 4(\n|\r\n|\r).*" }
-! { dg-output "CFI_address: subscripts\\\[0\\\] is out of bounds. For dimension = 0, subscripts = -3, lower_bound = -2, upper bound = 6, extent = 4(\n|\r\n|\r)" }
-! { dg-output "CFI_address: subscripts\\\[0\\\] is out of bounds. For dimension = 0, subscripts = 2, lower_bound = -2, upper bound = 6, extent = 4(\n|\r\n|\r)" }
+! { dg-output "CFI_address: subscripts\\\[0\\\] is out of bounds. For dimension = 0, subscripts = -1, lower_bound = 0, upper bound = 4, extent = 4(\r*\n+)" }
+! { dg-output "CFI_address: subscripts\\\[0\\\] is out of bounds. For dimension = 0, subscripts = 5, lower_bound = 0, upper bound = 4, extent = 4(\r*\n+).*" }
+! { dg-output "CFI_address: subscripts\\\[0\\\] is out of bounds. For dimension = 0, subscripts = -3, lower_bound = -2, upper bound = 6, extent = 4(\r*\n+)" }
+! { dg-output "CFI_address: subscripts\\\[0\\\] is out of bounds. For dimension = 0, subscripts = 2, lower_bound = -2, upper bound = 6, extent = 4(\r*\n+)" }

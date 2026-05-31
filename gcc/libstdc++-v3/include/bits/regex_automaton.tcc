@@ -1,6 +1,6 @@
 // class template regex -*- C++ -*-
 
-// Copyright (C) 2013-2022 Free Software Foundation, Inc.
+// Copyright (C) 2013-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -28,6 +28,10 @@
  *  Do not attempt to use it directly. @headername{regex}
  */
 
+#ifdef _GLIBCXX_DEBUG
+# include <ostream>
+#endif
+
 namespace std _GLIBCXX_VISIBILITY(default)
 {
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -36,34 +40,34 @@ namespace __detail
 {
 #ifdef _GLIBCXX_DEBUG
   inline std::ostream&
-  _State_base::_M_print(std::ostream& ostr) const
+  _State_base::_M_print(std::ostream& __ostr) const
   {
     switch (_M_opcode)
     {
       case _S_opcode_alternative:
       case _S_opcode_repeat:
-	ostr << "alt next=" << _M_next << " alt=" << _M_alt;
+	__ostr << "alt next=" << _M_next << " alt=" << _M_alt;
 	break;
       case _S_opcode_subexpr_begin:
-	ostr << "subexpr begin next=" << _M_next << " index=" << _M_subexpr;
+	__ostr << "subexpr begin next=" << _M_next << " index=" << _M_subexpr;
 	break;
       case _S_opcode_subexpr_end:
-	ostr << "subexpr end next=" << _M_next << " index=" << _M_subexpr;
+	__ostr << "subexpr end next=" << _M_next << " index=" << _M_subexpr;
 	break;
       case _S_opcode_backref:
-	ostr << "backref next=" << _M_next << " index=" << _M_backref_index;
+	__ostr << "backref next=" << _M_next << " index=" << _M_backref_index;
 	break;
       case _S_opcode_match:
-	ostr << "match next=" << _M_next;
+	__ostr << "match next=" << _M_next;
 	break;
       case _S_opcode_accept:
-	ostr << "accept next=" << _M_next;
+	__ostr << "accept next=" << _M_next;
 	break;
       default:
-	ostr << "unknown next=" << _M_next;
+	__ostr << "unknown next=" << _M_next;
 	break;
     }
-    return ostr;
+    return __ostr;
   }
 
   // Prints graphviz dot commands for state.

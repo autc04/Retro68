@@ -6,5 +6,5 @@ SECTIONS
   .foo : { *(.foo) }
   . = ALIGN(8192);
   .data : AT (ADDR(.data)) { *(.data) }
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

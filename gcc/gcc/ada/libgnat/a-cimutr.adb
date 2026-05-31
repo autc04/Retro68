@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -1910,11 +1910,11 @@ is
       end Rec;
 
    begin
-      if First_Child (Root (V)) = No_Element then
+      if Is_Empty (V) then
          Array_Before (S);
          Array_After (S);
       else
-         Rec (First_Child (Root (V)));
+         Rec (Root (V));
       end if;
    end Put_Image;
 

@@ -7,6 +7,7 @@
 /* { dg-add-options ieee } */
 /* { dg-additional-options "-mfp-trap-mode=sui" { target alpha*-*-* } } */
 /* { dg-additional-options "-D_XOPEN_SOURCE=600" { target *-*-solaris2* } } */
+/* { dg-additional-options "-D_HPUX_SOURCE" { target *-*-hpux* } } */
 /* { dg-require-effective-target fenv_exceptions } */
 /* { dg-require-effective-target pthread } */
 /* { dg-timeout-factor 2 } */
@@ -53,8 +54,11 @@ test_thread_##NAME (void *arg)						\
   thread_ready = true;							\
   while (!thread_stop)							\
     {									\
+      sched_yield ();							\
       var_##NAME = (INIT1);						\
+      sched_yield ();							\
       var_##NAME = (INIT2);						\
+      sched_yield ();							\
     }									\
   return NULL;								\
 }									\
@@ -75,13 +79,14 @@ test_main_##NAME (void)							\
     }									\
   int num_1_pass = 0, num_1_fail = 0, num_2_pass = 0, num_2_fail = 0;	\
   while (!thread_ready)							\
-    ;									\
+    sched_yield ();							\
   for (int i = 0; i < ITER_COUNT; i++)					\
     {									\
       feclearexcept (FE_ALL_EXCEPT);					\
       feraiseexcept (BEXC);						\
       LHSTYPE r = (PRE var_##NAME POST);				\
       int rexc = fetestexcept (TEST_ALL_EXCEPT);			\
+      sched_yield ();							\
       if (VALTEST1 (r))							\
 	{								\
 	  if (rexc == ((BEXC) | (EXC1)))				\

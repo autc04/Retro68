@@ -1,4 +1,7 @@
 /**
+$(RED Warning:
+      This binding is out-of-date and does not allow use on non-Windows platforms. Use `etc.c.odbc.sqltypes` instead.)
+
  * Windows API header module
  *
  * Translated from MinGW Windows headers
@@ -6,9 +9,9 @@
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  * Source: $(DRUNTIMESRC core/sys/windows/_sqltypes.d)
  */
+
 module core.sys.windows.sqltypes;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 
@@ -19,22 +22,22 @@ version (ANSI) {} else version = Unicode;
 import core.sys.windows.windef;
 import core.sys.windows.basetyps; // for GUID
 
-alias byte SCHAR, SQLSCHAR;
-alias int SDWORD, SLONG, SQLINTEGER;
-alias short SWORD, SSHORT, RETCODE, SQLSMALLINT;
-alias ULONG UDWORD;
-alias USHORT UWORD, SQLUSMALLINT;
-alias double SDOUBLE, LDOUBLE;
-alias float SFLOAT;
-alias PVOID PTR, HENV, HDBC, HSTMT, SQLPOINTER;
-alias UCHAR SQLCHAR;
+alias SCHAR = byte, SQLSCHAR = byte;
+alias SDWORD = int, SLONG = int, SQLINTEGER = int;
+alias SWORD = short, SSHORT = short, RETCODE = short, SQLSMALLINT = short;
+alias UDWORD = ULONG;
+alias UWORD = USHORT, SQLUSMALLINT = USHORT;
+alias SDOUBLE = double, LDOUBLE = double;
+alias SFLOAT = float;
+alias PTR = PVOID, HENV = PVOID, HDBC = PVOID, HSTMT = PVOID, SQLPOINTER = PVOID;
+alias SQLCHAR = UCHAR;
 // #ifndef _WIN64
-alias UDWORD SQLUINTEGER;
+alias SQLUINTEGER = UDWORD;
 // #endif
 
 //static if (ODBCVER >= 0x0300) {
-alias TypeDef!(HANDLE) SQLHANDLE;
-alias SQLHANDLE SQLHENV, SQLHDBC, SQLHSTMT, SQLHDESC;
+alias SQLHANDLE = HANDLE;
+alias SQLHENV = SQLHANDLE, SQLHDBC = SQLHANDLE, SQLHSTMT = SQLHANDLE, SQLHDESC = SQLHANDLE;
 /*
 } else {
 alias void* SQLHENV;
@@ -42,30 +45,34 @@ alias void* SQLHDBC;
 alias void* SQLHSTMT;
 }
 */
-alias SQLSMALLINT SQLRETURN;
-alias HWND SQLHWND;
-alias ULONG BOOKMARK;
+alias SQLRETURN = SQLSMALLINT;
+alias SQLHWND = HWND;
+alias BOOKMARK = ULONG;
 
-alias SQLINTEGER SQLLEN, SQLROWOFFSET;
-alias SQLUINTEGER SQLROWCOUNT, SQLULEN;
-alias DWORD SQLTRANSID;
-alias SQLUSMALLINT SQLSETPOSIROW;
-alias wchar SQLWCHAR;
+alias SQLLEN = SQLINTEGER, SQLROWOFFSET = SQLINTEGER;
+alias SQLROWCOUNT = SQLUINTEGER, SQLULEN = SQLUINTEGER;
+alias SQLTRANSID = DWORD;
+alias SQLSETPOSIROW = SQLUSMALLINT;
+alias SQLWCHAR = wchar;
 
 version (Unicode) {
-    alias SQLWCHAR SQLTCHAR;
+    alias SQLTCHAR = SQLWCHAR;
 } else {
-    alias SQLCHAR  SQLTCHAR;
+    alias SQLTCHAR = SQLCHAR;
 }
 //static if (ODBCVER >= 0x0300) {
-alias ubyte  SQLDATE, SQLDECIMAL;
-alias double SQLDOUBLE, SQLFLOAT;
-alias ubyte  SQLNUMERIC;
-alias float  SQLREAL;
-alias ubyte  SQLTIME, SQLTIMESTAMP, SQLVARCHAR;
-alias long   ODBCINT64, SQLBIGINT;
-alias ulong  SQLUBIGINT;
+alias SQLDATE = ubyte, SQLDECIMAL = ubyte;
+alias SQLDOUBLE = double, SQLFLOAT = double;
+alias SQLNUMERIC = ubyte;
+alias SQLREAL = float;
+alias SQLTIME = ubyte, SQLTIMESTAMP = ubyte, SQLVARCHAR = ubyte;
+alias ODBCINT64 = long, SQLBIGINT = long;
+alias SQLUBIGINT = ulong;
 //}
+
+//Everything above this line may by used by odbcinst.d
+//Everything below this line is deprecated
+deprecated ("The ODBC 3.5 modules are deprecated. Please use the ODBC4 modules in the `etc.c.odbc` package."):
 
 struct DATE_STRUCT {
     SQLSMALLINT year;
@@ -90,9 +97,9 @@ struct TIMESTAMP_STRUCT {
 }
 
 //static if (ODBCVER >= 0x0300) {
-alias DATE_STRUCT SQL_DATE_STRUCT;
-alias TIME_STRUCT SQL_TIME_STRUCT;
-alias TIMESTAMP_STRUCT SQL_TIMESTAMP_STRUCT;
+alias SQL_DATE_STRUCT = DATE_STRUCT;
+alias SQL_TIME_STRUCT = TIME_STRUCT;
+alias SQL_TIMESTAMP_STRUCT = TIMESTAMP_STRUCT;
 
 enum SQLINTERVAL {
     SQL_IS_YEAR = 1,
@@ -142,4 +149,4 @@ struct SQL_NUMERIC_STRUCT {
     SQLCHAR[SQL_MAX_NUMERIC_LEN] val;
 }
 // } ODBCVER >= 0x0300
-alias GUID SQLGUID;
+alias SQLGUID = GUID;

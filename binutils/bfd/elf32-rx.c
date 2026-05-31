@@ -1,5 +1,5 @@
 /* Renesas RX specific support for 32-bit ELF.
-   Copyright (C) 2008-2022 Free Software Foundation, Inc.
+   Copyright (C) 2008-2026 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -652,7 +652,8 @@ rx_elf_relocate_section
 
       if (sec != NULL && discarded_section (sec))
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
-					 rel, 1, relend, howto, 0, contents);
+					 rel, 1, relend, R_RX_NONE,
+					 howto, 0, contents);
 
       if (bfd_link_relocatable (info))
 	{
@@ -1806,9 +1807,7 @@ rx_offset_for_reloc (bfd *		      abfd,
 	    {
 	      if ((ssec->flags & SEC_MERGE)
 		  && ssec->sec_info_type == SEC_INFO_TYPE_MERGE)
-		symval = _bfd_merged_section_offset (abfd, & ssec,
-						     elf_section_data (ssec)->sec_info,
-						     symval);
+		symval = _bfd_merged_section_offset (abfd, & ssec, symval);
 	    }
 
 	  /* Now make the offset relative to where the linker is putting it.  */
@@ -2038,8 +2037,9 @@ elf32_rx_relax_section (bfd *abfd,
      this section does not have relocs, or if this is not a
      code section.  */
   if (bfd_link_relocatable (link_info)
-      || (sec->flags & SEC_RELOC) == 0
       || sec->reloc_count == 0
+      || (sec->flags & SEC_RELOC) == 0
+      || (sec->flags & SEC_HAS_CONTENTS) == 0
       || (sec->flags & SEC_CODE) == 0)
     return true;
 
@@ -3138,6 +3138,9 @@ rx_elf_merge_private_bfd_data (bfd * ibfd, struct bfd_link_info *info)
   flagword new_flags;
   bool error = false;
 
+  if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour)
+    return true;
+
   new_flags = elf_elfheader (ibfd)->e_flags;
   old_flags = elf_elfheader (obfd)->e_flags;
 
@@ -3684,13 +3687,13 @@ rx_final_link (bfd * abfd, struct bfd_link_info * info)
 	}
     }
 
-  return bfd_elf_final_link (abfd, info);
+  return _bfd_elf_final_link (abfd, info);
 }
 
 static bool
 elf32_rx_modify_headers (bfd *abfd, struct bfd_link_info *info)
 {
-  const struct elf_backend_data * bed;
+  elf_backend_data *bed;
   struct elf_obj_tdata * tdata;
   Elf_Internal_Phdr * phdr;
   unsigned int count;
@@ -3972,16 +3975,17 @@ rx_table_map (struct bfd_hash_entry *vent, void *vinfo)
 
   bfd_hash_traverse (&(info->info->hash->table), rx_table_map_2, info);
 
-  fprintf (info->mapfile, "\nRX Vector Table: %s has %d entries at 0x%08" BFD_VMA_FMT "x\n\n",
-	   tname, info->table_size, start_addr);
+  fprintf (info->mapfile,
+	   "\nRX Vector Table: %s has %d entries at 0x%08" PRIx64 "\n\n",
+	   tname, info->table_size, (uint64_t) start_addr);
 
   if (info->table_default_entry)
-    fprintf (info->mapfile, "  default handler is: %s at 0x%08" BFD_VMA_FMT "x\n",
+    fprintf (info->mapfile, "  default handler is: %s at 0x%08" PRIx64 "\n",
 	     info->table_default_entry->root.string,
-	     info->table_default_handler);
+	     (uint64_t) info->table_default_handler);
   else if (info->table_default_handler != (bfd_vma)(-1))
-    fprintf (info->mapfile, "  default handler is at 0x%08" BFD_VMA_FMT "x\n",
-	     info->table_default_handler);
+    fprintf (info->mapfile, "  default handler is at 0x%08" PRIx64 "\n",
+	     (uint64_t) info->table_default_handler);
   else
     fprintf (info->mapfile, "  no default handler\n");
 
@@ -3997,7 +4001,8 @@ rx_table_map (struct bfd_hash_entry *vent, void *vinfo)
 	}
       need_elipses = 1;
 
-      fprintf (info->mapfile, "  0x%08" BFD_VMA_FMT "x [%3d] ", start_addr + 4 * idx, idx);
+      fprintf (info->mapfile,
+	       "  0x%08" PRIx64 " [%3d] ", (uint64_t) start_addr + 4 * idx, idx);
 
       if (info->table_handlers[idx] == (bfd_vma) (-1))
 	fprintf (info->mapfile, "(no handler found)\n");
@@ -4012,12 +4017,15 @@ rx_table_map (struct bfd_hash_entry *vent, void *vinfo)
 
       else if (info->table_entries[idx])
 	{
-	  fprintf (info->mapfile, "0x%08" BFD_VMA_FMT "x %s\n", info->table_handlers[idx], info->table_entries[idx]->root.string);
+	  fprintf (info->mapfile, "0x%08" PRIx64 " %s\n",
+		   (uint64_t) info->table_handlers[idx],
+		   info->table_entries[idx]->root.string);
 	}
 
       else
 	{
-	  fprintf (info->mapfile, "0x%08" BFD_VMA_FMT "x ???\n", info->table_handlers[idx]);
+	  fprintf (info->mapfile, "0x%08" PRIx64 " ???\n",
+		   (uint64_t) info->table_handlers[idx]);
 	}
     }
   if (need_elipses)

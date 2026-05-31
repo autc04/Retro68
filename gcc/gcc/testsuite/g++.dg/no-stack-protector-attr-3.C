@@ -3,8 +3,10 @@
 
 /* { dg-do compile { target i?86-*-* x86_64-*-* } } */
 /* { dg-options "-O2 -fstack-protector-explicit" } */
+/* { dg-additional-options "-fno-PIE" { target ia32 } } */
 
 /* { dg-do compile { target { ! hppa*-*-* } } } */
+/* { dg-require-effective-target fstack_protector } */
 
 int __attribute__((no_stack_protector)) foo()
 {

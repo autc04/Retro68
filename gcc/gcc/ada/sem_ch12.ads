@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -27,15 +27,15 @@ with Inline; use Inline;
 with Types;  use Types;
 
 package Sem_Ch12 is
-   procedure Analyze_Generic_Package_Declaration        (N : Node_Id);
-   procedure Analyze_Generic_Subprogram_Declaration     (N : Node_Id);
-   procedure Analyze_Package_Instantiation              (N : Node_Id);
-   procedure Analyze_Procedure_Instantiation            (N : Node_Id);
-   procedure Analyze_Function_Instantiation             (N : Node_Id);
-   procedure Analyze_Formal_Object_Declaration          (N : Node_Id);
-   procedure Analyze_Formal_Type_Declaration            (N : Node_Id);
-   procedure Analyze_Formal_Subprogram_Declaration      (N : Node_Id);
-   procedure Analyze_Formal_Package_Declaration         (N : Node_Id);
+   procedure Analyze_Generic_Package_Declaration    (N : Node_Id);
+   procedure Analyze_Generic_Subprogram_Declaration (N : Node_Id);
+   procedure Analyze_Package_Instantiation          (N : Node_Id);
+   procedure Analyze_Procedure_Instantiation        (N : Node_Id);
+   procedure Analyze_Function_Instantiation         (N : Node_Id);
+   procedure Analyze_Formal_Object_Declaration      (N : Node_Id);
+   procedure Analyze_Formal_Type_Declaration        (N : Node_Id);
+   procedure Analyze_Formal_Subprogram_Declaration  (N : Node_Id);
+   procedure Analyze_Formal_Package_Declaration     (N : Node_Id);
 
    procedure Start_Generic;
    --  Must be invoked before starting to process a generic spec or body
@@ -43,6 +43,14 @@ package Sem_Ch12 is
    procedure End_Generic;
    --  Must be invoked just at the end of the end of the processing of a
    --  generic spec or body.
+
+   function Build_Structural_Instantiation
+     (N        : Node_Id;
+      Gen_Unit : Entity_Id;
+      Actuals  : List_Id) return Entity_Id;
+   --  Build a structural instantiation of Gen_Unit on Actuals at N and return
+   --  its defining entity, after either having inserted it at the appropriate
+   --  place in the tree or turned it into a renaming of a previous instance.
 
    procedure Check_Generic_Child_Unit
      (Gen_Id           : Node_Id;
@@ -55,6 +63,22 @@ package Sem_Ch12 is
    --  retrieve the parent generic. If the parent is installed as a result of
    --  this call, then Parent_Installed is set True, otherwise Parent_Installed
    --  is unchanged by the call.
+
+   procedure Check_Private_View (N : Node_Id);
+   --  Check whether the type of a generic entity has a different view between
+   --  the point of generic analysis and the point of instantiation. If the
+   --  view has changed, then at the point of instantiation we restore the
+   --  correct view to perform semantic analysis of the instance, and reset
+   --  the current view after instantiation. The processing is driven by the
+   --  current private status of the type of the node, and Has_Private_View,
+   --  a flag that is set at the point of generic compilation. If view and
+   --  flag are inconsistent then the type is updated appropriately. A second
+   --  flag Has_Secondary_Private_View is used to update a second type related
+   --  to this type if need be.
+   --
+   --  This subprogram is used in Check_Generic_Actuals and Copy_Generic_Node,
+   --  and is exported here for the purpose of front-end inlining (see Exp_Ch6.
+   --  Expand_Inlined_Call.Process_Formals).
 
    function Copy_Generic_Node
      (N             : Node_Id;
@@ -110,6 +134,13 @@ package Sem_Ch12 is
    --  function and procedure instances. The flag Body_Optional has the
    --  same purpose as described for Instantiate_Package_Body.
 
+   function Is_Abbreviated_Instance (E : Entity_Id) return Boolean;
+   --  Return true if E is a package created for an abbreviated instantiation
+   --  to check conformance between formal package and corresponding actual.
+
+   procedure Mark_Link_Once (Decls : List_Id);
+   --  Mark all the structural instances present in Decls as Link Once
+
    function Need_Subprogram_Instance_Body
      (N    : Node_Id;
       Subp : Entity_Id) return Boolean;
@@ -131,13 +162,9 @@ package Sem_Ch12 is
    --  captured as described here.
 
    --  Because instantiations can be nested, the environment of the instance,
-   --  involving the actuals and other data-structures, must be saved and
+   --  involving the actuals and other data structures, must be saved and
    --  restored in stack-like fashion. Front-end inlining also uses these
    --  structures for the management of private/full views.
-
-   procedure Save_Global_References_In_Aspects (N : Node_Id);
-   --  Save all global references found within the expressions of all aspects
-   --  that appear on node N.
 
    procedure Set_Copied_Sloc_For_Inlined_Body (N : Node_Id; E : Entity_Id);
    --  This procedure is used when a subprogram body is inlined. This process
@@ -182,28 +209,39 @@ package Sem_Ch12 is
       Act_Unit : Entity_Id);
    --  Because instantiations can be nested, the compiler maintains a stack
    --  of environments that holds variables relevant to the current instance:
-   --  most importanty Instantiated_Parent, Exchanged_Views, Hidden_Entities,
+   --  most importantly Instantiated_Parent, Exchanged_Views, Hidden_Entities,
    --  and others (see full list in Instance_Env).
 
    procedure Restore_Env;
    --  After processing an instantiation, or aborting one because of semantic
    --  errors, remove the current Instantiation_Env from Instantation_Envs.
 
+   package Instance_Context is
+      --  If an entirely new context is entered (e.g., when Rtsfind invokes
+      --  semantics on a new compilation unit), then the current contents of
+      --  the generic renamings table must be saved and later restored.
+
+      type Context (<>) is private;
+
+      function Save_And_Reset return Context;
+      --  Save the current context information, then reinitialize
+      --  the current context, and finally return the saved value.
+
+      procedure Restore (Saved : Context);
+      --  Restore the context that was saved earlier.
+
+   private
+
+      type Binding_Pair is record
+         Formal_Id : Entity_Id;
+         Actual_Id : Entity_Id;
+      end record;
+
+      type Context is array (Natural range <>) of Binding_Pair;
+
+   end Instance_Context;
+
    procedure Initialize;
    --  Initializes internal data structures
-
-   procedure Check_Private_View (N : Node_Id);
-   --  Check whether the type of a generic entity has a different view between
-   --  the point of generic analysis and the point of instantiation. If the
-   --  view has changed, then at the point of instantiation we restore the
-   --  correct view to perform semantic analysis of the instance, and reset
-   --  the current view after instantiation. The processing is driven by the
-   --  current private status of the type of the node, and Has_Private_View,
-   --  a flag that is set at the point of generic compilation. If view and
-   --  flag are inconsistent then the type is updated appropriately.
-   --
-   --  This subprogram is used in Check_Generic_Actuals and Copy_Generic_Node,
-   --  and is exported here for the purpose of front-end inlining (see Exp_Ch6.
-   --  Expand_Inlined_Call.Process_Formals).
 
 end Sem_Ch12;

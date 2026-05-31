@@ -9,7 +9,6 @@
  */
 module core.sys.windows.dhcpcsdk;
 version (Windows):
-@system:
 
 import core.sys.windows.w32api, core.sys.windows.windef;
 
@@ -29,7 +28,7 @@ struct DHCPCAPI_CLASSID {
     LPBYTE Data;
     ULONG  nBytesData;
 }
-alias DHCPCAPI_CLASSID* PDHCPCAPI_CLASSID, LPDHCPCAPI_CLASSID;
+alias PDHCPCAPI_CLASSID = DHCPCAPI_CLASSID*, LPDHCPCAPI_CLASSID = DHCPCAPI_CLASSID*;
 
 struct DHCPAPI_PARAMS {
     ULONG  Flags;
@@ -38,15 +37,15 @@ struct DHCPAPI_PARAMS {
     LPBYTE Data;
     DWORD  nBytesData;
 }
-alias DHCPAPI_PARAMS* PDHCPAPI_PARAMS, LPDHCPAPI_PARAMS;
+alias PDHCPAPI_PARAMS = DHCPAPI_PARAMS*, LPDHCPAPI_PARAMS = DHCPAPI_PARAMS*;
 
 struct DHCPCAPI_PARAMS_ARRAY {
     ULONG            nParams;
     LPDHCPAPI_PARAMS Params;
 }
-alias DHCPCAPI_PARAMS_ARRAY* PDHCPCAPI_PARAMS_ARRAY, LPDHCPCAPI_PARAMS_ARRAY;
+alias PDHCPCAPI_PARAMS_ARRAY = DHCPCAPI_PARAMS_ARRAY*, LPDHCPCAPI_PARAMS_ARRAY = DHCPCAPI_PARAMS_ARRAY*;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     void DhcpCApiCleanup();
     DWORD DhcpCApiInitialize(LPDWORD);
     DWORD DhcpDeRegisterParamChange(DWORD, LPVOID, LPVOID);

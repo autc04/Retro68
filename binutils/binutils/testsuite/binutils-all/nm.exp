@@ -1,4 +1,4 @@
-#   Copyright (C) 1993-2022 Free Software Foundation, Inc.
+#   Copyright (C) 1993-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,9 +44,7 @@ if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
 
     # This test does not work correctly on ECOFF targets, because ECOFF
     # stores most symbols twice, which messes up the nm output.
-    setup_xfail "alpha*-*-osf*"
-    setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
-    setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*"
+    setup_xfail "alpha*-*-*ecoff" "alpha*-*-osf*"
 
     # This test does not work correctly on XCOFF targets, because XCOFF
     # does not enter static symbols in the symbol table.
@@ -104,9 +102,7 @@ if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
 
     # This test does not work correctly on ECOFF targets, because ECOFF
     # stores most symbols twice, which messes up the nm output.
-    setup_xfail "alpha*-*-osf*"
-    setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
-    setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*"
+    setup_xfail "alpha*-*-*ecoff" "alpha*-*-osf*"
 
     # This test does not work correctly on XCOFF targets, because XCOFF
     # does not enter static symbols in the symbol table.
@@ -167,6 +163,12 @@ if {   [is_elf_format]
     || [istarget wasm32-*-*]
     || [istarget bpf-*-*]} {
     set nm_1_src "nm-elf-1.s"
+} elseif {[is_coff_format]} {
+    if {[istarget *c4x-*-*] || [istarget *c54x-*-*]} {
+	set nm_1_src "nm-coff-sdef-1.s"
+    } else {
+	set nm_1_src "nm-coff-1.s"
+    }
 } else {
     set nm_1_src "nm-1.s"
 }
@@ -180,12 +182,6 @@ if {![binutils_assemble $srcdir/$subdir/$nm_1_src tmpdir/nm-1.o]} then {
     } else {
 	set tempfile tmpdir/nm-1.o
     }
-
-    # This test does not work correctly on ECOFF targets, because ECOFF
-    # stores most symbols twice, which messes up the nm output.
-    setup_xfail "alpha*-*-osf*"
-    setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
-    setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*"
 
     set got [binutils_run $NM "$NMFLAGS --size-sort $tempfile"]
 
@@ -256,8 +252,6 @@ if [is_elf_format] {
     # Test nm --line-numbers on DWARF-4 debug info.    
     set testname "nm --line-numbers on DWARF-4 debug info"
 
-    # The RISCV target does not (currently) support .uleb128.
-    setup_xfail "riscv*-*-*"
     # The SH targets complain that the pseudo-ops used to construct
     # the DWARF data are misaligned.
     setup_xfail "sh*-*-*"
@@ -302,17 +296,13 @@ if [is_elf_format] {
     # PR 22967
     # Test nm --ifunc-chars on a indirect symbols.
     
-    # The following targets are known to not support ifuncs.
-    setup_xfail "alpha*-*-*"
-    setup_xfail "arm*-elf" "arm*-*-nto*" "arm*-*-netbsd*"
-    setup_xfail "*-*-hpux*"
-    setup_xfail "mips*-*-*" "tx39*-*-*"
-    setup_xfail "msp430*-*-*"
-    setup_xfail "visium*-*-*"
-    setup_xfail "x86_64-*-cloudabi*"
-
     set testname "nm --ifunc-chars"
-    if {![binutils_assemble $srcdir/$subdir/ifunc.s tmpdir/ifunc.o]} then {
+    if { ![supports_gnu_osabi] \
+	 || [istarget "alpha*-*-*"] \
+	 || [istarget "kvx-*-*"] \
+	 || [istarget "mips*-*-*"] } {
+	unsupported $testname
+    } elseif { ![binutils_assemble $srcdir/$subdir/ifunc.s tmpdir/ifunc.o] } {
 	fail "$testname (assembly)"
     } else {
 	if [is_remote host] {
@@ -333,6 +323,23 @@ if [is_elf_format] {
 	    pass "$testname (local ifunc)"
 	} else {
 	    fail "$testname (local ifunc)"
+	}
+
+	# PR 32556
+	# Test nm --ifunc-chars=--
+
+	set got [binutils_run $NM "$NMFLAGS --ifunc-chars=-- $tmpfile"]
+
+	if [regexp -line "^\\S+ - global_foo$" $got] then {
+	    pass "$testname=-- (global ifunc)"
+	} else {
+	    fail "$testname=-- (global ifunc)"
+	}
+
+	if [regexp -line "^\\S+ - local_foo$" $got] then {
+	    pass "$testname=-- (local ifunc)"
+	} else {
+	    fail "$testname=-- (local ifunc)"
 	}
 
 	if { $verbose < 1 } {

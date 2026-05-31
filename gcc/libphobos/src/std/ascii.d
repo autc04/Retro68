@@ -23,6 +23,7 @@ $(TR $(TD Validation) $(TD
         $(LREF isDigit)
         $(LREF isGraphical)
         $(LREF isHexDigit)
+        $(LREF isLower)
         $(LREF isOctalDigit)
         $(LREF isPrintable)
         $(LREF isPunctuation)
@@ -185,9 +186,11 @@ else
     Params: c = The character to test.
     Returns: Whether `c` is a letter or a number (0 .. 9, a .. z, A .. Z).
   +/
+pragma(inline, true)
 bool isAlphaNum(dchar c) @safe pure nothrow @nogc
 {
-    return c <= 'z' && c >= '0' && (c <= '9' || c >= 'a' || (c >= 'A' && c <= 'Z'));
+    const hc = c | 0x20;
+    return ('0' <= c && c <= '9') || ('a' <= hc && hc <= 'z');
 }
 
 ///
@@ -216,6 +219,7 @@ bool isAlphaNum(dchar c) @safe pure nothrow @nogc
     Params: c = The character to test.
     Returns: Whether `c` is an ASCII letter (A .. Z, a .. z).
   +/
+pragma(inline, true)
 bool isAlpha(dchar c) @safe pure nothrow @nogc
 {
     // Optimizer can turn this into a bitmask operation on 64 bit code
@@ -248,6 +252,7 @@ bool isAlpha(dchar c) @safe pure nothrow @nogc
     Params: c = The character to test.
     Returns: Whether `c` is a lowercase ASCII letter (a .. z).
   +/
+pragma(inline, true)
 bool isLower(dchar c) @safe pure nothrow @nogc
 {
     return c >= 'a' && c <= 'z';
@@ -280,6 +285,7 @@ bool isLower(dchar c) @safe pure nothrow @nogc
     Params: c = The character to test.
     Returns: Whether `c` is an uppercase ASCII letter (A .. Z).
   +/
+pragma(inline, true)
 bool isUpper(dchar c) @safe pure nothrow @nogc
 {
     return c <= 'Z' && 'A' <= c;
@@ -312,6 +318,7 @@ bool isUpper(dchar c) @safe pure nothrow @nogc
     Params: c = The character to test.
     Returns: Whether `c` is a digit (0 .. 9).
   +/
+pragma(inline, true)
 bool isDigit(dchar c) @safe pure nothrow @nogc
 {
     return '0' <= c && c <= '9';
@@ -345,6 +352,7 @@ bool isDigit(dchar c) @safe pure nothrow @nogc
     Params: c = The character to test.
     Returns: Whether `c` is a digit in base 8 (0 .. 7).
   +/
+pragma(inline, true)
 bool isOctalDigit(dchar c) @safe pure nothrow @nogc
 {
     return c >= '0' && c <= '7';
@@ -375,9 +383,11 @@ bool isOctalDigit(dchar c) @safe pure nothrow @nogc
     Params: c = The character to test.
     Returns: Whether `c` is a digit in base 16 (0 .. 9, A .. F, a .. f).
   +/
+pragma(inline, true)
 bool isHexDigit(dchar c) @safe pure nothrow @nogc
 {
-    return c <= 'f' && c >= '0' && (c <= '9' || c >= 'a' || (c >= 'A' && c <= 'F'));
+    const hc = c | 0x20;
+    return ('0' <= c && c <= '9') || ('a' <= hc && hc <= 'f');
 }
 
 ///
@@ -408,6 +418,7 @@ bool isHexDigit(dchar c) @safe pure nothrow @nogc
     space, tab, vertical tab, form feed, carriage return, and linefeed
     characters.
   +/
+pragma(inline, true)
 bool isWhite(dchar c) @safe pure nothrow @nogc
 {
     return c == ' ' || (c >= 0x09 && c <= 0x0D);
@@ -444,6 +455,7 @@ bool isWhite(dchar c) @safe pure nothrow @nogc
     Params: c = The character to test.
     Returns: Whether `c` is a control character.
   +/
+pragma(inline, true)
 bool isControl(dchar c) @safe pure nothrow @nogc
 {
     return c < 0x20 || c == 0x7F;
@@ -484,6 +496,7 @@ bool isControl(dchar c) @safe pure nothrow @nogc
     all ASCII characters which are not control characters, letters, digits, or
     whitespace.
   +/
+pragma(inline, true)
 bool isPunctuation(dchar c) @safe pure nothrow @nogc
 {
     return c <= '~' && c >= '!' && !isAlphaNum(c);
@@ -528,6 +541,7 @@ bool isPunctuation(dchar c) @safe pure nothrow @nogc
     Returns: Whether or not `c` is a printable character other than the
     space character.
   +/
+pragma(inline, true)
 bool isGraphical(dchar c) @safe pure nothrow @nogc
 {
     return '!' <= c && c <= '~';
@@ -564,6 +578,7 @@ bool isGraphical(dchar c) @safe pure nothrow @nogc
     Returns: Whether or not `c` is a printable character - including the
     space character.
   +/
+pragma(inline, true)
 bool isPrintable(dchar c) @safe pure nothrow @nogc
 {
     return c >= ' ' && c <= '~';

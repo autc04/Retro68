@@ -1,5 +1,5 @@
 /* Scheduler hooks for IA-32 which implement bdver1-4 specific logic.
-   Copyright (C) 1988-2022 Free Software Foundation, Inc.
+   Copyright (C) 1988-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -345,7 +345,7 @@ find_constant (rtx in_rtx, imm_info *imm_values)
 	case SYMBOL_REF:
 	case CONST_INT:
 	  (imm_values->imm)++;
-	  if (x86_64_immediate_operand (CONST_CAST_RTX (x), SImode))
+	  if (x86_64_immediate_operand (const_cast<rtx> (x), SImode))
 	    (imm_values->imm32)++;
 	  else
 	    (imm_values->imm64)++;

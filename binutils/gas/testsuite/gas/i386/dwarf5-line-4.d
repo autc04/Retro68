@@ -4,7 +4,7 @@
 
 Raw dump of debug contents of section \.z?debug_line:
 
-  Offset:                      0x0
+  Offset:                      (0x)?0
   Length:                      .*
   DWARF Version:               5
   Address size \(bytes\):        .*
@@ -33,7 +33,7 @@ Raw dump of debug contents of section \.z?debug_line:
 
  The Directory Table \(offset 0x.*, lines 2, columns 1\):
   Entry	Name
-  0	\(indirect line string, offset: 0x.*\): .*
+  0	\(indirect line string, offset: 0.*\): .*
   1	\(indirect line string, offset: 0x.*\): .*
 
  The File Name Table \(offset 0x.*, lines 2, columns 2\):
@@ -42,8 +42,8 @@ Raw dump of debug contents of section \.z?debug_line:
   1	1	\(indirect line string, offset: 0x.*\): dwarf5-line-4.s
 
  Line Number Statements:
-  \[0x.*\]  Extended opcode 2: set Address to 0x0
-  \[0x.*\]  Special opcode 7: advance Address by 0 to 0x0 and Line by 2 to 3
+  \[0x.*\]  Extended opcode 2: set Address to (0x)?0
+  \[0x.*\]  Special opcode 7: advance Address by 0 to (0x)?0 and Line by 2 to 3
   \[0x.*\]  Advance PC by 1 to 0x1
   \[0x.*\]  Extended opcode 1: End of Sequence
 

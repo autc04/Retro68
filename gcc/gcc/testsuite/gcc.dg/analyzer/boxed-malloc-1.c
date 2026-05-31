@@ -1,7 +1,5 @@
 /* Adapted from malloc-1.c, but wrapping the pointers in a struct.  */
 
-/* { dg-require-effective-target alloca } */
-
 #include <stdlib.h>
 
 extern int foo (void);
@@ -19,7 +17,7 @@ boxed_malloc (size_t sz)
   return result;
 }
 
-boxed_ptr
+void
 boxed_free (boxed_ptr ptr)
 {
   free (ptr.value);
@@ -141,7 +139,7 @@ void test_12 (void)
 
   while (1)
     {
-      free (ptr.value);
+      free (ptr.value); /* { dg-warning "infinite loop" } */
       free (ptr.value); /* { dg-warning "double-'free' of 'ptr.value'" } */
     }
 }
@@ -289,14 +287,14 @@ void test_22 (void)
   free (ptr.value); /* { dg-warning "double-'free' of 'ptr.value'" } */ 
 }
 
-int test_24 (void)
+void test_24 (void)
 {
   boxed_ptr ptr;
   ptr.value = __builtin_alloca (sizeof (int)); /* { dg-message "region created on stack here" } */
   free (ptr.value); /* { dg-warning "'free' of 'ptr.value' which points to memory on the stack \\\[CWE-590\\\]" } */
 }
 
-int test_25 (void)
+void test_25 (void)
 {
   char tmp[100]; /* { dg-message "region created on stack here" } */
   boxed_ptr p;
@@ -306,7 +304,7 @@ int test_25 (void)
 
 char global_buffer[100]; /* { dg-message "region created here" } */
 
-int test_26 (void)
+void test_26 (void)
 {
   boxed_ptr p;
   p.value = global_buffer;

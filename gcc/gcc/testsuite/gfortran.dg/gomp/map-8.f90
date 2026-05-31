@@ -1,3 +1,4 @@
+! { dg-additional-options "-Wno-deprecated-openmp" }
 implicit none
 
 integer :: a
@@ -28,7 +29,18 @@ integer :: a
 !$omp target map(close close to : a) ! { dg-error "too many 'close' modifiers" }
 ! !$omp end target
 
+!$omp target map(present present, to : a) ! { dg-error "too many 'present' modifiers" }
+! !$omp end target
+!$omp target map(present, present to : a) ! { dg-error "too many 'present' modifiers" }
+! !$omp end target
+!$omp target map(present present to : a) ! { dg-error "too many 'present' modifiers" }
+! !$omp end target
+
+
 !$omp target map(close close always always to : a) ! { dg-error "too many 'always' modifiers" }
+! !$omp end target
+
+!$omp target map(present close always present to : a) ! { dg-error "too many 'present' modifiers" }
 ! !$omp end target
 
 end

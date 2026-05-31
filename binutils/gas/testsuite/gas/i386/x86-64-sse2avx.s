@@ -1,6 +1,5 @@
 # Check 64bit SSE to AVX instructions
 
-	.allow_index_reg
 	.text
 _start:
 # Tests for op mem64
@@ -805,36 +804,43 @@ _start:
 	pextrw $100,%xmm4,%ecx
 
 # Tests for REX prefix conversion
-	{rex} addps %xmm0, %xmm0
-	{rex} addps (%rax,%rax), %xmm0
-	rex addps %xmm0, %xmm0
-	rex addps (%rax,%rax), %xmm0
-	rexx addps %xmm0, %xmm0
-	rexx addps (%rax,%rax), %xmm0
-	rexy addps %xmm0, %xmm0
-	rexy addps (%rax,%rax), %xmm0
-	rexz addps %xmm0, %xmm0
-	rexz addps (%rax,%rax), %xmm0
+	{rex} addps %xmm0, %xmm1
+	{rex} addps (%rax,%rax), %xmm1
+	rex addps %xmm0, %xmm1
+	rex addps (%rax,%rax), %xmm1
+	rexx addps %xmm0, %xmm1
+	rexx addps (%rax,%rax), %xmm1
+	rexy addps %xmm0, %xmm1
+	rexy addps (%rax,%rax), %xmm1
+	rexz addps %xmm0, %xmm1
+	rexz addps (%rax,%rax), %xmm1
 
-	{load} rexx movss %xmm0, %xmm0
-	{load} rexz movss %xmm0, %xmm0
+	{load} rexx movss %xmm0, %xmm1
+	{load} rexz movss %xmm0, %xmm1
 
-	{store} rexx movss %xmm0, %xmm0
-	{store} rexz movss %xmm0, %xmm0
+	{store} rexx movss %xmm0, %xmm1
+	{store} rexz movss %xmm0, %xmm1
 
 	rexz psllw $0, %xmm0
+	rexz pslld $0, %xmm0
+	rexz psllq $0, %xmm0
+	rexz psraw $0, %xmm0
+	rexz psrad $0, %xmm0
+	rexz psrlw $0, %xmm0
+	rexz psrld $0, %xmm0
+	rexz psrlq $0, %xmm0
 
-	rexx pextrw $0, %xmm0, %eax
-	rexz pextrw $0, %xmm0, %eax
+	rexx pextrw $0, %xmm0, %ecx
+	rexz pextrw $0, %xmm0, %ecx
 
-	rexx pextrb $0, %xmm0, %eax
-	rexz pextrb $0, %xmm0, %eax
+	rexx pextrb $0, %xmm0, %ecx
+	rexz pextrb $0, %xmm0, %ecx
 
-	rexx blendvps %xmm0, %xmm0, %xmm0
-	rexz blendvps %xmm0, %xmm0, %xmm0
+	rexx blendvps %xmm0, %xmm0, %xmm1
+	rexz blendvps %xmm0, %xmm0, %xmm1
 
-	rexx blendvps %xmm0, %xmm0
-	rexz blendvps %xmm0, %xmm0
+	rexx blendvps %xmm0, %xmm1
+	rexz blendvps %xmm0, %xmm1
 
 	rex64 cvtsi2sd (%rax), %xmm0
 	rex64 cvtsi2ss (%rax), %xmm0
@@ -842,6 +848,26 @@ _start:
 	rex64 pcmpestri $0, %xmm0, %xmm0
 	rex64 pcmpestrm $0, %xmm0, %xmm0
 
+		movd	%xmm1, %eax
+	rex	movd	%xmm1, %eax
+	rex.b	movd	%xmm1, %eax
+	rex.r	movd	%xmm1, %eax
+	rex.x	movd	%xmm1, %eax
+	rex.w	movd	%xmm1, %eax
+	{evex}	movd	%xmm1, %eax
+	{rex}	movd	%xmm1, %eax
+	{rex2}	movd	%xmm1, %eax
+	{vex3}	movd	%xmm1, %eax
+
+		movd	%xmm1, %r16d
+	rex	movd	%xmm1, %r16d
+	rex.b	movd	%xmm1, %r16d
+	rex.r	movd	%xmm1, %r16d
+	rex.x	movd	%xmm1, %r16d
+	rex.w	movd	%xmm1, %r16d
+	{evex}	movd	%xmm1, %r16d
+	{rex}	movd	%xmm1, %r16d
+	{rex2}	movd	%xmm1, %r16d
 
 	.intel_syntax noprefix
 # Tests for op mem64
@@ -1314,10 +1340,10 @@ _start:
 	cvttsd2si rcx,QWORD PTR [rcx]
 
 # Tests for op regq/mem64, xmm[, xmm]
-	cvtsi2sdq xmm4,rcx
-	cvtsi2sdq xmm4,QWORD PTR [rcx]
-	cvtsi2ssq xmm4,rcx
-	cvtsi2ssq xmm4,QWORD PTR [rcx]
+	cvtsi2sd xmm4,rcx
+	cvtsi2sd xmm4,QWORD PTR [rcx]
+	cvtsi2ss xmm4,rcx
+	cvtsi2ss xmm4,QWORD PTR [rcx]
 
 # Tests for op imm8, regq/mem64, xmm[, xmm]
 	pinsrq xmm4,rcx,100

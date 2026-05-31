@@ -14,7 +14,6 @@ Section Headers:
  +\[[ 0-9]+\] \.dynsym +.*
  +\[[ 0-9]+\] \.dynstr +.*
  +\[[ 0-9]+\] \.rel.dyn +.*
- +\[[ 0-9]+\] \.rel.plt +.*
  +\[[ 0-9]+\] \.text +.*
  +\[[ 0-9]+\] \.tdata +PROGBITS +[0-9a-f]+ [0-9a-f]+ 000060 00 WAT +0 +0 +1
  +\[[ 0-9]+\] \.tbss +NOBITS +[0-9aa-f]+ [0-9a-f]+ 000020 00 WAT +0 +0 +1
@@ -40,12 +39,12 @@ Program Headers:
 
  Section to Segment mapping:
  +Segment Sections...
- +00 +.hash .dynsym .dynstr .rel.dyn .rel.plt .text *
+ +00 +.hash .dynsym .dynstr .rel.dyn .text *
  +01 +.tdata .dynamic .got .got.plt *
  +02 +.dynamic *
  +03 +.tdata .tbss *
 
-Relocation section '.rel.dyn' at offset 0x[0-9a-f]+ contains 20 entries:
+Relocation section '.rel.dyn' at offset 0x[0-9a-f]+ contains 25 entries:
  Offset +Info +Type +Sym.Value +Sym. Name
 [0-9a-f ]+R_386_TLS_TPOFF32
 [0-9a-f ]+R_386_TLS_TPOFF *
@@ -62,71 +61,68 @@ Relocation section '.rel.dyn' at offset 0x[0-9a-f]+ contains 20 entries:
 [0-9a-f ]+R_386_TLS_TPOFF *
 [0-9a-f ]+R_386_TLS_TPOFF *
 [0-9a-f ]+R_386_TLS_TPOFF32
+[0-9a-f ]+R_386_TLS_DESC *
+[0-9a-f ]+R_386_TLS_DESC *
+[0-9a-f ]+R_386_TLS_DESC *
+[0-9a-f ]+R_386_TLS_DESC *
 [0-9a-f ]+R_386_TLS_TPOFF +0+8 +sg3
 [0-9a-f ]+R_386_TLS_TPOFF32 0+c +sg4
 [0-9a-f ]+R_386_TLS_TPOFF +0+c +sg4
 [0-9a-f ]+R_386_TLS_TPOFF +0+10 +sg5
 [0-9a-f ]+R_386_TLS_TPOFF32 0+4 +sg2
-
-Relocation section '.rel.plt' at offset 0x[0-9a-f]+ contains 5 entries:
- Offset +Info +Type +Sym.Value +Sym. Name
 [0-9a-f ]+R_386_TLS_DESC * 0+ +sg1
-[0-9a-f ]+R_386_TLS_DESC *
-[0-9a-f ]+R_386_TLS_DESC *
-[0-9a-f ]+R_386_TLS_DESC *
-[0-9a-f ]+R_386_TLS_DESC *
 
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
- +[0-9]+: 0+1c +0 +TLS +GLOBAL +DEFAULT +7 sg8
- +[0-9]+: 0+8 +0 +TLS +GLOBAL +DEFAULT +7 sg3
- +[0-9]+: 0+c +0 +TLS +GLOBAL +DEFAULT +7 sg4
- +[0-9]+: 0+10 +0 +TLS +GLOBAL +DEFAULT +7 sg5
- +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +7 sg1
- +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +6 fn1
- +[0-9]+: 0+4 +0 +TLS +GLOBAL +DEFAULT +7 sg2
- +[0-9]+: 0+14 +0 +TLS +GLOBAL +DEFAULT +7 sg6
- +[0-9]+: 0+18 +0 +TLS +GLOBAL +DEFAULT +7 sg7
+ +[0-9]+: 0+1c +0 +TLS +GLOBAL +DEFAULT +6 sg8
+ +[0-9]+: 0+8 +0 +TLS +GLOBAL +DEFAULT +6 sg3
+ +[0-9]+: 0+c +0 +TLS +GLOBAL +DEFAULT +6 sg4
+ +[0-9]+: 0+10 +0 +TLS +GLOBAL +DEFAULT +6 sg5
+ +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +6 sg1
+ +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +5 fn1
+ +[0-9]+: 0+4 +0 +TLS +GLOBAL +DEFAULT +6 sg2
+ +[0-9]+: 0+14 +0 +TLS +GLOBAL +DEFAULT +6 sg6
+ +[0-9]+: 0+18 +0 +TLS +GLOBAL +DEFAULT +6 sg7
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
 .* FILE +LOCAL +DEFAULT +ABS .*tlsdesc.o
- +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +7 sl1
- +[0-9]+: 0+24 +0 +TLS +LOCAL +DEFAULT +7 sl2
- +[0-9]+: 0+28 +0 +TLS +LOCAL +DEFAULT +7 sl3
- +[0-9]+: 0+2c +0 +TLS +LOCAL +DEFAULT +7 sl4
- +[0-9]+: 0+30 +0 +TLS +LOCAL +DEFAULT +7 sl5
- +[0-9]+: 0+34 +0 +TLS +LOCAL +DEFAULT +7 sl6
- +[0-9]+: 0+38 +0 +TLS +LOCAL +DEFAULT +7 sl7
- +[0-9]+: 0+3c +0 +TLS +LOCAL +DEFAULT +7 sl8
+ +[0-9]+: 0+20 +0 +TLS +LOCAL +DEFAULT +6 sl1
+ +[0-9]+: 0+24 +0 +TLS +LOCAL +DEFAULT +6 sl2
+ +[0-9]+: 0+28 +0 +TLS +LOCAL +DEFAULT +6 sl3
+ +[0-9]+: 0+2c +0 +TLS +LOCAL +DEFAULT +6 sl4
+ +[0-9]+: 0+30 +0 +TLS +LOCAL +DEFAULT +6 sl5
+ +[0-9]+: 0+34 +0 +TLS +LOCAL +DEFAULT +6 sl6
+ +[0-9]+: 0+38 +0 +TLS +LOCAL +DEFAULT +6 sl7
+ +[0-9]+: 0+3c +0 +TLS +LOCAL +DEFAULT +6 sl8
 .* FILE +LOCAL +DEFAULT +ABS 
- +[0-9]+: 0+60 +0 +TLS +LOCAL +DEFAULT +8 sH1
- +[0-9]+: 0+ +0 +TLS +LOCAL +DEFAULT +7 _TLS_MODULE_BASE_
- +[0-9]+: [0-9a-f]+ +0 +OBJECT +LOCAL +DEFAULT +9 _DYNAMIC
- +[0-9]+: 0+48 +0 +TLS +LOCAL +DEFAULT +7 sh3
- +[0-9]+: 0+64 +0 +TLS +LOCAL +DEFAULT +8 sH2
- +[0-9]+: 0+78 +0 +TLS +LOCAL +DEFAULT +8 sH7
- +[0-9]+: 0+58 +0 +TLS +LOCAL +DEFAULT +7 sh7
- +[0-9]+: 0+5c +0 +TLS +LOCAL +DEFAULT +7 sh8
- +[0-9]+: 0+6c +0 +TLS +LOCAL +DEFAULT +8 sH4
- +[0-9]+: 0+4c +0 +TLS +LOCAL +DEFAULT +7 sh4
- +[0-9]+: 0+68 +0 +TLS +LOCAL +DEFAULT +8 sH3
- +[0-9]+: 0+50 +0 +TLS +LOCAL +DEFAULT +7 sh5
- +[0-9]+: 0+70 +0 +TLS +LOCAL +DEFAULT +8 sH5
- +[0-9]+: 0+74 +0 +TLS +LOCAL +DEFAULT +8 sH6
- +[0-9]+: 0+7c +0 +TLS +LOCAL +DEFAULT +8 sH8
- +[0-9]+: 0+40 +0 +TLS +LOCAL +DEFAULT +7 sh1
- +[0-9]+: [0-9a-f]+ +0 +OBJECT +LOCAL +DEFAULT +11 _GLOBAL_OFFSET_TABLE_
- +[0-9]+: 0+44 +0 +TLS +LOCAL +DEFAULT +7 sh2
- +[0-9]+: 0+54 +0 +TLS +LOCAL +DEFAULT +7 sh6
- +[0-9]+: 0+1c +0 +TLS +GLOBAL +DEFAULT +7 sg8
- +[0-9]+: 0+8 +0 +TLS +GLOBAL +DEFAULT +7 sg3
- +[0-9]+: 0+c +0 +TLS +GLOBAL +DEFAULT +7 sg4
- +[0-9]+: 0+10 +0 +TLS +GLOBAL +DEFAULT +7 sg5
- +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +7 sg1
- +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +6 fn1
- +[0-9]+: 0+4 +0 +TLS +GLOBAL +DEFAULT +7 sg2
- +[0-9]+: 0+14 +0 +TLS +GLOBAL +DEFAULT +7 sg6
- +[0-9]+: 0+18 +0 +TLS +GLOBAL +DEFAULT +7 sg7
+ +[0-9]+: 0+60 +0 +TLS +LOCAL +DEFAULT +7 sH1
+ +[0-9]+: 0+ +0 +TLS +LOCAL +DEFAULT +6 _TLS_MODULE_BASE_
+ +[0-9]+: [0-9a-f]+ +0 +OBJECT +LOCAL +DEFAULT +8 _DYNAMIC
+ +[0-9]+: 0+48 +0 +TLS +LOCAL +DEFAULT +6 sh3
+ +[0-9]+: 0+64 +0 +TLS +LOCAL +DEFAULT +7 sH2
+ +[0-9]+: 0+78 +0 +TLS +LOCAL +DEFAULT +7 sH7
+ +[0-9]+: 0+58 +0 +TLS +LOCAL +DEFAULT +6 sh7
+ +[0-9]+: 0+5c +0 +TLS +LOCAL +DEFAULT +6 sh8
+ +[0-9]+: 0+6c +0 +TLS +LOCAL +DEFAULT +7 sH4
+ +[0-9]+: 0+4c +0 +TLS +LOCAL +DEFAULT +6 sh4
+ +[0-9]+: 0+68 +0 +TLS +LOCAL +DEFAULT +7 sH3
+ +[0-9]+: 0+50 +0 +TLS +LOCAL +DEFAULT +6 sh5
+ +[0-9]+: 0+70 +0 +TLS +LOCAL +DEFAULT +7 sH5
+ +[0-9]+: 0+74 +0 +TLS +LOCAL +DEFAULT +7 sH6
+ +[0-9]+: 0+7c +0 +TLS +LOCAL +DEFAULT +7 sH8
+ +[0-9]+: 0+40 +0 +TLS +LOCAL +DEFAULT +6 sh1
+ +[0-9]+: [0-9a-f]+ +0 +OBJECT +LOCAL +DEFAULT +10 _GLOBAL_OFFSET_TABLE_
+ +[0-9]+: 0+44 +0 +TLS +LOCAL +DEFAULT +6 sh2
+ +[0-9]+: 0+54 +0 +TLS +LOCAL +DEFAULT +6 sh6
+ +[0-9]+: 0+1c +0 +TLS +GLOBAL +DEFAULT +6 sg8
+ +[0-9]+: 0+8 +0 +TLS +GLOBAL +DEFAULT +6 sg3
+ +[0-9]+: 0+c +0 +TLS +GLOBAL +DEFAULT +6 sg4
+ +[0-9]+: 0+10 +0 +TLS +GLOBAL +DEFAULT +6 sg5
+ +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +6 sg1
+ +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +5 fn1
+ +[0-9]+: 0+4 +0 +TLS +GLOBAL +DEFAULT +6 sg2
+ +[0-9]+: 0+14 +0 +TLS +GLOBAL +DEFAULT +6 sg6
+ +[0-9]+: 0+18 +0 +TLS +GLOBAL +DEFAULT +6 sg7

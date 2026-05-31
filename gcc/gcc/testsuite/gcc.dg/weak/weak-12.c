@@ -4,8 +4,9 @@
 /* { dg-options "" } */
 /* NVPTX's weak is applied to the definition,  not declaration.  */
 /* { dg-skip-if "" { nvptx-*-* } } */
+/* { dg-skip-if PR119369 { amdgcn-*-* } } */
 
-/* { dg-final { scan-assembler "weak\[^ \t\]*\[ \t\]_?foo" } } */
+/* { dg-final { scan-weak "foo" } } */
 
 #pragma weak foo
 

@@ -3,7 +3,7 @@
    pragma.  */
 /* { dg-skip-if "-mpure-code supports M-profile only" { *-*-* } { "-mpure-code" } } */
 /* { dg-require-effective-target arm_fp_ok } */
-/* { dg-options "-O2 -march=armv8-a" } */
+/* { dg-options "-O2 -march=armv8-a+simd" } */
 /* { dg-add-options arm_fp } */
 
 /* Reset fpu to a value compatible with the next pragmas.  */
@@ -14,6 +14,14 @@
 
 #ifndef __ARM_FEATURE_CRYPTO
 #error __ARM_FEATURE_CRYPTO not defined.
+#endif
+
+#ifndef __ARM_FEATURE_AES
+#error __ARM_FEATURE_AES not defined.
+#endif
+
+#ifndef __ARM_FEATURE_SHA2
+#error __ARM_FEATURE_SHA2 not defined.
 #endif
 
 #ifndef __ARM_NEON

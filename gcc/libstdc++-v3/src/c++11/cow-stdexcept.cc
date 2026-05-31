@@ -1,6 +1,6 @@
 // Methods for Exception Support for -*- C++ -*-
 
-// Copyright (C) 2014-2022 Free Software Foundation, Inc.
+// Copyright (C) 2014-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -46,7 +46,6 @@ _txnal_runtime_error_get_msg(void* e);
 #define _GLIBCXX_DEFINE_STDEXCEPT_COPY_OPS 1
 #define __cow_string __cow_stringxxx
 #include <stdexcept>
-#include <system_error>
 #undef __cow_string
 
 namespace std _GLIBCXX_VISIBILITY(default)
@@ -127,17 +126,21 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
     __cow_string();
     __cow_string(const std::string& s);
+    __cow_string(const char*);
     __cow_string(const char*, size_t n);
     __cow_string(const __cow_string&) noexcept;
     __cow_string& operator=(const __cow_string&) noexcept;
     ~__cow_string();
     __cow_string(__cow_string&&) noexcept;
     __cow_string& operator=(__cow_string&&) noexcept;
+    const char* c_str() const noexcept;
   };
 
   __cow_string::__cow_string() : _M_str() { }
 
   __cow_string::__cow_string(const std::string& s) : _M_str(s) { }
+
+  __cow_string::__cow_string(const char* s) : _M_str(s) { }
 
   __cow_string::__cow_string(const char* s, size_t n) : _M_str(s, n) { }
 
@@ -163,19 +166,17 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     return *this;
   }
 
+  const char*
+  __cow_string::c_str() const noexcept
+  {
+    return _M_str.c_str();
+  }
+
   static_assert(sizeof(__cow_string) == sizeof(std::string),
                 "sizeof(std::string) has changed");
   static_assert(alignof(__cow_string) == alignof(std::string),
                 "alignof(std::string) has changed");
 #endif
-
-  // Return error_category::message() as an SSO string
-  __sso_string
-  error_category::_M_message(int i) const
-  {
-    string msg = this->message(i);
-    return {msg.c_str(), msg.length()};
-  }
 
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace
@@ -198,7 +199,11 @@ _GLIBCXX_END_NAMESPACE_VERSION
 // declared transaction-safe, so we just don't provide transactional clones
 // in this case.
 #if _GLIBCXX_USE_WEAK_REF
-#ifdef _GLIBCXX_USE_C99_STDINT_TR1
+#ifdef _GLIBCXX_USE_C99_STDINT
+
+#include <stdint.h>
+
+using std::size_t;
 
 extern "C" {
 
@@ -457,5 +462,5 @@ CTORDTOR(15underflow_error, std::underflow_error, runtime_error)
 
 }
 
-#endif  // _GLIBCXX_USE_C99_STDINT_TR1
+#endif  // _GLIBCXX_USE_C99_STDINT
 #endif  // _GLIBCXX_USE_WEAK_REF

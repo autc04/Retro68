@@ -2113,7 +2113,7 @@ void test12725()
 
 struct Matrix12728(T, uint m, uint n = m, ubyte f = 0)
 {
-    void foo(uint r)(auto ref in Matrix12728!(T, n, r) b)
+    void foo(uint r)(const auto ref Matrix12728!(T, n, r) b)
     {
     }
 }
@@ -3638,10 +3638,10 @@ shared class Bug5504b
 
 void test5504()
 {
-    immutable Bug5504 c;
+    immutable Bug5504 c = new immutable Bug5504;
     c.foo(10);
     c.xx!(int).hoo(10);
-    shared Bug5504b d;
+    shared Bug5504b d = new shared Bug5504b;
     d.foo(10);
     d.xx!(int).hoo(10);
 }
@@ -6043,7 +6043,7 @@ void test7436()
 {
     ubyte a = 10;
     float f = 6;
-    ubyte b = a += f;
+    ubyte b = a += cast(ubyte)f;
     assert(b == 16);
 }
 
@@ -6167,7 +6167,7 @@ void test5332()
 
 const int x11472 = void;
 
-static this() { x11472 = 10; }
+shared static this() { x11472 = 10; }
 
 void test11472()
 {

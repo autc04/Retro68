@@ -67,4 +67,12 @@
 	fdivrp	%st(3)
 	fdivrp	%st,%st(3)
 
+	fucomp %st(1)
+	fucom %st(2)
+	fucompp
+	fcomi %st(2)
+	fcomip %st(3)
+	fucomi %st(4)
+	fucomip %st(5)
+
 	.p2align	4,0

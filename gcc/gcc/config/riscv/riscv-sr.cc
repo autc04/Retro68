@@ -175,8 +175,8 @@ riscv_sr_match_epilogue (void)
    prologue instructions but not the epilogue then we might have the case
    where the epilogue has been optimized out due to a call to a no-return
    function.  In this case we might be able to remove the prologue too -
-   that's what this function does.  PROLOGUE is the matched prolgoue
-   instruction, by the time this function returns the progloue instruction
+   that's what this function does.  PROLOGUE is the matched prologue
+   instruction, by the time this function returns the prologue instruction
    may have been removed.  */
 
 static void
@@ -247,7 +247,7 @@ riscv_remove_unneeded_save_restore_calls (void)
   /* We'll adjust stack size after this optimization, that require update every
      sp use site, which could be unsafe, so we decide to turn off this
      optimization if there are any arguments put on stack.  */
-  if (crtl->args.size != 0)
+  if (known_ne (crtl->args.size, 0))
     return;
 
   /* Will point to the first instruction of the function body, after the
@@ -447,12 +447,14 @@ riscv_remove_unneeded_save_restore_calls (void)
       && !SIBCALL_REG_P (REGNO (target)))
     return;
 
+  riscv_cc cc = get_riscv_cc (XVECEXP (callpat, 0, 1));
   rtx sibcall = NULL;
   if (set_target != NULL)
-    sibcall
-      = gen_sibcall_value_internal (set_target, target, const0_rtx);
+    sibcall = gen_sibcall_value_internal (set_target, target, const0_rtx,
+					  gen_int_mode (cc, SImode));
   else
-    sibcall = gen_sibcall_internal (target, const0_rtx);
+    sibcall
+      = gen_sibcall_internal (target, const0_rtx, gen_int_mode (cc, SImode));
 
   rtx_insn *before_call = PREV_INSN (call);
   remove_insn (call);

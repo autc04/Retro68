@@ -1,6 +1,5 @@
 # Check 64bit AVX512BITALG instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpshufbitqmb	%zmm28, %zmm29, %k5	 # AVX512BITALG

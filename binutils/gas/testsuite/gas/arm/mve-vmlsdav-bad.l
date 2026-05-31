@@ -1,30 +1,30 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: Odd register not allowed here -- `vmlsdav.s16 r1,q1,q2'
-[^:]*:11: Error: bad type in SIMD instruction -- `vmlsdav.u16 r0,q1,q2'
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:12: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:13: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:14: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:15: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Error: Odd register not allowed here -- `vmlsdav.s16 r1,q1,q2'
+[^:]*:5: Error: bad type in SIMD instruction -- `vmlsdav.u16 r0,q1,q2'
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:11: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:17: Error: syntax error -- `vmlsdaveq.s16 r0,q1,q2'
 [^:]*:18: Error: syntax error -- `vmlsdaveq.s16 r0,q1,q2'
 [^:]*:20: Error: syntax error -- `vmlsdaveq.s16 r0,q1,q2'

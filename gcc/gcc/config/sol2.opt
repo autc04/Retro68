@@ -1,6 +1,6 @@
 ; Options for the Solaris 2 port of the compiler
 ;
-; Copyright (C) 2010-2022 Free Software Foundation, Inc.
+; Copyright (C) 2010-2026 Free Software Foundation, Inc.
 ;
 ; This file is part of GCC.
 ;
@@ -27,6 +27,10 @@ Driver Joined
 Ym,
 Driver Joined
 
+gsctf
+Driver RejectNegative
+Generate Solaris CTF.
+
 mclear-hwcap
 Target
 Clear hardware capabilities when linking.
@@ -36,10 +40,10 @@ Target
 Pass -z text to linker.
 
 pthread
-Driver
+Ignore
 
 pthreads
-Driver
+Ignore
 
 rdynamic
 Driver

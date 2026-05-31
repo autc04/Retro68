@@ -1,5 +1,5 @@
 /* Implementation of the IALL intrinsic
-   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
    Contributed by Tobias Burnus <burnus@net-b.de>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -29,13 +29,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #if defined (HAVE_GFC_INTEGER_8) && defined (HAVE_GFC_INTEGER_8)
 
 
-extern void iall_i8 (gfc_array_i8 * const restrict, 
+extern void iall_i8 (gfc_array_i8 * const restrict,
 	gfc_array_i8 * const restrict, const index_type * const restrict);
 export_proto(iall_i8);
 
 void
-iall_i8 (gfc_array_i8 * const restrict retarray, 
-	gfc_array_i8 * const restrict array, 
+iall_i8 (gfc_array_i8 * const restrict retarray,
+	gfc_array_i8 * const restrict array,
 	const index_type * const restrict pdim)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -106,12 +106,7 @@ iall_i8 (gfc_array_i8 * const restrict retarray,
 
       retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-
-	}
+	return;
     }
   else
     {
@@ -193,15 +188,15 @@ iall_i8 (gfc_array_i8 * const restrict retarray,
 }
 
 
-extern void miall_i8 (gfc_array_i8 * const restrict, 
+extern void miall_i8 (gfc_array_i8 * const restrict,
 	gfc_array_i8 * const restrict, const index_type * const restrict,
 	gfc_array_l1 * const restrict);
 export_proto(miall_i8);
 
 void
-miall_i8 (gfc_array_i8 * const restrict retarray, 
-	gfc_array_i8 * const restrict array, 
-	const index_type * const restrict pdim, 
+miall_i8 (gfc_array_i8 * const restrict retarray,
+	gfc_array_i8 * const restrict array,
+	const index_type * const restrict pdim,
 	gfc_array_l1 * const restrict mask)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -242,8 +237,8 @@ miall_i8 (gfc_array_i8 * const restrict retarray,
     }
 
   len = GFC_DESCRIPTOR_EXTENT(array,dim);
-  if (len <= 0)
-    return;
+  if (len < 0)
+    len = 0;
 
   mbase = mask->base_addr;
 
@@ -301,15 +296,9 @@ miall_i8 (gfc_array_i8 * const restrict retarray,
       retarray->offset = 0;
       retarray->dtype.rank = rank;
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
-
+	return;
     }
   else
     {
@@ -389,15 +378,15 @@ miall_i8 (gfc_array_i8 * const restrict retarray,
 }
 
 
-extern void siall_i8 (gfc_array_i8 * const restrict, 
+extern void siall_i8 (gfc_array_i8 * const restrict,
 	gfc_array_i8 * const restrict, const index_type * const restrict,
 	GFC_LOGICAL_4 *);
 export_proto(siall_i8);
 
 void
-siall_i8 (gfc_array_i8 * const restrict retarray, 
-	gfc_array_i8 * const restrict array, 
-	const index_type * const restrict pdim, 
+siall_i8 (gfc_array_i8 * const restrict retarray,
+	gfc_array_i8 * const restrict array,
+	const index_type * const restrict pdim,
 	GFC_LOGICAL_4 * mask)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -466,14 +455,9 @@ siall_i8 (gfc_array_i8 * const restrict retarray,
 
       alloc_size = GFC_DESCRIPTOR_STRIDE(retarray,rank-1) * extent[rank-1];
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
+	return;
     }
   else
     {

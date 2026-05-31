@@ -6,7 +6,7 @@
 # objcopy_linked_file:
 # readelf: -p .note.gnu.arm.ident
 # This test is only valid on EABI based ports.
-# target: *-*-*eabi* *-*-nacl*
+# target: *-*-*eabi*
 
 String dump of section '.note.gnu.arm.ident':
   \[\s*[0-9a-f]+\]  arch: 

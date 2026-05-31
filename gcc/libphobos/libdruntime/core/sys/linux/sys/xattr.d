@@ -11,7 +11,6 @@ import core.sys.posix.sys.types;
 
 version (linux):
 extern (C):
-@system:
 nothrow:
 @nogc:
 
@@ -66,4 +65,3 @@ ssize_t flistxattr (int __fd, char *list, size_t size);
 int removexattr (const scope char *path, const scope char *name);
 int lremovexattr (const scope char *path, const scope char *name);
 int fremovexattr (int fd, const scope char *name);
-

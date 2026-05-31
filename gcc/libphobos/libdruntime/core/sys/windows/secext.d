@@ -9,7 +9,6 @@
 // Don't include this file directly, use core.sys.windows.security instead.
 module core.sys.windows.secext;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "secur32");
@@ -31,7 +30,7 @@ enum EXTENDED_NAME_FORMAT {
     NameServicePrincipal, // = 10
     NameDnsDomain            = 12
 }
-alias EXTENDED_NAME_FORMAT* PEXTENDED_NAME_FORMAT;
+alias PEXTENDED_NAME_FORMAT = EXTENDED_NAME_FORMAT*;
 
 extern (Windows) {
     BOOLEAN GetComputerObjectNameA(EXTENDED_NAME_FORMAT, LPSTR, PULONG);
@@ -45,11 +44,11 @@ extern (Windows) {
 }
 
 version (Unicode) {
-    alias GetComputerObjectNameW GetComputerObjectName;
-    alias GetUserNameExW GetUserNameEx;
-    alias TranslateNameW TranslateName;
+    alias GetComputerObjectName = GetComputerObjectNameW;
+    alias GetUserNameEx = GetUserNameExW;
+    alias TranslateName = TranslateNameW;
 } else {
-    alias GetComputerObjectNameA GetComputerObjectName;
-    alias GetUserNameExA GetUserNameEx;
-    alias TranslateNameA TranslateName;
+    alias GetComputerObjectName = GetComputerObjectNameA;
+    alias GetUserNameEx = GetUserNameExA;
+    alias TranslateName = TranslateNameA;
 }

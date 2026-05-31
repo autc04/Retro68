@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: head/sys/sys/_cpuset.h 326256 2017-11-27 15:01:59Z pfg $
+ * $FreeBSD$
  */
 
 #ifndef _SYS__CPUSET_H_
@@ -46,7 +46,14 @@
 #endif
 #endif
 
-BITSET_DEFINE(_cpuset, CPU_SETSIZE);
+__BITSET_DEFINE(_cpuset, CPU_SETSIZE);
 typedef struct _cpuset cpuset_t;
+
+#ifndef _KERNEL
+__BEGIN_DECLS
+cpuset_t *__cpuset_alloc(size_t set_size);
+void __cpuset_free(cpuset_t *ptr);
+__END_DECLS
+#endif
 
 #endif /* !_SYS__CPUSET_H_ */

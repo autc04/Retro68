@@ -9,12 +9,8 @@
  * Authors:   Rainer Schuetze
  */
 
-/* NOTE: This file has been patched from the original DMD distribution to
- * work with the GDC compiler.
- */
 module core.sys.windows.threadaux;
 version (Windows):
-@system:
 
 import core.sys.windows.basetsd/+ : HANDLE+/;
 import core.sys.windows.winbase/+ : CloseHandle, GetCurrentThreadId, GetCurrentProcessId,
@@ -54,7 +50,7 @@ struct thread_aux
         wchar* Buffer;
     }
     // process or thread ID, documentation says it is a HANDLE, but it's actually the ID (a DWORD)
-    alias size_t PTID;
+    alias PTID = size_t;
 
     struct _SYSTEM_PROCESS_INFORMATION
     {
@@ -167,42 +163,35 @@ struct thread_aux
     // get linear address of TEB of current thread
     static void** getTEB() nothrow @nogc
     {
-        version (Win32)
+        version (D_InlineAsm_X86)
         {
-            version (GNU_InlineAsm)
+            asm pure nothrow @nogc
             {
-                void** teb;
-                asm pure nothrow @nogc { "movl %%fs:0x18, %0;" : "=r" (teb); }
-                return teb;
-            }
-            else
-            {
-                asm pure nothrow @nogc
-                {
-                    naked;
-                    mov EAX,FS:[0x18];
-                    ret;
-                }
+                naked;
+                mov EAX,FS:[0x18];
+                ret;
             }
         }
-        else version (Win64)
+        else version (D_InlineAsm_X86_64)
         {
-            version (GNU_InlineAsm)
+            asm pure nothrow @nogc
             {
-                void** teb;
+                naked;
+                mov RAX,0x30;
+                mov RAX,GS:[RAX]; // immediate value causes fixup
+                ret;
+            }
+        }
+        else version (GNU_InlineAsm)
+        {
+            void** teb;
+            version (X86)
+                asm pure nothrow @nogc { "movl %%fs:0x18, %0;" : "=r" (teb); }
+            else version (X86_64)
                 asm pure nothrow @nogc { "movq %%gs:0x30, %0;" : "=r" (teb); }
-                return teb;
-            }
             else
-            {
-                asm pure nothrow @nogc
-                {
-                    naked;
-                    mov RAX,0x30;
-                    mov RAX,GS:[RAX]; // immediate value causes fixup
-                    ret;
-                }
-            }
+                static assert(false);
+            return teb;
         }
         else
         {
@@ -285,7 +274,7 @@ struct thread_aux
     }
 
     // execute function on the TLS for the given thread
-    alias extern(C) void function() externCVoidFunc;
+    alias externCVoidFunc = extern(C) void function();
     static void impersonate_thread( uint id, externCVoidFunc fn )
     {
         impersonate_thread(id, () => fn());
@@ -322,8 +311,8 @@ struct thread_aux
             enum TEB_offset_TlsSlots = 0xE10;
             enum TEB_offset_TlsExpansionSlots = 0xF94;
         }
-        void* tlsSlotsAdr(void** teb) { return cast(void*) teb + TEB_offset_TlsSlots; }
-        ref void* tlsExpansionSlots(void** teb) { return *cast(void**)(cast(void*) teb + TEB_offset_TlsExpansionSlots); }
+        void* tlsSlotsAdr()(void** teb) { return cast(void*) teb + TEB_offset_TlsSlots; }
+        ref void* tlsExpansionSlots()(void** teb) { return *cast(void**)(cast(void*) teb + TEB_offset_TlsExpansionSlots); }
 
         import core.stdc.string;
         void*[64] slots = void;
@@ -348,11 +337,11 @@ struct thread_aux
 
 public:
 // forward as few symbols as possible into the "global" name space
-alias thread_aux.getTEB getTEB;
-alias thread_aux.getThreadStackBottom getThreadStackBottom;
-alias thread_aux.OpenThreadHandle OpenThreadHandle;
-alias thread_aux.enumProcessThreads enumProcessThreads;
-alias thread_aux.impersonate_thread impersonate_thread;
+alias getTEB = thread_aux.getTEB;
+alias getThreadStackBottom = thread_aux.getThreadStackBottom;
+alias OpenThreadHandle = thread_aux.OpenThreadHandle;
+alias enumProcessThreads = thread_aux.enumProcessThreads;
+alias impersonate_thread = thread_aux.impersonate_thread;
 
 // get the start of the TLS memory of the thread with the given handle
 void* GetTlsDataAddress( HANDLE hnd ) nothrow

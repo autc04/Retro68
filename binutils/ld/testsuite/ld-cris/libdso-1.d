@@ -1,5 +1,5 @@
 #source: dso-1.s
-#as: --pic --no-underscore --em=criself
+#as: --pic --no-underscore --emulation=criself
 #ld: --shared -m crislinux
 #objdump: -T
 

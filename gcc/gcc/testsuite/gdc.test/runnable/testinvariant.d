@@ -176,13 +176,111 @@ void test13147()
     s.test();
 }
 
+/***************************************************/
+// https://issues.dlang.org/show_bug.cgi?id=16384
+
+struct S(T)
+{
+    T x = 5;
+    invariant { assert(x == 6); }
+    invariant { assert(x > 0); }
+
+    void foo() {}
+}
+
+void f(int i) pure { assert( i == 6); }
+
+struct S2(T)
+{
+    T x = 5;
+    invariant { f(x); }
+    invariant { assert(x > 0); }
+
+    void foo() {}
+}
+
+void test16384()
+{
+    string s;
+    S!int y;
+    try
+    {
+        y.foo();
+    }
+    catch(Error)
+    {
+        s = "needs to be thrown";
+    }
+
+    assert(s == "needs to be thrown");
+
+    S2!int y2;
+
+    try
+    {
+        y2.foo();
+    }
+    catch(Error)
+    {
+        s = "needs to be thrown2";
+    }
+
+    assert(s == "needs to be thrown2");
+}
 
 /***************************************************/
+// Fix: https://github.com/dlang/dmd/issues/20924 (invariant not called on extern(C++) classes)
+
+extern(C++) class C
+{
+    invariant { assert(0); }
+    void f() {}
+}
+
+extern(D) class D
+{
+    invariant { assert(0); }
+    void f() {}
+}
+
+void test20924()
+{
+    import core.exception : AssertError;
+    // Test extern(C++) class invariant
+    try
+    {
+        auto c = new C();
+        c.f(); // Trigger invariant
+        assert(false, "Failed: invariant in extern(C++) class not checked");
+    }
+    catch (AssertError e)
+    {
+        // Expected behavior - invariant was checked
+        return;
+    }
+    assert(0, "Invariant in extern(C++) class was not checked");
+
+    // Test extern(D) class invariant
+    try
+    {
+        auto d = new D();
+        d.f(); // Trigger invariant
+        assert(false, "Failed: invariant in extern(D) class not checked");
+    }
+    catch (AssertError e)
+    {
+        // Expected behavior - invariant was checked
+        return;
+    }
+    assert(0, "Invariant in extern(D) class was not checked");
+}
 
 void main()
 {
     testinvariant();
     test6453();
+    test16384();
     test13113();
     test13147();
+    test20924();
 }

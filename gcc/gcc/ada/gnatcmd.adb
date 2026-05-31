@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,11 +24,13 @@
 ------------------------------------------------------------------------------
 
 with Gnatvsn;
+with Errid;    use Errid;
 with Namet;    use Namet;
 with Opt;      use Opt;
 with Osint;    use Osint;
 with Output;   use Output;
 with Switch;   use Switch;
+with System.OS_Lib;
 with Table;
 with Usage;
 
@@ -47,6 +49,10 @@ procedure GNATCmd is
    Ada_Help_Switch : constant String := "--help-ada";
    --  Flag to display available build switches
 
+   Ada_Diagnostics_Switch : constant String := "--diagnostics";
+
+   Diagnostics_File_Name : constant String := "gnat_diagnostics.sarif";
+
    Error_Exit : exception;
    --  Raise this exception if error detected
 
@@ -57,7 +63,6 @@ procedure GNATCmd is
       Compile,
       Check,
       Elim,
-      Find,
       Krunch,
       Link,
       List,
@@ -69,10 +74,9 @@ procedure GNATCmd is
       Stack,
       Stub,
       Test,
-      Xref,
       Undefined);
 
-   subtype Real_Command_Type is Command_Type range Bind .. Xref;
+   subtype Real_Command_Type is Command_Type range Bind .. Test;
    --  All real command types (excludes only Undefined).
 
    type Alternate_Command is (Comp, Ls, Kr, Pp, Prep);
@@ -115,6 +119,7 @@ procedure GNATCmd is
 
    My_Exit_Status : Exit_Status := Success;
    --  The exit status of the spawned tool
+   Dummy : Boolean;
 
    type Command_Entry is record
       Cname : String_Access;
@@ -158,11 +163,6 @@ procedure GNATCmd is
       Elim =>
         (Cname    => new String'("ELIM"),
          Unixcmd  => new String'("gnatelim"),
-         Unixsws  => null),
-
-      Find =>
-        (Cname    => new String'("FIND"),
-         Unixcmd  => new String'("gnatfind"),
          Unixsws  => null),
 
       Krunch =>
@@ -218,11 +218,6 @@ procedure GNATCmd is
       Test =>
         (Cname    => new String'("TEST"),
          Unixcmd  => new String'("gnattest"),
-         Unixsws  => null),
-
-      Xref =>
-        (Cname    => new String'("XREF"),
-         Unixcmd  => new String'("gnatxref"),
          Unixsws  => null)
      );
 
@@ -290,7 +285,8 @@ procedure GNATCmd is
 --  Start of processing for GNATCmd
 
 begin
-   --  All output from GNATCmd is debugging or error output: send to stderr
+   --  Almost all output from GNATCmd is debugging or error output: send to
+   --  stderr.
 
    Set_Standard_Error;
 
@@ -359,8 +355,32 @@ begin
             Command_Arg := Command_Arg + 1;
 
          elsif Command_Arg <= Argument_Count
+           and then Argument (Command_Arg) = Ada_Diagnostics_Switch
+         then
+            --  Print the diagnostics repository to a file
+
+            System.OS_Lib.Delete_File (Diagnostics_File_Name, Dummy);
+            declare
+               Output_FD : constant System.OS_Lib.File_Descriptor :=
+                 System.OS_Lib.Create_New_File
+                   (Diagnostics_File_Name, Fmode => System.OS_Lib.Text);
+
+            begin
+               Set_Output (Output_FD);
+               Print_Diagnostic_Repository;
+               Set_Standard_Output;
+               System.OS_Lib.Close (Output_FD);
+            end;
+
+            Write_Line
+              ("gnat diagnostic information exported to "
+               & Diagnostics_File_Name);
+            Exit_Program (E_Success);
+
+         elsif Command_Arg <= Argument_Count
            and then Argument (Command_Arg) = Ada_Help_Switch
          then
+            Set_Standard_Output;
             Usage;
             Exit_Program (E_Success);
 
@@ -376,8 +396,9 @@ begin
 
          --  Add the following so that output is consistent with or without the
          --  --help flag.
+         Set_Standard_Output;
          Write_Eol;
-         Write_Line ("Report bugs to report@adacore.com");
+         Write_Line ("Report bugs to support@adacore.com");
          return;
       end if;
 
@@ -588,30 +609,6 @@ begin
             First_Switches.Table (First_Switches.Last) :=
               Command_List (The_Command).Unixsws (J);
          end loop;
-      end if;
-
-      --  For FIND and XREF, look for switch -P. If it is specified, then
-      --  report an error indicating that the command does not support project
-      --  files.
-
-      if The_Command in Find | Xref then
-         declare
-            Argv : String_Access;
-         begin
-            for Arg_Num in 1 .. Last_Switches.Last loop
-               Argv := Last_Switches.Table (Arg_Num);
-
-               if Argv'Length >= 2
-                 and then Argv (Argv'First .. Argv'First + 1) = "-P"
-               then
-                  if The_Command = Find then
-                     Fail ("'gnat find -P' is not supported;");
-                  else
-                     Fail ("'gnat xref -P' is not supported;");
-                  end if;
-               end if;
-            end loop;
-         end;
       end if;
 
       --  Gather all the arguments and invoke the executable

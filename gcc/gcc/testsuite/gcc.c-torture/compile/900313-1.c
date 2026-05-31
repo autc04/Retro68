@@ -1,5 +1,5 @@
-/* { dg-require-effective-target alloca } */
 /* { dg-skip-if "too many arguments in function call" { bpf-*-* } } */
+/* { dg-additional-options "-std=gnu89" } */
 
 main ()
 {

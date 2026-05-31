@@ -1,5 +1,5 @@
 /* Data and functions related to line maps and input files.
-   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,6 +22,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "intl.h"
 #include "diagnostic.h"
+#include "diagnostics/file-cache.h"
 #include "selftest.h"
 #include "cpplib.h"
 
@@ -29,154 +30,11 @@ along with GCC; see the file COPYING3.  If not see
 #define HAVE_ICONV 0
 #endif
 
-/* Input charset configuration.  */
-static const char *default_charset_callback (const char *)
+const char *
+special_fname_builtin ()
 {
-  return nullptr;
+  return _("<built-in>");
 }
-
-void
-file_cache::initialize_input_context (diagnostic_input_charset_callback ccb,
-				      bool should_skip_bom)
-{
-  in_context.ccb = (ccb ? ccb : default_charset_callback);
-  in_context.should_skip_bom = should_skip_bom;
-}
-
-/* This is a cache used by get_next_line to store the content of a
-   file to be searched for file lines.  */
-class file_cache_slot
-{
-public:
-  file_cache_slot ();
-  ~file_cache_slot ();
-
-  bool read_line_num (size_t line_num,
-		      char ** line, ssize_t *line_len);
-
-  /* Accessors.  */
-  const char *get_file_path () const { return m_file_path; }
-  unsigned get_use_count () const { return m_use_count; }
-  bool missing_trailing_newline_p () const
-  {
-    return m_missing_trailing_newline;
-  }
-
-  void inc_use_count () { m_use_count++; }
-
-  bool create (const file_cache::input_context &in_context,
-	       const char *file_path, FILE *fp, unsigned highest_use_count);
-  void evict ();
-
- private:
-  /* These are information used to store a line boundary.  */
-  class line_info
-  {
-  public:
-    /* The line number.  It starts from 1.  */
-    size_t line_num;
-
-    /* The position (byte count) of the beginning of the line,
-       relative to the file data pointer.  This starts at zero.  */
-    size_t start_pos;
-
-    /* The position (byte count) of the last byte of the line.  This
-       normally points to the '\n' character, or to one byte after the
-       last byte of the file, if the file doesn't contain a '\n'
-       character.  */
-    size_t end_pos;
-
-    line_info (size_t l, size_t s, size_t e)
-      : line_num (l), start_pos (s), end_pos (e)
-    {}
-
-    line_info ()
-      :line_num (0), start_pos (0), end_pos (0)
-    {}
-  };
-
-  bool needs_read_p () const;
-  bool needs_grow_p () const;
-  void maybe_grow ();
-  bool read_data ();
-  bool maybe_read_data ();
-  bool get_next_line (char **line, ssize_t *line_len);
-  bool read_next_line (char ** line, ssize_t *line_len);
-  bool goto_next_line ();
-
-  static const size_t buffer_size = 4 * 1024;
-  static const size_t line_record_size = 100;
-
-  /* The number of time this file has been accessed.  This is used
-     to designate which file cache to evict from the cache
-     array.  */
-  unsigned m_use_count;
-
-  /* The file_path is the key for identifying a particular file in
-     the cache.
-     For libcpp-using code, the underlying buffer for this field is
-     owned by the corresponding _cpp_file within the cpp_reader.  */
-  const char *m_file_path;
-
-  FILE *m_fp;
-
-  /* This points to the content of the file that we've read so
-     far.  */
-  char *m_data;
-
-  /* The allocated buffer to be freed may start a little earlier than DATA,
-     e.g. if a UTF8 BOM was skipped at the beginning.  */
-  int m_alloc_offset;
-
-  /*  The size of the DATA array above.*/
-  size_t m_size;
-
-  /* The number of bytes read from the underlying file so far.  This
-     must be less (or equal) than SIZE above.  */
-  size_t m_nb_read;
-
-  /* The index of the beginning of the current line.  */
-  size_t m_line_start_idx;
-
-  /* The number of the previous line read.  This starts at 1.  Zero
-     means we've read no line so far.  */
-  size_t m_line_num;
-
-  /* This is the total number of lines of the current file.  At the
-     moment, we try to get this information from the line map
-     subsystem.  Note that this is just a hint.  When using the C++
-     front-end, this hint is correct because the input file is then
-     completely tokenized before parsing starts; so the line map knows
-     the number of lines before compilation really starts.  For e.g,
-     the C front-end, it can happen that we start emitting diagnostics
-     before the line map has seen the end of the file.  */
-  size_t m_total_lines;
-
-  /* Could this file be missing a trailing newline on its final line?
-     Initially true (to cope with empty files), set to true/false
-     as each line is read.  */
-  bool m_missing_trailing_newline;
-
-  /* This is a record of the beginning and end of the lines we've seen
-     while reading the file.  This is useful to avoid walking the data
-     from the beginning when we are asked to read a line that is
-     before LINE_START_IDX above.  Note that the maximum size of this
-     record is line_record_size, so that the memory consumption
-     doesn't explode.  We thus scale total_lines down to
-     line_record_size.  */
-  vec<line_info, va_heap> m_line_record;
-
-  void offset_buffer (int offset)
-  {
-    gcc_assert (offset < 0 ? m_alloc_offset + offset >= 0
-		: (size_t) offset <= m_size);
-    gcc_assert (m_data);
-    m_alloc_offset += offset;
-    m_data += offset;
-    m_size -= offset;
-  }
-
-};
 
 /* Current position in real source file.  */
 
@@ -208,7 +66,8 @@ class line_maps *saved_line_table;
    ASPECT controls which part of the location to use.  */
 
 static expanded_location
-expand_location_1 (location_t loc,
+expand_location_1 (const line_maps *set,
+		   location_t loc,
 		   bool expansion_point_p,
 		   enum location_aspect aspect)
 {
@@ -236,11 +95,11 @@ expand_location_1 (location_t loc,
 	     location for a built-in token), let's consider the first
 	     location (toward the expansion point) that is not reserved;
 	     that is, the first location that is in real source code.  */
-	  loc = linemap_unwind_to_first_non_reserved_loc (line_table,
+	  loc = linemap_unwind_to_first_non_reserved_loc (set,
 							  loc, NULL);
 	  lrk = LRK_SPELLING_LOCATION;
 	}
-      loc = linemap_resolve_location (line_table, loc, lrk, &map);
+      loc = linemap_resolve_location (set, loc, lrk, &map);
 
       /* loc is now either in an ordinary map, or is a reserved location.
 	 If it is a compound location, the caret is in a spelling location,
@@ -253,679 +112,125 @@ expand_location_1 (location_t loc,
 	default:
 	  gcc_unreachable ();
 	  /* Fall through.  */
-	case LOCATION_ASPECT_CARET:
+	case location_aspect::caret:
 	  break;
-	case LOCATION_ASPECT_START:
+	case location_aspect::start:
 	  {
 	    location_t start = get_start (loc);
 	    if (start != loc)
-	      return expand_location_1 (start, expansion_point_p, aspect);
+	      return expand_location_1 (set, start, expansion_point_p, aspect);
 	  }
 	  break;
-	case LOCATION_ASPECT_FINISH:
+	case location_aspect::finish:
 	  {
 	    location_t finish = get_finish (loc);
 	    if (finish != loc)
-	      return expand_location_1 (finish, expansion_point_p, aspect);
+	      return expand_location_1 (set, finish, expansion_point_p, aspect);
 	  }
 	  break;
 	}
-      xloc = linemap_expand_location (line_table, map, loc);
+      xloc = linemap_expand_location (set, map, loc);
     }
 
   xloc.data = block;
   if (loc <= BUILTINS_LOCATION)
-    xloc.file = loc == UNKNOWN_LOCATION ? NULL : _("<built-in>");
+    xloc.file = loc == UNKNOWN_LOCATION ? NULL : special_fname_builtin ();
 
   return xloc;
 }
 
-/* Initialize the set of cache used for files accessed by caret
-   diagnostic.  */
+/* Return a NUL-terminated copy of the source text between two locations, or
+   NULL if the arguments are invalid.  The caller is responsible for freeing
+   the return value.  */
 
-static void
-diagnostic_file_cache_init (void)
+char *
+get_source_text_between (diagnostics::file_cache &fc,
+			 location_t start, location_t end)
 {
-  gcc_assert (global_dc);
-  if (global_dc->m_file_cache == NULL)
-    global_dc->m_file_cache = new file_cache ();
-}
+  expanded_location expstart
+    = expand_location_to_spelling_point (start, location_aspect::start);
+  expanded_location expend
+    = expand_location_to_spelling_point (end, location_aspect::finish);
 
-/* Free the resources used by the set of cache used for files accessed
-   by caret diagnostic.  */
-
-void
-diagnostic_file_cache_fini (void)
-{
-  if (global_dc->m_file_cache)
-    {
-      delete global_dc->m_file_cache;
-      global_dc->m_file_cache = NULL;
-    }
-}
-
-/* Return the total lines number that have been read so far by the
-   line map (in the preprocessor) so far.  For languages like C++ that
-   entirely preprocess the input file before starting to parse, this
-   equals the actual number of lines of the file.  */
-
-static size_t
-total_lines_num (const char *file_path)
-{
-  size_t r = 0;
-  location_t l = 0;
-  if (linemap_get_file_highest_location (line_table, file_path, &l))
-    {
-      gcc_assert (l >= RESERVED_LOCATION_COUNT);
-      expanded_location xloc = expand_location (l);
-      r = xloc.line;
-    }
-  return r;
-}
-
-/* Lookup the cache used for the content of a given file accessed by
-   caret diagnostic.  Return the found cached file, or NULL if no
-   cached file was found.  */
-
-file_cache_slot *
-file_cache::lookup_file (const char *file_path)
-{
-  gcc_assert (file_path);
-
-  /* This will contain the found cached file.  */
-  file_cache_slot *r = NULL;
-  for (unsigned i = 0; i < num_file_slots; ++i)
-    {
-      file_cache_slot *c = &m_file_slots[i];
-      if (c->get_file_path () && !strcmp (c->get_file_path (), file_path))
-	{
-	  c->inc_use_count ();
-	  r = c;
-	}
-    }
-
-  if (r)
-    r->inc_use_count ();
-
-  return r;
-}
-
-/* Purge any mention of FILENAME from the cache of files used for
-   printing source code.  For use in selftests when working
-   with tempfiles.  */
-
-void
-diagnostics_file_cache_forcibly_evict_file (const char *file_path)
-{
-  gcc_assert (file_path);
-
-  if (!global_dc->m_file_cache)
-    return;
-
-  global_dc->m_file_cache->forcibly_evict_file (file_path);
-}
-
-void
-file_cache::forcibly_evict_file (const char *file_path)
-{
-  gcc_assert (file_path);
-
-  file_cache_slot *r = lookup_file (file_path);
-  if (!r)
-    /* Not found.  */
-    return;
-
-  r->evict ();
-}
-
-void
-file_cache_slot::evict ()
-{
-  m_file_path = NULL;
-  if (m_fp)
-    fclose (m_fp);
-  m_fp = NULL;
-  m_nb_read = 0;
-  m_line_start_idx = 0;
-  m_line_num = 0;
-  m_line_record.truncate (0);
-  m_use_count = 0;
-  m_total_lines = 0;
-  m_missing_trailing_newline = true;
-}
-
-/* Return the file cache that has been less used, recently, or the
-   first empty one.  If HIGHEST_USE_COUNT is non-null,
-   *HIGHEST_USE_COUNT is set to the highest use count of the entries
-   in the cache table.  */
-
-file_cache_slot*
-file_cache::evicted_cache_tab_entry (unsigned *highest_use_count)
-{
-  diagnostic_file_cache_init ();
-
-  file_cache_slot *to_evict = &m_file_slots[0];
-  unsigned huc = to_evict->get_use_count ();
-  for (unsigned i = 1; i < num_file_slots; ++i)
-    {
-      file_cache_slot *c = &m_file_slots[i];
-      bool c_is_empty = (c->get_file_path () == NULL);
-
-      if (c->get_use_count () < to_evict->get_use_count ()
-	  || (to_evict->get_file_path () && c_is_empty))
-	/* We evict C because it's either an entry with a lower use
-	   count or one that is empty.  */
-	to_evict = c;
-
-      if (huc < c->get_use_count ())
-	huc = c->get_use_count ();
-
-      if (c_is_empty)
-	/* We've reached the end of the cache; subsequent elements are
-	   all empty.  */
-	break;
-    }
-
-  if (highest_use_count)
-    *highest_use_count = huc;
-
-  return to_evict;
-}
-
-/* Create the cache used for the content of a given file to be
-   accessed by caret diagnostic.  This cache is added to an array of
-   cache and can be retrieved by lookup_file_in_cache_tab.  This
-   function returns the created cache.  Note that only the last
-   num_file_slots files are cached.  */
-
-file_cache_slot*
-file_cache::add_file (const char *file_path)
-{
-
-  FILE *fp = fopen (file_path, "r");
-  if (fp == NULL)
+  /* If the locations are in different files or the end comes before the
+     start, give up and return nothing.  */
+  if (!expstart.file || !expend.file)
+    return NULL;
+  if (strcmp (expstart.file, expend.file) != 0)
+    return NULL;
+  if (expstart.line > expend.line)
+    return NULL;
+  if (expstart.line == expend.line
+      && expstart.column > expend.column)
+    return NULL;
+  /* These aren't real column numbers, give up.  */
+  if (expstart.column == 0 || expend.column == 0)
     return NULL;
 
-  unsigned highest_use_count = 0;
-  file_cache_slot *r = evicted_cache_tab_entry (&highest_use_count);
-  if (!r->create (in_context, file_path, fp, highest_use_count))
-    return NULL;
-  return r;
-}
-
-/* Populate this slot for use on FILE_PATH and FP, dropping any
-   existing cached content within it.  */
-
-bool
-file_cache_slot::create (const file_cache::input_context &in_context,
-			 const char *file_path, FILE *fp,
-			 unsigned highest_use_count)
-{
-  m_file_path = file_path;
-  if (m_fp)
-    fclose (m_fp);
-  m_fp = fp;
-  if (m_alloc_offset)
-    offset_buffer (-m_alloc_offset);
-  m_nb_read = 0;
-  m_line_start_idx = 0;
-  m_line_num = 0;
-  m_line_record.truncate (0);
-  /* Ensure that this cache entry doesn't get evicted next time
-     add_file_to_cache_tab is called.  */
-  m_use_count = ++highest_use_count;
-  m_total_lines = total_lines_num (file_path);
-  m_missing_trailing_newline = true;
-
-
-  /* Check the input configuration to determine if we need to do any
-     transformations, such as charset conversion or BOM skipping.  */
-  if (const char *input_charset = in_context.ccb (file_path))
+  /* For a single line we need to trim both edges.  */
+  if (expstart.line == expend.line)
     {
-      /* Need a full-blown conversion of the input charset.  */
-      fclose (m_fp);
-      m_fp = NULL;
-      const cpp_converted_source cs
-	= cpp_get_converted_source (file_path, input_charset);
-      if (!cs.data)
-	return false;
-      if (m_data)
-	XDELETEVEC (m_data);
-      m_data = cs.data;
-      m_nb_read = m_size = cs.len;
-      m_alloc_offset = cs.data - cs.to_free;
+      diagnostics::char_span line
+	= fc.get_source_line (expstart.file, expstart.line);
+      if (line.length () < 1)
+	return NULL;
+      int s = expstart.column - 1;
+      int len = expend.column - s;
+      if (line.length () < (size_t)expend.column)
+	return NULL;
+      return line.subspan (s, len).xstrdup ();
     }
-  else if (in_context.should_skip_bom)
+
+  struct obstack buf_obstack;
+  obstack_init (&buf_obstack);
+
+  /* Loop through all lines in the range and append each to buf; may trim
+     parts of the start and end lines off depending on column values.  */
+  for (int lnum = expstart.line; lnum <= expend.line; ++lnum)
     {
-      if (read_data ())
+      diagnostics::char_span line = fc.get_source_line (expstart.file, lnum);
+      if (line.length () < 1 && (lnum != expstart.line && lnum != expend.line))
+	continue;
+
+      /* For the first line in the range, only start at expstart.column */
+      if (lnum == expstart.line)
 	{
-	  const int offset = cpp_check_utf8_bom (m_data, m_nb_read);
-	  offset_buffer (offset);
-	  m_nb_read -= offset;
+	  unsigned off = expstart.column - 1;
+	  if (line.length () < off)
+	    return NULL;
+	  line = line.subspan (off, line.length() - off);
 	}
-    }
-
-  return true;
-}
-
-/* file_cache's ctor.  */
-
-file_cache::file_cache ()
-: m_file_slots (new file_cache_slot[num_file_slots])
-{
-  initialize_input_context (nullptr, false);
-}
-
-/* file_cache's dtor.  */
-
-file_cache::~file_cache ()
-{
-  delete[] m_file_slots;
-}
-
-/* Lookup the cache used for the content of a given file accessed by
-   caret diagnostic.  If no cached file was found, create a new cache
-   for this file, add it to the array of cached file and return
-   it.  */
-
-file_cache_slot*
-file_cache::lookup_or_add_file (const char *file_path)
-{
-  file_cache_slot *r = lookup_file (file_path);
-  if (r == NULL)
-    r = add_file (file_path);
-  return r;
-}
-
-/* Default constructor for a cache of file used by caret
-   diagnostic.  */
-
-file_cache_slot::file_cache_slot ()
-: m_use_count (0), m_file_path (NULL), m_fp (NULL), m_data (0),
-  m_alloc_offset (0), m_size (0), m_nb_read (0), m_line_start_idx (0),
-  m_line_num (0), m_total_lines (0), m_missing_trailing_newline (true)
-{
-  m_line_record.create (0);
-}
-
-/* Destructor for a cache of file used by caret diagnostic.  */
-
-file_cache_slot::~file_cache_slot ()
-{
-  if (m_fp)
-    {
-      fclose (m_fp);
-      m_fp = NULL;
-    }
-  if (m_data)
-    {
-      offset_buffer (-m_alloc_offset);
-      XDELETEVEC (m_data);
-      m_data = 0;
-    }
-  m_line_record.release ();
-}
-
-/* Returns TRUE iff the cache would need to be filled with data coming
-   from the file.  That is, either the cache is empty or full or the
-   current line is empty.  Note that if the cache is full, it would
-   need to be extended and filled again.  */
-
-bool
-file_cache_slot::needs_read_p () const
-{
-  return m_fp && (m_nb_read == 0
-	  || m_nb_read == m_size
-	  || (m_line_start_idx >= m_nb_read - 1));
-}
-
-/*  Return TRUE iff the cache is full and thus needs to be
-    extended.  */
-
-bool
-file_cache_slot::needs_grow_p () const
-{
-  return m_nb_read == m_size;
-}
-
-/* Grow the cache if it needs to be extended.  */
-
-void
-file_cache_slot::maybe_grow ()
-{
-  if (!needs_grow_p ())
-    return;
-
-  if (!m_data)
-    {
-      gcc_assert (m_size == 0 && m_alloc_offset == 0);
-      m_size = buffer_size;
-      m_data = XNEWVEC (char, m_size);
-    }
-  else
-    {
-      const int offset = m_alloc_offset;
-      offset_buffer (-offset);
-      m_size *= 2;
-      m_data = XRESIZEVEC (char, m_data, m_size);
-      offset_buffer (offset);
-    }
-}
-
-/*  Read more data into the cache.  Extends the cache if need be.
-    Returns TRUE iff new data could be read.  */
-
-bool
-file_cache_slot::read_data ()
-{
-  if (feof (m_fp) || ferror (m_fp))
-    return false;
-
-  maybe_grow ();
-
-  char * from = m_data + m_nb_read;
-  size_t to_read = m_size - m_nb_read;
-  size_t nb_read = fread (from, 1, to_read, m_fp);
-
-  if (ferror (m_fp))
-    return false;
-
-  m_nb_read += nb_read;
-  return !!nb_read;
-}
-
-/* Read new data iff the cache needs to be filled with more data
-   coming from the file FP.  Return TRUE iff the cache was filled with
-   mode data.  */
-
-bool
-file_cache_slot::maybe_read_data ()
-{
-  if (!needs_read_p ())
-    return false;
-  return read_data ();
-}
-
-/* Read a new line from file FP, using C as a cache for the data
-   coming from the file.  Upon successful completion, *LINE is set to
-   the beginning of the line found.  *LINE points directly in the
-   line cache and is only valid until the next call of get_next_line.
-   *LINE_LEN is set to the length of the line.  Note that the line
-   does not contain any terminal delimiter.  This function returns
-   true if some data was read or process from the cache, false
-   otherwise.  Note that subsequent calls to get_next_line might
-   make the content of *LINE invalid.  */
-
-bool
-file_cache_slot::get_next_line (char **line, ssize_t *line_len)
-{
-  /* Fill the cache with data to process.  */
-  maybe_read_data ();
-
-  size_t remaining_size = m_nb_read - m_line_start_idx;
-  if (remaining_size == 0)
-    /* There is no more data to process.  */
-    return false;
-
-  char *line_start = m_data + m_line_start_idx;
-
-  char *next_line_start = NULL;
-  size_t len = 0;
-  char *line_end = (char *) memchr (line_start, '\n', remaining_size);
-  if (line_end == NULL)
-    {
-      /* We haven't found the end-of-line delimiter in the cache.
-	 Fill the cache with more data from the file and look for the
-	 '\n'.  */
-      while (maybe_read_data ())
+      /* For the last line, don't go past expend.column */
+      else if (lnum == expend.line)
 	{
-	  line_start = m_data + m_line_start_idx;
-	  remaining_size = m_nb_read - m_line_start_idx;
-	  line_end = (char *) memchr (line_start, '\n', remaining_size);
-	  if (line_end != NULL)
-	    {
-	      next_line_start = line_end + 1;
+	  if (line.length () < (size_t)expend.column)
+	    return NULL;
+	  line = line.subspan (0, expend.column);
+	}
+
+      /* Combine spaces at the beginning of later lines.  */
+      if (lnum > expstart.line)
+	{
+	  unsigned off;
+	  for (off = 0; off < line.length(); ++off)
+	    if (line[off] != ' ' && line[off] != '\t')
 	      break;
+	  if (off > 0)
+	    {
+	      obstack_1grow (&buf_obstack, ' ');
+	      line = line.subspan (off, line.length() - off);
 	    }
 	}
-      if (line_end == NULL)
-	{
-	  /* We've loadded all the file into the cache and still no
-	     '\n'.  Let's say the line ends up at one byte passed the
-	     end of the file.  This is to stay consistent with the case
-	     of when the line ends up with a '\n' and line_end points to
-	     that terminal '\n'.  That consistency is useful below in
-	     the len calculation.  */
-	  line_end = m_data + m_nb_read ;
-	  m_missing_trailing_newline = true;
-	}
-      else
-	m_missing_trailing_newline = false;
-    }
-  else
-    {
-      next_line_start = line_end + 1;
-      m_missing_trailing_newline = false;
+
+      /* This does not include any trailing newlines.  */
+      obstack_grow (&buf_obstack, line.get_buffer (), line.length ());
     }
 
-  if (m_fp && ferror (m_fp))
-    return false;
+  /* NUL-terminate and finish the buf obstack.  */
+  obstack_1grow (&buf_obstack, 0);
+  const char *buf = (const char *) obstack_finish (&buf_obstack);
 
-  /* At this point, we've found the end of the of line.  It either
-     points to the '\n' or to one byte after the last byte of the
-     file.  */
-  gcc_assert (line_end != NULL);
-
-  len = line_end - line_start;
-
-  if (m_line_start_idx < m_nb_read)
-    *line = line_start;
-
-  ++m_line_num;
-
-  /* Before we update our line record, make sure the hint about the
-     total number of lines of the file is correct.  If it's not, then
-     we give up recording line boundaries from now on.  */
-  bool update_line_record = true;
-  if (m_line_num > m_total_lines)
-    update_line_record = false;
-
-    /* Now update our line record so that re-reading lines from the
-     before m_line_start_idx is faster.  */
-  if (update_line_record
-      && m_line_record.length () < line_record_size)
-    {
-      /* If the file lines fits in the line record, we just record all
-	 its lines ...*/
-      if (m_total_lines <= line_record_size
-	  && m_line_num > m_line_record.length ())
-	m_line_record.safe_push
-	  (file_cache_slot::line_info (m_line_num,
-				       m_line_start_idx,
-				       line_end - m_data));
-      else if (m_total_lines > line_record_size)
-	{
-	  /* ... otherwise, we just scale total_lines down to
-	     (line_record_size lines.  */
-	  size_t n = (m_line_num * line_record_size) / m_total_lines;
-	  if (m_line_record.length () == 0
-	      || n >= m_line_record.length ())
-	    m_line_record.safe_push
-	      (file_cache_slot::line_info (m_line_num,
-					   m_line_start_idx,
-					   line_end - m_data));
-	}
-    }
-
-  /* Update m_line_start_idx so that it points to the next line to be
-     read.  */
-  if (next_line_start)
-    m_line_start_idx = next_line_start - m_data;
-  else
-    /* We didn't find any terminal '\n'.  Let's consider that the end
-       of line is the end of the data in the cache.  The next
-       invocation of get_next_line will either read more data from the
-       underlying file or return false early because we've reached the
-       end of the file.  */
-    m_line_start_idx = m_nb_read;
-
-  *line_len = len;
-
-  return true;
-}
-
-/* Consume the next bytes coming from the cache (or from its
-   underlying file if there are remaining unread bytes in the file)
-   until we reach the next end-of-line (or end-of-file).  There is no
-   copying from the cache involved.  Return TRUE upon successful
-   completion.  */
-
-bool
-file_cache_slot::goto_next_line ()
-{
-  char *l;
-  ssize_t len;
-
-  return get_next_line (&l, &len);
-}
-
-/* Read an arbitrary line number LINE_NUM from the file cached in C.
-   If the line was read successfully, *LINE points to the beginning
-   of the line in the file cache and *LINE_LEN is the length of the
-   line.  *LINE is not nul-terminated, but may contain zero bytes.
-   *LINE is only valid until the next call of read_line_num.
-   This function returns bool if a line was read.  */
-
-bool
-file_cache_slot::read_line_num (size_t line_num,
-		       char ** line, ssize_t *line_len)
-{
-  gcc_assert (line_num > 0);
-
-  if (line_num <= m_line_num)
-    {
-      /* We've been asked to read lines that are before m_line_num.
-	 So lets use our line record (if it's not empty) to try to
-	 avoid re-reading the file from the beginning again.  */
-
-      if (m_line_record.is_empty ())
-	{
-	  m_line_start_idx = 0;
-	  m_line_num = 0;
-	}
-      else
-	{
-	  file_cache_slot::line_info *i = NULL;
-	  if (m_total_lines <= line_record_size)
-	    {
-	      /* In languages where the input file is not totally
-		 preprocessed up front, the m_total_lines hint
-		 can be smaller than the number of lines of the
-		 file.  In that case, only the first
-		 m_total_lines have been recorded.
-
-		 Otherwise, the first m_total_lines we've read have
-		 their start/end recorded here.  */
-	      i = (line_num <= m_total_lines)
-		? &m_line_record[line_num - 1]
-		: &m_line_record[m_total_lines - 1];
-	      gcc_assert (i->line_num <= line_num);
-	    }
-	  else
-	    {
-	      /*  So the file had more lines than our line record
-		  size.  Thus the number of lines we've recorded has
-		  been scaled down to line_record_size.  Let's
-		  pick the start/end of the recorded line that is
-		  closest to line_num.  */
-	      size_t n = (line_num <= m_total_lines)
-		? line_num * line_record_size / m_total_lines
-		: m_line_record.length () - 1;
-	      if (n < m_line_record.length ())
-		{
-		  i = &m_line_record[n];
-		  gcc_assert (i->line_num <= line_num);
-		}
-	    }
-
-	  if (i && i->line_num == line_num)
-	    {
-	      /* We have the start/end of the line.  */
-	      *line = m_data + i->start_pos;
-	      *line_len = i->end_pos - i->start_pos;
-	      return true;
-	    }
-
-	  if (i)
-	    {
-	      m_line_start_idx = i->start_pos;
-	      m_line_num = i->line_num - 1;
-	    }
-	  else
-	    {
-	      m_line_start_idx = 0;
-	      m_line_num = 0;
-	    }
-	}
-    }
-
-  /*  Let's walk from line m_line_num up to line_num - 1, without
-      copying any line.  */
-  while (m_line_num < line_num - 1)
-    if (!goto_next_line ())
-      return false;
-
-  /* The line we want is the next one.  Let's read and copy it back to
-     the caller.  */
-  return get_next_line (line, line_len);
-}
-
-/* Return the physical source line that corresponds to FILE_PATH/LINE.
-   The line is not nul-terminated.  The returned pointer is only
-   valid until the next call of location_get_source_line.
-   Note that the line can contain several null characters,
-   so the returned value's length has the actual length of the line.
-   If the function fails, a NULL char_span is returned.  */
-
-char_span
-location_get_source_line (const char *file_path, int line)
-{
-  char *buffer = NULL;
-  ssize_t len;
-
-  if (line == 0)
-    return char_span (NULL, 0);
-
-  if (file_path == NULL)
-    return char_span (NULL, 0);
-
-  diagnostic_file_cache_init ();
-
-  file_cache_slot *c = global_dc->m_file_cache->lookup_or_add_file (file_path);
-  if (c == NULL)
-    return char_span (NULL, 0);
-
-  bool read = c->read_line_num (line, &buffer, &len);
-  if (!read)
-    return char_span (NULL, 0);
-
-  return char_span (buffer, len);
-}
-
-/* Determine if FILE_PATH missing a trailing newline on its final line.
-   Only valid to call once all of the file has been loaded, by
-   requesting a line number beyond the end of the file.  */
-
-bool
-location_missing_trailing_newline (const char *file_path)
-{
-  diagnostic_file_cache_init ();
-
-  file_cache_slot *c = global_dc->m_file_cache->lookup_or_add_file (file_path);
-  if (c == NULL)
-    return false;
-
-  return c->missing_trailing_newline_p ();
+  return xstrdup (buf);
 }
 
 /* Test if the location originates from the spelling location of a
@@ -952,8 +257,8 @@ is_location_from_builtin_token (location_t loc)
 expanded_location
 expand_location (location_t loc)
 {
-  return expand_location_1 (loc, /*expansion_point_p=*/true,
-			    LOCATION_ASPECT_CARET);
+  return expand_location_1 (line_table, loc, /*expansion_point_p=*/true,
+			    location_aspect::caret);
 }
 
 /* Expand the source location LOC into a human readable location.  If
@@ -966,7 +271,8 @@ expanded_location
 expand_location_to_spelling_point (location_t loc,
 				   enum location_aspect aspect)
 {
-  return expand_location_1 (loc, /*expansion_point_p=*/false, aspect);
+  return expand_location_1 (line_table, loc, /*expansion_point_p=*/false,
+			    aspect);
 }
 
 /* The rich_location class within libcpp requires a way to expand
@@ -979,10 +285,11 @@ expand_location_to_spelling_point (location_t loc,
    which simply calls into expand_location_1.  */
 
 expanded_location
-linemap_client_expand_location_to_spelling_point (location_t loc,
+linemap_client_expand_location_to_spelling_point (const line_maps *set,
+						  location_t loc,
 						  enum location_aspect aspect)
 {
-  return expand_location_1 (loc, /*expansion_point_p=*/false, aspect);
+  return expand_location_1 (set, loc, /*expansion_point_p=*/false, aspect);
 }
 
 
@@ -1022,7 +329,9 @@ expansion_point_location (location_t location)
 }
 
 /* Construct a location with caret at CARET, ranging from START to
-   finish e.g.
+   FINISH.
+
+   For example, consider:
 
                  11111111112
         12345678901234567890
@@ -1038,15 +347,7 @@ expansion_point_location (location_t location)
 location_t
 make_location (location_t caret, location_t start, location_t finish)
 {
-  location_t pure_loc = get_pure_location (caret);
-  source_range src_range;
-  src_range.m_start = get_start (start);
-  src_range.m_finish = get_finish (finish);
-  location_t combined_loc = COMBINE_LOCATION_DATA (line_table,
-						   pure_loc,
-						   src_range,
-						   NULL);
-  return combined_loc;
+  return line_table->make_location (caret, start, finish);
 }
 
 /* Same as above, but taking a source range rather than two locations.  */
@@ -1055,7 +356,8 @@ location_t
 make_location (location_t caret, source_range src_range)
 {
   location_t pure_loc = get_pure_location (caret);
-  return COMBINE_LOCATION_DATA (line_table, pure_loc, src_range, NULL);
+  return line_table->get_or_create_combined_loc (pure_loc, src_range,
+						 nullptr, 0);
 }
 
 /* An expanded_location stores the column in byte units.  This function
@@ -1063,12 +365,13 @@ make_location (location_t caret, source_range src_range)
    source line in order to calculate the display width.  If that cannot be done
    for any reason, then returns the byte column as a fallback.  */
 int
-location_compute_display_column (expanded_location exploc,
+location_compute_display_column (diagnostics::file_cache &fc,
+				 expanded_location exploc,
 				 const cpp_char_column_policy &policy)
 {
   if (!(exploc.file && *exploc.file && exploc.line && exploc.column))
     return exploc.column;
-  char_span line = location_get_source_line (exploc.file, exploc.line);
+  diagnostics::char_span line = fc.get_source_line (exploc.file, exploc.line);
   /* If line is NULL, this function returns exploc.column which is the
      desired fallback.  */
   return cpp_byte_column_to_display_column (line.get_buffer (), line.length (),
@@ -1137,9 +440,9 @@ dump_line_table_statistics (void)
   fprintf (stderr, "Ad-hoc table entries used:           " PRsa (5) "\n",
 	   SIZE_AMOUNT (s.adhoc_table_entries_used));
   fprintf (stderr, "optimized_ranges:                    " PRsa (5) "\n",
-	   SIZE_AMOUNT (line_table->num_optimized_ranges));
+	   SIZE_AMOUNT (line_table->m_num_optimized_ranges));
   fprintf (stderr, "unoptimized_ranges:                  " PRsa (5) "\n",
-	   SIZE_AMOUNT (line_table->num_unoptimized_ranges));
+	   SIZE_AMOUNT (line_table->m_num_unoptimized_ranges));
 
   fprintf (stderr, "\n");
 }
@@ -1147,7 +450,7 @@ dump_line_table_statistics (void)
 /* Get location one beyond the final location in ordinary map IDX.  */
 
 static location_t
-get_end_location (class line_maps *set, unsigned int idx)
+get_end_location (class line_maps *set, line_map_uint_t idx)
 {
   if (idx == LINEMAPS_ORDINARY_USED (set) - 1)
     return set->highest_location;
@@ -1161,7 +464,7 @@ get_end_location (class line_maps *set, unsigned int idx)
 static void
 write_digit (FILE *stream, int digit)
 {
-  fputc ('0' + (digit % 10), stream);
+  fputc ('0' + digit, stream);
 }
 
 /* Helper function for dump_location_info.
@@ -1177,8 +480,8 @@ write_digit_row (FILE *stream, int indent,
   fprintf (stream, "|");
   for (int column = 1; column < max_col; column++)
     {
-      location_t column_loc = loc + (column << map->m_range_bits);
-      write_digit (stream, column_loc / divisor);
+      location_t column_loc = loc + (location_t (column) << map->m_range_bits);
+      write_digit (stream, (column_loc / divisor) % 10);
     }
   fprintf (stream, "\n");
 }
@@ -1191,8 +494,8 @@ dump_location_range (FILE *stream,
 		     location_t start, location_t end)
 {
   fprintf (stream,
-	   "  location_t interval: %u <= loc < %u\n",
-	   start, end);
+	   "  location_t interval: %llu <= loc < %llu\n",
+	   (unsigned long long) start, (unsigned long long) end);
 }
 
 /* Write a labelled description of a half-closed (START) / half-open (END)
@@ -1213,19 +516,24 @@ dump_labelled_location_range (FILE *stream,
 void
 dump_location_info (FILE *stream)
 {
+  diagnostics::file_cache fc;
+
   /* Visualize the reserved locations.  */
   dump_labelled_location_range (stream, "RESERVED LOCATIONS",
 				0, RESERVED_LOCATION_COUNT);
 
+  using ULL = unsigned long long;
+
   /* Visualize the ordinary line_map instances, rendering the sources. */
-  for (unsigned int idx = 0; idx < LINEMAPS_ORDINARY_USED (line_table); idx++)
+  for (line_map_uint_t idx = 0; idx < LINEMAPS_ORDINARY_USED (line_table);
+       idx++)
     {
       location_t end_location = get_end_location (line_table, idx);
       /* half-closed: doesn't include this one. */
 
       const line_map_ordinary *map
 	= LINEMAPS_ORDINARY_MAP_AT (line_table, idx);
-      fprintf (stream, "ORDINARY MAP: %i\n", idx);
+      fprintf (stream, "ORDINARY MAP: %llu\n", (ULL) idx);
       dump_location_range (stream,
 			   MAP_START_LOCATION (map), end_location);
       fprintf (stream, "  file: %s\n", ORDINARY_MAP_FILE_NAME (map));
@@ -1261,18 +569,18 @@ dump_location_info (FILE *stream)
 
       const line_map_ordinary *includer_map
 	= linemap_included_from_linemap (line_table, map);
-      fprintf (stream, "  included from location: %d",
-	       linemap_included_from (map));
+      fprintf (stream, "  included from location: %llu",
+	       (ULL) linemap_included_from (map));
       if (includer_map) {
-	fprintf (stream, " (in ordinary map %d)",
-		 int (includer_map - line_table->info_ordinary.maps));
+	fprintf (stream, " (in ordinary map %llu)",
+		 ULL (includer_map - line_table->info_ordinary.maps));
       }
       fprintf (stream, "\n");
 
       /* Render the span of source lines that this "map" covers.  */
       for (location_t loc = MAP_START_LOCATION (map);
 	   loc < end_location;
-	   loc += (1 << map->m_range_bits) )
+	   loc += (location_t (1) << map->m_range_bits))
 	{
 	  gcc_assert (pure_location_p (line_table, loc) );
 
@@ -1283,28 +591,28 @@ dump_location_info (FILE *stream)
 	    {
 	      /* Beginning of a new source line: draw the line.  */
 
-	      char_span line_text = location_get_source_line (exploc.file,
-							      exploc.line);
+	      diagnostics::char_span line_text
+		= fc.get_source_line (exploc.file, exploc.line);
 	      if (!line_text)
 		break;
 	      fprintf (stream,
-		       "%s:%3i|loc:%5i|%.*s\n",
+		       "%s:%3i|loc:%5llu|%.*s\n",
 		       exploc.file, exploc.line,
-		       loc,
+		       (ULL) loc,
 		       (int)line_text.length (), line_text.get_buffer ());
 
 	      /* "loc" is at column 0, which means "the whole line".
 		 Render the locations *within* the line, by underlining
 		 it, showing the location_t numeric values
 		 at each column.  */
-	      size_t max_col = (1 << map->m_column_and_range_bits) - 1;
+	      auto max_col = (ULL (1) << map->m_column_and_range_bits) - 1;
 	      if (max_col > line_text.length ())
 		max_col = line_text.length () + 1;
 
-	      int len_lnum = num_digits (exploc.line);
+	      int len_lnum = diagnostics::num_digits (exploc.line);
 	      if (len_lnum < 3)
 		len_lnum = 3;
-	      int len_loc = num_digits (loc);
+	      int len_loc = diagnostics::num_digits (loc);
 	      if (len_loc < 5)
 		len_loc = 5;
 
@@ -1334,30 +642,30 @@ dump_location_info (FILE *stream)
 				LINEMAPS_MACRO_LOWEST_LOCATION (line_table));
 
   /* Visualize the macro line_map instances, rendering the sources. */
-  for (unsigned int i = 0; i < LINEMAPS_MACRO_USED (line_table); i++)
+  for (line_map_uint_t i = 0; i < LINEMAPS_MACRO_USED (line_table); i++)
     {
       /* Each macro map that is allocated owns location_t values
 	 that are *lower* that the one before them.
 	 Hence it's meaningful to view them either in order of ascending
 	 source locations, or in order of ascending macro map index.  */
       const bool ascending_location_ts = true;
-      unsigned int idx = (ascending_location_ts
-			  ? (LINEMAPS_MACRO_USED (line_table) - (i + 1))
-			  : i);
+      auto idx = (ascending_location_ts
+		  ? (LINEMAPS_MACRO_USED (line_table) - (i + 1))
+		  : i);
       const line_map_macro *map = LINEMAPS_MACRO_MAP_AT (line_table, idx);
-      fprintf (stream, "MACRO %i: %s (%u tokens)\n",
-	       idx,
+      fprintf (stream, "MACRO %llu: %s (%u tokens)\n",
+	       (ULL) idx,
 	       linemap_map_get_macro_name (map),
 	       MACRO_MAP_NUM_MACRO_TOKENS (map));
       dump_location_range (stream,
 			   map->start_location,
 			   (map->start_location
 			    + MACRO_MAP_NUM_MACRO_TOKENS (map)));
-      inform (MACRO_MAP_EXPANSION_POINT_LOCATION (map),
-	      "expansion point is location %i",
-	      MACRO_MAP_EXPANSION_POINT_LOCATION (map));
-      fprintf (stream, "  map->start_location: %u\n",
-	       map->start_location);
+      inform (map->get_expansion_point_location (),
+	      "expansion point is location %llu",
+	      (ULL) map->get_expansion_point_location ());
+      fprintf (stream, "  map->start_location: %llu\n",
+	       (ULL) map->start_location);
 
       fprintf (stream, "  macro_locations:\n");
       for (unsigned int i = 0; i < MACRO_MAP_NUM_MACRO_TOKENS (map); i++)
@@ -1377,24 +685,26 @@ dump_location_info (FILE *stream)
 	     This would explain there being up to 4 location_ts slots
 	     that may be uninitialized.  */
 
-	  fprintf (stream, "    %u: %u, %u\n",
+	  fprintf (stream, "    %u: %llu, %llu\n",
 		   i,
-		   x,
-		   y);
+		   (ULL) x,
+		   (ULL) y);
 	  if (x == y)
 	    {
 	      if (x < MAP_START_LOCATION (map))
-		inform (x, "token %u has %<x-location == y-location == %u%>",
-			i, x);
+		inform (x, "token %u has %<x-location == y-location == %llu%>",
+			i, (ULL) x);
 	      else
 		fprintf (stream,
-			 "x-location == y-location == %u encodes token # %u\n",
-			 x, x - MAP_START_LOCATION (map));
-		}
+			 "x-location == y-location == %llu"
+			 " encodes token # %u\n",
+			 (ULL) x,
+			 (unsigned int)(x - MAP_START_LOCATION (map)));
+	    }
 	  else
 	    {
-	      inform (x, "token %u has %<x-location == %u%>", i, x);
-	      inform (x, "token %u has %<y-location == %u%>", i, y);
+	      inform (x, "token %u has %<x-location == %llu%>", i, (ULL) x);
+	      inform (x, "token %u has %<y-location == %llu%>", i, (ULL) y);
 	    }
 	}
       fprintf (stream, "\n");
@@ -1410,7 +720,7 @@ dump_location_info (FILE *stream)
 
   /* Visualize ad-hoc values.  */
   dump_labelled_location_range (stream, "AD-HOC LOCATIONS",
-				MAX_LOCATION_T + 1, UINT_MAX);
+				MAX_LOCATION_T + 1, location_t (-1));
 }
 
 /* string_concat's constructor.  */
@@ -1532,6 +842,7 @@ class auto_cpp_string_vec :  public auto_vec <cpp_string>
 
 static const char *
 get_substring_ranges_for_loc (cpp_reader *pfile,
+			      diagnostics::file_cache &fc,
 			      string_concat_db *concats,
 			      location_t strloc,
 			      enum cpp_ttype type,
@@ -1600,10 +911,10 @@ get_substring_ranges_for_loc (cpp_reader *pfile,
 
       expanded_location start
 	= expand_location_to_spelling_point (src_range.m_start,
-					     LOCATION_ASPECT_START);
+					     location_aspect::start);
       expanded_location finish
 	= expand_location_to_spelling_point (src_range.m_finish,
-					     LOCATION_ASPECT_FINISH);
+					     location_aspect::finish);
       if (start.file != finish.file)
 	return "range endpoints are in different files";
       if (start.line != finish.line)
@@ -1611,7 +922,7 @@ get_substring_ranges_for_loc (cpp_reader *pfile,
       if (start.column > finish.column)
 	return "range endpoints are reversed";
 
-      char_span line = location_get_source_line (start.file, start.line);
+      diagnostics::char_span line = fc.get_source_line (start.file, start.line);
       if (!line)
 	return "unable to read source line";
 
@@ -1626,7 +937,8 @@ get_substring_ranges_for_loc (cpp_reader *pfile,
       if (line.length () < (start.column - 1 + literal_length))
 	return "line is not wide enough";
 
-      char_span literal = line.subspan (start.column - 1, literal_length);
+      diagnostics::char_span literal
+	= line.subspan (start.column - 1, literal_length);
 
       cpp_string from;
       from.len = literal_length;
@@ -1699,6 +1011,7 @@ get_substring_ranges_for_loc (cpp_reader *pfile,
 
 const char *
 get_location_within_string (cpp_reader *pfile,
+			    diagnostics::file_cache &fc,
 			    string_concat_db *concats,
 			    location_t strloc,
 			    enum cpp_ttype type,
@@ -1712,7 +1025,7 @@ get_location_within_string (cpp_reader *pfile,
 
   cpp_substring_ranges ranges;
   const char *err
-    = get_substring_ranges_for_loc (pfile, concats, strloc, type, ranges);
+    = get_substring_ranges_for_loc (pfile, fc, concats, strloc, type, ranges);
   if (err)
     return err;
 
@@ -1727,6 +1040,67 @@ get_location_within_string (cpp_reader *pfile,
 			    ranges.get_range (start_idx).m_start,
 			    ranges.get_range (end_idx).m_finish);
   return NULL;
+}
+
+/* Associate the DISCRIMINATOR with LOCUS, and return a new locus. */
+
+location_t
+location_with_discriminator (location_t locus, int discriminator)
+{
+  tree block = LOCATION_BLOCK (locus);
+  source_range src_range = get_range_from_loc (line_table, locus);
+  locus = get_pure_location (locus);
+
+  if (locus == UNKNOWN_LOCATION)
+    return locus;
+
+  return line_table->get_or_create_combined_loc (locus, src_range, block,
+						 discriminator);
+}
+
+/* Return TRUE if LOCUS represents a location with a discriminator.  */
+
+bool
+has_discriminator (location_t locus)
+{
+  return get_discriminator_from_loc (locus) != 0;
+}
+
+/* Return the discriminator for LOCUS.  */
+
+int
+get_discriminator_from_loc (location_t locus)
+{
+  return get_discriminator_from_loc (line_table, locus);
+}
+
+/* Create a location with hierarchical discriminator components.  */
+
+location_t
+location_with_discriminator_components (location_t locus,
+					const discriminator_components &comp)
+{
+  gcc_assert (comp.base <= DISCR_BASE_MAX);
+  gcc_assert (comp.multiplicity <= DISCR_MULTIPLICITY_MAX);
+  gcc_assert (comp.copyid <= DISCR_COPYID_MAX);
+  unsigned int discriminator = (comp.base << DISCR_BASE_SHIFT)
+    | (comp.multiplicity << DISCR_MULTIPLICITY_SHIFT)
+    | (comp.copyid << DISCR_COPYID_SHIFT);
+  return location_with_discriminator (locus, discriminator);
+}
+
+/* Get hierarchical discriminator components from a location.  */
+
+discriminator_components
+get_discriminator_components_from_loc (location_t locus)
+{
+  unsigned int discriminator = get_discriminator_from_loc (locus);
+  discriminator_components comp;
+  comp.base = discriminator & DISCR_BASE_MASK;
+  comp.multiplicity = (discriminator >> DISCR_MULTIPLICITY_SHIFT)
+    & DISCR_MULTIPLICITY_MASK;
+  comp.copyid = (discriminator >> DISCR_COPYID_SHIFT) & DISCR_COPYID_MASK;
+  return comp;
 }
 
 #if CHECKING_P
@@ -1749,6 +1123,7 @@ namespace selftest {
 
 static const char *
 get_source_range_for_char (cpp_reader *pfile,
+			   diagnostics::file_cache &fc,
 			   string_concat_db *concats,
 			   location_t strloc,
 			   enum cpp_ttype type,
@@ -1760,7 +1135,7 @@ get_source_range_for_char (cpp_reader *pfile,
 
   cpp_substring_ranges ranges;
   const char *err
-    = get_substring_ranges_for_loc (pfile, concats, strloc, type, ranges);
+    = get_substring_ranges_for_loc (pfile, fc, concats, strloc, type, ranges);
   if (err)
     return err;
 
@@ -1776,6 +1151,7 @@ get_source_range_for_char (cpp_reader *pfile,
 
 static const char *
 get_num_source_ranges_for_substring (cpp_reader *pfile,
+				     diagnostics::file_cache &fc,
 				     string_concat_db *concats,
 				     location_t strloc,
 				     enum cpp_ttype type,
@@ -1785,7 +1161,7 @@ get_num_source_ranges_for_substring (cpp_reader *pfile,
 
   cpp_substring_ranges ranges;
   const char *err
-    = get_substring_ranges_for_loc (pfile, concats, strloc, type, ranges);
+    = get_substring_ranges_for_loc (pfile, fc, concats, strloc, type, ranges);
 
   if (err)
     return err;
@@ -1874,13 +1250,13 @@ assert_loceq (const char *exp_filename, int exp_linenum, int exp_colnum,
 class line_table_case
 {
 public:
-  line_table_case (int default_range_bits, int base_location)
+  line_table_case (int default_range_bits, location_t base_location)
   : m_default_range_bits (default_range_bits),
     m_base_location (base_location)
   {}
 
   int m_default_range_bits;
-  int m_base_location;
+  location_t m_base_location;
 };
 
 /* Constructor.  Store the old value of line_table, and create a new
@@ -1892,10 +1268,10 @@ line_table_test::line_table_test ()
   saved_line_table = line_table;
   line_table = ggc_alloc<line_maps> ();
   linemap_init (line_table, BUILTINS_LOCATION);
-  gcc_assert (saved_line_table->reallocator);
-  line_table->reallocator = saved_line_table->reallocator;
-  gcc_assert (saved_line_table->round_alloc_size);
-  line_table->round_alloc_size = saved_line_table->round_alloc_size;
+  gcc_assert (saved_line_table->m_reallocator);
+  line_table->m_reallocator = saved_line_table->m_reallocator;
+  gcc_assert (saved_line_table->m_round_alloc_size);
+  line_table->m_round_alloc_size = saved_line_table->m_round_alloc_size;
   line_table->default_range_bits = 0;
 }
 
@@ -1908,10 +1284,10 @@ line_table_test::line_table_test (const line_table_case &case_)
   saved_line_table = line_table;
   line_table = ggc_alloc<line_maps> ();
   linemap_init (line_table, BUILTINS_LOCATION);
-  gcc_assert (saved_line_table->reallocator);
-  line_table->reallocator = saved_line_table->reallocator;
-  gcc_assert (saved_line_table->round_alloc_size);
-  line_table->round_alloc_size = saved_line_table->round_alloc_size;
+  gcc_assert (saved_line_table->m_reallocator);
+  line_table->m_reallocator = saved_line_table->m_reallocator;
+  gcc_assert (saved_line_table->m_round_alloc_size);
+  line_table->m_round_alloc_size = saved_line_table->m_round_alloc_size;
   line_table->default_range_bits = case_.m_default_range_bits;
   if (case_.m_base_location)
     {
@@ -1970,9 +1346,9 @@ test_accessing_ordinary_linemaps (const line_table_case &case_)
   location_t loc_start_of_very_long_line
     = linemap_position_for_column (line_table, 2000);
   location_t loc_too_wide
-    = linemap_position_for_column (line_table, 4097);
+    = linemap_position_for_column (line_table, LINE_MAP_MAX_COLUMN_NUMBER + 1);
   location_t loc_too_wide_2
-    = linemap_position_for_column (line_table, 4098);
+    = linemap_position_for_column (line_table, LINE_MAP_MAX_COLUMN_NUMBER + 2);
 
   /* ...and back to a sane line length.  */
   linemap_line_start (line_table, 6, 100);
@@ -2033,7 +1409,7 @@ test_unknown_location ()
 static void
 test_builtins ()
 {
-  assert_loceq (_("<built-in>"), 0, 0, BUILTINS_LOCATION);
+  assert_loceq (special_fname_builtin (), 0, 0, BUILTINS_LOCATION);
   ASSERT_PRED1 (is_location_from_builtin_token, BUILTINS_LOCATION);
 }
 
@@ -2096,37 +1472,6 @@ test_make_location_nonpure_range_endpoints (const line_table_case &case_)
   ASSERT_FALSE (IS_ADHOC_LOC (get_start (not_aaa_eq_bbb)));
   ASSERT_EQ (c21, get_finish (not_aaa_eq_bbb));
   ASSERT_FALSE (IS_ADHOC_LOC (get_finish (not_aaa_eq_bbb)));
-}
-
-/* Verify reading of input files (e.g. for caret-based diagnostics).  */
-
-static void
-test_reading_source_line ()
-{
-  /* Create a tempfile and write some text to it.  */
-  temp_source_file tmp (SELFTEST_LOCATION, ".txt",
-			"01234567890123456789\n"
-			"This is the test text\n"
-			"This is the 3rd line");
-
-  /* Read back a specific line from the tempfile.  */
-  char_span source_line = location_get_source_line (tmp.get_filename (), 3);
-  ASSERT_TRUE (source_line);
-  ASSERT_TRUE (source_line.get_buffer () != NULL);
-  ASSERT_EQ (20, source_line.length ());
-  ASSERT_TRUE (!strncmp ("This is the 3rd line",
-			 source_line.get_buffer (), source_line.length ()));
-
-  source_line = location_get_source_line (tmp.get_filename (), 2);
-  ASSERT_TRUE (source_line);
-  ASSERT_TRUE (source_line.get_buffer () != NULL);
-  ASSERT_EQ (21, source_line.length ());
-  ASSERT_TRUE (!strncmp ("This is the test text",
-			 source_line.get_buffer (), source_line.length ()));
-
-  source_line = location_get_source_line (tmp.get_filename (), 4);
-  ASSERT_FALSE (source_line);
-  ASSERT_TRUE (source_line.get_buffer () == NULL);
 }
 
 /* Tests of lexing.  */
@@ -2285,6 +1630,7 @@ public:
   line_table_test m_ltt;
   cpp_reader_ptr m_parser;
   temp_source_file m_tempfile;
+  diagnostics::file_cache m_file_cache;
   string_concat_db m_concats;
   bool m_implicitly_expect_EOF;
 };
@@ -2310,7 +1656,7 @@ class ebcdic_execution_charset : public lexer_test_options
       s_singleton = NULL;
     }
 
-  void apply (lexer_test &test) FINAL OVERRIDE
+  void apply (lexer_test &test) final override
   {
     cpp_options *cpp_opts = cpp_get_options (test.m_parser);
     cpp_opts->narrow_charset = "IBM1047";
@@ -2375,7 +1721,7 @@ class lexer_diagnostic_sink : public lexer_test_options
       free (str);
   }
 
-  void apply (lexer_test &test) FINAL OVERRIDE
+  void apply (lexer_test &test) final override
   {
     cpp_callbacks *callbacks = cpp_get_callbacks (test.m_parser);
     callbacks->diagnostic = on_diagnostic;
@@ -2476,7 +1822,8 @@ assert_char_at_range (const location &loc,
 
   source_range actual_range = source_range();
   const char *err
-    = get_source_range_for_char (pfile, concats, strloc, type, idx,
+    = get_source_range_for_char (pfile, test.m_file_cache,
+				 concats, strloc, type, idx,
 				 &actual_range);
   if (should_have_column_data_p (strloc))
     ASSERT_EQ_AT (loc, NULL, err);
@@ -2531,7 +1878,8 @@ assert_num_substring_ranges (const location &loc,
 
   int actual_num_ranges = -1;
   const char *err
-    = get_num_source_ranges_for_substring (pfile, concats, strloc, type,
+    = get_num_source_ranges_for_substring (pfile, test.m_file_cache,
+					   concats, strloc, type,
 					   &actual_num_ranges);
   if (should_have_column_data_p (strloc))
     ASSERT_EQ_AT (loc, NULL, err);
@@ -2568,7 +1916,7 @@ assert_has_no_substring_ranges (const location &loc,
   string_concat_db *concats = &test.m_concats;
   cpp_substring_ranges ranges;
   const char *actual_err
-    = get_substring_ranges_for_loc (pfile, concats, strloc,
+    = get_substring_ranges_for_loc (pfile, test.m_file_cache, concats, strloc,
 				    type, ranges);
   if (should_have_column_data_p (strloc))
     ASSERT_STREQ_AT (loc, expected_err, actual_err);
@@ -3337,7 +2685,8 @@ test_lexer_string_locations_concatenation_2 (const line_table_case &case_)
 	 this case.  */
       source_range actual_range;
       const char *err
-	= get_source_range_for_char (test.m_parser, &test.m_concats,
+	= get_source_range_for_char (test.m_parser, test.m_file_cache,
+				     &test.m_concats,
 				     initial_loc, type, 0, &actual_range);
       ASSERT_STREQ ("range starts after LINE_MAP_MAX_LOCATION_WITH_COLS", err);
       return;
@@ -3698,11 +3047,11 @@ static const location_t boundary_locations[] = {
   LINE_MAP_MAX_LOCATION_WITH_PACKED_RANGES + 0x100,
 
   /* Values near LINE_MAP_MAX_LOCATION_WITH_COLS.  */
-  LINE_MAP_MAX_LOCATION_WITH_COLS - 0x100,
+  LINE_MAP_MAX_LOCATION_WITH_COLS - 0x200,
   LINE_MAP_MAX_LOCATION_WITH_COLS - 1,
   LINE_MAP_MAX_LOCATION_WITH_COLS,
   LINE_MAP_MAX_LOCATION_WITH_COLS + 1,
-  LINE_MAP_MAX_LOCATION_WITH_COLS + 0x100,
+  LINE_MAP_MAX_LOCATION_WITH_COLS + 0x200,
 };
 
 /* Run TESTCASE multiple times, once for each case in our test matrix.  */
@@ -3717,27 +3066,19 @@ for_each_line_table_case (void (*testcase) (const line_table_case &))
 
   /* Run all tests with:
      (a) line_table->default_range_bits == 0, and
-     (b) line_table->default_range_bits == 5.  */
-  int num_cases_tested = 0;
-  for (int default_range_bits = 0; default_range_bits <= 5;
-       default_range_bits += 5)
+     (b) line_table->default_range_bits == line_map_suggested_range_bits.  */
+
+  for (int default_range_bits: {0, line_map_suggested_range_bits})
     {
       /* ...and use each of the "interesting" location values as
 	 the starting location within line_table.  */
-      const int num_boundary_locations
-	= sizeof (boundary_locations) / sizeof (boundary_locations[0]);
+      const int num_boundary_locations = ARRAY_SIZE (boundary_locations);
       for (int loc_idx = 0; loc_idx < num_boundary_locations; loc_idx++)
 	{
 	  line_table_case c (default_range_bits, boundary_locations[loc_idx]);
-
 	  testcase (c);
-
-	  num_cases_tested++;
 	}
     }
-
-  /* Verify that we fully covered the test matrix.  */
-  ASSERT_EQ (num_cases_tested, 2 * 12);
 }
 
 /* Verify that when presented with a consecutive pair of locations with
@@ -3879,7 +3220,104 @@ void test_cpp_utf8 ()
 	  ASSERT_EQ (byte_col2, byte_col);
       }
   }
+}
 
+static bool
+check_cpp_valid_utf8_p (const char *str)
+{
+  return cpp_valid_utf8_p (str, strlen (str));
+}
+
+/* Check that cpp_valid_utf8_p works as expected.  */
+
+static void
+test_cpp_valid_utf8_p ()
+{
+  ASSERT_TRUE (check_cpp_valid_utf8_p ("hello world"));
+
+  /* 2-byte char (pi).  */
+  ASSERT_TRUE (check_cpp_valid_utf8_p("\xcf\x80"));
+
+  /* 3-byte chars (the Japanese word "mojibake").  */
+  ASSERT_TRUE (check_cpp_valid_utf8_p
+	       (
+		/* U+6587 CJK UNIFIED IDEOGRAPH-6587
+		   UTF-8: 0xE6 0x96 0x87
+		   C octal escaped UTF-8: \346\226\207.  */
+		"\346\226\207"
+		/* U+5B57 CJK UNIFIED IDEOGRAPH-5B57
+		   UTF-8: 0xE5 0xAD 0x97
+		   C octal escaped UTF-8: \345\255\227.  */
+		"\345\255\227"
+		/* U+5316 CJK UNIFIED IDEOGRAPH-5316
+		   UTF-8: 0xE5 0x8C 0x96
+		   C octal escaped UTF-8: \345\214\226.  */
+		"\345\214\226"
+		/* U+3051 HIRAGANA LETTER KE
+		   UTF-8: 0xE3 0x81 0x91
+		   C octal escaped UTF-8: \343\201\221.  */
+		"\343\201\221"));
+
+  /* 4-byte char: an emoji.  */
+  ASSERT_TRUE (check_cpp_valid_utf8_p ("\xf0\x9f\x98\x82"));
+
+  /* Control codes, including the NUL byte.  */
+  ASSERT_TRUE (cpp_valid_utf8_p ("\r\n\v\0\1", 5));
+
+  ASSERT_FALSE (check_cpp_valid_utf8_p ("\xf0!\x9f!\x98!\x82!"));
+
+  /* Unexpected continuation bytes.  */
+  for (unsigned char continuation_byte = 0x80;
+       continuation_byte <= 0xbf;
+       continuation_byte++)
+    ASSERT_FALSE (cpp_valid_utf8_p ((const char *)&continuation_byte, 1));
+
+  /* "Lonely start characters" for 2-byte sequences.  */
+  {
+    unsigned char buf[2];
+    buf[1] = ' ';
+    for (buf[0] = 0xc0;
+	 buf[0] <= 0xdf;
+	 buf[0]++)
+      ASSERT_FALSE (cpp_valid_utf8_p ((const char *)buf, 2));
+  }
+
+  /* "Lonely start characters" for 3-byte sequences.  */
+  {
+    unsigned char buf[2];
+    buf[1] = ' ';
+    for (buf[0] = 0xe0;
+	 buf[0] <= 0xef;
+	 buf[0]++)
+      ASSERT_FALSE (cpp_valid_utf8_p ((const char *)buf, 2));
+  }
+
+  /* "Lonely start characters" for 4-byte sequences.  */
+  {
+    unsigned char buf[2];
+    buf[1] = ' ';
+    for (buf[0] = 0xf0;
+	 buf[0] <= 0xf4;
+	 buf[0]++)
+      ASSERT_FALSE (cpp_valid_utf8_p ((const char *)buf, 2));
+  }
+
+  /* Invalid start characters (formerly valid for 5-byte and 6-byte
+     sequences).  */
+  {
+    unsigned char buf[2];
+    buf[1] = ' ';
+    for (buf[0] = 0xf5;
+	 buf[0] <= 0xfd;
+	 buf[0]++)
+      ASSERT_FALSE (cpp_valid_utf8_p ((const char *)buf, 2));
+  }
+
+  /* Impossible bytes.  */
+  ASSERT_FALSE (check_cpp_valid_utf8_p ("\xc0"));
+  ASSERT_FALSE (check_cpp_valid_utf8_p ("\xc1"));
+  ASSERT_FALSE (check_cpp_valid_utf8_p ("\xfe"));
+  ASSERT_FALSE (check_cpp_valid_utf8_p ("\xff"));
 }
 
 /* Run all of the selftests within this file.  */
@@ -3920,11 +3358,10 @@ input_cc_tests ()
   for_each_line_table_case (test_lexer_string_locations_raw_string_unterminated);
   for_each_line_table_case (test_lexer_char_constants);
 
-  test_reading_source_line ();
-
   test_line_offset_overflow ();
 
   test_cpp_utf8 ();
+  test_cpp_valid_utf8_p ();
 }
 
 } // namespace selftest

@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD: head/sys/net/if.h 352458 2019-09-17 18:49:13Z kib $
+ * $FreeBSD$
  */
 
 #ifndef _NET_IF_H_
@@ -144,7 +144,7 @@ struct if_data {
 #define	IFF_DEBUG	0x4		/* (n) turn on debugging */
 #define	IFF_LOOPBACK	0x8		/* (i) is a loopback net */
 #define	IFF_POINTOPOINT	0x10		/* (i) is a point-to-point link */
-/*			0x20		   was IFF_SMART */
+#define	IFF_KNOWSEPOCH	0x20		/* (i) calls if_input in net epoch */
 #define	IFF_DRV_RUNNING	0x40		/* (d) resources allocated */
 #define	IFF_NOARP	0x80		/* (n) no address resolution protocol */
 #define	IFF_PROMISC	0x100		/* (n) receive all packets */
@@ -160,10 +160,10 @@ struct if_data {
 #define	IFF_PPROMISC	0x20000		/* (n) user-requested promisc mode */
 #define	IFF_MONITOR	0x40000		/* (n) user-requested monitor mode */
 #define	IFF_STATICARP	0x80000		/* (n) static ARP */
+#define	IFF_STICKYARP	0x100000	/* (n) sticky ARP */
 #define	IFF_DYING	0x200000	/* (n) interface is winding down */
 #define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
 #define	IFF_NOGROUP	0x800000	/* (n) interface is not part of any groups */
-
 
 /*
  * Old names for driver flags so that user space tools can continue to use
@@ -178,7 +178,7 @@ struct if_data {
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_DRV_RUNNING|IFF_DRV_OACTIVE|\
 	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_PROMISC|\
-	    IFF_DYING|IFF_CANTCONFIG)
+	    IFF_DYING|IFF_CANTCONFIG|IFF_KNOWSEPOCH)
 
 /*
  * Values for if_link_state.
@@ -210,7 +210,7 @@ struct if_data {
  *   contains the enabled optional feature & capabilites that can be used
  *   individually per packet and are specified in the mbuf pkthdr.csum_flags
  *   field.  IFCAP_* and CSUM_* do not match one to one and CSUM_* may be
- *   more detailed or differenciated than IFCAP_*.
+ *   more detailed or differentiated than IFCAP_*.
  *   Hwassist features are defined CSUM_* in sys/mbuf.h
  *
  * Capabilities that cannot be arbitrarily changed with ifconfig/ioctl
@@ -237,7 +237,7 @@ struct if_data {
 #define	IFCAP_TOE4		0x04000	/* interface can offload TCP */
 #define	IFCAP_TOE6		0x08000	/* interface can offload TCP6 */
 #define	IFCAP_VLAN_HWFILTER	0x10000 /* interface hw can filter vlan tag */
-/* 	available		0x20000 */
+#define	IFCAP_NV		0x20000 /* can do SIOCGIFCAPNV/SIOCSIFCAPNV */
 #define	IFCAP_VLAN_HWTSO	0x40000 /* can do IFCAP_TSO on VLANs */
 #define	IFCAP_LINKSTATE		0x80000 /* the runtime link state is dynamic */
 #define	IFCAP_NETMAP		0x100000 /* netmap mode supported/enabled */
@@ -246,9 +246,15 @@ struct if_data {
 #define	IFCAP_HWSTATS		0x800000 /* manages counters internally */
 #define	IFCAP_TXRTLMT		0x1000000 /* hardware supports TX rate limiting */
 #define	IFCAP_HWRXTSTMP		0x2000000 /* hardware rx timestamping */
-#define	IFCAP_NOMAP		0x4000000 /* can TX unmapped mbufs */
+#define	IFCAP_MEXTPG		0x4000000 /* understands M_EXTPG mbufs */
 #define	IFCAP_TXTLS4		0x8000000 /* can do TLS encryption and segmentation for TCP */
 #define	IFCAP_TXTLS6		0x10000000 /* can do TLS encryption and segmentation for TCP6 */
+#define	IFCAP_VXLAN_HWCSUM	0x20000000 /* can do IFCAN_HWCSUM on VXLANs */
+#define	IFCAP_VXLAN_HWTSO	0x40000000 /* can do IFCAP_TSO on VXLANs */
+#define	IFCAP_TXTLS_RTLMT	0x80000000 /* can do TLS with rate limiting */
+
+#define	IFCAP2_RXTLS4		0x00001
+#define	IFCAP2_RXTLS6		0x00002
 
 #define IFCAP_HWCSUM_IPV6	(IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6)
 
@@ -257,8 +263,44 @@ struct if_data {
 #define	IFCAP_WOL	(IFCAP_WOL_UCAST | IFCAP_WOL_MCAST | IFCAP_WOL_MAGIC)
 #define	IFCAP_TOE	(IFCAP_TOE4 | IFCAP_TOE6)
 #define	IFCAP_TXTLS	(IFCAP_TXTLS4 | IFCAP_TXTLS6)
+#define	IFCAP2_RXTLS	(IFCAP2_RXTLS4 | IFCAP2_RXTLS6)
 
-#define	IFCAP_CANTCHANGE	(IFCAP_NETMAP)
+#define	IFCAP_CANTCHANGE	(IFCAP_NETMAP | IFCAP_NV)
+#define	IFCAP_ALLCAPS		0xffffffff
+
+#define	IFCAP_RXCSUM_NAME	"RXCSUM"
+#define	IFCAP_TXCSUM_NAME	"TXCSUM"
+#define	IFCAP_NETCONS_NAME	"NETCONS"
+#define	IFCAP_VLAN_MTU_NAME	"VLAN_MTU"
+#define	IFCAP_VLAN_HWTAGGING_NAME "VLAN_HWTAGGING"
+#define	IFCAP_JUMBO_MTU_NAME	"JUMBO_MTU"
+#define	IFCAP_POLLING_NAME	"POLLING"
+#define	IFCAP_VLAN_HWCSUM_NAME	"VLAN_HWCSUM"
+#define	IFCAP_TSO4_NAME		"TSO4"
+#define	IFCAP_TSO6_NAME		"TSO6"
+#define	IFCAP_LRO_NAME		"LRO"
+#define	IFCAP_WOL_UCAST_NAME	"WOL_UCAST"
+#define	IFCAP_WOL_MCAST_NAME	"WOL_MCAST"
+#define	IFCAP_WOL_MAGIC_NAME	"WOL_MAGIC"
+#define	IFCAP_TOE4_NAME		"TOE4"
+#define	IFCAP_TOE6_NAME		"TOE6"
+#define	IFCAP_VLAN_HWFILTER_NAME "VLAN_HWFILTER"
+#define	IFCAP_VLAN_HWTSO_NAME	"VLAN_HWTSO"
+#define	IFCAP_LINKSTATE_NAME	"LINKSTATE"
+#define	IFCAP_NETMAP_NAME	"NETMAP"
+#define	IFCAP_RXCSUM_IPV6_NAME	"RXCSUM_IPV6"
+#define	IFCAP_TXCSUM_IPV6_NAME	"TXCSUM_IPV6"
+#define	IFCAP_HWSTATS_NAME	"HWSTATS"
+#define	IFCAP_TXRTLMT_NAME	"TXRTLMT"
+#define	IFCAP_HWRXTSTMP_NAME	"HWRXTSTMP"
+#define	IFCAP_MEXTPG_NAME	"MEXTPG"
+#define	IFCAP_TXTLS4_NAME	"TXTLS4"
+#define	IFCAP_TXTLS6_NAME	"TXTLS6"
+#define	IFCAP_VXLAN_HWCSUM_NAME	"VXLAN_HWCSUM"
+#define	IFCAP_VXLAN_HWTSO_NAME	"VXLAN_HWTSO"
+#define	IFCAP_TXTLS_RTLMT_NAME	"TXTLS_RTLMT"
+#define	IFCAP2_RXTLS4_NAME	"RXTLS4"
+#define	IFCAP2_RXTLS6_NAME	"RXTLS6"
 
 #define	IFQ_MAXLEN	50
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
@@ -385,13 +427,22 @@ struct ifreq_buffer {
 	void	*buffer;
 };
 
+struct ifreq_nv_req {
+	u_int	buf_length;	/* Total size of buffer,
+				   u_int for ABI struct ifreq */
+	u_int	length;		/* Length of the filled part */
+	void	*buffer;	/* Buffer itself, containing packed nv */
+};
+
+#define	IFR_CAP_NV_MAXBUFSIZE	(2 * 1024 * 1024)
+
 /*
  * Interface request structure used for socket
  * ioctl's.  All interface ioctl's must have parameter
  * definitions which begin with ifr_name.  The
  * remainder may be interface specific.
  */
-struct	ifreq {
+struct ifreq {
 	char	ifr_name[IFNAMSIZ];		/* if name, e.g. "en0" */
 	union {
 		struct	sockaddr ifru_addr;
@@ -409,6 +460,7 @@ struct	ifreq {
 		int	ifru_cap[2];
 		u_int	ifru_fib;
 		u_char	ifru_vlan_pcp;
+		struct	ifreq_nv_req ifru_nv;
 	} ifr_ifru;
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
 #define	ifr_dstaddr	ifr_ifru.ifru_dstaddr	/* other end of p-to-p link */
@@ -432,6 +484,7 @@ struct	ifreq {
 #define	ifr_fib		ifr_ifru.ifru_fib	/* interface fib */
 #define	ifr_vlan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
 #define	ifr_lan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
+#define	ifr_cap_nv	ifr_ifru.ifru_nv	/* nv-based cap interface */
 };
 
 #define	_SIZEOF_ADDR_IFREQ(ifr) \
@@ -465,11 +518,11 @@ struct ifmediareq {
 	int	*ifm_ulist;		/* media words */
 };
 
-struct  ifdrv {
-	char            ifd_name[IFNAMSIZ];     /* if name, e.g. "en0" */
-	unsigned long   ifd_cmd;
-	size_t          ifd_len;
-	void            *ifd_data;
+struct ifdrv {
+	char		ifd_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+	unsigned long	ifd_cmd;
+	size_t		ifd_len;
+	void		*ifd_data;
 };
 
 /* 
@@ -491,7 +544,7 @@ struct ifstat {
  * for machine (useful for programs which
  * must know all networks accessible).
  */
-struct	ifconf {
+struct ifconf {
 	int	ifc_len;		/* size of associated buffer */
 	union {
 		caddr_t	ifcu_buf;
@@ -528,10 +581,8 @@ struct ifgroupreq {
 		char	ifgru_group[IFNAMSIZ];
 		struct	ifg_req *ifgru_groups;
 	} ifgr_ifgru;
-#ifndef _KERNEL
 #define ifgr_group	ifgr_ifgru.ifgru_group
 #define ifgr_groups	ifgr_ifgru.ifgru_groups
-#endif
 };
 
 /*

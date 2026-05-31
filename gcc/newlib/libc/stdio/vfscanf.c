@@ -589,7 +589,11 @@ __SVFSCANF_R (struct _reent *rptr,
 
   _newlib_flockfile_start (fp);
 
-  ORIENT (fp, -1);
+  if (ORIENT (fp, -1) != -1)
+    {
+      nassigned = EOF;
+      goto all_done;
+    }
 
   nassigned = 0;
   nread = 0;
@@ -774,7 +778,7 @@ __SVFSCANF_R (struct _reent *rptr,
 	      width = 0;
 	      goto again;
 	    }
-	  rptr->_errno = EINVAL;
+	  _REENT_ERRNO(rptr) = EINVAL;
 	  goto input_failure;
 #endif /* !_NO_POS_ARGS */
 

@@ -1,5 +1,5 @@
 /* Initialization of uninitialized regs.
-   Copyright (C) 2007-2022 Free Software Foundation, Inc.
+   Copyright (C) 2007-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -109,8 +109,7 @@ initialize_uninitialized_regs (void)
 		     CONST0_RTX defined.  */
 		  if (CONST0_RTX (GET_MODE (reg)))
 		    emit_move_insn (reg, CONST0_RTX (GET_MODE (reg)));
-		  move_insn = get_insns ();
-		  end_sequence ();
+		  move_insn = end_sequence ();
 		  emit_insn_before (move_insn, insn);
 		  if (dump_file)
 		    fprintf (dump_file,
@@ -153,8 +152,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return optimize > 0; }
-  virtual unsigned int execute (function *)
+  bool gate (function *) final override { return optimize > 0; }
+  unsigned int execute (function *) final override
     {
       initialize_uninitialized_regs ();
       return 0;

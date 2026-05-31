@@ -102,7 +102,7 @@ TEST_UNIFORM_Z (lsl_64_u64_m_tied1, svuint64_t,
 		z0 = svlsl_m (p0, z0, 64))
 
 /*
-** lsl_64_u64_m_untied: { xfail *-*-* }
+** lsl_64_u64_m_untied:
 **	mov	(z[0-9]+\.d), #64
 **	movprfx	z0, z1
 **	lsl	z0\.d, p0/m, z0\.d, \1
@@ -296,7 +296,7 @@ TEST_UNIFORM_ZX (lsl_x0_u64_x_untied, svuint64_t, uint64_t,
 
 /*
 ** lsl_1_u64_x_tied1:
-**	lsl	z0\.d, z0\.d, #1
+**	add	z0\.d, z0\.d, z0\.d
 **	ret
 */
 TEST_UNIFORM_Z (lsl_1_u64_x_tied1, svuint64_t,
@@ -305,7 +305,7 @@ TEST_UNIFORM_Z (lsl_1_u64_x_tied1, svuint64_t,
 
 /*
 ** lsl_1_u64_x_untied:
-**	lsl	z0\.d, z1\.d, #1
+**	add	z0\.d, z1\.d, z1\.d
 **	ret
 */
 TEST_UNIFORM_Z (lsl_1_u64_x_untied, svuint64_t,

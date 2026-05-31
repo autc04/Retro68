@@ -49,7 +49,6 @@ extern (C):
 
 nothrow:
 @nogc:
-@system:
 
 //
 // Required
@@ -123,6 +122,12 @@ version (linux)
     enum F_SETLK        = 6;
     enum F_SETLKW       = 7;
   }
+  else version (RISCV64)
+  {
+    enum F_GETLK        = 5;
+    enum F_SETLK        = 6;
+    enum F_SETLKW       = 7;
+  }
   else version (SystemZ)
   {
     static assert(off_t.sizeof == 8);
@@ -130,7 +135,34 @@ version (linux)
     enum F_SETLK        = 6;
     enum F_SETLKW       = 7;
   }
-  else
+  else version (MIPS_N64)
+  {
+    enum F_GETLK        = 14;
+    enum F_SETLK        = 6;
+    enum F_SETLKW       = 7;
+  }
+  else version (MIPS_Any)
+  {
+    static if ( __USE_FILE_OFFSET64 )
+    {
+      enum F_GETLK      = 33;
+      enum F_SETLK      = 34;
+      enum F_SETLKW     = 35;
+    }
+    else
+    {
+      enum F_GETLK      = 14;
+      enum F_SETLK      = 6;
+      enum F_SETLKW     = 7;
+    }
+  }
+  else version (LoongArch64)
+  {
+    static assert(off_t.sizeof == 8);
+    enum F_GETLK        = 5;
+    enum F_SETLK        = 6;
+    enum F_SETLKW       = 7;
+  } else
   static if ( __USE_FILE_OFFSET64 )
   {
     enum F_GETLK        = 12;
@@ -365,6 +397,33 @@ version (linux)
         enum O_PATH         = 0x200000; // octal 010000000
         enum O_NDELAY       = O_NONBLOCK;
     }
+    else version (LoongArch64)
+    {
+        enum O_CREAT        = 0x40;     // octal     0100
+        enum O_EXCL         = 0x80;     // octal     0200
+        enum O_NOCTTY       = 0x100;    // octal     0400
+        enum O_TRUNC        = 0x200;    // octal    01000
+
+        enum O_APPEND       = 0x400;    // octal    02000
+        enum O_NONBLOCK     = 0x800;    // octal    04000
+        enum O_CLOEXEC      = 0x80000;  // octal 02000000
+        enum O_SYNC         = 0x101000; // octal 04010000
+        enum O_DSYNC        = 0x1000;   // octal   010000
+        enum O_RSYNC        = O_SYNC;
+
+        enum O_DIRECTORY    = 0x010000; // octal    200000
+        enum O_NOFOLLOW     = 0x020000; // octal    400000
+        enum O_DIRECT       = 0x004000; // octal    040000
+        version (D_LP64)
+            enum O_LARGEFILE = 0;
+        else
+            enum O_LARGEFILE = 0x8000;  // octal   0100000
+        enum O_TMPFILE      = 0x404000; // octal 020040000
+        enum O_ASYNC        = 0x2000;   // octal    020000
+        enum O_NOATIME      = 0x40000;  // octal  01000000
+        enum O_PATH         = 0x200000; // octal 010000000
+        enum O_NDELAY       = O_NONBLOCK;
+    }
     else
         static assert(0, "unimplemented");
 
@@ -416,6 +475,7 @@ else version (Darwin)
     enum F_UNLCK        = 2;
     enum F_WRLCK        = 3;
 
+    enum O_NOFOLLOW     = 0x0100;
     enum O_CREAT        = 0x0200;
     enum O_EXCL         = 0x0800;
     enum O_NOCTTY       = 0;
@@ -440,6 +500,12 @@ else version (Darwin)
         short   l_type;
         short   l_whence;
     }
+
+    enum AT_FDCWD = -2;
+    enum AT_EACCESS          = 0x0010;
+    enum AT_SYMLINK_NOFOLLOW = 0x0020;
+    enum AT_SYMLINK_FOLLOW   = 0x0040;
+    enum AT_REMOVEDIR        = 0x0080;
 }
 else version (FreeBSD)
 {
@@ -499,8 +565,11 @@ else version (FreeBSD)
         short   l_whence;
     }
 
-    enum AT_SYMLINK_NOFOLLOW = 0x200;
     enum AT_FDCWD = -100;
+    enum AT_EACCESS          = 0x100;
+    enum AT_SYMLINK_NOFOLLOW = 0x200;
+    enum AT_SYMLINK_FOLLOW   = 0x400;
+    enum AT_REMOVEDIR        = 0x800;
 }
 else version (OpenBSD)
 {
@@ -616,6 +685,12 @@ else version (NetBSD)
         short   l_type;
         short   l_whence;
     }
+
+    enum AT_FDCWD = -100;
+    enum AT_EACCESS          = 0x100;
+    enum AT_SYMLINK_NOFOLLOW = 0x200;
+    enum AT_SYMLINK_FOLLOW   = 0x400;
+    enum AT_REMOVEDIR        = 0x800;
 }
 else version (DragonFlyBSD)
 {
@@ -700,6 +775,12 @@ else version (DragonFlyBSD)
     }
 
     alias oflock = flock;
+
+    enum AT_FDCWD = 0xFFFAFDCD;
+    enum AT_SYMLINK_NOFOLLOW = 1;
+    enum AT_REMOVEDIR        = 2;
+    enum AT_EACCESS          = 4;
+    enum AT_SYMLINK_FOLLOW   = 8;
 }
 else version (Solaris)
 {
@@ -783,6 +864,11 @@ else version (Solaris)
             c_long[4]   l_pad;
         }
     }
+    enum AT_FDCWD = -3041965;
+    enum AT_SYMLINK_NOFOLLOW = 0x1000;
+    enum AT_SYMLINK_FOLLOW   = 0x2000;
+    enum AT_REMOVEDIR        = 0x1;
+    enum AT_EACCESS          = 0x4;
 }
 else
 {
@@ -793,47 +879,57 @@ else
 int creat(const scope char*, mode_t);
 int fcntl(int, int, ...);
 int open(const scope char*, int, ...);
+int openat(int, const scope char*, int, ...);
 */
 version (CRuntime_Glibc)
 {
     static if ( __USE_FILE_OFFSET64 )
     {
         int   creat64(const scope char*, mode_t);
-        alias creat64 creat;
+        alias creat = creat64;
 
         int   open64(const scope char*, int, ...);
-        alias open64 open;
+        alias open = open64;
+
+        int   openat64(int, const scope char*, int, ...);
+        alias openat = openat64;
     }
     else
     {
         int   creat(const scope char*, mode_t);
         int   open(const scope char*, int, ...);
+        int   openat(int, const scope char*, int, ...);
     }
 }
 else version (Darwin)
 {
     int creat(const scope char*, mode_t);
     int open(const scope char*, int, ...);
+    int openat(int, const scope char*, int, ...);
 }
 else version (FreeBSD)
 {
     int creat(const scope char*, mode_t);
     int open(const scope char*, int, ...);
+    int openat(int, const scope char*, int, ...);
 }
 else version (OpenBSD)
 {
     int creat(const scope char*, mode_t);
     int open(const scope char*, int, ...);
+    int openat(int, const scope char*, int, ...);
 }
 else version (NetBSD)
 {
     int creat(const scope char*, mode_t);
     int open(const scope char*, int, ...);
+    int openat(int, const scope char*, int, ...);
 }
 else version (DragonFlyBSD)
 {
     int creat(const scope char*, mode_t);
     int open(const scope char*, int, ...);
+    int openat(int, const scope char*, int, ...);
 }
 else version (Solaris)
 {
@@ -841,11 +937,13 @@ else version (Solaris)
     {
         int creat(const scope char*, mode_t);
         int open(const scope char*, int, ...);
+        int openat(int, const scope char*, int, ...);
 
         static if (__USE_LARGEFILE64)
         {
-            alias creat creat64;
-            alias open open64;
+            alias creat64 = creat;
+            alias open64 = open;
+            alias openat64 = openat;
         }
     }
     else
@@ -853,15 +951,19 @@ else version (Solaris)
         static if (__USE_LARGEFILE64)
         {
             int creat64(const scope char*, mode_t);
-            alias creat64 creat;
+            alias creat = creat64;
 
             int open64(const scope char*, int, ...);
-            alias open64 open;
+            alias open = open64;
+
+            int openat64(int, const scope char*, int, ...);
+            alias openat = openat64;
         }
         else
         {
             int creat(const scope char*, mode_t);
             int open(const scope char*, int, ...);
+            int openat(int, const scope char*, int, ...);
         }
     }
 }
@@ -869,25 +971,32 @@ else version (CRuntime_Bionic)
 {
     int   creat(const scope char*, mode_t);
     int   open(const scope char*, int, ...);
+    int   openat(int, const scope char*, int, ...);
 }
 else version (CRuntime_Musl)
 {
+    int creat(const scope char*, mode_t);
     int open(const scope char*, int, ...);
+    int openat(int, const scope char*, int, ...);
 }
 else version (CRuntime_UClibc)
 {
     static if ( __USE_FILE_OFFSET64 )
     {
         int   creat64(const scope char*, mode_t);
-        alias creat64 creat;
+        alias creat = creat64;
 
         int   open64(const scope char*, int, ...);
-        alias open64 open;
+        alias open = open64;
+
+        int openat64(int, const scope char*, int, ...);
+        alias openat = openat64;
     }
     else
     {
         int   creat(const scope char*, mode_t);
         int   open(const scope char*, int, ...);
+        int openat(int, const scope char*, int, ...);
     }
 }
 else

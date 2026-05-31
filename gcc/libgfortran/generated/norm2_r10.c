@@ -1,5 +1,5 @@
 /* Implementation of the NORM2 intrinsic
-   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
    Contributed by Tobias Burnus  <burnus@net-b.de>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -32,13 +32,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define MATHFUNC(funcname) funcname ## l
 
 
-extern void norm2_r10 (gfc_array_r10 * const restrict, 
+extern void norm2_r10 (gfc_array_r10 * const restrict,
 	gfc_array_r10 * const restrict, const index_type * const restrict);
 export_proto(norm2_r10);
 
 void
-norm2_r10 (gfc_array_r10 * const restrict retarray, 
-	gfc_array_r10 * const restrict array, 
+norm2_r10 (gfc_array_r10 * const restrict retarray,
+	gfc_array_r10 * const restrict array,
 	const index_type * const restrict pdim)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -109,12 +109,7 @@ norm2_r10 (gfc_array_r10 * const restrict retarray,
 
       retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_REAL_10));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-
-	}
+	return;
     }
   else
     {

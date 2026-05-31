@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: SERIALIZE insns
 #source: serialize.s

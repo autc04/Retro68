@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -165,6 +165,11 @@ package Namet is
    --  Note that there is some circuitry (e.g. Osint.Write_Program_Name) that
    --  does a save/restore on Name_Len and Name_Buffer (1 .. Name_Len). This
    --  works in part because Name_Len is default-initialized to 0.
+
+   procedure Destroy_Global_Name_Buffer with Inline;
+   --  Overwrites Global_Name_Buffer with meaningless data. This can be used in
+   --  the transition away from Global_Name_Buffer, in order to detect cases
+   --  where we incorrectly rely on the global.
 
    -----------------------------
    -- Types for Namet Package --
@@ -418,15 +423,22 @@ package Namet is
    --  Unlocks the name table to allow use of the extra space reserved by the
    --  call to Lock. See gnat1drv for details of the need for this.
 
+   procedure Unlock_If_Locked;
+   --  If the name table is locked, calls Unlock. Otherwise, does nothing.
+
    procedure Write_Name (Id : Valid_Name_Id);
    --  Write_Name writes the characters of the specified name using the
    --  standard output procedures in package Output. The name is written
    --  in encoded form (i.e. including Uhh, Whhh, Qx, _op as they appear in
-   --  the name table). If Id is Error_Name, or No_Name, no text is output.
+   --  the name table). If Id is Error_Name or No_Name, no text is output.
 
    procedure Write_Name_Decoded (Id : Valid_Name_Id);
    --  Like Write_Name, except that the name written is the decoded name, as
    --  described for Append_Decoded.
+
+   procedure Write_Name_For_Debug (Id : Name_Id; Quote : String := "");
+   --  Like Write_Name, except it tries to be robust in the presence of invalid
+   --  data, and valid names are surrounded by Quote.
 
    function Name_Entries_Count return Nat;
    --  Return current number of entries in the names table
@@ -492,10 +504,6 @@ package Namet is
    --  Constant used to indicate no file is present (this is used for example
    --  when a search for a file indicates that no file of the name exists).
 
-   function Present (Nam : File_Name_Type) return Boolean;
-   pragma Inline (Present);
-   --  Determine whether file name Nam exists
-
    Error_File_Name : constant File_Name_Type := File_Name_Type (Error_Name);
    --  The special File_Name_Type value Error_File_Name is used to indicate
    --  a unit name where some previous processing has found an error.
@@ -520,10 +528,6 @@ package Namet is
    No_Unit_Name : constant Unit_Name_Type := Unit_Name_Type (No_Name);
    --  Constant used to indicate no file name present
 
-   function Present (Nam : Unit_Name_Type) return Boolean;
-   pragma Inline (Present);
-   --  Determine whether unit name Nam exists
-
    Error_Unit_Name : constant Unit_Name_Type := Unit_Name_Type (Error_Name);
    --  The special Unit_Name_Type value Error_Unit_Name is used to indicate
    --  a unit name where some previous processing has found an error.
@@ -537,14 +541,8 @@ package Namet is
 
    procedure wn (Id : Name_Id);
    pragma Export (Ada, wn);
-   --  This routine is intended for debugging use only (i.e. it is intended to
-   --  be called from the debugger). It writes the characters of the specified
-   --  name using the standard output procedures in package Output, followed by
-   --  a new line. The name is written in encoded form (i.e. including Uhh,
-   --  Whhh, Qx, _op as they appear in the name table). If Id is Error_Name,
-   --  No_Name, or invalid an appropriate string is written (<Error_Name>,
-   --  <No_Name>, <invalid name>). Unlike Write_Name, this call does not affect
-   --  the contents of Name_Buffer or Name_Len.
+   --  Write Id to standard output, followed by a newline. Intended to be
+   --  called in the debugger.
 
 private
 
@@ -603,6 +601,7 @@ private
       --  Int Value associated with this name
 
    end record;
+   --  The aliased non-boolean components are required to match the C structure
 
    for Name_Entry use record
       Name_Chars_Index      at  0 range 0 .. 31;
@@ -616,9 +615,10 @@ private
       Hash_Link             at  8 range 0 .. 31;
       Int_Info              at 12 range 0 .. 31;
    end record;
+   --  This ensures a matching layout between Ada and C
 
    for Name_Entry'Size use 16 * 8;
-   --  This ensures that we did not leave out any fields
+   --  This ensures that record is reasonably small
 
    --  This is the table that is referenced by Valid_Name_Id entries.
    --  It contains one entry for each unique name in the table.

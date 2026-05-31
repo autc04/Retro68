@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -209,15 +209,6 @@ package body Get_Targ is
    end Get_Double_Scalar_Alignment;
 
    -----------------------------
-   -- Get_Max_Unaligned_Field --
-   -----------------------------
-
-   function Get_Max_Unaligned_Field return Pos is
-   begin
-      return 64;  -- Can be different on some targets
-   end Get_Max_Unaligned_Field;
-
-   -----------------------------
    -- Register_Back_End_Types --
    -----------------------------
 
@@ -228,9 +219,14 @@ package body Get_Targ is
    begin
       Float_Str (Float_Str'First .. Float_Str'First + 4) := "float";
       Call_Back
-        (C_Name => Float_Str, Digs => 6, Complex => False, Count  => 0,
+        (C_Name    => Float_Str,
+         Digs      => 6,
+         Complex   => False,
+         Count     => 0,
          Float_Rep => IEEE_Binary,
-         Precision => 32, Size => 32, Alignment => 32);
+         Precision => 32,
+         Size      => 32,
+         Alignment => 32);
 
       Double_Str (Double_Str'First .. Double_Str'First + 5) := "double";
       Call_Back

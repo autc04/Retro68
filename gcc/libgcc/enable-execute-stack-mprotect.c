@@ -1,5 +1,5 @@
 /* Implement __enable_execute_stack using mprotect(2).
-   Copyright (C) 2011-2022 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -30,7 +30,6 @@
 
 static int need_enable_exec_stack;
 
-static void check_enabling (void) __attribute__ ((unused));
 extern void __enable_execute_stack (void *);
 
 #if defined __sun__ && defined __svr4__

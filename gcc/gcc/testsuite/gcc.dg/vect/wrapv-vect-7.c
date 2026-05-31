@@ -1,3 +1,4 @@
+/* { dg-additional-options "-fwrapv" } */
 /* { dg-require-effective-target vect_int } */
 /* { dg-add-options bind_pic_locally } */
 
@@ -19,6 +20,7 @@ int main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (sb[i] != 5)
@@ -31,6 +33,7 @@ int main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (sa[i] != 105)

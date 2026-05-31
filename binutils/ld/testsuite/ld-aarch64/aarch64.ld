@@ -3,17 +3,23 @@ OUTPUT_ARCH(aarch64)
 ENTRY(_start)
 SECTIONS
 {
-  /* Read-only sections, merged into text segment: */
-  PROVIDE (__executable_start = 0x8000); . = 0x8000;
-  .text           :
+  PROVIDE (__executable_start = 0x8000);
+  . = SEGMENT_START("text-segment", 0x8000) + SIZEOF_HEADERS;
+  /* Start of the executable code region.  */
+  . = 0x9000;
+  .plt              : ALIGN(16) { *(.plt) *(.iplt) }
+  . = 0x10000;
+  .text             :
   {
     *(.before)
     *(.text)
     *(.after)
   } =0
-  . = 0x9000;
-  .got            : { *(.got) *(.got.plt)}
   . = 0x12340000;
-  .far : { *(.far) }
-  .ARM.attributes 0 : { *(.ARM.atttributes) }
+  .far              : { *(.far) }
+  /* Start of the Read Write Data region.  */
+  . = ALIGN (CONSTANT (MAXPAGESIZE)) - ((CONSTANT (MAXPAGESIZE) - .) & (CONSTANT (MAXPAGESIZE) - 1));
+  .got              : { *(.got) *(.got.plt)}
+  /* Start of the metadata region.  */
+  .ARM.attributes 0 : { KEEP (*(.ARM.attributes)) }
 }

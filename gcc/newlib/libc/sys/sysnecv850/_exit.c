@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include "sys/syscall.h"
 
-int errno;
+extern int errno;
 
 int __trap0 (int function, int p1, int p2, int p3);
 
@@ -23,7 +23,7 @@ static void _do_dtors()
 }
 
 
-void _exit (n)
+void _exit (int n)
 {
   /* Destructors should be done earlier because they need to be done before the
      files are closed, but here is better than nowhere (and this balances the

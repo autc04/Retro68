@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1999-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -27,9 +27,9 @@ with Alloc;
 with Atree;          use Atree;
 with Casing;         use Casing;
 with Debug;          use Debug;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
+with GNAT.Heap_Sort_G;
 with Lib;            use Lib;
 with Namet;          use Namet;
 with Nlists;         use Nlists;
@@ -39,11 +39,11 @@ with Osint.C;        use Osint.C;
 with Sem_Aux;        use Sem_Aux;
 with Sem_Eval;       use Sem_Eval;
 with Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
 with Snames;         use Snames;
+with Stand;          use Stand;
 with Stringt;        use Stringt;
 with Table;
 with Ttypes;
@@ -75,20 +75,6 @@ package body Repinfo is
       Op2  : Node_Ref_Or_Val;
       Op3  : Node_Ref_Or_Val;
    end record;
-
-   --  The following representation clause ensures that the above record
-   --  has no holes. We do this so that when instances of this record are
-   --  written, we do not write uninitialized values to the file.
-
-   for Exp_Node use record
-      Expr at  0 range 0 .. 31;
-      Op1  at  4 range 0 .. 31;
-      Op2  at  8 range 0 .. 31;
-      Op3  at 12 range 0 .. 31;
-   end record;
-
-   for Exp_Node'Size use 16 * 8;
-   --  This ensures that we did not leave out any fields
 
    package Rep_Table is new Table.Table (
       Table_Component_Type => Exp_Node,
@@ -131,7 +117,7 @@ package body Repinfo is
    function Entity_Hash (Id : Entity_Id) return Entity_Header_Num;
    --  Simple hash function for Entity_Ids
 
-   package Relevant_Entities is new GNAT.Htable.Simple_HTable
+   package Relevant_Entities is new GNAT.HTable.Simple_HTable
      (Header_Num => Entity_Header_Num,
       Element    => Boolean,
       No_Element => False,
@@ -189,9 +175,9 @@ package body Repinfo is
    procedure List_Type_Info (Ent : Entity_Id);
    --  List type info for type Ent
 
-   function Rep_Not_Constant (Val : Node_Ref_Or_Val) return Boolean;
-   --  Returns True if Val represents a variable value, and False if it
-   --  represents a value that is fixed at compile time.
+   function Compile_Time_Known_Rep (Val : Node_Ref_Or_Val) return Boolean;
+   --  Returns True if Val represents a representation value that is known at
+   --  compile time.
 
    procedure Spaces (N : Natural);
    --  Output given number of spaces
@@ -295,6 +281,64 @@ package body Repinfo is
       return U >= Uint_0;
    end Is_Static_SO_Ref;
 
+   -----------
+   -- Visit --
+   -----------
+
+   procedure Visit (Expr : Node_Ref_Or_Val) is
+   begin
+      pragma Assert (Present (Expr));
+      if Expr >= 0 then
+         Visit_Constant (Expr);
+         return;
+      end if;
+
+      declare
+         Node : Exp_Node renames Rep_Table.Table (-UI_To_Int (Expr));
+      begin
+         case Node.Expr is
+            when Cond_Expr =>
+               Visit_Cond_Expr (Node.Op1, Node.Op2, Node.Op3);
+
+            when Plus_Expr
+                 | Minus_Expr
+                 | Mult_Expr
+                 | Trunc_Div_Expr
+                 | Ceil_Div_Expr
+                 | Floor_Div_Expr
+                 | Trunc_Mod_Expr
+                 | Ceil_Mod_Expr
+                 | Floor_Mod_Expr
+                 | Exact_Div_Expr
+                 | Min_Expr
+                 | Max_Expr
+                 | Truth_And_Expr
+                 | Truth_Or_Expr
+                 | Truth_Xor_Expr
+                 | Lt_Expr
+                 | Le_Expr
+                 | Gt_Expr
+                 | Ge_Expr
+                 | Eq_Expr
+                 | Ne_Expr
+                 | Bit_And_Expr
+              =>
+               Visit_Binop (Node.Expr, Node.Op1, Node.Op2);
+
+            when Negate_Expr
+                 | Abs_Expr
+                 | Truth_Not_Expr =>
+               Visit_Unop (Node.Expr, Node.Op1);
+
+            when Discrim_Val =>
+               Visit_Discriminant (Node.Op1);
+
+            when Dynamic_Val =>
+               Visit_Variable (Node.Op1);
+         end case;
+      end;
+   end Visit;
+
    ---------
    -- lgx --
    ---------
@@ -374,9 +418,9 @@ package body Repinfo is
 
             if Esize (Ent) = RM_Size (Ent) then
                if List_Representation_Info_To_JSON then
+                  Write_Line (",");
                   Write_Str ("  ""Size"": ");
                   Write_Val (Esize (Ent));
-                  Write_Line (",");
                else
                   Write_Str ("for ");
                   List_Name (Ent);
@@ -389,13 +433,13 @@ package body Repinfo is
 
             else
                if List_Representation_Info_To_JSON then
+                  Write_Line (",");
                   Write_Str ("  ""Object_Size"": ");
                   Write_Val (Esize (Ent));
-                  Write_Line (",");
 
+                  Write_Line (",");
                   Write_Str ("  ""Value_Size"": ");
                   Write_Val (RM_Size (Ent));
-                  Write_Line (",");
 
                else
                   Write_Str ("for ");
@@ -416,6 +460,7 @@ package body Repinfo is
 
       if Known_Alignment (Ent) then
          if List_Representation_Info_To_JSON then
+            Write_Line (",");
             Write_Str ("  ""Alignment"": ");
             Write_Val (Alignment (Ent));
          else
@@ -426,15 +471,18 @@ package body Repinfo is
             Write_Line (";");
          end if;
 
-      --  Alignment is not always set for task, protected, and class-wide
-      --  types. Representation aspects are not computed for types in a
-      --  generic unit.
+      --  Alignment is not always set for concurrent types, class-wide types,
+      --  cloned subtypes, or when doing semantic analysis only. Representation
+      --  aspects are not computed for types declared in a generic unit.
 
       else
-         pragma Assert
-           (Is_Concurrent_Type (Ent) or else
-              Is_Class_Wide_Type (Ent) or else
-              Sem_Util.In_Generic_Scope (Ent));
+         pragma Assert (not Expander_Active
+           or else Is_Concurrent_Type (Ent)
+           or else Is_Class_Wide_Type (Ent)
+           or else (Ekind (Ent) = E_Record_Subtype
+                     and then Present (Cloned_Subtype (Ent))
+                     and then Has_Delayed_Freeze (Cloned_Subtype (Ent)))
+           or else Sem_Util.In_Generic_Scope (Ent));
       end if;
    end List_Common_Type_Info;
 
@@ -447,34 +495,7 @@ package body Repinfo is
       Bytes_Big_Endian : Boolean;
       In_Subprogram    : Boolean := False)
    is
-      Body_E : Entity_Id;
-      E      : Entity_Id;
-
-      function Find_Declaration (E : Entity_Id) return Node_Id;
-      --  Utility to retrieve declaration node for entity in the
-      --  case of package bodies and subprograms.
-
-      ----------------------
-      -- Find_Declaration --
-      ----------------------
-
-      function Find_Declaration (E : Entity_Id) return Node_Id is
-         Decl : Node_Id;
-
-      begin
-         Decl := Parent (E);
-         while Present (Decl)
-           and then Nkind (Decl) /= N_Package_Body
-           and then Nkind (Decl) /= N_Subprogram_Declaration
-           and then Nkind (Decl) /= N_Subprogram_Body
-         loop
-            Decl := Parent (Decl);
-         end loop;
-
-         return Decl;
-      end Find_Declaration;
-
-   --  Start of processing for List_Entities
+      E : Entity_Id;
 
    begin
       --  List entity if we have one, and it is not a renaming declaration.
@@ -483,7 +504,7 @@ package body Repinfo is
 
       if Present (Ent)
         and then Nkind (Declaration_Node (Ent)) not in N_Renaming_Declaration
-        and then not Is_Ignored_Ghost_Entity (Ent)
+        and then not Sem_Util.Is_Ignored_Ghost_Entity_In_Codegen (Ent)
       then
          --  If entity is a subprogram and we are listing mechanisms,
          --  then we need to list mechanisms for this entity. We skip this
@@ -499,12 +520,13 @@ package body Repinfo is
 
          E := First_Entity (Ent);
          while Present (E) loop
-            --  We list entities that come from source (excluding private or
-            --  incomplete types or deferred constants, for which we will list
-            --  the information for the full view). If requested, we also list
-            --  relevant entities that have been generated when processing the
-            --  original entities coming from source. But if debug flag A is
-            --  set, then all entities are listed.
+            --  We list entities that come from source (except for incomplete,
+            --  private and generic types, as well as deferred constants, for
+            --  which we list the information for the full view). If requested
+            --  by the -gnatR4 switch, we also list relevant entities that have
+            --  been created when processing the original entities coming from
+            --  source. If debug switch -gnatdA is specified, then all entities
+            --  are listed.
 
             if ((Comes_From_Source (E)
                    or else (Ekind (E) = E_Block
@@ -512,9 +534,10 @@ package body Repinfo is
                             Nkind (Parent (E)) = N_Implicit_Label_Declaration
                               and then
                             Comes_From_Source (Label_Construct (Parent (E)))))
-              and then not Is_Incomplete_Or_Private_Type (E)
-              and then not (Ekind (E) = E_Constant
-                              and then Present (Full_View (E))))
+                 and then not Is_Incomplete_Or_Private_Type (E)
+                 and then not Is_Generic_Type (E)
+                 and then not (Ekind (E) = E_Constant
+                                and then Present (Full_View (E))))
               or else (List_Representation_Info = 4
                          and then Relevant_Entities.Get (E))
               or else Debug_Flag_AA
@@ -538,7 +561,11 @@ package body Repinfo is
 
                elsif Is_Record_Type (E) then
                   if List_Representation_Info >= 1 then
-                     List_Record_Info (E, Bytes_Big_Endian);
+                     if Is_Private_Type (E) then
+                        List_Record_Info (Full_View (E), Bytes_Big_Endian);
+                     else
+                        List_Record_Info (E, Bytes_Big_Endian);
+                     end if;
 
                      --  Recurse into entities local to a record type
 
@@ -557,11 +584,13 @@ package body Repinfo is
                      List_Type_Info (E);
                   end if;
 
-               --  Note that formals are not annotated so we skip them here
+               --  Formals and renamings are not annotated, so we skip them
+               --  here.
 
                elsif Ekind (E) in E_Constant
                                 | E_Loop_Parameter
                                 | E_Variable
+                 and then Nkind (Parent (E)) /= N_Object_Renaming_Declaration
                then
                   if List_Representation_Info >= 2 then
                      List_Object_Info (E);
@@ -599,34 +628,6 @@ package body Repinfo is
 
             Next_Entity (E);
          end loop;
-
-         --  For a package body, the entities of the visible subprograms are
-         --  declared in the corresponding spec. Iterate over its entities in
-         --  order to handle properly the subprogram bodies. Skip bodies in
-         --  subunits, which are listed independently.
-
-         if Ekind (Ent) = E_Package_Body
-           and then Present (Corresponding_Spec (Find_Declaration (Ent)))
-         then
-            E := First_Entity (Corresponding_Spec (Find_Declaration (Ent)));
-            while Present (E) loop
-               if Is_Subprogram (E)
-                 and then
-                   Nkind (Find_Declaration (E)) = N_Subprogram_Declaration
-               then
-                  Body_E := Corresponding_Body (Find_Declaration (E));
-
-                  if Present (Body_E)
-                    and then
-                      Nkind (Parent (Find_Declaration (Body_E))) /= N_Subunit
-                  then
-                     List_Entities (Body_E, Bytes_Big_Endian);
-                  end if;
-               end if;
-
-               Next_Entity (E);
-            end loop;
-         end if;
       end if;
    end List_Entities;
 
@@ -636,189 +637,177 @@ package body Repinfo is
 
    procedure List_GCC_Expression (U : Node_Ref_Or_Val) is
 
-      procedure Print_Expr (Val : Node_Ref_Or_Val);
-      --  Internal recursive procedure to print expression
+      procedure Unop (Code : TCode; Op : Node_Ref_Or_Val);
+      procedure Binop (Code : TCode; Lhs : Node_Ref_Or_Val;
+                      Rhs : Node_Ref_Or_Val);
+      procedure Cond_Expr (Test : Node_Ref_Or_Val;
+                          Lhs : Node_Ref_Or_Val;
+                          Rhs : Node_Ref_Or_Val);
+      procedure Const (Val : Node_Ref_Or_Val);
+      procedure Discriminant (Val : Node_Ref_Or_Val);
+      procedure Variable (Val : Node_Ref_Or_Val);
 
-      ----------------
-      -- Print_Expr --
-      ----------------
+      procedure Print_It is new Visit (Visit_Unop => Unop,
+                                       Visit_Binop => Binop,
+                                       Visit_Cond_Expr => Cond_Expr,
+                                       Visit_Constant => Const,
+                                       Visit_Discriminant => Discriminant,
+                                       Visit_Variable => Variable);
 
-      procedure Print_Expr (Val : Node_Ref_Or_Val) is
+      procedure Unop (Code : TCode; Op : Node_Ref_Or_Val) is
+         procedure Emit (S : String);
+         procedure Emit (S : String) is
+         begin
+            if List_Representation_Info_To_JSON then
+               Write_Str ("{ ""code"": """);
+               if S (S'Last) = ' ' then
+                  Write_Str (S (S'First .. S'Last - 1));
+               else
+                  Write_Str (S);
+               end if;
+               Write_Str (""", ""operands"": [ ");
+               Print_It (Op);
+               Write_Str (" ] }");
+            else
+               Write_Str (S);
+               Print_It (Op);
+            end if;
+         end Emit;
       begin
-         if Val >= 0 then
-            UI_Write (Val, Decimal);
+         case Code is
+            when Negate_Expr =>
+               Emit ("-");
+            when Abs_Expr =>
+               Emit ("abs ");
+            when Truth_Not_Expr =>
+               Emit ("not ");
+            when Discrim_Val =>
+               Emit ("#");
+            when Dynamic_Val =>
+               Emit ("var");
+            when others =>
+               Emit ("ERROR");
+         end case;
+      end Unop;
 
+      procedure Binop (Code : TCode; Lhs : Node_Ref_Or_Val;
+                      Rhs : Node_Ref_Or_Val)
+      is
+         procedure Emit (S : String);
+         procedure Emit (S : String) is
+         begin
+            if List_Representation_Info_To_JSON then
+               Write_Str ("{ ""code"": """);
+               Write_Str (S (S'First + 1 .. S'Last - 1));
+               Write_Str (""", ""operands"": [ ");
+               Print_It (Lhs);
+               Write_Str (", ");
+               Print_It (Rhs);
+               Write_Str (" ] }");
+            else
+               Write_Char ('(');
+               Print_It (Lhs);
+               Write_Str (S);
+               Print_It (Rhs);
+               Write_Char (')');
+            end if;
+         end Emit;
+
+      begin
+         case Code is
+            when Plus_Expr =>
+               Emit (" + ");
+            when Minus_Expr =>
+               Emit (" - ");
+            when Mult_Expr =>
+               Emit (" * ");
+            when Trunc_Div_Expr =>
+               Emit (" /t ");
+            when Ceil_Div_Expr =>
+               Emit (" /c ");
+            when Floor_Div_Expr =>
+               Emit (" /f ");
+            when Trunc_Mod_Expr =>
+               Emit (" modt ");
+            when Ceil_Mod_Expr =>
+               Emit (" modc ");
+            when Floor_Mod_Expr =>
+               Emit (" modf ");
+            when Exact_Div_Expr =>
+               Emit (" /e ");
+            when Min_Expr =>
+               Emit (" min ");
+            when Max_Expr =>
+               Emit (" max ");
+            when Truth_And_Expr =>
+               Emit (" and ");
+            when Truth_Or_Expr =>
+               Emit (" or ");
+            when Truth_Xor_Expr =>
+               Emit (" xor ");
+            when Lt_Expr =>
+               Emit (" < ");
+            when Le_Expr =>
+               Emit (" <= ");
+            when Gt_Expr =>
+               Emit (" > ");
+            when Ge_Expr =>
+               Emit (" >= ");
+            when Eq_Expr =>
+               Emit (" == ");
+            when Ne_Expr =>
+               Emit (" != ");
+            when Bit_And_Expr =>
+               Emit (" & ");
+            when others =>
+               Emit ("ERROR");
+         end case;
+      end Binop;
+
+      procedure Cond_Expr (Test : Node_Ref_Or_Val;
+                           Lhs : Node_Ref_Or_Val;
+                           Rhs : Node_Ref_Or_Val) is
+      begin
+         if List_Representation_Info_To_JSON then
+            Write_Str ("{ ""code"": ""?<>""");
+            Write_Str (", ""operands"": [ ");
+            Print_It (Test);
+            Write_Str (", ");
+            Print_It (Lhs);
+            Write_Str (", ");
+            Print_It (Rhs);
+            Write_Str (" ] }");
          else
-            declare
-               Node : Exp_Node renames Rep_Table.Table (-UI_To_Int (Val));
-
-               procedure Unop (S : String);
-               --  Output text for unary operator with S being operator name
-
-               procedure Binop (S : String);
-               --  Output text for binary operator with S being operator name
-
-               ----------
-               -- Unop --
-               ----------
-
-               procedure Unop (S : String) is
-               begin
-                  if List_Representation_Info_To_JSON then
-                     Write_Str ("{ ""code"": """);
-                     if S (S'Last) = ' ' then
-                        Write_Str (S (S'First .. S'Last - 1));
-                     else
-                        Write_Str (S);
-                     end if;
-                     Write_Str (""", ""operands"": [ ");
-                     Print_Expr (Node.Op1);
-                     Write_Str (" ] }");
-                  else
-                     Write_Str (S);
-                     Print_Expr (Node.Op1);
-                  end if;
-               end Unop;
-
-               -----------
-               -- Binop --
-               -----------
-
-               procedure Binop (S : String) is
-               begin
-                  if List_Representation_Info_To_JSON then
-                     Write_Str ("{ ""code"": """);
-                     Write_Str (S (S'First + 1 .. S'Last - 1));
-                     Write_Str (""", ""operands"": [ ");
-                     Print_Expr (Node.Op1);
-                     Write_Str (", ");
-                     Print_Expr (Node.Op2);
-                     Write_Str (" ] }");
-                  else
-                     Write_Char ('(');
-                     Print_Expr (Node.Op1);
-                     Write_Str (S);
-                     Print_Expr (Node.Op2);
-                     Write_Char (')');
-                  end if;
-               end Binop;
-
-            --  Start of processing for Print_Expr
-
-            begin
-               case Node.Expr is
-                  when Cond_Expr =>
-                     if List_Representation_Info_To_JSON then
-                        Write_Str ("{ ""code"": ""?<>""");
-                        Write_Str (", ""operands"": [ ");
-                        Print_Expr (Node.Op1);
-                        Write_Str (", ");
-                        Print_Expr (Node.Op2);
-                        Write_Str (", ");
-                        Print_Expr (Node.Op3);
-                        Write_Str (" ] }");
-                     else
-                        Write_Str ("(if ");
-                        Print_Expr (Node.Op1);
-                        Write_Str (" then ");
-                        Print_Expr (Node.Op2);
-                        Write_Str (" else ");
-                        Print_Expr (Node.Op3);
-                        Write_Str (" end)");
-                     end if;
-
-                  when Plus_Expr =>
-                     Binop (" + ");
-
-                  when Minus_Expr =>
-                     Binop (" - ");
-
-                  when Mult_Expr =>
-                     Binop (" * ");
-
-                  when Trunc_Div_Expr =>
-                     Binop (" /t ");
-
-                  when Ceil_Div_Expr =>
-                     Binop (" /c ");
-
-                  when Floor_Div_Expr =>
-                     Binop (" /f ");
-
-                  when Trunc_Mod_Expr =>
-                     Binop (" modt ");
-
-                  when Ceil_Mod_Expr =>
-                     Binop (" modc ");
-
-                  when Floor_Mod_Expr =>
-                     Binop (" modf ");
-
-                  when Exact_Div_Expr =>
-                     Binop (" /e ");
-
-                  when Negate_Expr =>
-                     Unop ("-");
-
-                  when Min_Expr =>
-                     Binop (" min ");
-
-                  when Max_Expr =>
-                     Binop (" max ");
-
-                  when Abs_Expr =>
-                     Unop ("abs ");
-
-                  when Truth_And_Expr =>
-                     Binop (" and ");
-
-                  when Truth_Or_Expr =>
-                     Binop (" or ");
-
-                  when Truth_Xor_Expr =>
-                     Binop (" xor ");
-
-                  when Truth_Not_Expr =>
-                     Unop ("not ");
-
-                  when Lt_Expr =>
-                     Binop (" < ");
-
-                  when Le_Expr =>
-                     Binop (" <= ");
-
-                  when Gt_Expr =>
-                     Binop (" > ");
-
-                  when Ge_Expr =>
-                     Binop (" >= ");
-
-                  when Eq_Expr =>
-                     Binop (" == ");
-
-                  when Ne_Expr =>
-                     Binop (" != ");
-
-                  when Bit_And_Expr =>
-                     Binop (" & ");
-
-                  when Discrim_Val =>
-                     Unop ("#");
-
-                  when Dynamic_Val =>
-                     Unop ("var");
-               end case;
-            end;
+            Write_Str ("(if ");
+            Print_It (Test);
+            Write_Str (" then ");
+            Print_It (Lhs);
+            Write_Str (" else ");
+            Print_It (Rhs);
+            Write_Str (")");
          end if;
-      end Print_Expr;
+      end Cond_Expr;
 
-   --  Start of processing for List_GCC_Expression
+      procedure Const (Val : Node_Ref_Or_Val) is
+      begin
+         UI_Write (Val, Decimal);
+      end Const;
+
+      procedure Discriminant (Val : Node_Ref_Or_Val) is
+      begin
+         Unop (Discrim_Val, Val);
+      end Discriminant;
+
+      procedure Variable (Val : Node_Ref_Or_Val) is
+      begin
+         Unop (Dynamic_Val, Val);
+      end Variable;
 
    begin
       if No (U) then
          Write_Unknown_Val;
       else
-         Print_Expr (U);
+         Print_It (U);
       end if;
    end List_GCC_Expression;
 
@@ -863,7 +852,7 @@ package body Repinfo is
       pragma Assert (List_Representation_Info_To_JSON);
       Write_Str ("  ""location"": """);
       Write_Location (Sloc (Ent));
-      Write_Line (""",");
+      Write_Str ("""");
    end List_Location;
 
    ---------------
@@ -874,10 +863,11 @@ package body Repinfo is
       C : Character;
 
    begin
-      --  List the qualified name recursively, except
-      --  at compilation unit level in default mode.
+      --  In JSON mode, we recurse up to Standard. This is also valid in
+      --  default mode where we recurse up to the first compilation unit and
+      --  should not get to Standard.
 
-      if Is_Compilation_Unit (Ent) then
+      if Scope (Ent) = Standard_Standard then
          null;
       elsif not Is_Compilation_Unit (Scope (Ent))
         or else List_Representation_Info_To_JSON
@@ -906,10 +896,11 @@ package body Repinfo is
 
    procedure List_Object_Info (Ent : Entity_Id) is
    begin
-      --  The information has not been computed in a generic unit, so don't try
-      --  to print it.
+      --  If size and alignment have not been computed (e.g. if we are in a
+      --  generic unit, or if the back end is not being run), don't try to
+      --  print them.
 
-      if Sem_Util.In_Generic_Scope (Ent) then
+      if not Known_Esize (Ent) or else not Known_Alignment (Ent) then
          return;
       end if;
 
@@ -922,6 +913,7 @@ package body Repinfo is
          List_Name (Ent);
          Write_Line (""",");
          List_Location (Ent);
+         Write_Line (",");
 
          Write_Str ("  ""Size"": ");
          Write_Val (Esize (Ent));
@@ -934,6 +926,7 @@ package body Repinfo is
 
          Write_Eol;
          Write_Line ("}");
+
       else
          Write_Str ("for ");
          List_Name (Ent);
@@ -987,12 +980,17 @@ package body Repinfo is
       procedure List_Structural_Record_Layout
         (Ent       : Entity_Id;
          Ext_Ent   : Entity_Id;
-         Ext_Level : Nat := 0;
+         Ext_Level : Integer := 0;
          Variant   : Node_Id := Empty;
          Indent    : Natural := 0);
       --  Internal recursive procedure to display the structural layout.
       --  If Ext_Ent is not equal to Ent, it is an extension of Ent and
-      --  Ext_Level is the number of successive extensions between them.
+      --  Ext_Level is the number of successive extensions between them,
+      --  with the convention that this number is positive when we are
+      --  called from the fixed part of Ext_Ent and negative when we are
+      --  called from the variant part of Ext_Ent, if any; this is needed
+      --  because the fixed and variant parts of a parent of an extension
+      --  cannot be listed contiguously from this extension's viewpoint.
       --  If Variant is present, it's for a variant in the variant part
       --  instead of the common part of Ent. Indent is the indentation.
 
@@ -1053,20 +1051,7 @@ package body Repinfo is
                Get_Decoded_Name_String (Chars (Comp));
                Name_Length := Prefix_Length + Name_Len;
 
-               if Rep_Not_Constant (Bofs) then
-
-                  --  If the record is not packed, then we know that all fields
-                  --  whose position is not specified have starting normalized
-                  --  bit position of zero.
-
-                  if not Known_Normalized_First_Bit (Comp)
-                    and then not Is_Packed (Ent)
-                  then
-                     Set_Normalized_First_Bit (Comp, Uint_0);
-                  end if;
-
-                  UI_Image_Length := 2; -- For "??" marker
-               else
+               if Compile_Time_Known_Rep (Bofs) then
                   Npos := Bofs / SSU;
                   Fbit := Bofs mod SSU;
 
@@ -1095,7 +1080,19 @@ package body Repinfo is
                      goto Continue;
                   end if;
 
-                  UI_Image (Spos);
+                  UI_Image (Spos, Format => Decimal);
+               else
+                  --  If the record is not packed, then we know that all fields
+                  --  whose position is not specified have starting normalized
+                  --  bit position of zero.
+
+                  if not Known_Normalized_First_Bit (Comp)
+                    and then not Is_Packed (Ent)
+                  then
+                     Set_Normalized_First_Bit (Comp, Uint_0);
+                  end if;
+
+                  UI_Image_Length := 2; -- For "??" marker
                end if;
 
                Max_Name_Length := Natural'Max (Max_Name_Length, Name_Length);
@@ -1159,7 +1156,7 @@ package body Repinfo is
                Spos := Spos + 1;
             end if;
 
-            UI_Image (Spos);
+            UI_Image (Spos, Format => Decimal);
             Spaces (Max_Spos_Length - UI_Image_Length);
             Write_Str (UI_Image_Buffer (1 .. UI_Image_Length));
 
@@ -1271,11 +1268,145 @@ package body Repinfo is
          Starting_First_Bit : Uint := Uint_0;
          Prefix             : String := "")
       is
-         Comp  : Entity_Id;
-         First : Boolean := True;
+         function First_Comp_Or_Discr (Ent : Entity_Id) return Entity_Id;
+         --  Like First_Component_Or_Discriminant, but reorder the components
+         --  according to their bit offset if need be.
+
+         -------------------------
+         -- First_Comp_Or_Discr --
+         -------------------------
+
+         function First_Comp_Or_Discr (Ent : Entity_Id) return Entity_Id is
+
+            function Is_Placed_Before (C1, C2 : Entity_Id) return Boolean;
+            --  Return True if components C1 and C2 are in the same component
+            --  list and component C1 is placed before component C2 in there.
+
+            ----------------------
+            -- Is_Placed_Before --
+            ----------------------
+
+            function Is_Placed_Before (C1, C2 : Entity_Id) return Boolean is
+               L1 : constant Node_Id := Parent (Parent (C1));
+               L2 : constant Node_Id := Parent (Parent (C2));
+
+            begin
+               --  Discriminants and top-level components are considered to be
+               --  in the same list, although this is not syntactically true.
+
+               return (L1 = L2
+                        or else (Nkind (Parent (L1)) /= N_Variant
+                                  and then Nkind (Parent (L2)) /= N_Variant))
+                 and then Known_Static_Component_Bit_Offset (C1)
+                 and then Known_Static_Component_Bit_Offset (C2)
+                 and then
+                   Component_Bit_Offset (C1) < Component_Bit_Offset (C2);
+            end Is_Placed_Before;
+
+            --  Local variables
+
+            Comp    : Entity_Id;
+            N_Comp  : Natural := 0;
+            Prev    : Entity_Id;
+            Reorder : Boolean := False;
+
+         --  Start of processing for First_Comp_Or_Discr
+
+         begin
+            --  Reordering is needed only for -gnatRh
+
+            if not List_Representation_Info_Holes then
+               return First_Component_Or_Discriminant (Ent);
+            end if;
+
+            --  Count the number of components and whether reordering is needed
+
+            Comp := First_Component_Or_Discriminant (Ent);
+            Prev := Comp;
+
+            while Present (Comp) loop
+               N_Comp := N_Comp + 1;
+
+               if not Reorder then
+                  Reorder := Is_Placed_Before (Comp, Prev);
+               end if;
+
+               Prev := Comp;
+               Next_Component_Or_Discriminant (Comp);
+            end loop;
+
+            --  Reorder the components, if need be, by directly reshuffling the
+            --  list of entities between First_Entity and Last_Entity, which is
+            --  safe because we are invoked after compilation is finished.
+
+            if Reorder then
+               declare
+                  Comps : array (Natural range 0 .. N_Comp) of Entity_Id;
+                  --  Support array for the heapsort
+
+                  function Lt (Op1, Op2 : Natural) return Boolean is
+                    (Is_Placed_Before (Comps (Op1), Comps (Op2)));
+                  --  Compare function for the heapsort
+
+                  procedure Move (From : Natural; To : Natural);
+                  pragma Inline (Move);
+                  --  Move procedure for the heapsort
+
+                  ----------
+                  -- Move --
+                  ----------
+
+                  procedure Move (From : Natural; To : Natural) is
+                  begin
+                     Comps (To) := Comps (From);
+                  end Move;
+
+                  package HS is new GNAT.Heap_Sort_G (Lt => Lt, Move => Move);
+                  --  The heapsort for record components
+
+               begin
+                  --  Pack the components into the array
+
+                  N_Comp := 0;
+                  Comp := First_Component_Or_Discriminant (Ent);
+
+                  while Present (Comp) loop
+                     N_Comp := N_Comp + 1;
+                     Comps (N_Comp) := Comp;
+
+                     Next_Component_Or_Discriminant (Comp);
+                  end loop;
+
+                  --  Sort the array
+
+                  HS.Sort (N_Comp);
+
+                  --  Unpack the component into the list of entities
+
+                  Set_First_Entity (Ent, Comps (1));
+                  Set_Prev_Entity (Comps (1), Empty);
+                  for J in 1 .. N_Comp - 1 loop
+                     Set_Next_Entity (Comps (J), Comps (J + 1));
+                     Set_Prev_Entity (Comps (J + 1), Comps (J));
+                  end loop;
+                  Set_Next_Entity (Comps (N_Comp), Empty);
+                  Set_Last_Entity (Ent, Comps (N_Comp));
+               end;
+            end if;
+
+            return First_Component_Or_Discriminant (Ent);
+         end First_Comp_Or_Discr;
+
+         --  Local variables
+
+         Bit_Offset : Uint := Uint_0;
+         Comp       : Entity_Id;
+         First      : Boolean := True;
+
+      --  Start of processing for List_Record_Layout
 
       begin
-         Comp := First_Component_Or_Discriminant (Ent);
+         Comp := First_Comp_Or_Discr (Ent);
          while Present (Comp) loop
 
             --  Skip a completely hidden discriminant or a discriminant in an
@@ -1285,69 +1416,98 @@ package body Repinfo is
               and then (Is_Completely_Hidden (Comp)
                          or else Is_Unchecked_Union (Ent))
             then
-               goto Continue;
-            end if;
+               null;
 
             --  Skip _Parent component in extension (to avoid overlap)
 
-            if Chars (Comp) = Name_uParent then
-               goto Continue;
-            end if;
+            elsif Chars (Comp) = Name_uParent then
+               null;
 
             --  All other cases
 
-            declare
-               Ctyp : constant Entity_Id := Underlying_Type (Etype (Comp));
-               Npos : constant Uint      := Normalized_Position (Comp);
-               Fbit : constant Uint      := Normalized_First_Bit (Comp);
-               Spos : Uint;
-               Sbit : Uint;
+            else
+               declare
+                  C : constant Entity_Id :=
+                        (if Known_Normalized_Position (Comp)
+                         then Comp
+                         else Original_Record_Component (Comp));
+                  --  The Parent_Subtype in an extension is not back-annotated
+                  --  but its layout is the same as that of the parent type.
 
-            begin
-               Get_Decoded_Name_String (Chars (Comp));
-               Set_Casing (Unit_Casing);
+                  Ctyp : constant Entity_Id := Underlying_Type (Etype (C));
 
-               --  If extended information is requested, recurse fully into
-               --  record components, i.e. skip the outer level.
+               begin
+                  Get_Decoded_Name_String (Chars (C));
+                  Set_Casing (Unit_Casing);
 
-               if List_Representation_Info_Extended
-                 and then Is_Record_Type (Ctyp)
-                 and then Known_Static_Normalized_Position (Comp)
-                 and then Known_Static_Normalized_First_Bit (Comp)
-               then
-                  Spos := Starting_Position  + Npos;
-                  Sbit := Starting_First_Bit + Fbit;
+                  --  If extended information is requested, recurse fully into
+                  --  record components, i.e. skip the outer level.
 
-                  if Sbit >= SSU then
-                     Spos := Spos + 1;
-                     Sbit := Sbit - SSU;
-                  end if;
+                  if List_Representation_Info_Extended
+                    and then Is_Record_Type (Ctyp)
+                    and then Known_Static_Normalized_Position (C)
+                    and then Known_Static_Normalized_First_Bit (C)
+                  then
+                     declare
+                        Npos : constant Uint := Normalized_Position (C);
+                        Fbit : constant Uint := Normalized_First_Bit (C);
+                        Pref : constant String :=
+                                 Prefix & Name_Buffer (1 .. Name_Len) & ".";
 
-                  List_Record_Layout (Ctyp,
-                    Spos, Sbit, Prefix & Name_Buffer (1 .. Name_Len) & ".");
+                        Spos : Uint;
+                        Sbit : Uint;
 
-                  goto Continue;
-               end if;
+                     begin
+                        Spos := Starting_Position  + Npos;
+                        Sbit := Starting_First_Bit + Fbit;
 
-               if List_Representation_Info_To_JSON then
-                  if First then
-                     Write_Eol;
-                     First := False;
+                        if Sbit >= SSU then
+                           Spos := Spos + 1;
+                           Sbit := Sbit - SSU;
+                        end if;
+
+                        List_Record_Layout (Ctyp, Spos, Sbit, Pref);
+                     end;
+
                   else
-                     Write_Line (",");
+                     if List_Representation_Info_To_JSON then
+                        if First then
+                           Write_Eol;
+                           First := False;
+                        else
+                           Write_Line (",");
+                        end if;
+                     end if;
+
+                     --  If information about holes is requested, update the
+                     --  current bit offset and report any (static) gap.
+
+                     if List_Representation_Info_Holes
+                       and then Known_Static_Component_Bit_Offset (C)
+                     then
+                        declare
+                           Gap : constant Uint :=
+                                   Component_Bit_Offset (C) - Bit_Offset;
+                        begin
+                           if Gap > Uint_0 then
+                              Write_Str ("   -- ");
+                              UI_Write (Gap, Decimal);
+                              Write_Line (" bits unused --");
+                           end if;
+
+                           if Known_Static_Esize (C) then
+                              Bit_Offset :=
+                                Component_Bit_Offset (C) + Esize (C);
+                           end if;
+                        end;
+                     end if;
+
+                     List_Component_Layout
+                       (C, Starting_Position, Starting_First_Bit, Prefix);
                   end if;
-               end if;
+               end;
+            end if;
 
-               --  The Parent_Subtype in an extension is not back-annotated
-
-               List_Component_Layout (
-                 (if Known_Normalized_Position (Comp)
-                  then Comp
-                  else Original_Record_Component (Comp)),
-                 Starting_Position, Starting_First_Bit, Prefix);
-            end;
-
-         <<Continue>>
             Next_Component_Or_Discriminant (Comp);
          end loop;
       end List_Record_Layout;
@@ -1359,7 +1519,7 @@ package body Repinfo is
       procedure List_Structural_Record_Layout
         (Ent       : Entity_Id;
          Ext_Ent   : Entity_Id;
-         Ext_Level : Nat := 0;
+         Ext_Level : Integer := 0;
          Variant   : Node_Id := Empty;
          Indent    : Natural := 0)
       is
@@ -1378,7 +1538,16 @@ package body Repinfo is
             Derived_Disc : Entity_Id;
 
          begin
-            Derived_Disc := First_Discriminant (Ext_Ent);
+            --  Deal with an extension of a type with unknown discriminants
+
+            if Has_Unknown_Discriminants (Ext_Ent)
+              and then Present (Underlying_Record_View (Ext_Ent))
+            then
+               Derived_Disc :=
+                 First_Discriminant (Underlying_Record_View (Ext_Ent));
+            else
+               Derived_Disc := First_Discriminant (Ext_Ent);
+            end if;
 
             --  Loop over the discriminants of the extension
 
@@ -1415,6 +1584,7 @@ package body Repinfo is
          Comp       : Node_Id;
          Comp_List  : Node_Id;
          First      : Boolean := True;
+         Parent_Ent : Entity_Id := Empty;
          Var        : Node_Id;
 
       --  Start of processing for List_Structural_Record_Layout
@@ -1464,12 +1634,21 @@ package body Repinfo is
 
                   else
                      Parent_Type := Base_Type (Parent_Type);
+
+                     if Is_Private_Type (Parent_Type) then
+                        Parent_Type := Full_View (Parent_Type);
+                        pragma Assert (Present (Parent_Type));
+                     end if;
+
                      if not In_Extended_Main_Source_Unit (Parent_Type) then
                         raise Not_In_Extended_Main;
                      end if;
 
-                     List_Structural_Record_Layout
-                       (Parent_Type, Ext_Ent, Ext_Level + 1);
+                     Parent_Ent := Parent_Type;
+                     if Ext_Level >= 0 then
+                        List_Structural_Record_Layout
+                          (Parent_Ent, Ext_Ent, Ext_Level + 1);
+                     end if;
                   end if;
 
                   First := False;
@@ -1485,6 +1664,7 @@ package body Repinfo is
 
                if Has_Discriminants (Ent)
                  and then not Is_Unchecked_Union (Ent)
+                 and then Ext_Level >= 0
                then
                   Disc := First_Discriminant (Ent);
                   while Present (Disc) loop
@@ -1506,7 +1686,12 @@ package body Repinfo is
 
                         if No (Listed_Disc) then
                            goto Continue_Disc;
+
+                        elsif not Known_Normalized_Position (Listed_Disc) then
+                           Listed_Disc :=
+                             Original_Record_Component (Listed_Disc);
                         end if;
+
                      else
                         Listed_Disc := Disc;
                      end if;
@@ -1540,7 +1725,9 @@ package body Repinfo is
 
          --  Now deal with the regular components, if any
 
-         if Present (Component_Items (Comp_List)) then
+         if Present (Component_Items (Comp_List))
+           and then (Present (Variant) or else Ext_Level >= 0)
+         then
             Comp := First_Non_Pragma (Component_Items (Comp_List));
             while Present (Comp) loop
 
@@ -1568,6 +1755,20 @@ package body Repinfo is
             end loop;
          end if;
 
+         --  Stop there if we are called from the fixed part of Ext_Ent,
+         --  we'll do the variant part when called from its variant part.
+
+         if Ext_Level > 0 then
+            return;
+         end if;
+
+         --  List the layout of the variant part of the parent, if any
+
+         if Present (Parent_Ent) then
+            List_Structural_Record_Layout
+              (Parent_Ent, Ext_Ent, Ext_Level - 1);
+         end if;
+
          --  We are done if there is no variant part
 
          if No (Variant_Part (Comp_List)) then
@@ -1579,7 +1780,7 @@ package body Repinfo is
          Write_Line ("  ],");
          Spaces (Indent);
          Write_Str ("  """);
-         for J in 1 .. Ext_Level loop
+         for J in Ext_Level .. -1 loop
             Write_Str ("parent_");
          end loop;
          Write_Str ("variant"" : [");
@@ -1617,6 +1818,17 @@ package body Repinfo is
          end loop;
       end List_Structural_Record_Layout;
 
+      --  Use the original record type giving the layout of components
+      --  to avoid repeated reordering when -gnatRh is specified.
+
+      Rec : constant Entity_Id :=
+        (if Ekind (Ent) = E_Record_Subtype
+           and then Present (Cloned_Subtype (Ent))
+         then (if Is_Private_Type (Cloned_Subtype (Ent))
+               then Full_View (Cloned_Subtype (Ent))
+               else Cloned_Subtype (Ent))
+         else Ent);
+
    --  Start of processing for List_Record_Info
 
    begin
@@ -1631,7 +1843,7 @@ package body Repinfo is
       --  First find out max line length and max starting position
       --  length, for the purpose of lining things up nicely.
 
-      Compute_Max_Length (Ent);
+      Compute_Max_Length (Rec);
 
       --  Then do actual output based on those values
 
@@ -1643,21 +1855,21 @@ package body Repinfo is
          --  declared in the extended main source unit for the time being,
          --  because otherwise declarations might not be processed at all.
 
-         if Is_Base_Type (Ent) then
+         if Is_Base_Type (Rec) then
             begin
-               List_Structural_Record_Layout (Ent, Ent);
+               List_Structural_Record_Layout (Rec, Rec);
 
             exception
                when Incomplete_Layout
                   | Not_In_Extended_Main
                =>
-                  List_Record_Layout (Ent);
+                  List_Record_Layout (Rec);
 
                when others =>
                   raise Program_Error;
             end;
          else
-            List_Record_Layout (Ent);
+            List_Record_Layout (Rec);
          end if;
 
          Write_Eol;
@@ -1667,7 +1879,7 @@ package body Repinfo is
          List_Name (Ent);
          Write_Line (" use record");
 
-         List_Record_Layout (Ent);
+         List_Record_Layout (Rec);
 
          Write_Line ("end record;");
       end if;
@@ -1867,6 +2079,7 @@ package body Repinfo is
          List_Name (Ent);
          Write_Line (""",");
          List_Location (Ent);
+         Write_Line (",");
 
          Write_Str ("  ""Convention"": """);
       else
@@ -2116,18 +2329,14 @@ package body Repinfo is
       end if;
    end List_Type_Info;
 
-   ----------------------
-   -- Rep_Not_Constant --
-   ----------------------
+   ----------------------------
+   -- Compile_Time_Known_Rep --
+   ----------------------------
 
-   function Rep_Not_Constant (Val : Node_Ref_Or_Val) return Boolean is
+   function Compile_Time_Known_Rep (Val : Node_Ref_Or_Val) return Boolean is
    begin
-      if No (Val) or else Val < 0 then
-         return True;
-      else
-         return False;
-      end if;
-   end Rep_Not_Constant;
+      return Present (Val) and then Val >= 0;
+   end Compile_Time_Known_Rep;
 
    ---------------
    -- Rep_Value --
@@ -2406,24 +2615,20 @@ package body Repinfo is
 
    procedure Write_Val (Val : Node_Ref_Or_Val; Paren : Boolean := False) is
    begin
-      if Rep_Not_Constant (Val) then
-         if List_Representation_Info < 3 or else No (Val) then
-            Write_Unknown_Val;
-
-         else
-            if Paren then
-               Write_Char ('(');
-            end if;
-
-            List_GCC_Expression (Val);
-
-            if Paren then
-               Write_Char (')');
-            end if;
+      if Compile_Time_Known_Rep (Val) then
+         UI_Write (Val, Decimal);
+      elsif List_Representation_Info < 3 or else No (Val) then
+         Write_Unknown_Val;
+      else
+         if Paren then
+            Write_Char ('(');
          end if;
 
-      else
-         UI_Write (Val, Decimal);
+         List_GCC_Expression (Val);
+
+         if Paren then
+            Write_Char (')');
+         end if;
       end if;
    end Write_Val;
 

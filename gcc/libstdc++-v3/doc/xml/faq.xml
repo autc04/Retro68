@@ -7,7 +7,7 @@
 
   <copyright>
     <year>
-      2008-2018
+      2008-2023
     </year>
     <holder>
       <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.fsf.org">FSF</link>
@@ -64,9 +64,8 @@
     (<command>gcc</command>, <command>g++</command>, etc) is widely
     considered to be one of the leading compilers in the world.  Its
     development is overseen by the
-    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/">GCC team</link>.  All of
-    the rapid development and near-legendary
-    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/buildstat.html">portability</link>
+    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/">GCC team</link>.
+    All of the rapid development and near-legendary portability
     that are the hallmarks of an open-source project are applied to libstdc++.
     </para>
     <para>
@@ -91,7 +90,7 @@
      The libstdc++ project is contributed to by several developers
      all over the world, in the same way as GCC or the Linux kernel.
      The current maintainers are listed in the
-     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/viewcvs/gcc/trunk/MAINTAINERS?view=co"><filename>MAINTAINERS</filename></link>
+     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/cgit/gcc/tree/MAINTAINERS"><filename>MAINTAINERS</filename></link>
      file (look for "c++ runtime libs").
     </para>
     <para>
@@ -314,7 +313,7 @@
     Libstdc++ comes with its own validation testsuite, which includes
     conformance testing, regression testing, ABI testing, and
     performance testing. Please consult the
-    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/install/test.html">testing
+    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/install/test.html">testing
     documentation</link> for GCC and
     <link linkend="manual.intro.setup.test">Testing</link> in the libstdc++
     manual for more details.
@@ -552,31 +551,34 @@
       <constant>_XOPEN_SOURCE</constant> and <constant>_GNU_SOURCE</constant> are always defined?
     </para>
   </question>
+
   <answer xml:id="a-predefined">
-      <para>On Solaris, <command>g++</command> (but not <command>gcc</command>)
+      <para>On GNU/Linux, <command>g++</command> (but not <command>gcc</command>)
          always defines the preprocessor macro
-	 <constant>_XOPEN_SOURCE</constant>.  On GNU/Linux, the same happens
-         with <constant>_GNU_SOURCE</constant>.  (This is not an exhaustive list;
+	 <constant>_GNU_SOURCE</constant>.  On Solaris, the same happens
+         with <constant>_XOPEN_SOURCE</constant>.  (This is not an exhaustive list;
          other macros and other platforms are also affected.)
       </para>
       <para>These macros are typically used in C library headers, guarding new
-         versions of functions from their older versions.  The C++98 standard
-         library includes the C standard library, but it requires the C90
-         version, which for backwards-compatibility reasons is often not the
-         default for many vendors.
+         versions of functions from their older versions.  Historically,
+	 libstdc++ needed these macros to ensure that the headers provided by
+	 the C library declared all the functions that libstdc++ relies on.
+	 For example, functions for working with <code>long long</code>,
+	 such as <function>strtoll</function>, are needed by libstdc++ but
+	 were not part of the C90 standard.
       </para>
-      <para>More to the point, the C++ standard requires behavior which is only
-         available on certain platforms after certain symbols are defined.
+      <para>Additionally the C++ standard requires behavior which is only
+         available on certain platforms after certain macros are defined.
          Usually the issue involves I/O-related typedefs.  In order to
-         ensure correctness, the compiler simply predefines those symbols.
+         ensure correctness, the compiler simply predefines those macros.
       </para>
-      <para>Note that it's not enough to <literal>#define</literal> them only when the library is
-         being built (during installation).  Since we don't have an 'export'
-         keyword, much of the library exists as headers, which means that
-         the symbols must also be defined as your programs are parsed and
+      <para>Note that it's not enough to <literal>#define</literal> them
+	 only when the library is being built (during installation).
+         Much of the library exists as headers, which means that
+         the macros must also be defined as your programs are parsed and
          compiled.
       </para>
-      <para>To see which symbols are defined, look for
+      <para>To see which macros are defined, look for
          <varname>CPLUSPLUS_CPP_SPEC</varname> in
          the gcc config headers for your target (and try changing them to
          see what happens when building complicated code).  You can also run
@@ -584,7 +586,7 @@
          a list of predefined macros for any particular installation.
       </para>
       <para>This has been discussed on the mailing lists
-         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/cgi-bin/htsearch?method=and&amp;format=builtin-long&amp;sort=score&amp;words=_XOPEN_SOURCE+Solaris">quite a bit</link>.
+         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/cgi-bin/htsearch?method=and&amp;format=builtin-long&amp;sort=score&amp;words=_XOPEN_SOURCE+Solaris">quite a bit</link>.
       </para>
       <para>This method is something of a wart.  We'd like to find a cleaner
          solution, but nobody yet has contributed the time.
@@ -605,7 +607,7 @@
       </note>
       <para>
          This was a long-standing bug in the OS X support.  Fortunately, the
-         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/ml/gcc/2002-03/msg00817.html">patch</link>
+         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/ml/gcc/2002-03/msg00817.html">patch</link>
 	 was quite simple, and well-known.
       </para>
 
@@ -754,7 +756,7 @@
     (i.e., nearly all of us needing to read this page in the first
     place), a public list of the library defects is occasionally
     published on <link xmlns:xlink="http://www.w3.org/1999/xlink"
-    xlink:href="http://www.open-std.org/jtc1/sc22/wg21/">the WG21
+    xlink:href="https://www.open-std.org/jtc1/sc22/wg21/">the WG21
     website</link>.
     Many of these issues have resulted in
     <link linkend="manual.intro.status.bugs.iso">code changes in libstdc++</link>.
@@ -814,7 +816,7 @@
     Executing a sequence like this would fail:
     </para>
 
-    <programlisting>
+<programlisting>
     #include &lt;fstream&gt;
     ...
     std::fstream  fs("a_file");
@@ -823,7 +825,7 @@
     // .
     fs.close();
     fs.open("a_new_file");
-    </programlisting>
+</programlisting>
 
     <para>
     All operations on the re-opened <varname>fs</varname> would fail, or at
@@ -886,7 +888,7 @@
     <filename class="headerfile">&lt;iterator&gt;</filename> header),
     then you will suddenly be faced with huge numbers of ambiguity
     errors.  This was discussed on the mailing list; Nathan Myers
-    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/ml/libstdc++/2001-01/msg00247.html">sums
+    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/ml/libstdc++/2001-01/msg00247.html">sums
       things up here</link>.  The collisions with vector/string iterator
     types have been fixed for 3.1.
     </para>
@@ -1042,7 +1044,7 @@
     <para>
     If you have found a bug in the library and you think you have
     a working fix, then send it in!  The main GCC site has a page
-    on <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/contribute.html">submitting
+    on <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/contribute.html">submitting
     patches</link> that covers the procedure, but for libstdc++ you
     should also send the patch to our mailing list in addition to
     the GCC patches mailing list.  The libstdc++
@@ -1131,7 +1133,7 @@
     Libstdc++-v3 incorporates a lot of code from
     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://web.archive.org/web/20171225062613/http://www.sgi.com/tech/stl/">the SGI STL</link>
     (the final merge was from
-    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://web.archive.org/web/20171225062613/http://www.sgi.com/tech/stl/whats_new.html">release 3.3</link>).
+    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://web.archive.org/web/20171206110416/http://www.sgi.com/tech/stl/whats_new.html">release 3.3</link>).
     The code in libstdc++ contains many fixes and changes compared to the
     original SGI code.
     </para>
@@ -1181,7 +1183,7 @@
     </para>
     <para>
     The C++ Standard Library
-    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2005/n1836.pdf">
+    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2005/n1836.pdf">
     Technical Report 1</link> added many new features to the library.
     </para>
     <para>

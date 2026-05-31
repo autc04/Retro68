@@ -9,7 +9,6 @@
  */
 module core.sys.windows.errorrep;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 
@@ -30,14 +29,14 @@ enum EFaultRepRetVal {
     frrvOkHeadless // = 7
 }
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     BOOL AddERExcludedApplicationA(LPCSTR);
     BOOL AddERExcludedApplicationW(LPCWSTR);
     EFaultRepRetVal ReportFault(LPEXCEPTION_POINTERS, DWORD);
 }
 
 version (Unicode) {
-    alias AddERExcludedApplicationW AddERExcludedApplication;
+    alias AddERExcludedApplication = AddERExcludedApplicationW;
 } else {
-    alias AddERExcludedApplicationA AddERExcludedApplication;
+    alias AddERExcludedApplication = AddERExcludedApplicationA;
 }

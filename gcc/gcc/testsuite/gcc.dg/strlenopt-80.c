@@ -6,7 +6,11 @@
    { dg-do compile { target { { aarch64*-*-* i?86-*-* x86_64-*-* } || { { powerpc*-*-* } && lp64 } } } }
 
    { dg-options "-O2 -Wall -fdump-tree-optimized" }
-   { dg-additional-options "-msse" { target i?86-*-* x86_64-*-* } } */
+   { dg-additional-options "-msse2" { target i?86-*-* x86_64-*-* } } */
+
+/* On powerpc configurations that have -mstrict-align by default,
+   the memcpy calls for ncpylog >= 3 are not turned into MEM_REFs.
+   { dg-additional-options "-mno-strict-align" { target opt_mstrict_align } }  */
 
 #define CHAR_BIT      __CHAR_BIT__
 #define SIZE_MAX      __SIZE_MAX__

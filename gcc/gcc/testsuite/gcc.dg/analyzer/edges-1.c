@@ -15,14 +15,15 @@ void test_1 (const char *path, int flag)
   if (!fp) /* { dg-message "when 'fp' is non-NULL" } */
     return;
 
+  bar ();
+
   /* We shouldn't report this control flow.  */
   while (foo ()) /* { dg-bogus "" } */
     bar ();
 
   if (flag) /* { dg-message "when 'flag == 0'" "branch event" } */
-    fclose (fp); /* { dg-bogus "leak" "warning at wrong location" { xfail *-*-* } .-1 } */
-} /* { dg-warning "leak of FILE 'fp'" "warning" { xfail *-*-* } } */
-// TODO(xfail): location of leak message ought to be on closing brace
+    fclose (fp);
+} /* { dg-warning "leak of FILE 'fp'" "warning" } */
 
 void test_2 (const char *path, int flag)
 {

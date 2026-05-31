@@ -1,6 +1,6 @@
 /* CTF is not generated for entities not at file-scope.  */
 
-/* { dg-do compile )  */
+/* { dg-do compile } */
 /* { dg-options "-O0 -gctf -dA" } */
 
 /* { dg-final { scan-assembler-times "ascii \"SFOO.0\"\[\t \]+\[^\n\]*ctf_string" 0 } } */
@@ -9,7 +9,7 @@
 
 int foo (int n)
 {
-  typedef struct { int a[n]; } SFOO;
+  typedef struct { int a[6]; } SFOO;
 
   SFOO a;
   __attribute__ ((noinline)) SFOO gfoo (void) { return a; }

@@ -2,8 +2,9 @@
  * long long inputs produce the right results.  */
 
 /* { dg-do compile } */
-/* { dg-require-effective-target powerpc_p8vector_ok } */
-/* { dg-options "-mpower8-vector -O2" } */
+/* { dg-options "-mvsx -O2" } */
+/* { dg-additional-options "-mdejagnu-cpu=power8" { target { ! has_arch_pwr8 } } } */
+/* { dg-require-effective-target powerpc_vsx } */
 
 #include <altivec.h>
 
@@ -153,9 +154,9 @@ test6_nor (vector unsigned long long x, vector unsigned long long y)
 
 // The number of xxlor instructions generated varies between 6 and 24 for
 // older systems (power6,power7), as well as for 32-bit versus 64-bit targets.
-// For simplicity, this test now only targets "powerpc_p8vector_ok" environments
+// For simplicity, this test now only targets "powerpc_vsx" environments
 // where the answer is expected to be 6.
 
-/* { dg-final { scan-assembler-times {\mxxlor\M} 9 } } */
+/* { dg-final { scan-assembler-times {\mxxlor\M} 6 } } */
 /* { dg-final { scan-assembler-times {\mxxlxor\M} 6 } } */
-/* { dg-final { scan-assembler-times {\mxxlnor\M} 3 } } */
+/* { dg-final { scan-assembler-times {\mxxlnor\M} 6 } } */

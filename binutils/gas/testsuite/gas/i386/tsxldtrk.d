@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: TSXLDTRK insns
 #source: tsxldtrk.s

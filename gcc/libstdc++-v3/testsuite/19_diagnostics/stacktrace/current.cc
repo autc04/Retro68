@@ -1,6 +1,6 @@
-// { dg-options "-std=gnu++23 -lstdc++_libbacktrace" }
+// { dg-options "-funwind-tables -lstdc++exp" }
 // { dg-do run { target c++23 } }
-// { dg-require-effective-target stacktrace }
+// { dg-require-cpp-feature-test __cpp_lib_stacktrace }
 
 #include <stacktrace>
 #include <memory>

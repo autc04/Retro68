@@ -2,7 +2,7 @@
    LHS and both LHS and RHS of assignment.  */
 
 /* { dg-do compile } */
-/* { dg-options "-O0 -dA -gbtf -mco-re" } */
+/* { dg-options "-O0 -dA -gbtf -mco-re -masm=normal" } */
 
 struct T {
   int a;
@@ -13,8 +13,8 @@ struct T {
       int d;
       int e[4];
       int f;
-    } v;
-  } u;
+    } __attribute__((preserve_access_index)) v;
+  } __attribute__((preserve_access_index)) u;
 } __attribute__((preserve_access_index));
 
 

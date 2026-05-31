@@ -1,4 +1,5 @@
 /* { dg-skip-if "" { *-*-* } { "-fno-fat-lto-objects" } { "" } } */
+/* { dg-require-effective-target size24plus } */
 
 #include <stdlib.h>
 #include "../analyzer-decls.h"
@@ -13,7 +14,7 @@ boxed_malloc (size_t sz)
   return result;
 }
 
-boxed_ptr __attribute__((noinline))
+void __attribute__((noinline))
 boxed_free (boxed_ptr ptr)
 {
   free (ptr.value);

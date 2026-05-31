@@ -17,7 +17,7 @@
 
 #ifdef REENTRANT_SYSCALLS_PROVIDED
 
-int _dummy_link_syscalls = 1;
+int _dummy_signal_syscalls = 1;
 
 #else
 
@@ -51,7 +51,7 @@ _kill_r (struct _reent *ptr,
 
   errno = 0;
   if ((ret = _kill (pid, sig)) == -1 && errno != 0)
-    ptr->_errno = errno;
+    _REENT_ERRNO(ptr) = errno;
   return ret;
 }
 

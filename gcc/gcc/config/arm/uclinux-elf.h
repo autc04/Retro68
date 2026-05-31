@@ -1,5 +1,5 @@
 /* Definitions for ARM running ucLinux using ELF
-   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
    Contributed by Philip Blundell <pb@nexus.co.uk>
 
    This file is part of GCC.
@@ -67,8 +67,9 @@
 
 #undef LINK_GCC_C_SEQUENCE_SPEC
 #define LINK_GCC_C_SEQUENCE_SPEC \
-  "%{static|static-pie:--start-group} %G %{!nolibc:%L} \
-   %{static|static-pie:--end-group}%{!static:%{!static-pie:%G %{!nolibc:%L}}}"
+  "%{static|static-pie:--start-group} %G %{!nolibc:" LINK_LIBATOMIC_SPEC "%L} \
+   %{static|static-pie:--end-group}%{!static:%{!static-pie:%G %{!nolibc:" \
+   LINK_LIBATOMIC_SPEC "%L}}}"
 
 /* Use --as-needed -lgcc_s for eh support.  */
 #ifdef HAVE_LD_AS_NEEDED

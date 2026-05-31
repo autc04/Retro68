@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,6 +42,7 @@ with Types;
 
 with Ada.Command_Line; use Ada.Command_Line;
 with Ada.Exceptions;   use Ada.Exceptions;
+with Ada.Strings.Fixed;
 
 with System.OS_Lib; use System.OS_Lib;
 with System.CRTL;
@@ -265,6 +266,9 @@ procedure Gnatlink is
    function Index (S, Pattern : String) return Natural;
    --  Return the last occurrence of Pattern in S, or 0 if none
 
+   function Is_Prefix (S, Prefix : String) return Boolean;
+   --  Return whether Prefix is a strict prefix of S
+
    procedure Search_Library_Path
      (Next_Line   : String;
       Nfirst      : Integer;
@@ -394,6 +398,16 @@ procedure Gnatlink is
       return 0;
    end Index;
 
+   ---------------
+   -- Is_Prefix --
+   ---------------
+
+   function Is_Prefix (S, Prefix : String) return Boolean is
+   begin
+      return Prefix'Length < S'Length
+        and then S (S'First .. S'First + Prefix'Length - 1) = Prefix;
+   end Is_Prefix;
+
    ------------------
    -- Process_Args --
    ------------------
@@ -407,7 +421,7 @@ procedure Gnatlink is
 
       procedure Check_Version_And_Help is new Check_Version_And_Help_G (Usage);
 
-      --  Start of processing for Process_Args
+   --  Start of processing for Process_Args
 
    begin
       --  First, check for --version and --help
@@ -1223,11 +1237,11 @@ procedure Gnatlink is
                   begin
                      Path (1 .. File_Path'Length) := File_Path.all;
 
-                  --  To find the location of the shared version of libgcc, we
-                  --  look for "gcc-lib" in the path of the library. However,
-                  --  this subdirectory is no longer present in recent versions
-                  --  of GCC. So, we look for the last subdirectory "lib" in
-                  --  the path.
+                     --  To find the location of the shared version of libgcc,
+                     --  we look for "gcc-lib" in the path of the
+                     --  library. However, this subdirectory is no longer
+                     --  present in recent versions of GCC. So, we look for the
+                     --  last subdirectory "lib" in the path.
 
                      GCC_Index := Index (Path (1 .. Path_Last), "gcc-lib");
 
@@ -1258,15 +1272,17 @@ procedure Gnatlink is
                                 Value (Libgcc_Subdir_Ptr);
 
                            begin
-                              Path (GCC_Index + 1 .. GCC_Index + Subdir'Length)
-                                := Subdir;
+                              Path
+                                (GCC_Index + 1
+                                 ..
+                                 GCC_Index + Subdir'Length) := Subdir;
                               GCC_Index := GCC_Index + Subdir'Length;
                            end;
                         end if;
                      end if;
 
-                  --  Look for an eventual run_path_option in
-                  --  the linker switches.
+                     --  Look for an eventual run_path_option in
+                     --  the linker switches.
 
                      if Separate_Run_Path_Options then
                         Linker_Options.Increment_Last;
@@ -1289,13 +1305,8 @@ procedure Gnatlink is
                      else
                         for J in reverse 1 .. Linker_Options.Last loop
                            if Linker_Options.Table (J) /= null
-                             and then
-                               Linker_Options.Table (J)'Length
-                                         > Run_Path_Opt'Length
-                             and then
-                               Linker_Options.Table (J)
-                                 (1 .. Run_Path_Opt'Length) =
-                                                  Run_Path_Opt
+                             and then Is_Prefix
+                               (Linker_Options.Table (J).all, Run_Path_Opt)
                            then
                               --  We have found an already specified
                               --  run_path_option: we will add to this switch,
@@ -1697,22 +1708,20 @@ begin
 
       procedure Check_File_Name (S : String) is
       begin
-         for J in 1 .. FN'Length - (S'Length - 1) loop
-            if FN (J .. J + (S'Length - 1)) = S then
-               Error_Msg
-                 ("warning: executable file name """ & Output_File_Name.all
-                  & """ contains substring """ & S & '"');
-               Error_Msg
-                 ("admin privileges may be required to run this file");
-            end if;
-         end loop;
+         if Ada.Strings.Fixed.Index (FN, S) /= 0 then
+            Error_Msg
+              ("warning: executable file name """ & Output_File_Name.all
+               & """ contains substring """ & S & '"');
+            Error_Msg
+              ("admin privileges may be required to run this file");
+         end if;
       end Check_File_Name;
 
    --  Start of processing for Bad_File_Names_On_Windows
 
    begin
       for J in FN'Range loop
-            FN (J) := Csets.Fold_Lower (FN (J));
+         FN (J) := Csets.Fold_Lower (FN (J));
       end loop;
 
       --  For now we detect Windows by its executable suffix of .exe
@@ -1891,8 +1900,7 @@ begin
          while J <= Linker_Options.Last loop
             if Linker_Options.Table (J).all = "-Xlinker"
               and then J < Linker_Options.Last
-              and then Linker_Options.Table (J + 1)'Length > 8
-              and then Linker_Options.Table (J + 1) (1 .. 8) = "--stack="
+              and then Is_Prefix (Linker_Options.Table (J + 1).all, "--stack=")
             then
                if Stack_Op then
                   Linker_Options.Table (J .. Linker_Options.Last - 2) :=
@@ -1937,13 +1945,8 @@ begin
             --  Here we just check for a canonical form that matches the
             --  pragma Linker_Options set in the NT runtime.
 
-            if (Linker_Options.Table (J)'Length > 17
-                and then Linker_Options.Table (J) (1 .. 17) =
-                  "-Xlinker --stack=")
-              or else
-                (Linker_Options.Table (J)'Length > 12
-                 and then Linker_Options.Table (J) (1 .. 12) =
-                       "-Wl,--stack=")
+            if Is_Prefix (Linker_Options.Table (J).all, "-Xlinker --stack=")
+              or else Is_Prefix (Linker_Options.Table (J).all, "-Wl,--stack=")
             then
                if Stack_Op then
                   Linker_Options.Table (J .. Linker_Options.Last - 1) :=

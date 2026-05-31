@@ -1,6 +1,6 @@
 /* { dg-do assemble } */
 /* { dg-do compile } */
-/* { dg-options "-O2 -mno-sdata" } *
+/* { dg-options "-O2 -mno-sdata" } */
 
 /* This example will fail to assemble if the last instruction is a
    branch with delay slot.  */
@@ -23,5 +23,5 @@ void fn1(void)
   }
 }
 
-/* { dg-final { scan-assembler "bne.*@.L2" } } */
+/* { dg-final { scan-assembler "bne.*\\.L2" } } */
 /* { dg-final { scan-assembler-not "add.eq" } } */

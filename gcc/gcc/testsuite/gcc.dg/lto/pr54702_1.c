@@ -1,3 +1,4 @@
+/* { dg-options "-std=gnu17 -fpermissive" } */
 int *b;
 void *d;
 int c;

@@ -1,6 +1,5 @@
-#as:
 #objdump: -drw
-#name: x86_64 AMX insns
+#name: x86_64 Illegal AMX insns
 #source: x86-64-amx-bad.s
 
 .*: +file format .*

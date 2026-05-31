@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2005-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -98,6 +98,8 @@ DEF_SECTION (mod_init_section, 0, ".mod_init_func", 0)
 DEF_SECTION (mod_term_section, 0, ".mod_term_func", 0)
 DEF_SECTION (constructor_section, 0, ".constructor", 0)
 DEF_SECTION (destructor_section, 0, ".destructor", 0)
+DEF_SECTION (static_init_section, SECTION_CODE,
+	     ".section\t__TEXT,__StaticInit,regular,pure_instructions", 0)
 
 /* Objective-C ABI=0 (Original version) sections.  */
 DEF_SECTION (objc_class_section, 0, ".objc_class", 1)
@@ -157,7 +159,7 @@ DEF_SECTION (machopic_picsymbol_stub3_section, SECTION_NO_ANCHOR,
 
 /* Exception-related.  */
 DEF_SECTION (darwin_exception_section, SECTION_NO_ANCHOR,
-	     ".section __DATA,__gcc_except_tab", 0)
+	     ".section __TEXT,__gcc_except_tab", 0)
 DEF_SECTION (darwin_eh_frame_section, SECTION_NO_ANCHOR,
 	     ".section " EH_FRAME_SECTION_NAME ",__eh_frame"
 	     EH_FRAME_SECTION_ATTR, 0)
@@ -213,3 +215,10 @@ DEF_SECTION (objc2_method_names_section, 0,
 
 DEF_SECTION (objc2_method_types_section, 0,
 	     ".section __TEXT, __objc_methtype, cstring_literals", 1)
+
+/* ASAN sections.  */
+
+DEF_SECTION (asan_string_section, 0, ".section __TEXT, __asan_cstring", 0)
+DEF_SECTION (asan_globals_section, 0, ".section __DATA, __asan_globals", 0)
+DEF_SECTION (asan_liveness_section, 0,
+	     ".section __DATA,__asan_liveness,regular,live_support", 0)

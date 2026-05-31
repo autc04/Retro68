@@ -1,5 +1,5 @@
 /* Localize comdats.
-   Copyright (C) 2014-2022 Free Software Foundation, Inc.
+   Copyright (C) 2014-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -262,6 +262,7 @@ ipa_comdats (void)
        user section names.  */
     else if (symbol->externally_visible
 	     || symbol->force_output
+	     || symbol->ref_by_asm
 	     || symbol->used_from_other_partition
 	     || TREE_THIS_VOLATILE (symbol->decl)
 	     || symbol->get_section ()
@@ -340,7 +341,7 @@ ipa_comdats (void)
   FOR_EACH_DEFINED_SYMBOL (symbol)
     {
       struct cgraph_node *fun;
-      symbol->aux = NULL; 
+      symbol->aux = NULL;
       if (!symbol->get_comdat_group ()
 	  && !symbol->alias
 	  && (!(fun = dyn_cast <cgraph_node *> (symbol))
@@ -420,8 +421,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *);
-  virtual unsigned int execute (function *) { return ipa_comdats (); }
+  bool gate (function *) final override;
+  unsigned int execute (function *) final override { return ipa_comdats (); }
 
 }; // class pass_ipa_comdats
 

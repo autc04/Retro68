@@ -7,7 +7,7 @@
 --                                  B o d y                                 --
 --                                                                          --
 --             Copyright (C) 1991-2017, Florida State University            --
---                     Copyright (C) 1995-2022, AdaCore                     --
+--                     Copyright (C) 1995-2026, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -35,41 +35,7 @@
 --  This package encapsulates all direct interfaces to OS services
 --  that are needed by children of System.
 
-with Interfaces.C; use Interfaces.C;
-
 package body System.OS_Interface is
-
-   -----------------
-   -- To_Duration --
-   -----------------
-
-   function To_Duration (TS : timespec) return Duration is
-   begin
-      return Duration (TS.tv_sec) + Duration (TS.tv_nsec) / 10#1#E9;
-   end To_Duration;
-
-   -----------------
-   -- To_Timespec --
-   -----------------
-
-   function To_Timespec (D : Duration) return timespec is
-      S : time_t;
-      F : Duration;
-
-   begin
-      S := time_t (Long_Long_Integer (D));
-      F := D - Duration (S);
-
-      --  If F has negative value due to a round-up, adjust for positive F
-
-      if F < 0.0 then
-         S := S - 1;
-         F := F + 1.0;
-      end if;
-
-      return timespec'(tv_sec  => S,
-                       tv_nsec => long (Long_Long_Integer (F * 10#1#E9)));
-   end To_Timespec;
 
    ------------------
    -- pthread_init --

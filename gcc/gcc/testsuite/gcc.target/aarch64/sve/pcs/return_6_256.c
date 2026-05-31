@@ -6,6 +6,7 @@
 
 typedef int8_t svint8_t __attribute__ ((vector_size (32)));
 typedef uint8_t svuint8_t __attribute__ ((vector_size (32)));
+typedef __mfp8 svmfloat8_t __attribute__ ((vector_size (32)));
 
 typedef int16_t svint16_t __attribute__ ((vector_size (32)));
 typedef uint16_t svuint16_t __attribute__ ((vector_size (32)));
@@ -30,8 +31,8 @@ typedef double svfloat64_t __attribute__ ((vector_size (32)));
 /*
 ** callee_s8:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1b	z0\.b, \1/z, \[x0\]
-**	st1b	z0\.b, \1, \[x8\]
+**	ld1b	(z[0-9]+)\.b, \1/z, \[x0\]
+**	st1b	\2\.b, \1, \[x8\]
 **	ret
 */
 CALLEE (s8, svint8_t)
@@ -39,17 +40,26 @@ CALLEE (s8, svint8_t)
 /*
 ** callee_u8:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1b	z0\.b, \1/z, \[x0\]
-**	st1b	z0\.b, \1, \[x8\]
+**	ld1b	(z[0-9]+)\.b, \1/z, \[x0\]
+**	st1b	\2\.b, \1, \[x8\]
 **	ret
 */
 CALLEE (u8, svuint8_t)
 
 /*
+** callee_mf8:
+**	ptrue	(p[0-7])\.b, vl32
+**	ld1b	(z[0-9]+)\.b, \1/z, \[x0\]
+**	st1b	\2\.b, \1, \[x8\]
+**	ret
+*/
+CALLEE (mf8, svmfloat8_t)
+
+/*
 ** callee_s16:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1h	z0\.h, \1/z, \[x0\]
-**	st1h	z0\.h, \1, \[x8\]
+**	ld1h	(z[0-9]+)\.h, \1/z, \[x0\]
+**	st1h	\2\.h, \1, \[x8\]
 **	ret
 */
 CALLEE (s16, svint16_t)
@@ -57,8 +67,8 @@ CALLEE (s16, svint16_t)
 /*
 ** callee_u16:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1h	z0\.h, \1/z, \[x0\]
-**	st1h	z0\.h, \1, \[x8\]
+**	ld1h	(z[0-9]+)\.h, \1/z, \[x0\]
+**	st1h	\2\.h, \1, \[x8\]
 **	ret
 */
 CALLEE (u16, svuint16_t)
@@ -66,8 +76,8 @@ CALLEE (u16, svuint16_t)
 /*
 ** callee_f16:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1h	z0\.h, \1/z, \[x0\]
-**	st1h	z0\.h, \1, \[x8\]
+**	ld1h	(z[0-9]+)\.h, \1/z, \[x0\]
+**	st1h	\2\.h, \1, \[x8\]
 **	ret
 */
 CALLEE (f16, svfloat16_t)
@@ -75,8 +85,8 @@ CALLEE (f16, svfloat16_t)
 /*
 ** callee_bf16:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1h	z0\.h, \1/z, \[x0\]
-**	st1h	z0\.h, \1, \[x8\]
+**	ld1h	(z[0-9]+)\.h, \1/z, \[x0\]
+**	st1h	\2\.h, \1, \[x8\]
 **	ret
 */
 CALLEE (bf16, svbfloat16_t)
@@ -84,8 +94,8 @@ CALLEE (bf16, svbfloat16_t)
 /*
 ** callee_s32:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1w	z0\.s, \1/z, \[x0\]
-**	st1w	z0\.s, \1, \[x8\]
+**	ld1w	(z[0-9]+)\.s, \1/z, \[x0\]
+**	st1w	\2\.s, \1, \[x8\]
 **	ret
 */
 CALLEE (s32, svint32_t)
@@ -93,8 +103,8 @@ CALLEE (s32, svint32_t)
 /*
 ** callee_u32:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1w	z0\.s, \1/z, \[x0\]
-**	st1w	z0\.s, \1, \[x8\]
+**	ld1w	(z[0-9]+)\.s, \1/z, \[x0\]
+**	st1w	\2\.s, \1, \[x8\]
 **	ret
 */
 CALLEE (u32, svuint32_t)
@@ -102,8 +112,8 @@ CALLEE (u32, svuint32_t)
 /*
 ** callee_f32:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1w	z0\.s, \1/z, \[x0\]
-**	st1w	z0\.s, \1, \[x8\]
+**	ld1w	(z[0-9]+)\.s, \1/z, \[x0\]
+**	st1w	\2\.s, \1, \[x8\]
 **	ret
 */
 CALLEE (f32, svfloat32_t)
@@ -111,8 +121,8 @@ CALLEE (f32, svfloat32_t)
 /*
 ** callee_s64:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1d	z0\.d, \1/z, \[x0\]
-**	st1d	z0\.d, \1, \[x8\]
+**	ld1d	(z[0-9]+)\.d, \1/z, \[x0\]
+**	st1d	\2\.d, \1, \[x8\]
 **	ret
 */
 CALLEE (s64, svint64_t)
@@ -120,8 +130,8 @@ CALLEE (s64, svint64_t)
 /*
 ** callee_u64:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1d	z0\.d, \1/z, \[x0\]
-**	st1d	z0\.d, \1, \[x8\]
+**	ld1d	(z[0-9]+)\.d, \1/z, \[x0\]
+**	st1d	\2\.d, \1, \[x8\]
 **	ret
 */
 CALLEE (u64, svuint64_t)
@@ -129,8 +139,8 @@ CALLEE (u64, svuint64_t)
 /*
 ** callee_f64:
 **	ptrue	(p[0-7])\.b, vl32
-**	ld1d	z0\.d, \1/z, \[x0\]
-**	st1d	z0\.d, \1, \[x8\]
+**	ld1d	(z[0-9]+)\.d, \1/z, \[x0\]
+**	st1d	\2\.d, \1, \[x8\]
 **	ret
 */
 CALLEE (f64, svfloat64_t)
@@ -165,6 +175,18 @@ CALLER (s8, svint8_t)
 **	ret
 */
 CALLER (u8, svuint8_t)
+
+/*
+** caller_mf8:
+**	...
+**	bl	callee_mf8
+**	...
+**	ld1b	(z[0-9]+\.b), (p[0-7])/z, \[[^]]*\]
+**	st1b	\1, \2, \[[^]]*\]
+**	...
+**	ret
+*/
+CALLER (mf8, svmfloat8_t)
 
 /*
 ** caller_s16:

@@ -1,6 +1,7 @@
 /* { dg-require-effective-target vect_int } */
 /* { dg-add-options bind_pic_locally } */
 /* { dg-additional-options "--param vect-max-peeling-for-alignment=0" } */
+/* { dg-additional-options "-fno-section-anchors" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -52,6 +53,7 @@ int main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i <N; i++)
     {
       if (tmp1[2].a.n[1][2][i] != 5)
@@ -65,6 +67,7 @@ int main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = NINTS; i < N - 1; i++)
     {
       if (tmp1[2].a.n[1][2][i] != 6)
@@ -83,6 +86,7 @@ int main1 ()
   /* check results:  */
   for (i = 0; i < N; i++)
     {
+#pragma GCC novector
       for (j = 0; j < N; j++)
 	{
           if (tmp1[2].e.n[1][i][j] != 8)
@@ -102,6 +106,7 @@ int main1 ()
   /* check results:  */
   for (i = 0; i < N - NINTS; i++)
     {
+#pragma GCC novector
       for (j = 0; j < N - NINTS; j++)
 	{
           if (tmp2[2].e.n[1][i][j] != 8)

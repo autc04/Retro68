@@ -1,5 +1,5 @@
 /* NetBSD host-specific hook definitions.
-   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+   Copyright (C) 2004-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -62,7 +62,7 @@ netbsd_gt_pch_get_address (size_t size, int fd)
   return addr;
 }
 
-/* Map SIZE bytes of FD+OFFSET at BASE.  Return 1 if we succeeded at 
+/* Map SIZE bytes of FD+OFFSET at BASE.  Return 1 if we succeeded at
    mapping the data at BASE, -1 if we couldn't.  */
 
 static int
@@ -78,7 +78,21 @@ netbsd_gt_pch_use_address (void *&base, size_t size, int fd, size_t offset)
 
   addr = mmap (base, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED, fd, offset);
 
-  return addr == base ? 1 : -1;
+  if (addr == base)
+    return 1;
+
+  if (addr != (void *) MAP_FAILED)
+    munmap(addr, size);
+
+  addr = mmap (base, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+  if (addr == (void *) MAP_FAILED)
+    return -1;
+
+  /* Signal to the caller that whilst memory has been allocated, it
+     must read the PCH data */
+  base = addr;
+  return 0;
 }
 
 

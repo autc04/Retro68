@@ -1,12 +1,3 @@
-.macro cond op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().s32 r0, q0, q1
-.endr
-.endm
-
-
-
 .syntax unified
 .text
 .thumb
@@ -17,7 +8,12 @@ vabav.p8 r0, q0, q1
 vabav.p16 r0, q0, q1
 vabav.s32 r13, q0, q1
 vabav.s32 r15, q0, q1
-cond vabav
+
+.irp cond, eq, ne, gt, ge, lt, le
+it \cond
+vabav.s32 r0, q0, q1
+.endr
+
 vpst
 vabaveq.s32 r0, q0, q1
 vabaveq.s32 r0, q0, q1

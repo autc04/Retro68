@@ -1,8 +1,10 @@
 /* { dg-do compile } */
-/* { dg-options "-std=gnu99" } */
+/* { dg-options "-std=gnu99 -ffreestanding" } */
 
 #include <stdint.h>
-#include <bpf-helpers.h>
+
+int bpf_bind (void *ctx, void *addr, int addr_len)
+  __attribute__((kernel_helper(64)));
 
 void
 foo ()

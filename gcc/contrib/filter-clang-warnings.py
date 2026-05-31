@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+# Copyright (C) 2018-2026 Free Software Foundation, Inc.
 #
 # Script to analyze warnings produced by clang.
 #
@@ -16,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with GCC; see the file COPYING3.  If not see
-# <http://www.gnu.org/licenses/>.  */
+# <http://www.gnu.org/licenses/>.
 #
 #
 #
@@ -39,26 +41,50 @@ def skip_warning(filename, message):
                  '-Wignored-attributes', '-Wgnu-zero-variadic-macro-arguments',
                  '-Wformat-security', '-Wundefined-internal',
                  '-Wunknown-warning-option', '-Wc++20-extensions',
-                 '-Wbitwise-instead-of-logical'],
+                 '-Wbitwise-instead-of-logical', 'egrep is obsolescent',
+                 '-Woverloaded-shift-op-parentheses',
+                 '-Wunused-function', '-Wunneeded-internal-declaration',
+                 '-Wvla-cxx-extension', '-Wunused-command-line-argument'],
+
+            'diagnostics/paths-output.cc': ['m_logical_loc_mgr'],
+            'fold-const-call.cc': ['-Wreturn-type'],
+            'gimple-match': ['-Wunused-', '-Wtautological-compare'],
+            'generic-match': ['-Wunused-', '-Wtautological-compare'],
+            'genautomata.cc': ['-Wstring-plus-int'],
+            # Perhaps revisit when ATTR_FNSPEC_DECONST_WATERMARK ifdef case is
+            # made default or removed:
+            'ipa-strub.cc': ['-Wunused-but-set-variable'],
             'insn-modes.cc': ['-Wshift-count-overflow'],
             'insn-emit.cc': ['-Wtautological-compare'],
             'insn-attrtab.cc': ['-Wparentheses-equality'],
-            'gimple-match.cc': ['-Wunused-', '-Wtautological-compare'],
-            'generic-match.cc': ['-Wunused-', '-Wtautological-compare'],
+            'omp-builtins.def': ['-Wc++11-narrowing'],
+            'wide-int.h': ['-Wnontrivial-memcall'],
             'i386.md': ['-Wparentheses-equality', '-Wtautological-compare',
                         '-Wtautological-overlap-compare'],
             'sse.md': ['-Wparentheses-equality', '-Wtautological-compare',
                        '-Wconstant-logical-operand'],
             'mmx.md': ['-Wtautological-compare'],
-            'genautomata.cc': ['-Wstring-plus-int'],
-            'fold-const-call.cc': ['-Wreturn-type'],
-            'gfortran.texi': [''],
-            'libtool': [''],
             'lex.cc': ['-Wc++20-attribute-extensions'],
+            # Perhaps remove once PR 120960 is resolved:
+            'analyzer/ana-state-to-diagnostic-state.h': ['-Wunused-private-field'],
+            'analyzer/sm.cc': ['-Wunused-parameter'],
+            'c-family/c-format.cc': ['-Wunused-private-field'],
+            'm2/gm2-compiler-boot': ['-Wunused-'],
+            # Rust peopel promised to clean these warnings too
+            'rust/': ['-Wunused-private-field'],
+            # except perhaps for this one, see
+            # https://github.com/Rust-GCC/gccrs/issues/4441
+            'rust/ast/rust-fmt.h': ['-Wreturn-type-c-linkage'],
+            'libiberty/': ["-Wimplicit-int-enum-cast"],
+            'libiberty/sha1.c': ['-Wc23-extensions'],
+            'libtool': ['']
     }
 
-    for name, ignores in ignores.items():
-        for i in ignores:
+    if ".texi" in filename:
+        return True
+
+    for name, ignore in ignores.items():
+        for i in ignore:
             if name in filename and i in message:
                 return True
     return False
@@ -69,18 +95,19 @@ parser.add_argument('log', help='Log file with clang warnings')
 args = parser.parse_args()
 
 lines = [line.strip() for line in open(args.log)]
-total = 0
-messages = []
+messages = set()
 for line in lines:
     token = ': warning: '
     i = line.find(token)
     if i != -1:
         location = line[:i]
         message = line[i + len(token):]
+        if '/libffi/' in location or location.startswith('Makefile'):
+            continue
         if not skip_warning(location, message):
-            total += 1
-            messages.append(line)
+            messages.add(line)
 
 for line in sorted(messages):
     print(line)
-print('\nTotal warnings: %d' % total)
+
+print('\nTotal warnings: %d' % len(messages))

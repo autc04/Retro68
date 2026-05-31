@@ -1,9 +1,10 @@
 
 module traits_getFunctionAttributes;
 
+alias tuple(T...) = T;
+
 void test_getFunctionAttributes()
 {
-    alias tuple(T...) = T;
 
     struct S
     {
@@ -43,8 +44,8 @@ void test_getFunctionAttributes()
     static assert(__traits(getFunctionAttributes, S.sharedF) == tuple!("shared", "@system"));
     static assert(__traits(getFunctionAttributes, typeof(S.sharedF)) == tuple!("shared", "@system"));
 
-    static assert(__traits(getFunctionAttributes, S.refF) == tuple!("ref", "return", "@system"));
-    static assert(__traits(getFunctionAttributes, typeof(S.refF)) == tuple!("ref", "return", "@system"));
+    static assert(__traits(getFunctionAttributes, S.refF) == tuple!("return", "ref", "@system"));
+    static assert(__traits(getFunctionAttributes, typeof(S.refF)) == tuple!("return", "ref", "@system"));
 
     static assert(__traits(getFunctionAttributes, S.propertyF) == tuple!("@property", "@system"));
     static assert(__traits(getFunctionAttributes, typeof(&S.propertyF)) == tuple!("@property", "@system"));
@@ -117,4 +118,15 @@ void test_getFunctionAttributes()
     auto systemDel = delegate() @system { };
     static assert(__traits(getFunctionAttributes, systemDel) == tuple!("pure", "nothrow", "@nogc", "@system"));
     static assert(__traits(getFunctionAttributes, typeof(systemDel)) == tuple!("pure", "nothrow", "@nogc", "@system"));
+}
+
+void bug19706()
+{
+    struct S
+    {
+        static int fImpl(Ret)() { return Ret.init; }
+
+        // tells us: `fImpl!int` is @system
+        static assert(__traits(getFunctionAttributes, fImpl!int) == tuple!("pure", "nothrow", "@nogc", "@safe"));
+    }
 }

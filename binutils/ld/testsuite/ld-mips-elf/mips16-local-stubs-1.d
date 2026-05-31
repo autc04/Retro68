@@ -1,6 +1,5 @@
 #name: MIPS16 interlinking for local functions 1
 #source: mips16-local-stubs-1.s
-#as: -mips4
 #ld: -Ttext 0x20000000 -e caller1
 #objdump: -dr
 #...

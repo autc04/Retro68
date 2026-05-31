@@ -1,12 +1,6 @@
-.macro cond, op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().s16 r0, q1
-.endr
-.endm
-
 .syntax unified
 .thumb
+
 vmaxv.u64 r0, q1
 vmaxv.f16 r0, q1
 vminv.s64 r0, q1
@@ -19,10 +13,16 @@ vmaxv.s32 sp, q1
 vmaxav.s32 pc, q1
 vminv.s32 pc, q1
 vminav.s32 sp, q1
-cond vmaxv
-cond vmaxav
-cond vminv
-cond vminav
+
+.irp op, vmaxv, vmaxav, vminv, vminav
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+\op\().s16 r0, q1
+
+.endr
+.endr
+
 it eq
 vmaxveq.s32 r0, q1
 vmaxveq.s32 r0, q1

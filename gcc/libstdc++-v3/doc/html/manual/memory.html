@@ -37,7 +37,7 @@
        </p><pre class="programlisting">
 	 T*    allocate   (size_type n, const void* hint = 0);
 	 void  deallocate (T* p, size_type n);
-       </pre><p>
+</pre><p>
 	 The <code class="varname">n</code> arguments in both those
 	 functions is a <span class="emphasis"><em>count</em></span> of the number of
 	 <span class="type">T</span>'s to allocate space for, <span class="emphasis"><em>not their
@@ -120,8 +120,8 @@
        Over multiple iterations, various STL container
      objects have elements inserted to some maximum amount. A variety
      of allocators are tested.
-     Test source for <a class="link" href="http://gcc.gnu.org/viewcvs/gcc/trunk/libstdc%2B%2B-v3/testsuite/performance/23_containers/insert/sequence.cc?view=markup" target="_top">sequence</a>
-     and <a class="link" href="http://gcc.gnu.org/viewcvs/gcc/trunk/libstdc%2B%2B-v3/testsuite/performance/23_containers/insert/associative.cc?view=markup" target="_top">associative</a>
+     Test source for <a class="link" href="https://gcc.gnu.org/cgit/gcc/tree/libstdc++-v3/testsuite/performance/23_containers/insert/sequence.cc" target="_top">sequence</a>
+     and <a class="link" href="https://gcc.gnu.org/cgit/gcc/tree/libstdc++-v3/testsuite/performance/23_containers/insert/associative.cc" target="_top">associative</a>
      containers.
        </p></li><li class="listitem"><p>
        Insertion and erasure in a multi-threaded environment.
@@ -130,14 +130,14 @@
      on a per-thread basis, as well as measuring thread contention
      for memory resources.
      Test source
-    <a class="link" href="http://gcc.gnu.org/viewcvs/gcc/trunk/libstdc%2B%2B-v3/testsuite/performance/23_containers/insert_erase/associative.cc?view=markup" target="_top">here</a>.
+    <a class="link" href="https://gcc.gnu.org/cgit/gcc/tree/libstdc++-v3/testsuite/performance/23_containers/insert_erase/associative.cc" target="_top">here</a>.
        </p></li><li class="listitem"><p>
 	 A threaded producer/consumer model.
        </p><p>
        Test source for
-     <a class="link" href="http://gcc.gnu.org/viewcvs/gcc/trunk/libstdc++-v3/testsuite/performance/23_containers/producer_consumer/sequence.cc?view=markup" target="_top">sequence</a>
+     <a class="link" href="https://gcc.gnu.org/cgit/gcc/tree/libstdc++-v3/testsuite/performance/23_containers/producer_consumer/sequence.cc" target="_top">sequence</a>
      and
-     <a class="link" href="http://gcc.gnu.org/viewcvs/gcc/trunk/libstdc++-v3/testsuite/performance/23_containers/producer_consumer/associative.cc?view=markup" target="_top">associative</a>
+     <a class="link" href="https://gcc.gnu.org/cgit/gcc/tree/libstdc++-v3/testsuite/performance/23_containers/producer_consumer/associative.cc" target="_top">associative</a>
      containers.
      </p></li></ol></div><p>
      Since GCC 12 the default choice for
@@ -192,7 +192,7 @@
       Likewise, a debugging form of whichever allocator is currently in use:
     </p><pre class="programlisting">
     std::deque &lt;int, __gnu_cxx::debug_allocator&lt;std::allocator&lt;int&gt; &gt; &gt;  debug_deque;
-      </pre></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="allocator.custom"></a>Custom Allocators</h4></div></div></div><p>
+</pre></div><div class="section"><div class="titlepage"><div><div><h4 class="title"><a id="allocator.custom"></a>Custom Allocators</h4></div></div></div><p>
     Writing a portable C++ allocator would dictate that the interface
     would look much like the one specified for
     <code class="classname">allocator</code>. Additional member functions, but
@@ -296,7 +296,7 @@
       Reconsidering Custom Memory Allocation
 	</a>
       </em>. </span><span class="author"><span class="firstname">Emery</span> <span class="surname">Berger</span>. </span><span class="author"><span class="firstname">Ben</span> <span class="surname">Zorn</span>. </span><span class="author"><span class="firstname">Kathryn</span> <span class="surname">McKinley</span>. </span><span class="copyright">Copyright © 2002 OOPSLA. </span></p></div><div class="biblioentry"><a id="id-1.3.4.4.4.3.9.6"></a><p><span class="title"><em>
-	<a class="link" href="http://www.angelikalanger.com/Articles/C++Report/Allocators/Allocators.html" target="_top">
+	<a class="link" href="https://angelikalanger.com/Articles/C++Report/Allocators/Allocators.html" target="_top">
       Allocator Types
 	</a>
       </em>. </span><span class="author"><span class="firstname">Klaus</span> <span class="surname">Kreft</span>. </span><span class="author"><span class="firstname">Angelika</span> <span class="surname">Langer</span>. </span><span class="publisher"><span class="publishername">
@@ -336,19 +336,19 @@
 
 	function_taking_MyClass_pointer (ap.get());
     }
-   </pre><p>When an exception gets thrown, the instance of MyClass that's
+</pre><p>When an exception gets thrown, the instance of MyClass that's
       been created on the heap will be <code class="function">delete</code>'d as the stack is
       unwound past <code class="function">func()</code>.
    </p><p>Changing that code as follows is not <acronym class="acronym">AP</acronym>-friendly:
    </p><pre class="programlisting">
 	APMC  ap (new MyClass[22]);
-   </pre><p>You will get the same problems as you would without the use
+</pre><p>You will get the same problems as you would without the use
       of <acronym class="acronym">AP</acronym>:
    </p><pre class="programlisting">
 	char*  array = new char[10];       // array new...
 	...
 	delete array;                      // ...but single-object delete
-   </pre><p>
+</pre><p>
      AP cannot tell whether the pointer you've passed at creation points
       to one or many things.  If it points to many things, you are about
       to die.  AP is trivial to write, however, so you could write your
@@ -363,7 +363,7 @@
     {
 	My_Type (My_Type const&amp;);
     };
-   </pre><p>
+</pre><p>
      Note the const keyword; the object being copied shouldn't change.
      The template class <code class="code">auto_ptr</code> (called AP here) does not
      meet this requirement.  Creating a new AP by copying an existing
@@ -388,7 +388,7 @@
     {
 	std::vector&lt; std::auto_ptr&lt;int&gt; &gt;   vec_ap_int;
     }
-   </pre><p>
+</pre><p>
 Should you try this with the checks enabled, you will see an error.
    </p></div></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="std.util.memory.shared_ptr"></a>shared_ptr</h3></div></div></div><p>
 The shared_ptr class template stores a pointer, usually obtained via new,
@@ -525,7 +525,7 @@ available policies are:
        <code class="constant">_S_atomic</code>
        </p><p>
 Selected when GCC supports a builtin atomic compare-and-swap operation
-on the target processor (see <a class="link" href="http://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html" target="_top">Atomic
+on the target processor (see <a class="link" href="https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html" target="_top">Atomic
 Builtins</a>.)  The reference counts are maintained using a lock-free
 algorithm and GCC's atomic builtins, which provide the required memory
 synchronisation.
@@ -621,19 +621,19 @@ be private.
     invaluable advice on thread safety.  Phillip Jordan and Paolo
     Carlini for the lock policy implementation.
   </p></div><div class="bibliography"><div class="titlepage"><div><div><h4 class="title"><a id="shared_ptr.biblio"></a>Bibliography</h4></div></div></div><div class="biblioentry"><a id="id-1.3.4.4.4.5.8.2"></a><p><span class="title"><em>
-	<a class="link" href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2351.htm" target="_top">
+	<a class="link" href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2351.htm" target="_top">
       Improving shared_ptr for C++0x, Revision 2
 	</a>
       </em>. </span><span class="subtitle">
       N2351
     . </span></p></div><div class="biblioentry"><a id="id-1.3.4.4.4.5.8.3"></a><p><span class="title"><em>
-	<a class="link" href="http://open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2456.html" target="_top">
+	<a class="link" href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2456.html" target="_top">
       C++ Standard Library Active Issues List
 	</a>
       </em>. </span><span class="subtitle">
       N2456
     . </span></p></div><div class="biblioentry"><a id="id-1.3.4.4.4.5.8.4"></a><p><span class="title"><em>
-	<a class="link" href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2461.pdf" target="_top">
+	<a class="link" href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2461.pdf" target="_top">
       Working Draft, Standard for Programming Language C++
 	</a>
       </em>. </span><span class="subtitle">

@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -29,10 +29,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #include "gthr.h"
 
+typedef STATUS (* ENTRYPTR) (int);
+
 #if __GTHREADS_CXX0X
 
 #include <taskLib.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define __TIMESPEC_TO_NSEC(timespec) \
   ((long long)timespec.tv_sec * 1000000000 + (long long)timespec.tv_nsec)
@@ -188,7 +191,7 @@ __gthread_recursive_mutex_timedlock (__gthread_recursive_mutex_t *mutex,
 
 /* Task control block initialization and destruction functions.  */
 
-int
+static int
 __init_gthread_tcb (__gthread_t __tcb)
 {
   if (!__tcb)
@@ -221,7 +224,7 @@ return_sem_delete:
 
 /* Here, we pass a pointer to a tcb to allow calls from
    cleanup attributes.  */
-void
+static void
 __delete_gthread_tcb (__gthread_t* __tcb)
 {
   semDelete ((*__tcb)->return_value_available);
@@ -255,8 +258,8 @@ __gthread_self (void)
   return __local_tcb;
 }
 
-int
-__task_wrapper (__gthread_t tcb, FUNCPTR __func, _Vx_usr_arg_t __args)
+static int
+__task_wrapper (__gthread_t tcb, ENTRYPTR __func, _Vx_usr_arg_t __args)
 {
   if (!tcb)
     return ERROR;
@@ -321,7 +324,7 @@ __gthread_create (__gthread_t * __threadid, void *(*__func) (void *),
 
   TASK_ID task_id = taskCreate (NULL,
 				priority, options, stacksize,
-				(FUNCPTR) & __task_wrapper,
+				(FUNCPTR) (void *) __task_wrapper,
 				(_Vx_usr_arg_t) tcb,
 				(_Vx_usr_arg_t) __func,
 				(_Vx_usr_arg_t) __args,

@@ -1,5 +1,5 @@
 /* General-purpose hooks.
-   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
@@ -62,6 +62,20 @@ hook_bool_bool_gcc_optionsp_false (bool, struct gcc_options *)
   return false;
 }
 
+/* Generic hook that takes (dwarf_call_frame_info, dw_cfi_oprnd_type &) and
+   return false.  */
+bool hook_bool_dwcfi_dwcfioprndtyperef_false (dwarf_call_frame_info,
+					      dw_cfi_oprnd_type &)
+{
+  return false;
+}
+
+/* Generic hook that takes (FILE *, dw_cfi_ref) and return false.  */
+bool hook_bool_FILEptr_dwcfiptr_false (FILE *, dw_cfi_ref)
+{
+  return false;
+}
+
 /* Generic hook that takes const int, const int) and returns true.  */
 bool hook_bool_const_int_const_int_true (const int, const int)
 {
@@ -101,6 +115,13 @@ bool
 hook_bool_mode_const_rtx_true (machine_mode, const_rtx)
 {
   return true;
+}
+
+/* Generic hook that takes (machine_mode, int, unsigned) and returns false.  */
+bool
+hook_bool_mode_int_unsigned_false (machine_mode, int, unsigned)
+{
+  return false;
 }
 
 /* Generic hook that takes (machine_mode, rtx) and returns false.  */
@@ -277,11 +298,6 @@ hook_void_tree (tree)
 
 void
 hook_void_FILEptr_tree (FILE *, tree)
-{
-}
-
-void
-hook_void_rtx_tree (rtx, tree)
 {
 }
 
@@ -568,4 +584,21 @@ opt_machine_mode
 hook_optmode_mode_uhwi_none (machine_mode, unsigned HOST_WIDE_INT)
 {
   return opt_machine_mode ();
+}
+
+/* Generic hook that takes a string_slice and a locations and returns false.  */
+
+bool
+hook_stringslice_locationtptr_true (string_slice, location_t *)
+{
+  return true;
+}
+
+bool
+hook_stringslice_consttree_stringslice_consttree_unreachable (string_slice,
+							      const_tree,
+							      string_slice,
+							      const_tree)
+{
+  gcc_unreachable ();
 }

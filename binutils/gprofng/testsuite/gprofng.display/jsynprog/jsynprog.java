@@ -1,5 +1,22 @@
-// Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
-// @(#)jsynprog.java SMI
+/* Copyright (C) 2021-2026 Free Software Foundation, Inc.
+   Contributed by Oracle.
+
+   This file is part of GNU Binutils.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3, or (at your option)
+   any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 import java.util.*;
 import java.io.*;
@@ -27,17 +44,22 @@ class jsynprog
 	jsynprog jsyn_obj = new jsynprog();
 	Integer ni;
 	int scale = 1000;
+	String commands = "memalloc.add_int.add_double.has_inner_class" + 
+	  ".recurse.recursedeep.bounce.array_op.vector_op.sys_op" +
+	  ".jni_JavaJavaC.JavaCC.JavaCJava.Launcher";
 
 	createAcct();
 	LoadJNILibrary(args);
         testtime = computeSet();
 
 	/* check for invocation parameter */
-	if (args.length != 0) {
-	    if (args[0].equals("fast")) {
+	for (int i = 0; i < args.length; i++) {
+	    if (args[i].equals("-fast")) {
 		scale = 10000;
-	    } else if (args[0].equals("slow")) {
+	    } else if (args[i].equals("-slow")) {
 		scale = 1;
+	    } else if (args[i].equals("-j") && i + 1 < args.length) {
+		commands = args[++i];
 	    } else {
 		System.err.println("fatal: unexpected argument: " + args[0] );
 		System.exit(1);
@@ -47,84 +69,115 @@ class jsynprog
 	/* large memory allocations, trigger gc */
 	Routine rtn = new Routine();
 	Sub_Routine sbrt = new Sub_Routine();
-	recTime(); 
-	rtn.memalloc(10000, scale);
-	printValue("Routine.memalloc", false);
+
+	if (commands.indexOf("memalloc") >= 0) {
+	    recTime(); 
+	    rtn.memalloc(10000, scale);
+	    printValue("Routine.memalloc", false);
+	}
 
 	/* add integers */
-	recTime(); 
-	ni = new Integer (rtn.add_int(scale));
-	printValue("Routine.add_int", true);
+	if (commands.indexOf("add_int") >= 0) {
+	    recTime(); 
+	    ni = new Integer (rtn.add_int(scale));
+	    printValue("Routine.add_int", true);
+	}
 
 	/* add double */
-	recTime(); 
-	Double nd = new Double(rtn.add_double(scale)); 
-	printValue("Routine.add_double", true);
+	if (commands.indexOf("add_double") >= 0) {
+	    recTime(); 
+	    Double nd = new Double(rtn.add_double(scale)); 
+	    printValue("Routine.add_double", true);
+	}
 
 	/* call method in derived class */ 
-	recTime(); 
-	ni = new Integer (sbrt.add_int(scale));
-	printValue("Sub_Routine.add_int", true);
+	if (commands.indexOf("add_int") >= 0) {
+	    recTime(); 
+	    ni = new Integer (sbrt.add_int(scale));
+	    printValue("Sub_Routine.add_int", true);
+	}
 
 	/* call method that defines an inner class */ 
-	recTime(); 
-	Integer[] na = rtn.has_inner_class(scale);
-	printValue("Routine.has_inner_class", true);
+	if (commands.indexOf("has_inner_class") >= 0) {
+	    recTime(); 
+	    Integer[] na = rtn.has_inner_class(scale);
+	    printValue("Routine.has_inner_class", true);
+	}
 
 	/* recursion */ 
-	recTime(); 
-	rtn.recurse(0,80, scale);
-	printValue("Routine.recurse", true);
+	if (commands.indexOf("recurse") >= 0) {
+	    recTime(); 
+	    rtn.recurse(0,80, scale);
+	    printValue("Routine.recurse", true);
+	}
 
 	/* deep recursion */ 
-	recTime(); 
-	rtn.recursedeep(0,500, scale);
-	printValue("<Truncated-stack>", true);
+	if (commands.indexOf("recursedeep") >= 0) {
+	    recTime(); 
+	    rtn.recursedeep(0,500, scale);
+	    printValue("<Truncated-stack>", true);
+	}
 
 	/* indirect recursion */ 
-	recTime(); 
-	rtn.bounce(0,20, scale);
-	printValue("Routine.bounce", true);
+	if (commands.indexOf("bounce") >= 0) {
+	    recTime(); 
+	    rtn.bounce(0,20, scale);
+	    printValue("Routine.bounce", true);
+	}
 
 	/* array operations */ 
-	recTime(); 
-	rtn.array_op(scale);
-	printValue("Routine.array_op", false);
+	if (commands.indexOf("array_op") >= 0) {
+	    recTime(); 
+	    rtn.array_op(scale);
+	    printValue("Routine.array_op", false);
+	}
 
 	/* Vector operations */ 
-	recTime(); 
-	rtn.vector_op(scale);
-	printValue("Routine.vector_op", false);
+	if (commands.indexOf("vector_op") >= 0) {
+	    recTime(); 
+	    rtn.vector_op(scale);
+	    printValue("Routine.vector_op", false);
+	}
 
 	/* spend time in system calls */ 
-	recTime(); 
-	rtn.sys_op(scale);
-	printValue("Routine.sys_op", false);
+	if (commands.indexOf("sys_op") >= 0) {
+	    recTime(); 
+	    rtn.sys_op(scale);
+	    printValue("Routine.sys_op", false);
+	}
 
 	/* java->java->c */
-	recTime(); 
-	int np = 0;
-	jni_JavaJavaC(np, scale);
-	printValue("jsynprog.jni_JavaJavaC", true);
+	if (commands.indexOf("jni_JavaJavaC") >= 0) {
+	    recTime(); 
+	    int np = 0;
+	    jni_JavaJavaC(np, scale);
+	    printValue("jsynprog.jni_JavaJavaC", true);
+	}
 
 	/* java->c->c */
-	recTime(); 
-	JavaCC(scale);
-	printValue("jsynprog.JavaCC", true);
+	if (commands.indexOf("JavaCC") >= 0) {
+	    recTime(); 
+	    JavaCC(scale);
+	    printValue("jsynprog.JavaCC", true);
+	}
 
 	/* java->c->java */
-	recTime(); 
-	JavaCJava(scale);
-	printValue("jsynprog.JavaCJava", true);
+	if (commands.indexOf("JavaCJava") >= 0) {
+	    recTime(); 
+	    JavaCJava(scale);
+	    printValue("jsynprog.JavaCJava", true);
+	}
      
      
 	/* dynamically loaded classes */
-	String java_ver = System.getProperty("java.version");
-	Launcher lnch = new Launcher();
-	String[] params = new String[]{"DynLoadedClass"};
-	recTime();
-	lnch.main(params);
-	printValue("Launcher.main", true);
+	if (commands.indexOf("Launcher") >= 0) {
+	    String java_ver = System.getProperty("java.version");
+	    Launcher lnch = new Launcher();
+	    String[] params = new String[]{"DynLoadedClass"};
+	    recTime();
+	    lnch.main(params);
+	    printValue("Launcher.main", true);
+	}
 
 	System.gc();
    }

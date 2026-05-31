@@ -1,4 +1,5 @@
 // { dg-do run }
+// { dg-skip-if "requires hosted libstdc++ for cstdlib abort" { ! hostedlib } }
 
 // Check that we can use multiple co_awaits as a call parm.
 
@@ -68,6 +69,6 @@ int main ()
       abort ();
     }
 
-  puts ("main: done");
+  PRINT ("main: done");
   return 0;
 }

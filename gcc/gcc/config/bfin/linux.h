@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2007-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -35,7 +35,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #undef LINK_GCC_C_SEQUENCE_SPEC
 #define LINK_GCC_C_SEQUENCE_SPEC \
-  "%{static|static-pie:--start-group} %{mfast-fp:-lbffastfp} %G %{!nolibc:%L} \
+  "%{static|static-pie:--start-group} %{mfast-fp:-lbffastfp} %G %{!nolibc:" LINK_LIBATOMIC_SPEC "%L} \
    %{static|static-pie:--end-group} \
    %{!static:%{!static-pie:%{mfast-fp:-lbffastfp} %G}}"
 

@@ -37,25 +37,7 @@ QUICKREF
 
 #include <string.h>
 #include <limits.h>
-
-/* Nonzero if X is aligned on a "long" boundary.  */
-#define ALIGNED(X) \
-  (((long)X & (sizeof (long) - 1)) == 0)
-
-#if LONG_MAX == 2147483647L
-#define DETECTNULL(X) (((X) - 0x01010101) & ~(X) & 0x80808080)
-#else
-#if LONG_MAX == 9223372036854775807L
-/* Nonzero if X (a long int) contains a NULL byte. */
-#define DETECTNULL(X) (((X) - 0x0101010101010101) & ~(X) & 0x8080808080808080)
-#else
-#error long int is not a 32bit or 64bit type.
-#endif
-#endif
-
-#ifndef DETECTNULL
-#error long int is not a 32bit or 64bit byte
-#endif
+#include "local.h"
 
 char *
 strncat (char *__restrict s1,
@@ -77,18 +59,22 @@ strncat (char *__restrict s1,
 #else
   char *s = s1;
 
-  /* Skip over the data in s1 as quickly as possible.  */
-  if (ALIGNED (s1))
-    {
-      unsigned long *aligned_s1 = (unsigned long *)s1;
-      while (!DETECTNULL (*aligned_s1))
-	aligned_s1++;
-
-      s1 = (char *)aligned_s1;
-    }
-
-  while (*s1)
+  /* Skip unaligned memory in s1.  */
+  while (UNALIGNED_X(s1) && *s1)
     s1++;
+
+  if (*s1)
+    {
+      /* Skip over the aligned data in s1 as quickly as possible.  */
+      unsigned long *aligned_s1 = (unsigned long *)s1;
+      while (!DETECT_NULL(*aligned_s1))
+        aligned_s1++;
+      s1 = (char *)aligned_s1;
+
+      /* Find string terminator.  */
+      while (*s1)
+        s1++;
+    }
 
   /* s1 now points to the its trailing null character, now copy
      up to N bytes from S2 into S1 stopping if a NULL is encountered

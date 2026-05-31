@@ -9,7 +9,6 @@
  */
 module core.sys.windows.rapi;
 version (Windows):
-@system:
 
 /* Comment from MinGW
    NOTE: This strictly does not belong in the Win32 API since it's
@@ -31,7 +30,7 @@ interface IRAPIStream
     HRESULT GetRapiStat(RAPISTREAMFLAG, DWORD*);
 }
 
-alias HRESULT function(DWORD, BYTE, DWORD, BYTE, IRAPIStream) RAPIEXT;
+alias RAPIEXT = HRESULT function(DWORD, BYTE, DWORD, BYTE, IRAPIStream);
 
 struct RAPIINIT
 {

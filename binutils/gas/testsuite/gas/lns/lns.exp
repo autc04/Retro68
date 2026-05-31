@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2022 Free Software Foundation, Inc.
+# Copyright (C) 2012-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ if { ![istarget s390*-*-*] } {
 	 || [istarget cr16-*-*]
 	 || [istarget crx-*-*]
 	 || [istarget ft32*-*]
+	 || [istarget loongarch*-*-*]
 	 || [istarget mn10*-*-*]
 	 || [istarget msp430-*-*]
 	 || [istarget nds32*-*-*]
@@ -44,6 +45,8 @@ if { ![istarget s390*-*-*] } {
       run_dump_test "lns-common-1" { { source "lns-common-1-ia64.s" } }
     } elseif { [istarget or1k*-*-*] } {
       run_dump_test "lns-common-1" { { source "lns-common-1-or1k.s" } }
+    } elseif { [istarget kvx*-*-*] } {
+      run_dump_test "lns-common-1" { { source "lns-common-1-kvx.s" } }
     } else {
       run_dump_test "lns-common-1"
     }

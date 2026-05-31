@@ -8,5 +8,5 @@
 	resulting size was gigantic and consequently the library quickly ran out
 	of memory.  */
 
-	.section	.debug_str,"MS",@progbits,1
+	.section	.debug_str,"MS",%progbits,1
 	.string	"ZLIB_VER_SUBREVISION 0"

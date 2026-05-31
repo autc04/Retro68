@@ -1,4 +1,4 @@
-// Copyright (C) 2013-2022 Free Software Foundation, Inc.
+// Copyright (C) 2013-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -43,7 +43,7 @@ void test01()
 
   Container con(v.data(), v.data() + 7);
 
-  std::nth_element(con.begin(), con.begin() + 3, con.end());
+  std::nth_element(con.begin(), std::next(con.begin(), 3), con.end());
 }
 
 int main()

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2000-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2000-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -261,8 +261,6 @@ package body SFN_Scan is
       if At_EOF then
          Error ("unexpected end of file");
       end if;
-
-      return;
    end Check_Not_At_EOF;
 
    -----------------
@@ -583,6 +581,7 @@ package body SFN_Scan is
 
          else
             Skip_Loop : loop
+               Skip_WS;
                exit Main_Scan_Loop when At_EOF;
                exit Skip_Loop when S (P) = ';';
 
@@ -622,7 +621,6 @@ package body SFN_Scan is
          Q := '%';
       else
          Error ("bad string");
-         Q := '"';
       end if;
 
       --  Scan out the string, B points to first char

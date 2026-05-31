@@ -51,6 +51,7 @@ int main ()
   foo (a1, b);
   bar (a2, b);
 
+#pragma GCC novector
   for (i = 0; i < ARR_SIZE; i++)
     if (a1[i] != a2[i])
       return 1;
@@ -58,4 +59,4 @@ int main ()
   return 0;
 
 }
-/* { dg-final { scan-tree-dump-not "vectorizing stmts using SLP" "slp1" } } */
+/* { dg-final { scan-tree-dump-not "vectorizable constructor" "slp1" } } */

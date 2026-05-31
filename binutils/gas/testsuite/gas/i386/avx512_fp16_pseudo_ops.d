@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 VCM.*{PH,SH} insns
 #source: avx512_fp16_pseudo_ops.s

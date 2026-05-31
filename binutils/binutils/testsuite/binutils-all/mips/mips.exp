@@ -1,4 +1,4 @@
-# Copyright (C) 2013-2022 Free Software Foundation, Inc.
+# Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -125,13 +125,23 @@ if {[istarget *-*-openbsd*] } {
     if [istarget *el-*-*] {
 	set abi_asflags(o32) -32
 	set abi_ldflags(o32) -melf32ltsmip
-	set abi_asflags(n64) "-march=from-abi -64"
-	set abi_ldflags(n64) -melf64ltsmip
+	if [istarget *-*-*-gnuabi64] {
+	    set abi_asflags(n32) "-march=from-abi -n32"
+	    set abi_ldflags(n32) -melf32ltsmipn32
+	} else {
+	    set abi_asflags(n64) "-march=from-abi -64"
+	    set abi_ldflags(n64) -melf64ltsmip
+	}
     } else {
 	set abi_asflags(o32) -32
 	set abi_ldflags(o32) -melf32btsmip
-	set abi_asflags(n64) "-march=from-abi -64"
-	set abi_ldflags(n64) -melf64btsmip
+	if [istarget *-*-*-gnuabi64] {
+	    set abi_asflags(n32) "-march=from-abi -n32"
+	    set abi_ldflags(n32) -melf32btsmipn32
+	} else {
+	    set abi_asflags(n64) "-march=from-abi -64"
+	    set abi_ldflags(n64) -melf64btsmip
+	}
     }
     set irixemul 0
 } elseif {[istarget *-*-linux*] } {
@@ -246,6 +256,10 @@ run_dump_test_o32 "mips32r6-branch-alias"
 run_dump_test_o32 "mips32r6-branch-noalias"
 run_dump_test_o32 "micromips-branch-alias"
 run_dump_test_o32 "micromips-branch-noalias"
+run_dump_test_o32 "mips32-mt-alias"
+run_dump_test_o32 "mips32-mt-noalias"
+run_dump_test_o32 "micromips-mt-alias"
+run_dump_test_o32 "micromips-mt-noalias"
 
 run_dump_test_o32 "mips-note-2"
 run_dump_test_n32 "mips-note-2-n32"
@@ -266,3 +280,7 @@ run_dump_test_n64 "global-local-symtab-sort-n64${tmips}"
 run_dump_test_o32 "global-local-symtab-final-o32" useld
 run_dump_test_n32 "global-local-symtab-final-n32" useld
 run_dump_test_n64 "global-local-symtab-final-n64" useld
+
+run_dump_test_o32 "micromips-reserved-enc-o32"
+run_dump_test_n32 "micromips-reserved-enc-n32"
+run_dump_test_n64 "micromips-reserved-enc-n64"

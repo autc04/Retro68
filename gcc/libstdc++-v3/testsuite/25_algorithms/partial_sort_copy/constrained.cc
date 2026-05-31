@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 // { dg-require-cstdint "" }
 
 #include <algorithm>
@@ -36,7 +35,7 @@ namespace ranges = std::ranges;
 void
 test01()
 {
-  for (unsigned size = 0; size < 50; ++size)
+  for (std::ptrdiff_t size = 0; size < 50; ++size)
     {
       std::vector<int> vref(size);
       std::iota(vref.begin(), vref.end(), 0);
@@ -46,7 +45,7 @@ test01()
       ranges::shuffle(v1, g1);
       ranges::shuffle(v2, g2);
 
-      for (unsigned middle = 0; middle < 10; ++middle)
+      for (std::ptrdiff_t middle = 0; middle < 10; ++middle)
 	{
 	  test_container<int, forward_iterator_wrapper> c
 	    = {v1.data(), v1.data() + size};

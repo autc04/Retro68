@@ -1,5 +1,5 @@
 #source: tls-dtprelm.s --defsym r=32767
-#as: --no-underscore --em=criself --pic
+#as: --no-underscore --emulation=criself --pic
 #ld: --shared -m crislinux --hash-style=sysv
 #objdump: -s -j .got -j .text -j .tdata -R
 

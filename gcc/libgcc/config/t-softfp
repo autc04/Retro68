@@ -1,4 +1,4 @@
-# Copyright (C) 2006-2022 Free Software Foundation, Inc.
+# Copyright (C) 2006-2026 Free Software Foundation, Inc.
 
 # This file is part of GCC.
 
@@ -64,6 +64,18 @@ softfp_float_funcs = add$(m)3 div$(m)3 eq$(m)2 ge$(m)2 le$(m)2 mul$(m)3 \
   neg$(m)2 sub$(m)3 unord$(m)2
 softfp_floatint_funcs = fix$(m)$(i) fixuns$(m)$(i) \
   float$(i)$(m) floatun$(i)$(m)
+softfp_floatbitint_funcs = fix$(m)bitint floatbitint$(m)
+softfp_bid_list := 
+ifeq ($(decimal_float),yes)
+softfp_bid_list += bitintpow10 \
+		   $(foreach m,sd dd td,fix$(m)bitint floatbitint$(m) \
+					fix$(m)ti fixuns$(m)ti \
+					floatti$(m) floatunti$(m))
+endif
+
+softfp_bitint_func_list :=  \
+  $(foreach m,sf df,$(softfp_floatbitint_funcs)) \
+  $(bitint_extras)
 
 softfp_func_list := \
   $(foreach m,$(softfp_float_modes), \
@@ -84,7 +96,8 @@ softfp_func_list := $(filter-out floatdidf floatdisf fixunsdfsi fixunssfsi \
 endif
 
 ifeq ($(softfp_compat),y)
-softfp_file_list := $(addsuffix .c,$(softfp_func_list))
+softfp_file_list := $(addsuffix .c,$(softfp_func_list)) \
+		    $(addsuffix .c,$(softfp_bitint_func_list))
 
 ifeq ($(enable_shared),yes)
 softfp_map_dep := libgcc.map.in
@@ -115,7 +128,11 @@ else
 softfp_file_list := \
   $(addsuffix .c,$(addprefix $(srcdir)/soft-fp/,$(softfp_func_list)))
 endif
+softfp_file_list += \
+  $(addsuffix .c,$(addprefix $(srcdir)/soft-fp/,$(softfp_bitint_func_list)))
 endif
+softfp_bid_file_list := \
+  $(addsuffix .c,$(addprefix $(srcdir)/soft-fp/,$(softfp_bid_list)))
 
 # Disable missing prototype and type limit warnings.  The prototypes
 # for the functions in the soft-fp files have not been brought across
@@ -126,9 +143,10 @@ soft-fp-objects-base = $(basename $(notdir $(softfp_file_list)))
 soft-fp-objects = $(addsuffix $(objext), $(soft-fp-objects-base)) \
   $(addsuffix _s$(objext), $(soft-fp-objects-base))
 
-$(soft-fp-objects) : INTERNAL_CFLAGS += -Wno-missing-prototypes -Wno-type-limits
+$(soft-fp-objects) : INTERNAL_CFLAGS += -Wno-missing-prototypes -Wno-type-limits $(softfp_cflags)
 
 LIB2ADD += $(softfp_file_list)
+LIB2ADD_ST += $(softfp_bid_file_list)
 
 ifneq ($(softfp_exclude_libgcc2),y)
 # Functions in libgcc2.c are excluded for each soft-float mode (a

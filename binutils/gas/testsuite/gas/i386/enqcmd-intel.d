@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 ENQCMD[S] insns (Intel disassembly)
 #source: enqcmd.s

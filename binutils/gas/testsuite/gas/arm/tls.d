@@ -12,12 +12,12 @@
 Disassembly of section .text:
 
 0+00 <arm_fn>:
-   0:	e1a00000 	nop			; .*
+   0:	e1a00000 	nop			@ .*
 			0: R_ARM_TLS_DESCSEQ	af
-   4:	e59f0014 	ldr	r0, \[pc, #20\]	; 20 .*
+   4:	e59f0014 	ldr	r0, \[pc, #20\]	@ 20 .*
    8:	fa000000 	blx	8 <ae.*>
 			8: R_ARM_TLS_CALL	ae
-   c:	e1a00000 	nop			; .*
+   c:	e1a00000 	nop			@ .*
 0+10 <.arm_pool>:
   10:	00000008 	.word	0x00000008
 			10: R_ARM_TLS_GD32	aa
@@ -30,13 +30,13 @@ Disassembly of section .text:
   20:	00000018 	.word	0x00000018
 			20: R_ARM_TLS_GOTDESC	ae
 0+24 <thumb_fn>:
-  24:	46c0      	nop			; .*
-  26:	46c0      	nop			; .*
+  24:	46c0      	nop			@ .*
+  26:	46c0      	nop			@ .*
 			26: R_ARM_THM_TLS_DESCSEQ	tf
-  28:	4805      	ldr	r0, \[pc, #20\]	; \(40 .*\)
+  28:	4805      	ldr	r0, \[pc, #20\]	@ \(40 .*\)
   2a:	f000 e800 	blx	4 <te.*>
 			2a: R_ARM_THM_TLS_CALL	te
-  2e:	46c0      	nop			; .*
+  2e:	46c0      	nop			@ .*
   30:	00000002 	.word	0x00000002
 			30: R_ARM_TLS_GD32	ta
   34:	00000006 	.word	0x00000006

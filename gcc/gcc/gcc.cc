@@ -1,5 +1,5 @@
 /* Compiler driver program that can handle many languages.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -27,8 +27,13 @@ CC recognizes how to compile each input file by suffixes in the file names.
 Once it knows which kind of compilation to perform, the procedure for
 compilation is specified by a string called a "spec".  */
 
+#define INCLUDE_STRING
+#define INCLUDE_VECTOR
 #include "config.h"
 #include "system.h"
+#ifdef HOST_HAS_PERSONALITY_ADDR_NO_RANDOMIZE
+#include <sys/personality.h>
+#endif
 #include "coretypes.h"
 #include "multilib.h" /* before tm.h */
 #include "tm.h"
@@ -39,11 +44,21 @@ compilation is specified by a string called a "spec".  */
 #include "opt-suggestions.h"
 #include "gcc.h"
 #include "diagnostic.h"
+#include "diagnostics/sink.h"
+#include "pretty-print-urlifier.h"
 #include "flags.h"
 #include "opts.h"
 #include "filenames.h"
 #include "spellcheck.h"
+#include "opts-jobserver.h"
+#include "common/common-target.h"
+#include "gcc-urlifier.h"
+#include "opts-diagnostic.h"
+#include "auto-profile.h" /* for AUTO_PROFILE_VERSION.  */
 
+#ifndef MATH_LIBRARY
+#define MATH_LIBRARY "m"
+#endif
 
 
 /* Manage the manipulation of env vars.
@@ -132,7 +147,7 @@ env_manager::xput (const char *string)
       m_keys.safe_push (kv);
     }
 
-  ::putenv (CONST_CAST (char *, string));
+  ::putenv (const_cast<char *> (string));
 }
 
 /* Undo any xputenv changes made since last restore.
@@ -295,6 +310,14 @@ static size_t dumpdir_length = 0;
    driver added to dumpdir after dumpbase or linker output name.  */
 static bool dumpdir_trailing_dash_added = false;
 
+/* True if -r, -shared, -pie, -no-pie, -z lazy, or -z norelro were
+   specified on the command line, and therefore -fhardened should not
+   add -z now/relro.  */
+static bool avoid_linker_hardening_p;
+
+/* True if -static was specified on the command line.  */
+static bool static_p;
+
 /* Basename of dump and aux outputs, computed from dumpbase (given or
    derived from output name), to override input_basename in non-%w %b
    et al.  */
@@ -394,7 +417,7 @@ static int do_spec_2 (const char *, const char *);
 static void do_option_spec (const char *, const char *);
 static void do_self_spec (const char *);
 static const char *find_file (const char *);
-static int is_directory (const char *, bool);
+static int is_directory (const char *);
 static const char *validate_switches (const char *, bool, bool);
 static void validate_all_switches (void);
 static inline void validate_switches_from_spec (const char *, bool);
@@ -440,6 +463,7 @@ static const char *greater_than_spec_func (int, const char **);
 static const char *debug_level_greater_than_spec_func (int, const char **);
 static const char *dwarf_version_greater_than_spec_func (int, const char **);
 static const char *find_fortran_preinclude_file (int, const char **);
+static const char *join_spec_func (int, const char **);
 static char *convert_white_space (char *);
 static char *quote_spec (char *);
 static char *quote_spec_arg (char *);
@@ -572,6 +596,7 @@ or with constant text in a single argument.
  %l     process LINK_SPEC as a spec.
  %L     process LIB_SPEC as a spec.
  %M     Output multilib_os_dir.
+ %P	Output a RUNPATH_OPTION for each directory in startfile_prefixes.
  %G     process LIBGCC_SPEC as a spec.
  %R     Output the concatenation of target_system_root and
         target_sysroot_suffix.
@@ -703,6 +728,20 @@ proper position among the other output files.  */
 #define CPP_SPEC ""
 #endif
 
+/* libc can define LIBC_CPP_SPEC to provide extra args to the C preprocessor
+   or extra switch-translations. */
+
+#ifndef LIBC_CPP_SPEC
+#define LIBC_CPP_SPEC ""
+#endif
+
+/* Operating systems can define OS_CC1_SPEC to provide extra args to cc1 and
+   cc1plus or extra switch-translations.  The OS_CC1_SPEC is appended
+   to CC1_SPEC in the initialization of cc1_spec.  */
+#ifndef OS_CC1_SPEC
+#define OS_CC1_SPEC ""
+#endif
+
 /* config.h can define CC1_SPEC to provide extra args to cc1 and cc1plus
    or extra switch-translations.  */
 #ifndef CC1_SPEC
@@ -719,6 +758,12 @@ proper position among the other output files.  */
    or extra switch-translations.  */
 #ifndef LINK_SPEC
 #define LINK_SPEC ""
+#endif
+
+/* libc can define LIBC_LINK_SPEC to provide extra args to the linker
+   or extra switch-translations.  */
+#ifndef LIBC_LINK_SPEC
+#define LIBC_LINK_SPEC ""
 #endif
 
 /* config.h can define LIB_SPEC to override the default libraries.  */
@@ -828,21 +873,19 @@ proper position among the other output files.  */
 #define LINK_COMPRESS_DEBUG_SPEC \
 	" %{gz*:%e-gz is not supported in this configuration} "
 #elif HAVE_LD_COMPRESS_DEBUG == 1
-/* GNU style on input, GNU ld options.  Reject, not useful.  */
-#define LINK_COMPRESS_DEBUG_SPEC \
-	" %{gz*:%e-gz is not supported in this configuration} "
-#elif HAVE_LD_COMPRESS_DEBUG == 2
-/* GNU style, GNU gold options.  */
-#define LINK_COMPRESS_DEBUG_SPEC \
-	" %{gz|gz=zlib-gnu:" LD_COMPRESS_DEBUG_OPTION "=zlib}" \
-	" %{gz=none:"        LD_COMPRESS_DEBUG_OPTION "=none}" \
-	" %{gz=zlib:%e-gz=zlib is not supported in this configuration} "
-#elif HAVE_LD_COMPRESS_DEBUG == 3
 /* ELF gABI style.  */
 #define LINK_COMPRESS_DEBUG_SPEC \
 	" %{gz|gz=zlib:"  LD_COMPRESS_DEBUG_OPTION "=zlib}" \
 	" %{gz=none:"	  LD_COMPRESS_DEBUG_OPTION "=none}" \
-	" %{gz=zlib-gnu:" LD_COMPRESS_DEBUG_OPTION "=zlib-gnu} "
+	" %{gz=zstd:%e-gz=zstd is not supported in this configuration} " \
+	" %{gz=zlib-gnu:}" /* Ignore silently zlib-gnu option value.  */
+#elif HAVE_LD_COMPRESS_DEBUG == 2
+/* ELF gABI style and ZSTD.  */
+#define LINK_COMPRESS_DEBUG_SPEC \
+	" %{gz|gz=zlib:"  LD_COMPRESS_DEBUG_OPTION "=zlib}" \
+	" %{gz=none:"	  LD_COMPRESS_DEBUG_OPTION "=none}" \
+	" %{gz=zstd:"	  LD_COMPRESS_DEBUG_OPTION "=zstd}" \
+	" %{gz=zlib-gnu:}" /* Ignore silently zlib-gnu option value.  */
 #else
 #error Unknown value for HAVE_LD_COMPRESS_DEBUG.
 #endif
@@ -876,37 +919,38 @@ proper position among the other output files.  */
 #endif
 
 #ifdef HAVE_AS_DEBUG_PREFIX_MAP
-#define ASM_MAP " %{fdebug-prefix-map=*:--debug-prefix-map %*}"
+#define ASM_MAP " %{ffile-prefix-map=*:--debug-prefix-map %*} %{fdebug-prefix-map=*:--debug-prefix-map %*}"
 #else
 #define ASM_MAP ""
 #endif
 
 /* Assembler options for compressed debug sections.  */
-#if HAVE_LD_COMPRESS_DEBUG < 2
+#if HAVE_LD_COMPRESS_DEBUG == 0
 /* Reject if the linker cannot write compressed debug sections.  */
 #define ASM_COMPRESS_DEBUG_SPEC \
 	" %{gz*:%e-gz is not supported in this configuration} "
-#else /* HAVE_LD_COMPRESS_DEBUG >= 2 */
+#else /* HAVE_LD_COMPRESS_DEBUG >= 1 */
 #if HAVE_AS_COMPRESS_DEBUG == 0
 /* No assembler support.  Ignore silently.  */
 #define ASM_COMPRESS_DEBUG_SPEC \
 	" %{gz*:} "
 #elif HAVE_AS_COMPRESS_DEBUG == 1
-/* GNU style, GNU as options.  */
-#define ASM_COMPRESS_DEBUG_SPEC \
-	" %{gz|gz=zlib-gnu:" AS_COMPRESS_DEBUG_OPTION "}" \
-	" %{gz=none:"        AS_NO_COMPRESS_DEBUG_OPTION "}" \
-	" %{gz=zlib:%e-gz=zlib is not supported in this configuration} "
-#elif HAVE_AS_COMPRESS_DEBUG == 2
 /* ELF gABI style.  */
 #define ASM_COMPRESS_DEBUG_SPEC \
 	" %{gz|gz=zlib:"  AS_COMPRESS_DEBUG_OPTION "=zlib}" \
 	" %{gz=none:"	  AS_COMPRESS_DEBUG_OPTION "=none}" \
-	" %{gz=zlib-gnu:" AS_COMPRESS_DEBUG_OPTION "=zlib-gnu} "
+	" %{gz=zlib-gnu:}" /* Ignore silently zlib-gnu option value.  */
+#elif HAVE_AS_COMPRESS_DEBUG == 2
+/* ELF gABI style and ZSTD.  */
+#define ASM_COMPRESS_DEBUG_SPEC \
+	" %{gz|gz=zlib:"  AS_COMPRESS_DEBUG_OPTION "=zlib}" \
+	" %{gz=none:"	  AS_COMPRESS_DEBUG_OPTION "=none}" \
+	" %{gz=zstd:"	  AS_COMPRESS_DEBUG_OPTION "=zstd}" \
+	" %{gz=zlib-gnu:}" /* Ignore silently zlib-gnu option value.  */
 #else
 #error Unknown value for HAVE_AS_COMPRESS_DEBUG.
 #endif
-#endif /* HAVE_LD_COMPRESS_DEBUG >= 2 */
+#endif /* HAVE_LD_COMPRESS_DEBUG >= 1 */
 
 /* Define ASM_DEBUG_SPEC to be a spec suitable for translating '-g'
    to the assembler, when compiling assembly sources only.  */
@@ -925,26 +969,11 @@ proper position among the other output files.  */
 # else
 #  define ASM_DEBUG_DWARF_OPTION "--gdwarf2"
 # endif
-# if defined(DBX_DEBUGGING_INFO) && defined(DWARF2_DEBUGGING_INFO) \
-     && defined(HAVE_AS_GDWARF2_DEBUG_FLAG) && defined(HAVE_AS_GSTABS_DEBUG_FLAG)
-#  define ASM_DEBUG_SPEC						\
-      (PREFERRED_DEBUGGING_TYPE == DBX_DEBUG				\
-       ? "%{%:debug-level-gt(0):"					\
-	 "%{gdwarf*:" ASM_DEBUG_DWARF_OPTION "};"			\
-	 ":%{g*:--gstabs}}" ASM_MAP					\
-       : "%{%:debug-level-gt(0):"					\
-	 "%{gstabs*:--gstabs;"						\
-	 ":%{g*:" ASM_DEBUG_DWARF_OPTION "}}}" ASM_MAP)
-# else
-#  if defined(DBX_DEBUGGING_INFO) && defined(HAVE_AS_GSTABS_DEBUG_FLAG)
-#   define ASM_DEBUG_SPEC "%{g*:%{%:debug-level-gt(0):--gstabs}}" ASM_MAP
-#  endif
 #  if defined(DWARF2_DEBUGGING_INFO) && defined(HAVE_AS_GDWARF2_DEBUG_FLAG)
 #   define ASM_DEBUG_SPEC "%{g*:%{%:debug-level-gt(0):" \
 	ASM_DEBUG_DWARF_OPTION "}}" ASM_MAP
 #  endif
 # endif
-#endif
 #ifndef ASM_DEBUG_SPEC
 # define ASM_DEBUG_SPEC ""
 #endif
@@ -958,14 +987,7 @@ proper position among the other output files.  */
 	"%:dwarf-version-gt(3):--gdwarf-4 ;"				\
 	"%:dwarf-version-gt(2):--gdwarf-3 ;"				\
 	":--gdwarf2 }"
-#  if defined(DBX_DEBUGGING_INFO) && defined(DWARF2_DEBUGGING_INFO)
-#  define ASM_DEBUG_OPTION_SPEC						\
-      (PREFERRED_DEBUGGING_TYPE == DBX_DEBUG				\
-       ? "%{%:debug-level-gt(0):"					\
-	 "%{gdwarf*:" ASM_DEBUG_OPTION_DWARF_OPT "}}" 			\
-       : "%{%:debug-level-gt(0):"					\
-	 "%{!gstabs*:%{g*:" ASM_DEBUG_OPTION_DWARF_OPT "}}}")
-# elif defined(DWARF2_DEBUGGING_INFO)
+# if defined(DWARF2_DEBUGGING_INFO)
 #   define ASM_DEBUG_OPTION_SPEC "%{g*:%{%:debug-level-gt(0):" \
 	ASM_DEBUG_OPTION_DWARF_OPT "}}"
 #  endif
@@ -976,6 +998,17 @@ proper position among the other output files.  */
 #endif
 
 /* Here is the spec for running the linker, after compiling all files.  */
+
+#if defined(TARGET_PROVIDES_LIBATOMIC) && defined(USE_LD_AS_NEEDED)
+#ifdef USE_LD_AS_NEEDED_LDSCRIPT
+#define LINK_LIBATOMIC_SPEC "%{!fno-link-libatomic:-latomic_asneeded} "
+#else
+#define LINK_LIBATOMIC_SPEC "%{!fno-link-libatomic:" LD_AS_NEEDED_OPTION \
+			    " -latomic " LD_NO_AS_NEEDED_OPTION "} "
+#endif
+#else
+#define LINK_LIBATOMIC_SPEC ""
+#endif
 
 /* This is overridable by the target in case they need to specify the
    -lgcc and -lc order specially, yet not require them to override all
@@ -1159,13 +1192,13 @@ proper position among the other output files.  */
    "%{fuse-ld=*:-fuse-ld=%*} " LINK_COMPRESS_DEBUG_SPEC \
    "%X %{o*} %{e*} %{N} %{n} %{r}\
     %{s} %{t} %{u*} %{z} %{Z} %{!nostdlib:%{!r:%{!nostartfiles:%S}}} \
-    %{static|no-pie|static-pie:} %@{L*} %(mfwrap) %(link_libgcc) " \
+    %{static|no-pie|static-pie:} %@{L*} %(link_libgcc) " \
     VTABLE_VERIFICATION_SPEC " " SANITIZER_EARLY_SPEC " %o "" \
     %{fopenacc|fopenmp|%:gt(%{ftree-parallelize-loops=*:%*} 1):\
 	%:include(libgomp.spec)%(link_gomp)}\
     %{fgnu-tm:%:include(libitm.spec)%(link_itm)}\
-    %(mflib) " STACK_SPLIT_SPEC "\
-    %{fprofile-arcs|fprofile-generate*|coverage:-lgcov} " SANITIZER_SPEC " \
+    " STACK_SPLIT_SPEC "\
+    %{fprofile-arcs|fcondition-coverage|fpath-coverage|fprofile-generate*|coverage:-lgcov} " SANITIZER_SPEC " \
     %{!nostdlib:%{!r:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}}\
     %{!nostdlib:%{!r:%{!nostartfiles:%E}}} %{T*}  \n%(post_link) }}}}}}"
 #endif
@@ -1191,16 +1224,20 @@ proper position among the other output files.  */
 # define SYSROOT_HEADERS_SUFFIX_SPEC ""
 #endif
 
+#ifndef RUNPATH_OPTION
+# define RUNPATH_OPTION "-rpath"
+#endif
+
 static const char *asm_debug = ASM_DEBUG_SPEC;
 static const char *asm_debug_option = ASM_DEBUG_OPTION_SPEC;
-static const char *cpp_spec = CPP_SPEC;
-static const char *cc1_spec = CC1_SPEC;
+static const char *cpp_spec = CPP_SPEC LIBC_CPP_SPEC;
+static const char *cc1_spec = CC1_SPEC OS_CC1_SPEC;
 static const char *cc1plus_spec = CC1PLUS_SPEC;
 static const char *link_gcc_c_sequence_spec = LINK_GCC_C_SEQUENCE_SPEC;
 static const char *link_ssp_spec = LINK_SSP_SPEC;
 static const char *asm_spec = ASM_SPEC;
 static const char *asm_final_spec = ASM_FINAL_SPEC;
-static const char *link_spec = LINK_SPEC;
+static const char *link_spec = LINK_SPEC LIBC_LINK_SPEC;
 static const char *lib_spec = LIB_SPEC;
 static const char *link_gomp_spec = "";
 static const char *libgcc_spec = LIBGCC_SPEC;
@@ -1244,7 +1281,9 @@ static const char *cpp_unique_options =
  %{remap} %{%:debug-level-gt(2):-dD}\
  %{!iplugindir*:%{fplugin*:%:find-plugindir()}}\
  %{H} %C %{D*&U*&A*} %{i*} %Z %i\
- %{E|M|MM:%W{o*}}";
+ %{E|M|MM:%W{o*}} %{-embed*}\
+ %{fdeps-format=*:%{!fdeps-file=*:-fdeps-file=%:join(%{!o:%b.ddi}%{o*:%.ddi%*})}}\
+ %{fdeps-format=*:%{!fdeps-target=*:-fdeps-target=%:join(%{!o:%b.o}%{o*:%.o%*})}}";
 
 /* This contains cpp options which are common with cc1_options and are passed
    only when preprocessing only to avoid duplication.  We pass the cc1 spec
@@ -1282,7 +1321,7 @@ static const char *cc1_options =
  %{!fsyntax-only:%{S:%W{o*}%{!o*:-o %w%b.s}}}\
  %{fsyntax-only:-o %j} %{-param*}\
  %{coverage:-fprofile-arcs -ftest-coverage}\
- %{fprofile-arcs|fprofile-generate*|coverage:\
+ %{fprofile-arcs|fcondition-coverage|fpath-coverage|fprofile-generate*|coverage:\
    %{!fprofile-update=single:\
      %{pthread:-fprofile-update=prefer-atomic}}}";
 
@@ -1347,7 +1386,11 @@ static const char *const multilib_defaults_raw[] = MULTILIB_DEFAULTS;
 
 static const char *const driver_self_specs[] = {
   "%{fdump-final-insns:-fdump-final-insns=.} %<fdump-final-insns",
-  DRIVER_SELF_SPECS, CONFIGURE_SPECS, GOMP_SELF_SPECS, GTM_SELF_SPECS
+  DRIVER_SELF_SPECS, CONFIGURE_SPECS, GOMP_SELF_SPECS, GTM_SELF_SPECS,
+  /* This discards -fmultiflags at the end of self specs processing in the
+     driver, so that it is effectively Ignored, without actually marking it as
+     Ignored, which would get it discarded before self specs could remap it.  */
+  "%<fmultiflags"
 };
 
 #ifndef OPTION_DEFAULT_SPECS
@@ -1432,6 +1475,7 @@ static const struct compiler default_compilers[] =
   {".r", "#Ratfor", 0, 0, 0},
   {".go", "#Go", 0, 1, 0},
   {".d", "#D", 0, 1, 0}, {".dd", "#D", 0, 1, 0}, {".di", "#D", 0, 1, 0},
+  {".mod", "#Modula-2", 0, 0, 0}, {".m2i", "#Modula-2", 0, 0, 0},
   /* Next come the entries for C.  */
   {".c", "@c", 0, 0, 1},
   {"@c",
@@ -1462,13 +1506,13 @@ static const struct compiler default_compilers[] =
 		    cc1 -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
 			%(cc1_options)\
 			%{!fsyntax-only:%{!S:-o %g.s} \
-			    %{!fdump-ada-spec*:%{!o*:--output-pch=%i.gch}\
-					       %W{o*:--output-pch=%*}}%V}}\
+			    %{!fdump-ada-spec*:%{!o*:--output-pch %w%i.gch}\
+					       %W{o*:--output-pch %w%*}}%{!S:%V}}}\
 	  %{!save-temps*:%{!traditional-cpp:%{!no-integrated-cpp:\
 		cc1 %(cpp_unique_options) %(cc1_options)\
 		    %{!fsyntax-only:%{!S:-o %g.s} \
-		        %{!fdump-ada-spec*:%{!o*:--output-pch=%i.gch}\
-					   %W{o*:--output-pch=%*}}%V}}}}}}}", 0, 0, 0},
+		        %{!fdump-ada-spec*:%{!o*:--output-pch %w%i.gch}\
+					   %W{o*:--output-pch %w%*}}%{!S:%V}}}}}}}}", 0, 0, 0},
   {".i", "@cpp-output", 0, 0, 0},
   {"@cpp-output",
    "%{!M:%{!MM:%{!E:cc1 -fpreprocessed %i %(cc1_options) %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 0},
@@ -1490,6 +1534,11 @@ static const struct compiler default_compilers[] =
        as %(asm_debug) %(asm_options) %m.s %A }}}}"
 #endif
    , 0, 0, 0},
+
+#ifndef EXTRA_DEFAULT_COMPILERS
+#define EXTRA_DEFAULT_COMPILERS
+#endif
+  EXTRA_DEFAULT_COMPILERS
 
 #include "specs.h"
   /* Mark end of table.  */
@@ -1776,6 +1825,7 @@ static const struct spec_function static_spec_functions[] =
   { "debug-level-gt",		debug_level_greater_than_spec_func },
   { "dwarf-version-gt",		dwarf_version_greater_than_spec_func },
   { "fortran-preinclude-file",	find_fortran_preinclude_file},
+  { "join",			join_spec_func},
 #ifdef EXTRA_SPEC_FUNCTIONS
   EXTRA_SPEC_FUNCTIONS
 #endif
@@ -1800,6 +1850,16 @@ init_gcc_specs (struct obstack *obstack, const char *shared_name,
   char *buf;
 
 #if USE_LD_AS_NEEDED
+#if defined(USE_LD_AS_NEEDED_LDSCRIPT) && !defined(USE_LIBUNWIND_EXCEPTIONS)
+  buf = concat ("%{static|static-libgcc|static-pie:", static_name, " ", eh_name, "}"
+		"%{!static:%{!static-libgcc:%{!static-pie:"
+		"%{!shared-libgcc:",
+		static_name, " ",
+		shared_name, "_asneeded}"
+		"%{shared-libgcc:",
+		shared_name, "%{!shared: ", static_name, "}"
+		"}}"
+#else
   buf = concat ("%{static|static-libgcc|static-pie:", static_name, " ", eh_name, "}"
 		"%{!static:%{!static-libgcc:%{!static-pie:"
 		"%{!shared-libgcc:",
@@ -1809,6 +1869,7 @@ init_gcc_specs (struct obstack *obstack, const char *shared_name,
 		"%{shared-libgcc:",
 		shared_name, "%{!shared: ", static_name, "}"
 		"}}"
+#endif
 #else
   buf = concat ("%{static|static-libgcc:", static_name, " ", eh_name, "}"
 		"%{!static:%{!static-libgcc:"
@@ -2095,7 +2156,7 @@ set_spec (const char *name, const char *spec, bool user_p)
 
   /* Free the old spec.  */
   if (old_spec && sl->alloc_p)
-    free (CONST_CAST (char *, old_spec));
+    free (const_cast<char *> (old_spec));
 
   sl->user_p = user_p;
   sl->alloc_p = true;
@@ -2125,6 +2186,10 @@ static int have_E = 0;
 
 /* Pointer to output file name passed in with -o. */
 static const char *output_file = 0;
+
+/* Pointer to input file name passed in with -truncate.
+   This file should be truncated after linking. */
+static const char *totruncate_file = 0;
 
 /* This is the list of suffixes and codes (%g/%u/%U/%j) and the associated
    temp file.  If the HOST_BIT_BUCKET is used for %j, no entry is made for
@@ -2252,7 +2317,7 @@ close_at_file (void)
 
   /* Copy the strings over.  */
   for (i = 0; i < n_args; i++)
-    argv[i] = CONST_CAST (char *, at_file_argbuf[i]);
+    argv[i] = const_cast<char *> (at_file_argbuf[i]);
   argv[i] = NULL;
 
   at_file_argbuf.truncate (0);
@@ -2398,8 +2463,7 @@ read_specs (const char *filename, bool main_p, bool user_p)
 	      if (*p1++ != '<' || p[-2] != '>')
 		fatal_error (input_location,
 			     "specs %%include syntax malformed after "
-			     "%ld characters",
-			     (long) (p1 - buffer + 1));
+			     "%td characters", p1 - buffer + 1);
 
 	      p[-2] = '\0';
 	      new_filename = find_a_file (&startfile_prefixes, p1, R_OK, true);
@@ -2419,8 +2483,7 @@ read_specs (const char *filename, bool main_p, bool user_p)
 	      if (*p1++ != '<' || p[-2] != '>')
 		fatal_error (input_location,
 			     "specs %%include syntax malformed after "
-			     "%ld characters",
-			     (long) (p1 - buffer + 1));
+			     "%td characters", p1 - buffer + 1);
 
 	      p[-2] = '\0';
 	      new_filename = find_a_file (&startfile_prefixes, p1, R_OK, true);
@@ -2446,8 +2509,7 @@ read_specs (const char *filename, bool main_p, bool user_p)
 	      if (! ISALPHA ((unsigned char) *p1))
 		fatal_error (input_location,
 			     "specs %%rename syntax malformed after "
-			     "%ld characters",
-			     (long) (p1 - buffer));
+			     "%td characters", p1 - buffer);
 
 	      p2 = p1;
 	      while (*p2 && !ISSPACE ((unsigned char) *p2))
@@ -2456,8 +2518,7 @@ read_specs (const char *filename, bool main_p, bool user_p)
 	      if (*p2 != ' ' && *p2 != '\t')
 		fatal_error (input_location,
 			     "specs %%rename syntax malformed after "
-			     "%ld characters",
-			     (long) (p2 - buffer));
+			     "%td characters", p2 - buffer);
 
 	      name_len = p2 - p1;
 	      *p2++ = '\0';
@@ -2467,8 +2528,7 @@ read_specs (const char *filename, bool main_p, bool user_p)
 	      if (! ISALPHA ((unsigned char) *p2))
 		fatal_error (input_location,
 			     "specs %%rename syntax malformed after "
-			     "%ld characters",
-			     (long) (p2 - buffer));
+			     "%td characters", p2 - buffer);
 
 	      /* Get new spec name.  */
 	      p3 = p2;
@@ -2478,8 +2538,7 @@ read_specs (const char *filename, bool main_p, bool user_p)
 	      if (p3 != p - 1)
 		fatal_error (input_location,
 			     "specs %%rename syntax malformed after "
-			     "%ld characters",
-			     (long) (p3 - buffer));
+			     "%td characters", p3 - buffer);
 	      *p3 = '\0';
 
 	      for (sl = specs; sl; sl = sl->next)
@@ -2510,7 +2569,7 @@ read_specs (const char *filename, bool main_p, bool user_p)
 
 	      set_spec (p2, *(sl->ptr_spec), user_p);
 	      if (sl->alloc_p)
-		free (CONST_CAST (char *, *(sl->ptr_spec)));
+		free (const_cast<char *> (*(sl->ptr_spec)));
 
 	      *(sl->ptr_spec) = "";
 	      sl->alloc_p = 0;
@@ -2518,8 +2577,8 @@ read_specs (const char *filename, bool main_p, bool user_p)
 	    }
 	  else
 	    fatal_error (input_location,
-			 "specs unknown %% command after %ld characters",
-			 (long) (p1 - buffer));
+			 "specs unknown %% command after %td characters",
+			 p1 - buffer);
 	}
 
       /* Find the colon that should end the suffix.  */
@@ -2530,8 +2589,8 @@ read_specs (const char *filename, bool main_p, bool user_p)
       /* The colon shouldn't be missing.  */
       if (*p1 != ':')
 	fatal_error (input_location,
-		     "specs file malformed after %ld characters",
-		     (long) (p1 - buffer));
+		     "specs file malformed after %td characters",
+		     p1 - buffer);
 
       /* Skip back over trailing whitespace.  */
       p2 = p1;
@@ -2544,8 +2603,8 @@ read_specs (const char *filename, bool main_p, bool user_p)
       p = skip_whitespace (p1 + 1);
       if (p[1] == 0)
 	fatal_error (input_location,
-		     "specs file malformed after %ld characters",
-		     (long) (p - buffer));
+		     "specs file malformed after %td characters",
+		     p - buffer);
 
       p1 = p;
       /* Find next blank line or end of string.  */
@@ -2757,12 +2816,12 @@ clear_failure_queue (void)
 
    Returns the value returned by CALLBACK.  */
 
-static void *
+template<typename fun>
+auto *
 for_each_path (const struct path_prefix *paths,
 	       bool do_multi,
 	       size_t extra_space,
-	       void *(*callback) (char *, void *),
-	       void *callback_info)
+	       fun && callback)
 {
   struct prefix_list *pl;
   const char *multi_dir = NULL;
@@ -2771,7 +2830,7 @@ for_each_path (const struct path_prefix *paths,
   const char *multi_suffix;
   const char *just_multi_suffix;
   char *path = NULL;
-  void *ret = NULL;
+  decltype (callback (nullptr)) ret = nullptr;
   bool skip_multi_dir = false;
   bool skip_multi_os_dir = false;
 
@@ -2822,7 +2881,7 @@ for_each_path (const struct path_prefix *paths,
 	  if (!skip_multi_dir)
 	    {
 	      memcpy (path + len, multi_suffix, suffix_len + 1);
-	      ret = callback (path, callback_info);
+	      ret = callback (path);
 	      if (ret)
 		break;
 	    }
@@ -2833,7 +2892,7 @@ for_each_path (const struct path_prefix *paths,
 	      && pl->require_machine_suffix == 2)
 	    {
 	      memcpy (path + len, just_multi_suffix, just_suffix_len + 1);
-	      ret = callback (path, callback_info);
+	      ret = callback (path);
 	      if (ret)
 		break;
 	    }
@@ -2843,7 +2902,7 @@ for_each_path (const struct path_prefix *paths,
 	      && !pl->require_machine_suffix && multiarch_dir)
 	    {
 	      memcpy (path + len, multiarch_suffix, multiarch_len + 1);
-	      ret = callback (path, callback_info);
+	      ret = callback (path);
 	      if (ret)
 		break;
 	    }
@@ -2871,7 +2930,7 @@ for_each_path (const struct path_prefix *paths,
 	      else
 		path[len] = '\0';
 
-	      ret = callback (path, callback_info);
+	      ret = callback (path);
 	      if (ret)
 		break;
 	    }
@@ -2886,18 +2945,18 @@ for_each_path (const struct path_prefix *paths,
 	 Don't repeat any we have already seen.  */
       if (multi_dir)
 	{
-	  free (CONST_CAST (char *, multi_dir));
+	  free (const_cast<char *> (multi_dir));
 	  multi_dir = NULL;
-	  free (CONST_CAST (char *, multi_suffix));
+	  free (const_cast<char *> (multi_suffix));
 	  multi_suffix = machine_suffix;
-	  free (CONST_CAST (char *, just_multi_suffix));
+	  free (const_cast<char *> (just_multi_suffix));
 	  just_multi_suffix = just_machine_suffix;
 	}
       else
 	skip_multi_dir = true;
       if (multi_os_dir)
 	{
-	  free (CONST_CAST (char *, multi_os_dir));
+	  free (const_cast<char *> (multi_os_dir));
 	  multi_os_dir = NULL;
 	}
       else
@@ -2906,40 +2965,15 @@ for_each_path (const struct path_prefix *paths,
 
   if (multi_dir)
     {
-      free (CONST_CAST (char *, multi_dir));
-      free (CONST_CAST (char *, multi_suffix));
-      free (CONST_CAST (char *, just_multi_suffix));
+      free (const_cast<char *> (multi_dir));
+      free (const_cast<char *> (multi_suffix));
+      free (const_cast<char *> (just_multi_suffix));
     }
   if (multi_os_dir)
-    free (CONST_CAST (char *, multi_os_dir));
+    free (const_cast<char *> (multi_os_dir));
   if (ret != path)
     free (path);
   return ret;
-}
-
-/* Callback for build_search_list.  Adds path to obstack being built.  */
-
-struct add_to_obstack_info {
-  struct obstack *ob;
-  bool check_dir;
-  bool first_time;
-};
-
-static void *
-add_to_obstack (char *path, void *data)
-{
-  struct add_to_obstack_info *info = (struct add_to_obstack_info *) data;
-
-  if (info->check_dir && !is_directory (path, false))
-    return NULL;
-
-  if (!info->first_time)
-    obstack_1grow (info->ob, PATH_SEPARATOR);
-
-  obstack_grow (info->ob, path, strlen (path));
-
-  info->first_time = false;
-  return NULL;
 }
 
 /* Add or change the value of an environment variable, outputting the
@@ -2962,16 +2996,26 @@ static char *
 build_search_list (const struct path_prefix *paths, const char *prefix,
 		   bool check_dir, bool do_multi)
 {
-  struct add_to_obstack_info info;
-
-  info.ob = &collect_obstack;
-  info.check_dir = check_dir;
-  info.first_time = true;
+  struct obstack *const ob = &collect_obstack;
+  bool first_time = true;
 
   obstack_grow (&collect_obstack, prefix, strlen (prefix));
   obstack_1grow (&collect_obstack, '=');
 
-  for_each_path (paths, do_multi, 0, add_to_obstack, &info);
+  /* Callback adds path to obstack being built.  */
+  for_each_path (paths, do_multi, 0, [&](char *path) -> void*
+    {
+      if (check_dir && !is_directory (path))
+	return NULL;
+
+      if (!first_time)
+	obstack_1grow (ob, PATH_SEPARATOR);
+
+      obstack_grow (ob, path, strlen (path));
+
+      first_time = false;
+      return NULL;
+    });
 
   obstack_1grow (&collect_obstack, '\0');
   return XOBFINISH (&collect_obstack, char *);
@@ -3005,42 +3049,6 @@ access_check (const char *name, int mode)
   return access (name, mode);
 }
 
-/* Callback for find_a_file.  Appends the file name to the directory
-   path.  If the resulting file exists in the right mode, return the
-   full pathname to the file.  */
-
-struct file_at_path_info {
-  const char *name;
-  const char *suffix;
-  int name_len;
-  int suffix_len;
-  int mode;
-};
-
-static void *
-file_at_path (char *path, void *data)
-{
-  struct file_at_path_info *info = (struct file_at_path_info *) data;
-  size_t len = strlen (path);
-
-  memcpy (path + len, info->name, info->name_len);
-  len += info->name_len;
-
-  /* Some systems have a suffix for executable files.
-     So try appending that first.  */
-  if (info->suffix_len)
-    {
-      memcpy (path + len, info->suffix, info->suffix_len + 1);
-      if (access_check (path, info->mode) == 0)
-	return path;
-    }
-
-  path[len] = '\0';
-  if (access_check (path, info->mode) == 0)
-    return path;
-
-  return NULL;
-}
 
 /* Search for NAME using the prefix list PREFIXES.  MODE is passed to
    access to check permissions.  If DO_MULTI is true, search multilib
@@ -3051,8 +3059,6 @@ static char *
 find_a_file (const struct path_prefix *pprefix, const char *name, int mode,
 	     bool do_multi)
 {
-  struct file_at_path_info info;
-
   /* Find the filename in question (special case for absolute paths).  */
 
   if (IS_ABSOLUTE_PATH (name))
@@ -3063,15 +3069,38 @@ find_a_file (const struct path_prefix *pprefix, const char *name, int mode,
       return NULL;
     }
 
-  info.name = name;
-  info.suffix = (mode & X_OK) != 0 ? HOST_EXECUTABLE_SUFFIX : "";
-  info.name_len = strlen (info.name);
-  info.suffix_len = strlen (info.suffix);
-  info.mode = mode;
+  const char *suffix = (mode & X_OK) != 0 ? HOST_EXECUTABLE_SUFFIX : "";
+  const int name_len = strlen (name);
+  const int suffix_len = strlen (suffix);
 
-  return (char*) for_each_path (pprefix, do_multi,
-				info.name_len + info.suffix_len,
-				file_at_path, &info);
+
+  /* Callback appends the file name to the directory path.  If the
+     resulting file exists in the right mode, return the full pathname
+     to the file.  */
+  return for_each_path (pprefix, do_multi,
+			name_len + suffix_len,
+			[=](char *path) -> char*
+    {
+      size_t len = strlen (path);
+
+      memcpy (path + len, name, name_len);
+      len += name_len;
+
+      /* Some systems have a suffix for executable files.
+	 So try appending that first.  */
+      if (suffix_len)
+	{
+	  memcpy (path + len, suffix, suffix_len + 1);
+	  if (access_check (path, mode) == 0)
+	    return path;
+	}
+
+      path[len] = '\0';
+      if (access_check (path, mode) == 0)
+	return path;
+
+      return NULL;
+    });
 }
 
 /* Specialization of find_a_file for programs that also takes into account
@@ -3095,6 +3124,11 @@ find_a_program (const char *name)
 #ifdef DEFAULT_DSYMUTIL
   if (! strcmp (name, "dsymutil") && access (DEFAULT_DSYMUTIL, X_OK) == 0)
     return xstrdup (DEFAULT_DSYMUTIL);
+#endif
+
+#ifdef DEFAULT_WINDRES
+  if (! strcmp (name, "windres") && access (DEFAULT_WINDRES, X_OK) == 0)
+    return xstrdup (DEFAULT_WINDRES);
 #endif
 
   return find_a_file (&exec_prefixes, name, X_OK, false);
@@ -3421,7 +3455,7 @@ execute (void)
       errmsg = pex_run (pex,
 			((i + 1 == n_commands ? PEX_LAST : 0)
 			 | (string == commands[i].prog ? PEX_SEARCH : 0)),
-			string, CONST_CAST (char **, commands[i].argv),
+			string, const_cast<char **> (commands[i].argv),
 			NULL, NULL, &err);
       if (errmsg != NULL)
 	{
@@ -3433,7 +3467,7 @@ execute (void)
 	}
 
       if (i && string != commands[i].prog)
-	free (CONST_CAST (char *, string));
+	free (const_cast<char *> (string));
     }
 
   execution_count++;
@@ -3577,48 +3611,12 @@ execute (void)
       }
 
    if (commands[0].argv[0] != commands[0].prog)
-     free (CONST_CAST (char *, commands[0].argv[0]));
+     free (const_cast<char *> (commands[0].argv[0]));
 
     return ret_code;
   }
 }
 
-/* Find all the switches given to us
-   and make a vector describing them.
-   The elements of the vector are strings, one per switch given.
-   If a switch uses following arguments, then the `part1' field
-   is the switch itself and the `args' field
-   is a null-terminated vector containing the following arguments.
-   Bits in the `live_cond' field are:
-   SWITCH_LIVE to indicate this switch is true in a conditional spec.
-   SWITCH_FALSE to indicate this switch is overridden by a later switch.
-   SWITCH_IGNORE to indicate this switch should be ignored (used in %<S).
-   SWITCH_IGNORE_PERMANENTLY to indicate this switch should be ignored.
-   SWITCH_KEEP_FOR_GCC to indicate that this switch, otherwise ignored,
-   should be included in COLLECT_GCC_OPTIONS.
-   in all do_spec calls afterwards.  Used for %<S from self specs.
-   The `known' field describes whether this is an internal switch.
-   The `validated' field describes whether any spec has looked at this switch;
-   if it remains false at the end of the run, the switch must be meaningless.
-   The `ordering' field is used to temporarily mark switches that have to be
-   kept in a specific order.  */
-
-#define SWITCH_LIVE    			(1 << 0)
-#define SWITCH_FALSE   			(1 << 1)
-#define SWITCH_IGNORE			(1 << 2)
-#define SWITCH_IGNORE_PERMANENTLY	(1 << 3)
-#define SWITCH_KEEP_FOR_GCC		(1 << 4)
-
-struct switchstr
-{
-  const char *part1;
-  const char **args;
-  unsigned int live_cond;
-  bool known;
-  bool validated;
-  bool ordering;
-};
-
 static struct switchstr *switches;
 
 static int n_switches;
@@ -3664,6 +3662,7 @@ struct infile
   struct compiler *incompiler;
   bool compiled;
   bool preprocessed;
+  bool artificial;
 };
 
 /* Also a vector of input files specified.  */
@@ -3867,10 +3866,11 @@ alloc_infile (void)
    infiles.  */
 
 static void
-add_infile (const char *name, const char *language)
+add_infile (const char *name, const char *language, bool art = false)
 {
   alloc_infile ();
   infiles[n_infiles].name = name;
+  infiles[n_infiles].artificial = art;
   infiles[n_infiles++].language = language;
 }
 
@@ -4161,6 +4161,49 @@ next_item:
     }
 }
 
+/* Forward certain options to offloading compilation.  */
+
+static void
+forward_offload_option (size_t opt_index, const char *arg, bool validated)
+{
+  switch (opt_index)
+    {
+    case OPT_l:
+      /* Use a '_GCC_' prefix and standard name ('-l_GCC_m' irrespective of the
+	 host's 'MATH_LIBRARY', for example), so that the 'mkoffload's can tell
+	 this has been synthesized here, and translate/drop as necessary.  */
+      /* Note that certain libraries ('-lc', '-lgcc', '-lgomp', for example)
+	 are injected by default in offloading compilation, and therefore not
+	 forwarded here.  */
+      /* GCC libraries.  */
+      if (/* '-lgfortran' */ strcmp (arg, "gfortran") == 0
+	  || /* '-lstdc++' */ strcmp (arg, "stdc++") == 0)
+	save_switch (concat ("-foffload-options=-l_GCC_", arg, NULL),
+		     0, NULL, validated, true);
+      /* Other libraries.  */
+      else
+	{
+	  /* The case will need special consideration where on the host
+	     '!need_math', but for offloading compilation still need
+	     '-foffload-options=-l_GCC_m'.  The problem is that we don't get
+	     here anything like '-lm', because it's not synthesized in
+	     'gcc/fortran/gfortranspec.cc:lang_specific_driver', for example.
+	     Generally synthesizing '-foffload-options=-l_GCC_m' etc. in the
+	     language specific drivers is non-trivial, needs very careful
+	     review of their options handling.  However, this issue is not
+	     actually relevant for the current set of supported host/offloading
+	     configurations.  */
+	  int need_math = (MATH_LIBRARY[0] != '\0');
+	  if (/* '-lm' */ (need_math && strcmp (arg, MATH_LIBRARY) == 0))
+	    save_switch ("-foffload-options=-l_GCC_m",
+			 0, NULL, validated, true);
+	}
+      break;
+    default:
+      gcc_unreachable ();
+    }
+}
+
 /* Handle a driver option; arguments and return value as for
    handle_option.  */
 
@@ -4171,7 +4214,7 @@ driver_handle_option (struct gcc_options *opts,
 		      unsigned int lang_mask ATTRIBUTE_UNUSED, int kind,
 		      location_t loc,
 		      const struct cl_option_handlers *handlers ATTRIBUTE_UNUSED,
-		      diagnostic_context *dc,
+		      diagnostics::context *dc,
 		      void (*) (void))
 {
   size_t opt_index = decoded->opt_index;
@@ -4183,7 +4226,8 @@ driver_handle_option (struct gcc_options *opts,
 
   gcc_assert (opts == &global_options);
   gcc_assert (opts_set == &global_options_set);
-  gcc_assert (kind == DK_UNSPECIFIED);
+  gcc_assert (static_cast<diagnostics::kind> (kind)
+	      == diagnostics::kind::unspecified);
   gcc_assert (loc == UNKNOWN_LOCATION);
   gcc_assert (dc == global_dc);
 
@@ -4254,6 +4298,7 @@ driver_handle_option (struct gcc_options *opts,
     case OPT__no_sysroot_suffix:
     case OPT_pass_exit_codes:
     case OPT_print_search_dirs:
+    case OPT_print_autofdo_gcov_version:
     case OPT_print_file_name_:
     case OPT_print_prog_name_:
     case OPT_print_multi_lib:
@@ -4285,6 +4330,10 @@ driver_handle_option (struct gcc_options *opts,
 
     case OPT_fuse_ld_mold:
        use_ld = ".mold";
+       break;
+
+    case OPT_fuse_ld_wild:
+       use_ld = ".wild";
        break;
 
     case OPT_fcompare_debug_second:
@@ -4334,9 +4383,31 @@ driver_handle_option (struct gcc_options *opts,
       diagnostic_urls_init (dc, value);
       break;
 
+    case OPT_fdiagnostics_show_highlight_colors:
+      dc->set_show_highlight_colors (value);
+      break;
+
     case OPT_fdiagnostics_format_:
-      diagnostic_output_format_init (dc,
-				     (enum diagnostics_output_format)value);
+	{
+	  const char *basename = get_diagnostic_file_output_basename (*opts);
+	  gcc_assert (dc);
+	  diagnostics::output_format_init (*dc,
+					   opts->x_main_input_filename, basename,
+					   (enum diagnostics_output_format)value,
+					   opts->x_flag_diagnostics_json_formatting);
+	  break;
+	}
+
+    case OPT_fdiagnostics_add_output_:
+      handle_OPT_fdiagnostics_add_output_ (*opts, *dc, arg, loc);
+      break;
+
+    case OPT_fdiagnostics_set_output_:
+      handle_OPT_fdiagnostics_set_output_ (*opts, *dc, arg, loc);
+      break;
+
+    case OPT_fdiagnostics_text_art_charset_:
+      dc->set_text_art_charset ((enum diagnostic_text_art_charset)value);
       break;
 
     case OPT_Wa_:
@@ -4392,8 +4463,15 @@ driver_handle_option (struct gcc_options *opts,
 	    }
 	/* Record the part after the last comma.  */
 	add_infile (arg + prev, "*");
+	if (strcmp (arg, "-z,lazy") == 0 || strcmp (arg, "-z,norelro") == 0)
+	  avoid_linker_hardening_p = true;
       }
       do_save = false;
+      break;
+
+    case OPT_z:
+      if (strcmp (arg, "lazy") == 0 || strcmp (arg, "norelro") == 0)
+	avoid_linker_hardening_p = true;
       break;
 
     case OPT_Xlinker:
@@ -4415,6 +4493,17 @@ driver_handle_option (struct gcc_options *opts,
       /* POSIX allows separation of -l and the lib arg; canonicalize
 	 by concatenating -l with its arg */
       add_infile (concat ("-l", arg, NULL), "*");
+
+      /* Forward to offloading compilation '-l[...]' flags for standard,
+	 well-known libraries.  */
+      /* Doing this processing here means that we don't get to see libraries
+	 injected via specs, such as '-lquadmath' injected via
+	 '[build]/[target]/libgfortran/libgfortran.spec'.  However, this issue
+	 is not actually relevant for the current set of host/offloading
+	 configurations.  */
+      if (ENABLE_OFFLOADING)
+	forward_offload_option (opt_index, arg, validated);
+
       do_save = false;
       break;
 
@@ -4506,6 +4595,11 @@ driver_handle_option (struct gcc_options *opts,
       do_save = false;
       break;
 
+    case OPT_truncate:
+      totruncate_file = arg;
+      do_save = false;
+      break;
+
     case OPT____:
       /* "-###"
 	 This is similar to -v except that there is no execution
@@ -4529,7 +4623,7 @@ driver_handle_option (struct gcc_options *opts,
 	   if appending a directory separator actually makes a
 	   valid directory name.  */
 	if (!IS_DIR_SEPARATOR (arg[len - 1])
-	    && is_directory (arg, false))
+	    && is_directory (arg))
 	  {
 	    char *tmp = XNEWVEC (char, len + 2);
 	    strcpy (tmp, arg);
@@ -4575,20 +4669,37 @@ driver_handle_option (struct gcc_options *opts,
       save_switch ("-o", 1, &arg, validated, true);
       return true;
 
-#ifdef ENABLE_DEFAULT_PIE
     case OPT_pie:
+#ifdef ENABLE_DEFAULT_PIE
       /* -pie is turned on by default.  */
+      validated = true;
 #endif
+      /* FALLTHROUGH */
+    case OPT_r:
+    case OPT_shared:
+    case OPT_no_pie:
+      avoid_linker_hardening_p = true;
+      break;
+
+    case OPT_static:
+      static_p = true;
+      break;
 
     case OPT_static_libgcc:
     case OPT_shared_libgcc:
     case OPT_static_libgfortran:
+    case OPT_static_libquadmath:
     case OPT_static_libphobos:
+    case OPT_static_libga68:
+    case OPT_static_libgm2:
     case OPT_static_libstdc__:
-      /* These are always valid, since gcc.cc itself understands the
-	 first two, gfortranspec.cc understands -static-libgfortran,
-	 d-spec.cc understands -static-libphobos, and g++spec.cc
-	 understands -static-libstdc++ */
+      /* These are always valid; gcc.cc itself understands the first two
+	 gfortranspec.cc understands -static-libgfortran,
+	 libgfortran.spec handles -static-libquadmath,
+	 a68spec.cc understands -static-libga68,
+	 d-spec.cc understands -static-libphobos,
+	 gm2spec.cc understands -static-libgm2,
+	 and g++spec.cc understands -static-libstdc++.  */
       validated = true;
       break;
 
@@ -4606,6 +4717,10 @@ driver_handle_option (struct gcc_options *opts,
 	save_switch (concat ("-foffload-options=", arg, NULL),
 		     0, NULL, validated, true);
       do_save = false;
+      break;
+
+    case OPT_gcodeview:
+      add_infile ("--pdb=", "*");
       break;
 
     default:
@@ -4926,7 +5041,8 @@ process_command (unsigned int decoded_options_count,
 #ifdef HAVE_TARGET_OBJECT_SUFFIX
 	  arg = convert_filename (arg, 0, access (arg, F_OK));
 #endif
-	  add_infile (arg, spec_lang);
+	  add_infile (arg, spec_lang,
+		      decoded_options[j].mask == CL_DRIVER);
 
 	  continue;
 	}
@@ -4944,6 +5060,35 @@ process_command (unsigned int decoded_options_count,
 #if OFFLOAD_DEFAULTED
       offload_targets_default = true;
 #endif
+    }
+
+  /* TODO: check if -static -pie works and maybe use it.  */
+  if (flag_hardened)
+    {
+      if (!avoid_linker_hardening_p && !static_p)
+	{
+#if defined HAVE_LD_PIE && defined LD_PIE_SPEC
+	  save_switch (LD_PIE_SPEC, 0, NULL, /*validated=*/true, /*known=*/false);
+#endif
+	  /* These are passed straight down to collect2 so we have to break
+	     it up like this.  */
+	  if (HAVE_LD_NOW_SUPPORT)
+	    {
+	      add_infile ("-z", "*");
+	      add_infile ("now", "*");
+	    }
+	  if (HAVE_LD_RELRO_SUPPORT)
+	    {
+	      add_infile ("-z", "*");
+	      add_infile ("relro", "*");
+	    }
+	}
+      /* We can't use OPT_Whardened yet.  Sigh.  */
+      else
+	warning_at (UNKNOWN_LOCATION, 0,
+		    "linker hardening options not enabled by %<-fhardened%> "
+		    "because other link options were specified on the command "
+		    "line");
     }
 
   /* Handle -gtoggle as it would later in toplev.cc:process_options to
@@ -5503,7 +5648,7 @@ set_collect_gcc_options (void)
   obstack_grow (&collect_obstack, "COLLECT_GCC_OPTIONS=",
 		sizeof ("COLLECT_GCC_OPTIONS=") - 1);
 
-  first_time = TRUE;
+  first_time = true;
   for (i = 0; (int) i < n_switches; i++)
     {
       const char *const *args;
@@ -5511,7 +5656,7 @@ set_collect_gcc_options (void)
       if (!first_time)
 	obstack_grow (&collect_obstack, " ", 1);
 
-      first_time = FALSE;
+      first_time = false;
 
       /* Ignore elided switches.  */
       if ((switches[i].live_cond
@@ -5549,7 +5694,7 @@ set_collect_gcc_options (void)
     {
       if (!first_time)
 	obstack_grow (&collect_obstack, " ", 1);
-      first_time = FALSE;
+      first_time = false;
 
       obstack_grow (&collect_obstack, "'-dumpdir' '", 12);
       const char *p, *q;
@@ -5889,38 +6034,50 @@ do_self_spec (const char *spec)
 
 /* Callback for processing %D and %I specs.  */
 
-struct spec_path_info {
+struct spec_path {
   const char *option;
   const char *append;
   size_t append_len;
   bool omit_relative;
   bool separate_options;
+  bool realpaths;
+
+  void *operator() (char *path);
 };
 
-static void *
-spec_path (char *path, void *data)
+void *
+spec_path::operator() (char *path)
 {
-  struct spec_path_info *info = (struct spec_path_info *) data;
   size_t len = 0;
   char save = 0;
 
-  if (info->omit_relative && !IS_ABSOLUTE_PATH (path))
+  /* The path must exist; we want to resolve it to the realpath so that this
+     can be embedded as a runpath.  */
+  if (realpaths)
+     path = lrealpath (path);
+
+  /* However, if we failed to resolve it - perhaps because there was a bogus
+     -B option on the command line, then punt on this entry.  */
+  if (!path)
     return NULL;
 
-  if (info->append_len != 0)
+  if (omit_relative && !IS_ABSOLUTE_PATH (path))
+    return NULL;
+
+  if (append_len != 0)
     {
       len = strlen (path);
-      memcpy (path + len, info->append, info->append_len + 1);
+      memcpy (path + len, append, append_len + 1);
     }
 
-  if (!is_directory (path, true))
+  if (!is_directory (path))
     return NULL;
 
-  do_spec_1 (info->option, 1, NULL);
-  if (info->separate_options)
+  do_spec_1 (option, 1, NULL);
+  if (separate_options)
     do_spec_1 (" ", 0, NULL);
 
-  if (info->append_len == 0)
+  if (append_len == 0)
     {
       len = strlen (path);
       save = path[len - 1];
@@ -5932,7 +6089,7 @@ spec_path (char *path, void *data)
   do_spec_1 (" ", 0, NULL);
 
   /* Must not damage the original path.  */
-  if (info->append_len == 0)
+  if (append_len == 0)
     path[len - 1] = save;
 
   return NULL;
@@ -6120,7 +6277,7 @@ do_spec_1 (const char *spec, int inswitch, const char *soft_matched_part)
 	     that we search for startfiles.  */
 	  case 'D':
 	    {
-	      struct spec_path_info info;
+	      struct spec_path info;
 
 	      info.option = "-L";
 	      info.append_len = 0;
@@ -6135,8 +6292,24 @@ do_spec_1 (const char *spec, int inswitch, const char *soft_matched_part)
 	      info.omit_relative = false;
 #endif
 	      info.separate_options = false;
+	      info.realpaths = false;
 
-	      for_each_path (&startfile_prefixes, true, 0, spec_path, &info);
+	      for_each_path (&startfile_prefixes, true, 0, info);
+	    }
+	    break;
+
+	  case 'P':
+	    {
+	      struct spec_path info;
+
+	      info.option = RUNPATH_OPTION;
+	      info.append_len = 0;
+	      info.omit_relative = false;
+	      info.separate_options = true;
+	      /* We want to embed the actual paths that have the libraries.  */
+	      info.realpaths = true;
+
+	      for_each_path (&startfile_prefixes, true, 0, info);
 	    }
 	    break;
 
@@ -6415,7 +6588,7 @@ do_spec_1 (const char *spec, int inswitch, const char *soft_matched_part)
 
 	  case 'I':
 	    {
-	      struct spec_path_info info;
+	      struct spec_path info;
 
 	      if (multilib_dir)
 		{
@@ -6461,17 +6634,28 @@ do_spec_1 (const char *spec, int inswitch, const char *soft_matched_part)
 	      info.append_len = strlen (info.append);
 	      info.omit_relative = false;
 	      info.separate_options = true;
+	      info.realpaths = false;
 
-	      for_each_path (&include_prefixes, false, info.append_len,
-			     spec_path, &info);
+	      for_each_path (&include_prefixes, false, info.append_len, info);
 
 	      info.append = "include-fixed";
 	      if (*sysroot_hdrs_suffix_spec)
 		info.append = concat (info.append, dir_separator_str,
 				      multilib_dir, NULL);
+	      else if (multiarch_dir)
+		{
+		  /* For multiarch, search include-fixed/<multiarch-dir>
+		     before include-fixed.  */
+		  info.append = concat (info.append, dir_separator_str,
+					multiarch_dir, NULL);
+		  info.append_len = strlen (info.append);
+		  for_each_path (&include_prefixes, false,
+				 info.append_len, info);
+
+		  info.append = "include-fixed";
+		}
 	      info.append_len = strlen (info.append);
-	      for_each_path (&include_prefixes, false, info.append_len,
-			     spec_path, &info);
+	      for_each_path (&include_prefixes, false, info.append_len, info);
 	    }
 	    break;
 
@@ -6754,7 +6938,7 @@ do_spec_1 (const char *spec, int inswitch, const char *soft_matched_part)
 		     "%{foo=*:bar%*}%{foo=*:one%*two}"
 
 		   matches -foo=hello then it will produce:
-		   
+
 		     barhello onehellotwo
 		*/
 		if (*p == 0 || *p == '}')
@@ -7521,13 +7705,13 @@ give_switch (int switchnum, int omit_first_word)
 	      while (length-- && !IS_DIR_SEPARATOR (arg[length]))
 		if (arg[length] == '.')
 		  {
-		    (CONST_CAST (char *, arg))[length] = 0;
+		    (const_cast<char *> (arg))[length] = 0;
 		    dot = 1;
 		    break;
 		  }
 	      do_spec_1 (arg, 1, NULL);
 	      if (dot)
-		(CONST_CAST (char *, arg))[length] = '.';
+		(const_cast<char *> (arg))[length] = '.';
 	      do_spec_1 (suffix_subst, 1, NULL);
 	    }
 	  else
@@ -7589,55 +7773,58 @@ print_configuration (FILE *file)
 
 #define RETRY_ICE_ATTEMPTS 3
 
-/* Returns true if FILE1 and FILE2 contain equivalent data, 0 otherwise.  */
+/* Returns true if FILE1 and FILE2 contain equivalent data, 0 otherwise.
+   If lines start with 0x followed by 1-16 lowercase hexadecimal digits
+   followed by a space, ignore anything before that space.  These are
+   typically function addresses from libbacktrace and those can differ
+   due to ASLR.  */
 
 static bool
 files_equal_p (char *file1, char *file2)
 {
-  struct stat st1, st2;
-  off_t n, len;
-  int fd1, fd2;
-  const int bufsize = 8192;
-  char *buf = XNEWVEC (char, bufsize);
+  FILE *f1 = fopen (file1, "rb");
+  FILE *f2 = fopen (file2, "rb");
+  char line1[256], line2[256];
 
-  fd1 = open (file1, O_RDONLY);
-  fd2 = open (file2, O_RDONLY);
-
-  if (fd1 < 0 || fd2 < 0)
-    goto error;
-
-  if (fstat (fd1, &st1) < 0 || fstat (fd2, &st2) < 0)
-    goto error;
-
-  if (st1.st_size != st2.st_size)
-    goto error;
-
-  for (n = st1.st_size; n; n -= len)
+  bool line_start = true;
+  while (fgets (line1, sizeof (line1), f1))
     {
-      len = n;
-      if ((int) len > bufsize / 2)
-	len = bufsize / 2;
-
-      if (read (fd1, buf, len) != (int) len
-	  || read (fd2, buf + bufsize / 2, len) != (int) len)
-	{
-	  goto error;
-	}
-
-      if (memcmp (buf, buf + bufsize / 2, len) != 0)
+      if (!fgets (line2, sizeof (line2), f2))
 	goto error;
+      char *p1 = line1, *p2 = line2;
+      if (line_start
+	  && line1[0] == '0'
+	  && line1[1] == 'x'
+	  && line2[0] == '0'
+	  && line2[1] == 'x')
+	{
+	  int i, j;
+	  for (i = 0; i < 16; ++i)
+	    if (!ISXDIGIT (line1[2 + i]) || ISUPPER (line1[2 + i]))
+	      break;
+	  for (j = 0; j < 16; ++j)
+	    if (!ISXDIGIT (line2[2 + j]) || ISUPPER (line2[2 + j]))
+	      break;
+	  if (i && line1[2 + i] == ' ' && j && line2[2 + j] == ' ')
+	    {
+	      p1 = line1 + i + 3;
+	      p2 = line2 + j + 3;
+	    }
+	}
+      if (strcmp (p1, p2) != 0)
+	goto error;
+      line_start = strchr (line1, '\n') != NULL;
     }
+  if (fgets (line2, sizeof (line2), f2))
+    goto error;
 
-  free (buf);
-  close (fd1);
-  close (fd2);
-
+  fclose (f1);
+  fclose (f2);
   return 1;
 
 error:
-  free (buf);
-  close (fd1);
-  close (fd2);
+  fclose (f1);
+  fclose (f2);
   return 0;
 }
 
@@ -7705,7 +7892,7 @@ run_attempt (const char **new_argv, const char *out_temp,
     fatal_error (input_location, "%<pex_init%> failed: %m");
 
   errmsg = pex_run (pex, pex_flags, new_argv[0],
-		    CONST_CAST2 (char *const *, const char **, &new_argv[1]),
+		    const_cast<char *const *> (&new_argv[1]),
 		    out_temp, err_temp, &err);
   if (errmsg != NULL)
     {
@@ -7739,7 +7926,7 @@ out:
 }
 
 /* This routine reads lines from IN file, adds C++ style comments
-   at the begining of each line and writes result into OUT.  */
+   at the beginning of each line and writes result into OUT.  */
 
 static void
 insert_comments (const char *file_in, const char *file_out)
@@ -7845,6 +8032,10 @@ try_generate_repro (const char **argv)
   else
     new_argv[out_arg] = "-o-";
 
+#ifdef HOST_HAS_PERSONALITY_ADDR_NO_RANDOMIZE
+  personality (personality (0xffffffffU) | ADDR_NO_RANDOMIZE);
+#endif
+
   int status;
   for (attempt = 0; attempt < RETRY_ICE_ATTEMPTS; ++attempt)
     {
@@ -7906,11 +8097,10 @@ find_file (const char *name)
   return newname ? newname : name;
 }
 
-/* Determine whether a directory exists.  If LINKER, return 0 for
-   certain fixed names not needed by the linker.  */
+/* Determine whether a directory exists.  */
 
 static int
-is_directory (const char *path1, bool linker)
+is_directory (const char *path1)
 {
   int len1;
   char *path;
@@ -7927,17 +8117,6 @@ is_directory (const char *path1, bool linker)
     *cp++ = DIR_SEPARATOR;
   *cp++ = '.';
   *cp = '\0';
-
-  /* Exclude directories that the linker is known to search.  */
-  if (linker
-      && IS_DIR_SEPARATOR (path[0])
-      && ((cp - path == 6
-	   && filename_ncmp (path + 1, "lib", 3) == 0)
-	  || (cp - path == 10
-	      && filename_ncmp (path + 1, "usr", 3) == 0
-	      && IS_DIR_SEPARATOR (path[4])
-	      && filename_ncmp (path + 5, "lib", 3) == 0)))
-    return 0;
 
   return (stat (path, &st) >= 0 && S_ISDIR (st.st_mode));
 }
@@ -8214,6 +8393,7 @@ driver::global_initializations ()
   diagnostic_initialize (global_dc, 0);
   diagnostic_color_init (global_dc);
   diagnostic_urls_init (global_dc);
+  global_dc->push_owned_urlifier (make_gcc_urlifier (0));
 
 #ifdef GCC_DRIVER_HOST_INITIALIZATION
   /* Perform host dependent initialization when needed.  */
@@ -8290,7 +8470,7 @@ driver::build_multilib_strings () const
     obstack_1grow (&multilib_obstack, 0);
     multilib_reuse = XOBFINISH (&multilib_obstack, const char *);
 
-    need_space = FALSE;
+    need_space = false;
     for (size_t i = 0; i < ARRAY_SIZE (multilib_defaults_raw); i++)
       {
 	if (need_space)
@@ -8298,7 +8478,7 @@ driver::build_multilib_strings () const
 	obstack_grow (&multilib_obstack,
 		      multilib_defaults_raw[i],
 		      strlen (multilib_defaults_raw[i]));
-	need_space = TRUE;
+	need_space = true;
       }
 
     obstack_1grow (&multilib_obstack, 0);
@@ -8352,11 +8532,13 @@ driver::set_up_specs () const
   spec_machine_suffix = just_machine_suffix;
 #endif
 
+  const char *exec_prefix
+    = gcc_exec_prefix ? gcc_exec_prefix : standard_exec_prefix;
   /* We need to check standard_exec_prefix/spec_machine_suffix/specs
      for any override of as, ld and libraries.  */
-  specs_file = (char *) alloca (strlen (standard_exec_prefix)
-		       + strlen (spec_machine_suffix) + sizeof ("specs"));
-  strcpy (specs_file, standard_exec_prefix);
+  specs_file = (char *) alloca (
+    strlen (exec_prefix) + strlen (spec_machine_suffix) + sizeof ("specs"));
+  strcpy (specs_file, exec_prefix);
   strcat (specs_file, spec_machine_suffix);
   strcat (specs_file, "specs");
   if (access (specs_file, R_OK) == 0)
@@ -8650,6 +8832,12 @@ driver::maybe_print_and_exit () const
       return (0);
     }
 
+  if (print_autofdo_gcov_version)
+    {
+      printf ("%d\n", AUTO_PROFILE_VERSION);
+      return (0);
+    }
+
   if (print_file_name)
     {
       printf ("%s\n", find_file (print_file_name));
@@ -8780,7 +8968,7 @@ driver::maybe_print_and_exit () const
     {
       printf (_("%s %s%s\n"), progname, pkgversion_string,
 	      version_string);
-      printf ("Copyright %s 2022 Free Software Foundation, Inc.\n",
+      printf ("Copyright %s 2026 Free Software Foundation, Inc.\n",
 	      _("(C)"));
       fputs (_("This is free software; see the source for copying conditions.  There is NO\n\
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"),
@@ -8845,6 +9033,10 @@ driver::prepare_infiles ()
 
       if (lang_n_infiles > 0 && compiler != input_file_compiler
 	  && infiles[i].language && infiles[i].language[0] != '*')
+	infiles[i].incompiler = compiler;
+      else if (infiles[i].artificial)
+	/* Leave lang_n_infiles alone so files added by the driver don't
+	   interfere with -c -o.  */
 	infiles[i].incompiler = compiler;
       else if (compiler)
 	{
@@ -9165,6 +9357,11 @@ driver::final_actions () const
     delete_failure_queue ();
   delete_temp_files ();
 
+  if (totruncate_file != NULL && !seen_error ())
+    /* Truncate file specified by -truncate.
+       Used by lto-wrapper to reduce temporary disk-space usage. */
+    truncate(totruncate_file, 0);
+
   if (print_help_list)
     {
       printf (("\nFor bug reporting instructions, please see:\n"));
@@ -9178,38 +9375,9 @@ driver::final_actions () const
 void
 driver::detect_jobserver () const
 {
-  /* Detect jobserver and drop it if it's not working.  */
-  const char *makeflags = env.get ("MAKEFLAGS");
-  if (makeflags != NULL)
-    {
-      const char *needle = "--jobserver-auth=";
-      const char *n = strstr (makeflags, needle);
-      if (n != NULL)
-	{
-	  int rfd = -1;
-	  int wfd = -1;
-
-	  bool jobserver
-	    = (sscanf (n + strlen (needle), "%d,%d", &rfd, &wfd) == 2
-	       && rfd > 0
-	       && wfd > 0
-	       && is_valid_fd (rfd)
-	       && is_valid_fd (wfd));
-
-	  /* Drop the jobserver if it's not working now.  */
-	  if (!jobserver)
-	    {
-	      unsigned offset = n - makeflags;
-	      char *dup = xstrdup (makeflags);
-	      dup[offset] = '\0';
-
-	      const char *space = strchr (makeflags + offset, ' ');
-	      if (space != NULL)
-		strcpy (dup + offset, space);
-	      xputenv (concat ("MAKEFLAGS=", dup, NULL));
-	    }
-	}
-    }
+  jobserver_info jinfo;
+  if (!jinfo.is_active && !jinfo.skipped_makeflags.empty ())
+    xputenv (xstrdup (jinfo.skipped_makeflags.c_str ()));
 }
 
 /* Determine what the exit code of the driver should be.  */
@@ -9359,12 +9527,15 @@ validate_switches (const char *start, bool user_spec, bool braced)
   const char *atom;
   size_t len;
   int i;
-  bool suffix = false;
-  bool starred = false;
+  bool suffix;
+  bool starred;
 
 #define SKIP_WHITE() do { while (*p == ' ' || *p == '\t') p++; } while (0)
 
 next_member:
+  suffix = false;
+  starred = false;
+
   SKIP_WHITE ();
 
   if (*p == '!')
@@ -9612,6 +9783,103 @@ default_arg (const char *p, int len)
       return 1;
 
   return 0;
+}
+
+/* Use multilib_dir as key to find corresponding multilib_os_dir and
+   multiarch_dir.  */
+
+static void
+find_multilib_os_dir_by_multilib_dir (const char *multilib_dir,
+				      const char **p_multilib_os_dir,
+				      const char **p_multiarch_dir)
+{
+  const char *p = multilib_select;
+  unsigned int this_path_len;
+  const char *this_path;
+  int ok = 0;
+
+  while (*p != '\0')
+    {
+      /* Ignore newlines.  */
+      if (*p == '\n')
+	{
+	  ++p;
+	  continue;
+	}
+
+      /* Get the initial path.  */
+      this_path = p;
+      while (*p != ' ')
+	{
+	  if (*p == '\0')
+	    {
+	      fatal_error (input_location, "multilib select %qs %qs is invalid",
+			   multilib_select, multilib_reuse);
+	    }
+	  ++p;
+	}
+      this_path_len = p - this_path;
+
+      ok = 0;
+
+      /* Skip any arguments, we don't care at this stage.  */
+      while (*++p != ';');
+
+      if (this_path_len != 1
+	  || this_path[0] != '.')
+	{
+	  char *new_multilib_dir = XNEWVEC (char, this_path_len + 1);
+	  char *q;
+
+	  strncpy (new_multilib_dir, this_path, this_path_len);
+	  new_multilib_dir[this_path_len] = '\0';
+	  q = strchr (new_multilib_dir, ':');
+	  if (q != NULL)
+	    *q = '\0';
+
+	  if (strcmp (new_multilib_dir, multilib_dir) == 0)
+	    ok = 1;
+	}
+
+      /* Found matched multilib_dir, update multilib_os_dir and
+	 multiarch_dir.  */
+      if (ok)
+	{
+	  const char *q = this_path, *end = this_path + this_path_len;
+
+	  while (q < end && *q != ':')
+	    q++;
+	  if (q < end)
+	    {
+	      const char *q2 = q + 1, *ml_end = end;
+	      char *new_multilib_os_dir;
+
+	      while (q2 < end && *q2 != ':')
+		q2++;
+	      if (*q2 == ':')
+		ml_end = q2;
+	      if (ml_end - q == 1)
+		*p_multilib_os_dir = xstrdup (".");
+	      else
+		{
+		  new_multilib_os_dir = XNEWVEC (char, ml_end - q);
+		  memcpy (new_multilib_os_dir, q + 1, ml_end - q - 1);
+		  new_multilib_os_dir[ml_end - q - 1] = '\0';
+		  *p_multilib_os_dir = new_multilib_os_dir;
+		}
+
+	      if (q2 < end && *q2 == ':')
+		{
+		  char *new_multiarch_dir = XNEWVEC (char, end - q2);
+		  memcpy (new_multiarch_dir, q2 + 1, end - q2 - 1);
+		  new_multiarch_dir[end - q2 - 1] = '\0';
+		  *p_multiarch_dir = new_multiarch_dir;
+		}
+	      break;
+	    }
+	}
+      ++p;
+    }
 }
 
 /* Work out the subdirectory to use based on the options. The format of
@@ -9874,14 +10142,34 @@ set_multilib_dir (void)
       ++p;
     }
 
+  multilib_dir =
+    targetm_common.compute_multilib (
+      switches,
+      n_switches,
+      multilib_dir,
+      multilib_defaults,
+      multilib_select,
+      multilib_matches,
+      multilib_exclusions,
+      multilib_reuse);
+
   if (multilib_dir == NULL && multilib_os_dir != NULL
       && strcmp (multilib_os_dir, ".") == 0)
     {
-      free (CONST_CAST (char *, multilib_os_dir));
+      free (const_cast<char *> (multilib_os_dir));
       multilib_os_dir = NULL;
     }
   else if (multilib_dir != NULL && multilib_os_dir == NULL)
-    multilib_os_dir = multilib_dir;
+    {
+      /* Give second chance to search matched multilib_os_dir again by matching
+	 the multilib_dir since some target may use TARGET_COMPUTE_MULTILIB
+	 hook rather than the builtin way.  */
+      find_multilib_os_dir_by_multilib_dir (multilib_dir, &multilib_os_dir,
+					    &multiarch_dir);
+
+      if (multilib_os_dir == NULL)
+	multilib_os_dir = multilib_dir;
+    }
 }
 
 /* Print out the multiple library subdirectory selection
@@ -10149,19 +10437,19 @@ print_multilib_info (void)
 	  /* If there are extra options, print them now.  */
 	  if (multilib_extra && *multilib_extra)
 	    {
-	      int print_at = TRUE;
+	      int print_at = true;
 	      const char *q;
 
 	      for (q = multilib_extra; *q != '\0'; q++)
 		{
 		  if (*q == ' ')
-		    print_at = TRUE;
+		    print_at = true;
 		  else
 		    {
 		      if (print_at)
 			putchar ('@');
 		      putchar (*q);
-		      print_at = FALSE;
+		      print_at = false;
 		    }
 		}
 	    }
@@ -10309,12 +10597,15 @@ sanitize_spec_function (int argc, const char **argv)
     return (flag_sanitize & SANITIZE_KERNEL_ADDRESS) ? "" : NULL;
   if (strcmp (argv[0], "kernel-hwaddress") == 0)
     return (flag_sanitize & SANITIZE_KERNEL_HWADDRESS) ? "" : NULL;
+  if (strcmp (argv[0], "memtag-stack") == 0)
+    return (flag_sanitize & SANITIZE_MEMTAG_STACK) ? "" : NULL;
   if (strcmp (argv[0], "thread") == 0)
     return (flag_sanitize & SANITIZE_THREAD) ? "" : NULL;
   if (strcmp (argv[0], "undefined") == 0)
     return ((flag_sanitize
-	     & (SANITIZE_UNDEFINED | SANITIZE_UNDEFINED_NONDEFAULT))
-	    && !flag_sanitize_undefined_trap_on_error) ? "" : NULL;
+	     & ~flag_sanitize_trap
+	     & (SANITIZE_UNDEFINED | SANITIZE_UNDEFINED_NONDEFAULT)))
+	   ? "" : NULL;
   if (strcmp (argv[0], "leak") == 0)
     return ((flag_sanitize
 	     & (SANITIZE_ADDRESS | SANITIZE_LEAK | SANITIZE_THREAD))
@@ -10553,9 +10844,9 @@ static unsigned HOST_WIDE_INT
 get_random_number (void)
 {
   unsigned HOST_WIDE_INT ret = 0;
-  int fd; 
+  int fd;
 
-  fd = open ("/dev/urandom", O_RDONLY); 
+  fd = open ("/dev/urandom", O_RDONLY);
   if (fd >= 0)
     {
       read (fd, &ret, sizeof (HOST_WIDE_INT));
@@ -10947,6 +11238,31 @@ find_fortran_preinclude_file (int argc, const char **argv)
   return result;
 }
 
+/* The function takes any number of arguments and joins them together,
+   escaping any special characters.
+
+   This seems to be necessary to build "-fjoined=foo.b" from "-fseparate foo.a"
+   with a %{fseparate*:-fjoined=%.b$*} rule without adding undesired spaces:
+   when doing $* replacement we first replace $* with the rest of the switch
+   (in this case ""), and then add any arguments as arguments after the result,
+   resulting in "-fjoined= foo.b".  Using this function with e.g.
+   %{fseparate*:-fjoined=%:join(%.b$*)} gets multiple words as separate argv
+   elements instead of separated by spaces, and we paste them together.  */
+
+static const char *
+join_spec_func (int argc, const char **argv)
+{
+  const char *result = argv[0];
+  if (argc != 1)
+    {
+      for (int i = 0; i < argc; ++i)
+	obstack_grow (&obstack, argv[i], strlen (argv[i]));
+      obstack_1grow (&obstack, '\0');
+      result = XOBFINISH (&obstack, const char *);
+    }
+  return quote_spec (xstrdup (result));
+}
+
 /* If any character in ORIG fits QUOTE_P (_, P), reallocate the string
    so as to precede every one of them with a backslash.  Return the
    original string or the reallocated one.  */
@@ -10986,16 +11302,16 @@ whitespace_to_convert_p (char c, void *)
   return (c == ' ' || c == '\t');
 }
 
-/* Insert backslash before spaces in ORIG (usually a file path), to 
+/* Insert backslash before spaces in ORIG (usually a file path), to
    avoid being broken by spec parser.
 
    This function is needed as do_spec_1 treats white space (' ' and '\t')
    as the end of an argument. But in case of -plugin /usr/gcc install/xxx.so,
    the file name should be treated as a single argument rather than being
-   broken into multiple. Solution is to insert '\\' before the space in a 
+   broken into multiple. Solution is to insert '\\' before the space in a
    file name.
-   
-   This function converts and only converts all occurrence of ' ' 
+
+   This function converts and only converts all occurrence of ' '
    to '\\' + ' ' and '\t' to '\\' + '\t'.  For example:
    "a b"  -> "a\\ b"
    "a  b" -> "a\\ \\ b"
@@ -11234,6 +11550,7 @@ driver::finalize ()
   input_from_pipe = 0;
   suffix_subst = NULL;
 
+  XDELETEVEC (mdswitches);
   mdswitches = NULL;
   n_mdswitches = 0;
 

@@ -1,18 +1,20 @@
+	.code32
+
 .macro try opcode:vararg
-	.byte \opcode, 0x00
-	.byte \opcode, 0x08
-	.byte \opcode, 0x10
-	.byte \opcode, 0x18
-	.byte \opcode, 0x20
-	.byte \opcode, 0x28
-	.byte \opcode, 0x30
-	.byte \opcode, 0x38
+	.insn 0x0f\opcode/0, (%eax)
+	.insn 0x0f\opcode/1, (%eax)
+	.insn 0x0f\opcode/2, (%eax)
+	.insn 0x0f\opcode/3, (%eax)
+	.insn 0x0f\opcode/4, (%eax)
+	.insn 0x0f\opcode/5, (%eax)
+	.insn 0x0f\opcode/6, (%eax)
+	.insn 0x0f\opcode/7, (%eax)
 .endm
 
 .text
 
 amd_prefetch:
-	try 0x0f, 0x0d
+	try 0d
 
 intel_prefetch:
-	try 0x0f, 0x18
+	try 18

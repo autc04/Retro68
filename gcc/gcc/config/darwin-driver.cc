@@ -1,5 +1,5 @@
 /* Additional functions for the GCC driver on Darwin native.
-   Copyright (C) 2006-2022 Free Software Foundation, Inc.
+   Copyright (C) 2006-2026 Free Software Foundation, Inc.
    Contributed by Apple Computer Inc.
 
 This file is part of GCC.
@@ -64,7 +64,8 @@ validate_macosx_version_min (const char *version_str)
 
   major = strtoul (version_str, &end, 10);
 
-  /* macOS 10, 11, and 12 are known. clang accepts up to 99.  */
+  /* macOS 10, 11, 12, 13, 14, 15 and 26 are known.
+     clang accepts up to 99.  */
   if (major < 10 || major > 99)
     return NULL;
 
@@ -159,15 +160,16 @@ darwin_find_version_from_kernel (void)
   if (*version_p++ != '.')
     goto parse_failed;
 
-  /* Darwin20 sees a transition to macOS 11.  In this, it seems that the
-     mapping to macOS minor version and patch level is now always 0, 0
-     (at least for macOS 11 and 12).  */
-  if (major_vers >= 20)
-    {
-      /* Apple clang doesn't include the minor version or the patch level
-	 in the object file, nor does it pass it to ld  */
-      asprintf (&new_flag, "%d.00.00", major_vers - 9);
-    }
+  /* Darwin25 saw a transition to macOS 26.  */
+  if (major_vers >= 25)
+    /* Apple clang doesn't include the minor version or the patch level
+       in the object file, nor does it pass it to ld  */
+    asprintf (&new_flag, "%d.00.00", major_vers + 1);
+  /* Darwin20 saw a transition to macOS 11.  */
+  else if (major_vers >= 20)
+    /* Apple clang doesn't include the minor version or the patch level
+       in the object file, nor does it pass it to ld  */
+    asprintf (&new_flag, "%d.00.00", major_vers - 9);
   else if (major_vers - 4 <= 4)
     /* On 10.4 and earlier, the old linker is used which does not
        support three-component system versions.
@@ -191,8 +193,8 @@ darwin_find_version_from_kernel (void)
 
 /* When running on a Darwin system and using that system's headers and
    libraries, default the -mmacosx-version-min flag to be the version
-   of the system on which the compiler is running.  
-   
+   of the system on which the compiler is running.
+
    When building cross or native cross compilers, default to the OSX
    version of the target (as provided by the most specific target header
    included in tm.h).  This may be overidden by setting the flag explicitly
@@ -287,7 +289,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
 	case OPT_arch:
 	  /* Support provision of a single -arch xxxx flag as a means of
 	     specifying the sub-target/multi-lib.  Translate this into -m32/64
-	     as appropriate.  */  
+	     as appropriate.  */
 	  if (!strcmp ((*decoded_options)[i].arg, "i386"))
 	    seenX86 = true;
 	  else if (!strcmp ((*decoded_options)[i].arg, "x86_64"))
@@ -307,7 +309,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
 		      * sizeof (struct cl_decoded_option)));
 	  }
 	  --i;
-	  --*decoded_options_count; 
+	  --*decoded_options_count;
 	  break;
 
 	case OPT_m32:
@@ -351,6 +353,16 @@ darwin_driver_init (unsigned int *decoded_options_count,
 	    noexport_p = false;
 	  break;
 
+	case OPT_ObjC:
+	  (*decoded_options)[i].opt_index = OPT_x;
+	  (*decoded_options)[i].arg = "objective-c";
+	  break;
+
+	case OPT_ObjC__:
+	  (*decoded_options)[i].opt_index = OPT_x;
+	  (*decoded_options)[i].arg = "objective-c++";
+	  break;
+
 	default:
 	  break;
 	}
@@ -370,7 +382,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
     {
       if (seenX86_64 || seenM64)
 	{
-	  const char *op = (seenX86_64? "-arch x86_64": "-m64");
+	  const char *op = (seenX86_64 ? "-arch x86_64" : "-m64");
 	  warning (0, "%qs conflicts with %<-arch i386%> (%qs ignored)",
 		   op, op);
 	}
@@ -384,7 +396,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
 		    " (%<-m32%> ignored)");
       if (! seenM64) /* Add -m64 if the User didn't. */
 	appendM64 = true;
-    }  
+    }
 #elif DARWIN_PPC
   if (seenX86 || seenX86_64)
     warning (0, "this compiler does not support x86"
@@ -393,7 +405,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
     {
       if (seenPPC64 || seenM64)
 	{
-	  const char *op = (seenPPC64? "-arch ppc64": "-m64");
+	  const char *op = (seenPPC64 ? "-arch ppc64" : "-m64");
 	  warning (0, "%qs conflicts with %<-arch ppc%> (%qs ignored)",
 		   op, op);
 	}
@@ -440,7 +452,7 @@ darwin_driver_init (unsigned int *decoded_options_count,
 	}
     }
 
-  /* We will need to know the OS X version we're trying to build for here
+  /* We will need to know the macOS version we're trying to build for here
      so that we can figure out the mechanism and source for the sysroot to
      be used.  */
   if (!seen_version_min)

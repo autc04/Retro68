@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2003-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2003-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,15 +42,20 @@
 --  contract cases should not be executed at runtime as well, in order not to
 --  slow down the execution of these functions.
 
-pragma Assertion_Policy (Pre            => Ignore,
-                         Post           => Ignore,
-                         Contract_Cases => Ignore,
-                         Ghost          => Ignore);
+pragma Assertion_Policy (Pre             => Ignore,
+                         Post            => Ignore,
+                         Contract_Cases  => Ignore,
+                         Ghost           => Ignore,
+                         Ghost_Predicate => Ignore);
 
 with Ada.Strings.Maps; use type Ada.Strings.Maps.Character_Mapping_Function;
 with Ada.Strings.Search;
+with Ada.Strings.Text_Buffers;
 
-package Ada.Strings.Superbounded with SPARK_Mode is
+package Ada.Strings.Superbounded with
+  SPARK_Mode,
+  Always_Terminates
+is
    pragma Preelaborate;
 
    --  Type Bounded_String in Ada.Strings.Bounded.Generic_Bounded_Length is
@@ -67,9 +72,10 @@ package Ada.Strings.Superbounded with SPARK_Mode is
       --  Leaving it out is more efficient.
    end record
    with
-     Predicate =>
+     Ghost_Predicate =>
        Current_Length <= Max_Length
-         and then Data (1 .. Current_Length)'Initialized;
+         and then Data (1 .. Current_Length)'Initialized,
+     Put_Image => Put_Image;
 
    --  The subprograms defined for Super_String are similar to those
    --  defined for Bounded_String, except that they have different names, so
@@ -684,7 +690,6 @@ package Ada.Strings.Superbounded with SPARK_Mode is
      (Left  : Super_String;
       Right : Super_String) return Boolean
    with
-     Pre    => Left.Max_Length = Right.Max_Length,
      Post   => "="'Result = (Super_To_String (Left) = Super_To_String (Right)),
      Global => null;
 
@@ -848,8 +853,8 @@ package Ada.Strings.Superbounded with SPARK_Mode is
                       then J <= Super_Index'Result - 1
                       else J - 1 in Super_Index'Result
                                     .. Super_Length (Source) - Pattern'Length)
-                  then not (Search.Match
-                    (Super_To_String (Source), Pattern, Mapping, J)))),
+                  then not Search.Match
+                    (Super_To_String (Source), Pattern, Mapping, J))),
 
         --  Otherwise, 0 is returned
 
@@ -902,8 +907,8 @@ package Ada.Strings.Superbounded with SPARK_Mode is
                       then J <= Super_Index'Result - 1
                       else J - 1 in Super_Index'Result
                                     .. Super_Length (Source) - Pattern'Length)
-                  then not (Search.Match
-                    (Super_To_String (Source), Pattern, Mapping, J)))),
+                  then not Search.Match
+                    (Super_To_String (Source), Pattern, Mapping, J))),
 
         --  Otherwise, 0 is returned
 
@@ -1008,8 +1013,8 @@ package Ada.Strings.Superbounded with SPARK_Mode is
                       then J in From .. Super_Index'Result - 1
                       else J - 1 in Super_Index'Result
                                     .. From - Pattern'Length)
-                  then not (Search.Match
-                    (Super_To_String (Source), Pattern, Mapping, J)))),
+                  then not Search.Match
+                    (Super_To_String (Source), Pattern, Mapping, J))),
 
         --  Otherwise, 0 is returned
 
@@ -1071,8 +1076,8 @@ package Ada.Strings.Superbounded with SPARK_Mode is
                       then J in From .. Super_Index'Result - 1
                       else J - 1 in Super_Index'Result
                                     .. From - Pattern'Length)
-                  then not (Search.Match
-                    (Super_To_String (Source), Pattern, Mapping, J)))),
+                  then not Search.Match
+                    (Super_To_String (Source), Pattern, Mapping, J))),
 
         --  Otherwise, 0 is returned
 
@@ -1404,6 +1409,9 @@ package Ada.Strings.Superbounded with SPARK_Mode is
             Super_Element (Super_Translate'Result, K) =
               Mapping (Super_Element (Source, K))),
      Global => null;
+   pragma Annotate (GNATprove, False_Positive,
+                    "call via access-to-subprogram",
+                    "function Mapping must always terminate");
 
    procedure Super_Translate
      (Source  : in out Super_String;
@@ -1416,6 +1424,9 @@ package Ada.Strings.Superbounded with SPARK_Mode is
             Super_Element (Source, K) =
               Mapping (Super_Element (Source'Old, K))),
      Global => null;
+   pragma Annotate (GNATprove, False_Positive,
+                    "call via access-to-subprogram",
+                    "function Mapping must always terminate");
 
    ---------------------------------------
    -- String Transformation Subprograms --
@@ -2000,7 +2011,7 @@ package Ada.Strings.Superbounded with SPARK_Mode is
             --  Source are remaining at the left.
 
             and then
-              (if New_Item'Length > Source.Max_Length then
+              (if New_Item'Length >= Source.Max_Length then
 
                  --  New_Item covers all Max_Length characters
 
@@ -2089,7 +2100,7 @@ package Ada.Strings.Superbounded with SPARK_Mode is
             --  Source are remaining at the left.
 
             and then
-              (if New_Item'Length > Source.Max_Length then
+              (if New_Item'Length >= Source.Max_Length then
 
                  --  New_Item covers all Max_Length characters
 
@@ -2694,6 +2705,10 @@ package Ada.Strings.Superbounded with SPARK_Mode is
                      Super_Length (Item)
                        - (Item.Max_Length - K) mod Super_Length (Item)))),
      Global         => null;
+
+   procedure Put_Image
+     (S      : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class;
+      Source : Super_String);
 
 private
       --  Pragma Inline declarations

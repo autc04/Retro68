@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  S p e c                                 --
 --                                                                          --
---          Copyright (C) 2001-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -32,20 +32,13 @@
 --  This is a VxWorks version of this package
 
 with System.OS_Interface;
+with System.OS_Locks;
 
 package System.Task_Primitives is
    pragma Preelaborate;
 
    type Lock is limited private;
    --  Should be used for implementation of protected objects
-
-   type RTS_Lock is limited private;
-   --  Should be used inside the runtime system. The difference between Lock
-   --  and the RTS_Lock is that the later one serves only as a semaphore so
-   --  that do not check for ceiling violations.
-
-   type Suspension_Object is limited private;
-   --  Should be used for the implementation of Ada.Synchronous_Task_Control
 
    type Task_Body_Access is access procedure;
    --  Pointer to the task body's entry point (or possibly a wrapper
@@ -65,34 +58,7 @@ package System.Task_Primitives is
 
 private
 
-   type Priority_Type is (Prio_None, Prio_Protect, Prio_Inherit);
-
-   type Lock is record
-      Mutex    : System.OS_Interface.SEM_ID;
-      Protocol : Priority_Type;
-
-      Prio_Ceiling : System.OS_Interface.int;
-      --  Priority ceiling of lock
-   end record;
-
-   type RTS_Lock is new Lock;
-
-   type Suspension_Object is record
-      State : Boolean;
-      pragma Atomic (State);
-      --  Boolean that indicates whether the object is open. This field is
-      --  marked Atomic to ensure that we can read its value without locking
-      --  the access to the Suspension_Object.
-
-      Waiting : Boolean;
-      --  Flag showing if there is a task already suspended on this object
-
-      L : aliased System.OS_Interface.SEM_ID;
-      --  Protection for ensuring mutual exclusion on the Suspension_Object
-
-      CV : aliased System.OS_Interface.SEM_ID;
-      --  Condition variable used to queue threads until condition is signaled
-   end record;
+   type Lock is new System.OS_Locks.RTS_Lock;
 
    type Private_Data is limited record
       Thread : aliased System.OS_Interface.t_id := 0;
@@ -109,8 +75,9 @@ private
       --  On targets where lwp is not relevant, this is equivalent to Thread.
 
       CV : aliased System.OS_Interface.SEM_ID;
+      --  Condition variable used to queue threads until condition is signaled
 
-      L  : aliased RTS_Lock;
+      L  : aliased System.OS_Locks.RTS_Lock;
       --  Protection for all components is lock L
    end record;
 

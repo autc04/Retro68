@@ -33,7 +33,8 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 # Nonstandard autoconf-set variables.
 LN_S=@LN_S@
 target_noncanonical=@target_noncanonical@
-host_noncanonical=@host_noncanonical@
+GNATMAKE=@GNATMAKE@
+GNATBIND=@GNATBIND@
 
 # Variables for the user (or the top level) to override.
 exeext = @EXEEXT@
@@ -50,6 +51,9 @@ GCC_WARN_CFLAGS = -W -Wall
 WARN_CFLAGS = @warn_cflags@
 
 ADA_CFLAGS=@ADA_CFLAGS@
+
+PICFLAG = @PICFLAG@
+LD_PICFLAG = @LD_PICFLAG@
 
 # Variables for gnattools.
 ADAFLAGS= -gnatpg -gnata
@@ -79,12 +83,12 @@ CXX_LFLAGS = \
 TOOLS_FLAGS_TO_PASS_NATIVE= \
 	"CC=../../xgcc -B../../" \
 	"CXX=../../xg++ -B../../ $(CXX_LFLAGS)" \
-	"CFLAGS=$(CFLAGS) $(WARN_CFLAGS)" \
-	"LDFLAGS=$(LDFLAGS)" \
+	"CFLAGS=$(CFLAGS) $(WARN_CFLAGS) $(PICFLAG)" \
+	"LDFLAGS=$(LDFLAGS) $(LD_PICFLAG)" \
 	"ADAFLAGS=$(ADAFLAGS)" \
 	"ADA_CFLAGS=$(ADA_CFLAGS)" \
 	"INCLUDES=$(INCLUDES_FOR_SUBDIR)" \
-	"ADA_INCLUDES=-I- -I../rts $(ADA_INCLUDES_FOR_SUBDIR)"\
+	"ADA_INCLUDES=-I../rts $(ADA_INCLUDES_FOR_SUBDIR)"\
 	"exeext=$(exeext)" \
 	"fsrcdir=$(fsrcdir)" \
 	"srcdir=$(fsrcdir)" \
@@ -97,8 +101,8 @@ TOOLS_FLAGS_TO_PASS_NATIVE= \
 TOOLS_FLAGS_TO_PASS_RE= \
 	"CC=../../xgcc -B../../" \
 	"CXX=../../xg++ -B../../ $(CXX_LFLAGS)" \
-	"CFLAGS=$(CFLAGS)" \
-	"LDFLAGS=$(LDFLAGS)" \
+	"CFLAGS=$(CFLAGS) $(WARN_CFLAGS) $(PICFLAG)" \
+	"LDFLAGS=$(LDFLAGS) $(LD_PICFLAG)" \
 	"ADAFLAGS=$(ADAFLAGS)" \
 	"ADA_CFLAGS=$(ADA_CFLAGS)" \
 	"INCLUDES=$(INCLUDES_FOR_SUBDIR)" \
@@ -112,17 +116,11 @@ TOOLS_FLAGS_TO_PASS_RE= \
 	"TOOLSCASE=cross"
 
 # Variables for gnattools, cross
-ifeq ($(build), $(host))
-  GNATMAKE_FOR_HOST=gnatmake
-  GNATLINK_FOR_HOST=gnatlink
-  GNATBIND_FOR_HOST=gnatbind
-  GNATLS_FOR_HOST=gnatls
-else
-  GNATMAKE_FOR_HOST=$(host_noncanonical)-gnatmake
-  GNATLINK_FOR_HOST=$(host_noncanonical)-gnatlink
-  GNATBIND_FOR_HOST=$(host_noncanonical)-gnatbind
-  GNATLS_FOR_HOST=$(host_noncanonical)-gnatls
-endif
+# See configure.ac for what "cross" means here.
+GNATMAKE_FOR_HOST = $(GNATMAKE)
+GNATBIND_FOR_HOST = $(GNATBIND)
+GNATLINK_FOR_HOST = $(subst gnatmake,gnatlink,$(GNATMAKE))
+GNATLS_FOR_HOST   = $(subst gnatmake,gnatls,$(GNATMAKE))
 
 # Put the host RTS dir first in the PATH to hide the default runtime
 # files that are among the sources
@@ -131,8 +129,8 @@ RTS_DIR:=$(strip $(subst \,/,$(shell $(GNATLS_FOR_HOST) -v | grep adalib )))
 TOOLS_FLAGS_TO_PASS_CROSS= \
 	"CC=$(CC)" \
 	"CXX=$(CXX)" \
-	"CFLAGS=$(CFLAGS) $(WARN_CFLAGS)" \
-	"LDFLAGS=$(LDFLAGS)" \
+	"CFLAGS=$(CFLAGS) $(WARN_CFLAGS) $(PICFLAG)" \
+	"LDFLAGS=$(LDFLAGS) $(LD_PICFLAG)" \
 	"ADAFLAGS=$(ADAFLAGS)"	\
 	"ADA_CFLAGS=$(ADA_CFLAGS)" \
 	"INCLUDES=$(INCLUDES_FOR_SUBDIR)" \
@@ -223,6 +221,7 @@ gnattools-cross: $(GCC_DIR)/stamp-tools
 	# gnattools2
 	$(MAKE) -C $(GCC_DIR)/ada/tools -f ../Makefile \
 	  $(TOOLS_FLAGS_TO_PASS_CROSS) common-tools
+	$(MAKE) -C $(GCC_DIR) gnattools-cross-mv
 
 # Other
 # -----

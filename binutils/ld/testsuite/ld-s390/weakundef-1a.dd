@@ -1,0 +1,24 @@
+tmpdir/weakundef-1a:     file format elf64-s390
+
+Disassembly of section .text:
+
+.* <foo>:
+.*:	c0 10 00 00 00 1c [	 ]*larl	%r1,200000038 <d>
+[	 ]*.*: R_390_PC32DBL	\.data\+0x2
+.*:	c0 10 00 00 00 1d [	 ]*larl	%r1,200000040 <wd>
+[	 ]*.*: R_390_PC32DBL	wd\+0x2
+.*:	e3 10 00 00 00 71 [	 ]*lay	%r1,0
+[	 ]*.*: R_390_NONE	\*ABS\*
+.*:	c0 f4 00 00 00 01 [	 ]*jg	.*
+[	 ]*.*: R_390_NONE	\*ABS\*
+.*:	c0 f4 00 00 00 01 [	 ]*jg	.*
+[	 ]*.*: R_390_NONE	\*ABS\*
+.*:	c0 f4 00 00 00 01 [	 ]*jg	.*
+[	 ]*.*: R_390_NONE	\*ABS\*
+.*:	c0 f4 00 00 00 01 [	 ]*jg	.*
+[	 ]*.*: R_390_NONE	\*ABS\*
+.*:	c0 f4 00 00 00 01 [	 ]*jg	.*
+[	 ]*.*: R_390_NONE	\*ABS\*
+.*:	c0 04 00 00 00 00 [	 ]*jgnop	.*
+[	 ]*.*: R_390_NONE	\*ABS\*
+.*:	07 07 [	 ]*nopr	%r7

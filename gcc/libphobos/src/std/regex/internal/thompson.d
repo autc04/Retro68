@@ -276,7 +276,7 @@ template ThompsonOps(E, S, bool withInput:true)
     }
 
     static bool op(IR code)(E e, S* state)
-        if (code == IR.RepeatEnd || code == IR.RepeatQEnd)
+    if (code == IR.RepeatEnd || code == IR.RepeatQEnd)
     {
         with(e) with(state)
         {
@@ -331,7 +331,7 @@ template ThompsonOps(E, S, bool withInput:true)
     }
 
     static bool op(IR code)(E e, S* state)
-        if (code == IR.InfiniteEnd || code == IR.InfiniteQEnd)
+    if (code == IR.InfiniteEnd || code == IR.InfiniteQEnd)
     {
         with(e) with(state)
         {
@@ -366,7 +366,7 @@ template ThompsonOps(E, S, bool withInput:true)
     }
 
     static bool op(IR code)(E e, S* state)
-        if (code == IR.InfiniteBloomEnd)
+    if (code == IR.InfiniteBloomEnd)
     {
         with(e) with(state)
         {
@@ -476,7 +476,13 @@ template ThompsonOps(E, S, bool withInput:true)
             uint n = re.ir[t.pc].data;
             Group!DataIndex* source = re.ir[t.pc].localRef ? t.matches.ptr : backrefed.ptr;
             assert(source);
-            if (source[n].begin == source[n].end)//zero-width Backref!
+            if (!source[n])  // unmatched group
+            {
+                recycle(t);
+                t = worklist.fetch();
+                return t != null;
+            }
+            if (source[n].begin == source[n].end)  // zero-width match
             {
                 t.pc += IRL!(IR.Backref);
                 return true;
@@ -507,7 +513,7 @@ template ThompsonOps(E, S, bool withInput:true)
 
 
     static bool op(IR code)(E e, S* state)
-        if (code == IR.LookbehindStart || code == IR.NeglookbehindStart)
+    if (code == IR.LookbehindStart || code == IR.NeglookbehindStart)
     {
         with(e) with(state)
         {
@@ -534,7 +540,7 @@ template ThompsonOps(E, S, bool withInput:true)
     }
 
     static bool op(IR code)(E e, S* state)
-        if (code == IR.LookaheadStart || code == IR.NeglookaheadStart)
+    if (code == IR.LookaheadStart || code == IR.NeglookaheadStart)
     {
         with(e) with(state)
         {
@@ -563,8 +569,8 @@ template ThompsonOps(E, S, bool withInput:true)
     }
 
     static bool op(IR code)(E e, S* state)
-        if (code == IR.LookaheadEnd || code == IR.NeglookaheadEnd ||
-            code == IR.LookbehindEnd || code == IR.NeglookbehindEnd)
+    if (code == IR.LookaheadEnd || code == IR.NeglookaheadEnd ||
+        code == IR.LookbehindEnd || code == IR.NeglookbehindEnd)
     {
         with(e) with(state)
         {
@@ -675,13 +681,13 @@ template ThompsonOps(E,S, bool withInput:false)
 @trusted:
     // can't match these without input
     static bool op(IR code)(E e, S* state)
-        if (code == IR.Char || code == IR.OrChar || code == IR.CodepointSet
+    if (code == IR.Char || code == IR.OrChar || code == IR.CodepointSet
         || code == IR.Trie || code == IR.Char || code == IR.Any)
     {
         return state.popState(e);
     }
 
-    // special case of zero-width backref
+    // special case of zero-width or unmatched backref
     static bool op(IR code:IR.Backref)(E e, S* state)
     {
         with(e) with(state)
@@ -689,7 +695,9 @@ template ThompsonOps(E,S, bool withInput:false)
             uint n = re.ir[t.pc].data;
             Group!DataIndex* source = re.ir[t.pc].localRef ? t.matches.ptr : backrefed.ptr;
             assert(source);
-            if (source[n].begin == source[n].end)//zero-width Backref!
+            if (!source[n])  // unmatched group
+                return popState(e);
+            if (source[n].begin == source[n].end)  // zero-width match
             {
                 t.pc += IRL!(IR.Backref);
                 return true;
@@ -701,7 +709,7 @@ template ThompsonOps(E,S, bool withInput:false)
 
     // forward all control flow to normal versions
     static bool op(IR code)(E e, S* state)
-        if (code != IR.Char && code != IR.OrChar && code != IR.CodepointSet
+    if (code != IR.Char && code != IR.OrChar && code != IR.CodepointSet
         && code != IR.Trie && code != IR.Char && code != IR.Any && code != IR.Backref)
     {
         return ThompsonOps!(E,S,true).op!code(e,state);
@@ -759,12 +767,7 @@ final:
 
     }
 
-    static if (__traits(hasMember,Stream, "search"))
-    {
-        enum kicked = true;
-    }
-    else
-        enum kicked = false;
+    enum kicked = __traits(hasMember, Stream, "search");
 
     static size_t getThreadSize(const ref Regex!Char re)
     {

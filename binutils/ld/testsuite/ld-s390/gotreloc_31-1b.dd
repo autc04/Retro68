@@ -1,0 +1,20 @@
+
+tmpdir/gotreloc_31-1b:     file format elf32-s390
+
+Disassembly of section .text:
+
+.* <foo>:
+.*:	c4 18 00 00 08 56 [	 ]*lgrl	%r1,11b4 <_GLOBAL_OFFSET_TABLE_\+0x14>
+[	 ]*.*: R_390_GOTENT	bar\+0x2
+.*:	e3 10 c0 14 00 04 [	 ]*lg	%r1,20\(%r12\)
+[	 ]*.*: R_390_GOT20	bar
+.*:	c4 1d 00 00 08 50 [	 ]*lrl	%r1,11b4 <_GLOBAL_OFFSET_TABLE_\+0x14>
+[	 ]*.*: R_390_GOTENT	bar\+0x2
+.*:	58 10 c0 14 [	 ]*l	%r1,20\(%r12\)
+[	 ]*.*: R_390_GOT12	bar
+.*:	e3 10 c0 14 00 58 [	 ]*ly	%r1,20\(%r12\)
+[	 ]*.*: R_390_GOT20	bar
+.*:	c4 18 00 00 08 46 [	 ]*lgrl	%r1,11b0 <_GLOBAL_OFFSET_TABLE_\+0x10>
+[	 ]*.*: R_390_GOTENT	_GLOBAL_OFFSET_TABLE_\+0x2
+.*:	c4 18 00 00 08 41 [	 ]*lgrl	%r1,11ac <_GLOBAL_OFFSET_TABLE_\+0xc>
+[	 ]*.*: R_390_GOTENT	misaligned_sym\+0x2

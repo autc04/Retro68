@@ -15,7 +15,7 @@ Disassembly of section .text:
 0+0014 <[^>]*> 7c851b94 	addq_s\.qh	v1,a0,a1
 0+0018 <[^>]*> 7d4b4814 	addu\.ob	t1,t2,t3
 0+001c <[^>]*> 7d6c5114 	addu_s\.ob	t2,t3,t4
-0+0020 <[^>]*> 041dfff7 	bposge64	00000000 <text_label>
+0+0020 <[^>]*> 041dfff7 	bposge64	0+000000 <text_label>
 0+0024 <[^>]*> 00000000 	nop
 0+0028 <[^>]*> 7e950415 	cmp\.eq\.pw	s4,s5
 0+002c <[^>]*> 7eb60455 	cmp\.lt\.pw	s5,s6

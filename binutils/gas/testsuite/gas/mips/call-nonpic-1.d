@@ -2,7 +2,7 @@
 #objdump: -pdr
 
 .*
-private flags = 10001004: .*
+private flags = 1000.004: .*
 
 MIPS ABI Flags Version: 0
 

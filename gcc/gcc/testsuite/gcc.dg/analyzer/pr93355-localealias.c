@@ -3,9 +3,8 @@
    Adapted from intl/localealias.c, with all #includes removed.  */
 
 /* { dg-do "compile" } */
-/* { dg-additional-options "-Wno-analyzer-too-complex" } */
+/* { dg-additional-options "-Wno-old-style-definition -Wno-analyzer-too-complex" } */
 /* TODO: remove the need for this option.  */
-/* { dg-require-effective-target alloca } */
 
 /* Handle aliases for locale names.
    Copyright (C) 1995-1999, 2000-2001, 2003 Free Software Foundation, Inc.
@@ -312,7 +311,7 @@ read_alias_file (fname, fname_len)
 					? alias_len + value_len : 1024));
 		  char *new_pool = (char *) realloc (string_space, new_size);
 		  if (new_pool == NULL)
-		    return added;
+		    return added; /* { dg-warning "leak of FILE 'fp'" } */
 
 		  if (__builtin_expect (string_space != new_pool, 0))
 		    {
@@ -329,7 +328,7 @@ read_alias_file (fname, fname_len)
 		  string_space_max = new_size;
 		}
 
-	      map[nmap].alias = memcpy (&string_space[string_space_act],
+	      map[nmap].alias = memcpy (&string_space[string_space_act], /* { dg-bogus "uninit" "FIXME" { xfail *-*-* } } */
 					alias, alias_len);
 	      string_space_act += alias_len;
 

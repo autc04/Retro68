@@ -1,6 +1,6 @@
 #source: start1.s
 #source: tls-e-tpiecomm1.s
-#as: --no-underscore --em=criself -I$srcdir/$subdir
+#as: --no-underscore --emulation=criself -I$srcdir/$subdir
 #ld: -m crislinux
 #objdump: -d -s -h -t -r -p
 

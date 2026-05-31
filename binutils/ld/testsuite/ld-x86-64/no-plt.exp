@@ -1,5 +1,5 @@
 # Expect script for x86-64 no-PLT tests.
-#   Copyright (C) 2016-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2016-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -70,7 +70,7 @@ run_cc_link_tests [list \
 	"libno-plt-1b.so" \
     ] \
     [list \
-	"No PLT (dynamic 1a)" \
+	"Build no PLT (dynamic 1a)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -79,7 +79,7 @@ run_cc_link_tests [list \
 	"no-plt-1a" \
     ] \
     [list \
-	"No PLT (dynamic 1b)" \
+	"Build no PLT (dynamic 1b)" \
 	"tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -88,7 +88,7 @@ run_cc_link_tests [list \
 	"no-plt-1b" \
     ] \
     [list \
-	"No PLT (dynamic 1c)" \
+	"Build no PLT (dynamic 1c)" \
 	"$NOPIE_LDFLAGS tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -97,7 +97,7 @@ run_cc_link_tests [list \
 	"no-plt-1c" \
     ] \
     [list \
-	"No PLT (static 1d)" \
+	"Build no PLT (static 1d)" \
 	"-static tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -106,7 +106,7 @@ run_cc_link_tests [list \
 	"no-plt-1d" \
     ] \
     [list \
-	"No PLT (PIE 1e)" \
+	"Build no PLT (PIE 1e)" \
 	"-pie tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -115,7 +115,7 @@ run_cc_link_tests [list \
 	"no-plt-1e" \
     ] \
     [list \
-	"No PLT (PIE 1f)" \
+	"Build no PLT (PIE 1f)" \
 	"-pie tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -124,7 +124,7 @@ run_cc_link_tests [list \
 	"no-plt-1f" \
     ] \
     [list \
-	"No PLT (PIE 1g)" \
+	"Build no PLT (PIE 1g)" \
 	"-pie tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -136,7 +136,7 @@ run_cc_link_tests [list \
 
 run_ld_link_exec_tests [list \
     [list \
-	"No PLT (dynamic 1a)" \
+	"Run no PLT (dynamic 1a)" \
 	"tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -145,7 +145,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (dynamic 1b)" \
+	"Run no PLT (dynamic 1b)" \
 	"tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -154,7 +154,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (dynamic 1c)" \
+	"Run no PLT (dynamic 1c)" \
 	"tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -163,7 +163,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (static 1d)" \
+	"Run no PLT (static 1d)" \
 	"-static tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -172,7 +172,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (PIE 1e)" \
+	"Run no PLT (PIE 1e)" \
 	"-pie tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/no-plt-extern1.o" \
 	"-Wa,-mx86-used-note=yes" \
@@ -181,7 +181,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (PIE 1f)" \
+	"Run no PLT (PIE 1f)" \
 	"-pie tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/libno-plt-1a.so tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \
@@ -190,7 +190,7 @@ run_ld_link_exec_tests [list \
 	"pass.out" \
     ] \
     [list \
-	"No PLT (PIE 1g)" \
+	"Run no PLT (PIE 1g)" \
 	"-pie tmpdir/no-plt-check1.o tmpdir/no-plt-main1.o \
 	 tmpdir/no-plt-func1.o tmpdir/libno-plt-1b.so" \
 	"-Wa,-mx86-used-note=yes" \

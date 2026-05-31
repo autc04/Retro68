@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,11 +15,15 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <atomic>
 #include <testsuite_hooks.h>
+#include <type_traits>
+
+template<typename T>
+using volatile_
+ = std::conditional_t<std::atomic_ref<T>::is_always_lock_free, volatile T, T>;
 
 void
 test01()
@@ -298,17 +302,19 @@ test03()
 void
 test04()
 {
-  if constexpr (std::atomic_ref<float>::is_always_lock_free)
-  {
-    float i = 0;
-    float* ptr = 0;
-    std::atomic_ref<float*> a0(ptr);
-    std::atomic_ref<float*> a1(ptr);
-    std::atomic_ref<float*> a2(a0);
-    a0 = &i;
-    VERIFY( a1 == &i );
-    VERIFY( a2 == &i );
-  }
+  float i = 0.0f;
+  std::atomic_ref<float> a0(i);
+  std::atomic_ref<float> a1(i);
+  std::atomic_ref<const float> a1c(i);
+  std::atomic_ref<volatile_<float>> a1v(i);
+  std::atomic_ref<volatile_<const float>> a1cv(i);
+  std::atomic_ref<float> a2(a0);
+  a0 = 1.0f;
+  VERIFY( a1 == 1.0f );
+  VERIFY( a1c == 1.0f );
+  VERIFY( a1v == 1.0f );
+  VERIFY( a1cv == 1.0f );
+  VERIFY( a2 == 1.0f );
 }
 
 int

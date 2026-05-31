@@ -1,6 +1,6 @@
 /* Auxiliary functions for pipeline descriptions pattern of Andes
    NDS32 cpu for GNU compiler
-   Copyright (C) 2012-2022 Free Software Foundation, Inc.
+   Copyright (C) 2012-2026 Free Software Foundation, Inc.
    Contributed by Andes Technology Corporation.
 
    This file is part of GCC.
@@ -41,7 +41,7 @@
 namespace nds32 {
 
 /* Get the rtx in the PATTERN field of an insn.  If INSN is not an insn,
-   the funciton doesn't change anything and returns it directly.  */
+   the function doesn't change anything and returns it directly.  */
 rtx
 extract_pattern_from_insn (rtx insn)
 {

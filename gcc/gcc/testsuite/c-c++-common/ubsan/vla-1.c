@@ -1,12 +1,12 @@
 /* { dg-do run } */
-/* { dg-options "-fsanitize=vla-bound -Wall -Wno-unused-variable -fno-stack-clash-protection" } */
+/* { dg-options "-fsanitize=vla-bound -Wall -Wno-unused-variable -fno-stack-clash-protection -ftrivial-auto-var-init=uninitialized" } */
 
 typedef long int V;
 int x = -1;
 double di = -3.2;
 V v = -6;
 
-static int __attribute__ ((noinline, noclone))
+static int __attribute__ ((noipa))
 bar (void)
 {
   return -4;

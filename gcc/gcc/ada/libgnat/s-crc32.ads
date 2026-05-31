@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2001-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -56,7 +56,7 @@
 
 with Interfaces;
 
-package System.CRC32 is
+package System.CRC32 with Pure, Always_Terminates is
 
    type CRC32 is new Interfaces.Unsigned_32;
    --  Used to represent CRC32 values, which are 32 bit bit-strings

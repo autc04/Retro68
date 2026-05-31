@@ -9,18 +9,18 @@ Disassembly of section \.iplt:
 #------ f1's .iplt entry
 #------------------------------------------------------------------------------
     9000:	e28fc600 	add	ip, pc, #0, 12
-    9004:	e28cca08 	add	ip, ip, #8, 20	; 0x8000
+    9004:	e28cca08 	add	ip, ip, #8, 20	@ 0x8000
     9008:	e5bcf004 	ldr	pc, \[ip, #4\]!
 
 0000900c <f3>:
     900c:	e28fc600 	add	ip, pc, #0, 12
-    9010:	e28cca07 	add	ip, ip, #28672	; 0x7000
-    9014:	e5bcfffc 	ldr	pc, \[ip, #4092\]!	; 0xffc
+    9010:	e28cca07 	add	ip, ip, #28672	@ 0x7000
+    9014:	e5bcfffc 	ldr	pc, \[ip, #4092\]!	@ 0xffc
 
 00009018 <f2>:
     9018:	e28fc600 	add	ip, pc, #0, 12
-    901c:	e28cca07 	add	ip, ip, #28672	; 0x7000
-    9020:	e5bcfff4 	ldr	pc, \[ip, #4084\]!	; 0xff4
+    901c:	e28cca07 	add	ip, ip, #28672	@ 0x7000
+    9020:	e5bcfff4 	ldr	pc, \[ip, #4084\]!	@ 0xff4
 
 Disassembly of section \.text:
 
@@ -31,11 +31,11 @@ Disassembly of section \.text:
 
 0000a00c <_start>:
     a00c:	eb0017fb 	bl	10000 <foo>
-    a010:	e59f400c 	ldr	r4, \[pc, #12\]	; a024 <_start\+0x18>
-    a014:	e59f400c 	ldr	r4, \[pc, #12\]	; a028 <_start\+0x1c>
-    a018:	e59f400c 	ldr	r4, \[pc, #12\]	; a02c <_start\+0x20>
-    a01c:	e59f400c 	ldr	r4, \[pc, #12\]	; a030 <_start\+0x24>
-    a020:	e59f500c 	ldr	r5, \[pc, #12\]	; a034 <_start\+0x28>
+    a010:	e59f400c 	ldr	r4, \[pc, #12\]	@ a024 <_start\+0x18>
+    a014:	e59f400c 	ldr	r4, \[pc, #12\]	@ a028 <_start\+0x1c>
+    a018:	e59f400c 	ldr	r4, \[pc, #12\]	@ a02c <_start\+0x20>
+    a01c:	e59f400c 	ldr	r4, \[pc, #12\]	@ a030 <_start\+0x24>
+    a020:	e59f500c 	ldr	r5, \[pc, #12\]	@ a034 <_start\+0x28>
 #------------------------------------------------------------------------------
 #------ foo
 #------------------------------------------------------------------------------
@@ -60,11 +60,11 @@ Disassembly of section \.text:
 #------ f1's .iplt entry
 #------------------------------------------------------------------------------
     a038:	ebfffbf0 	bl	9000 <__irel_end\+0xfe8>
-    a03c:	e59f400c 	ldr	r4, \[pc, #12\]	; a050 <_start\+0x44>
-    a040:	e59f400c 	ldr	r4, \[pc, #12\]	; a054 <_start\+0x48>
-    a044:	e59f400c 	ldr	r4, \[pc, #12\]	; a058 <_start\+0x4c>
-    a048:	e59f400c 	ldr	r4, \[pc, #12\]	; a05c <_start\+0x50>
-    a04c:	e59f500c 	ldr	r5, \[pc, #12\]	; a060 <_start\+0x54>
+    a03c:	e59f400c 	ldr	r4, \[pc, #12\]	@ a050 <_start\+0x44>
+    a040:	e59f400c 	ldr	r4, \[pc, #12\]	@ a054 <_start\+0x48>
+    a044:	e59f400c 	ldr	r4, \[pc, #12\]	@ a058 <_start\+0x4c>
+    a048:	e59f400c 	ldr	r4, \[pc, #12\]	@ a05c <_start\+0x50>
+    a04c:	e59f500c 	ldr	r5, \[pc, #12\]	@ a060 <_start\+0x54>
 #------------------------------------------------------------------------------
 #------ f1's .iplt entry
 #------------------------------------------------------------------------------
@@ -86,11 +86,11 @@ Disassembly of section \.text:
 #------------------------------------------------------------------------------
     a060:	00006fbc 	\.word	0x00006fbc
     a064:	ebfffbeb 	bl	9018 <f2>
-    a068:	e59f400c 	ldr	r4, \[pc, #12\]	; a07c <_start\+0x70>
-    a06c:	e59f400c 	ldr	r4, \[pc, #12\]	; a080 <_start\+0x74>
-    a070:	e59f400c 	ldr	r4, \[pc, #12\]	; a084 <_start\+0x78>
-    a074:	e59f400c 	ldr	r4, \[pc, #12\]	; a088 <_start\+0x7c>
-    a078:	e59f500c 	ldr	r5, \[pc, #12\]	; a08c <_start\+0x80>
+    a068:	e59f400c 	ldr	r4, \[pc, #12\]	@ a07c <_start\+0x70>
+    a06c:	e59f400c 	ldr	r4, \[pc, #12\]	@ a080 <_start\+0x74>
+    a070:	e59f400c 	ldr	r4, \[pc, #12\]	@ a084 <_start\+0x78>
+    a074:	e59f400c 	ldr	r4, \[pc, #12\]	@ a088 <_start\+0x7c>
+    a078:	e59f500c 	ldr	r5, \[pc, #12\]	@ a08c <_start\+0x80>
 #------------------------------------------------------------------------------
 #------ f2
 #------------------------------------------------------------------------------
@@ -112,11 +112,11 @@ Disassembly of section \.text:
 #------------------------------------------------------------------------------
     a08c:	00006f9c 	\.word	0x00006f9c
     a090:	ebfffbdd 	bl	900c <f3>
-    a094:	e59f400c 	ldr	r4, \[pc, #12\]	; a0a8 <_start\+0x9c>
-    a098:	e59f400c 	ldr	r4, \[pc, #12\]	; a0ac <_start\+0xa0>
-    a09c:	e59f400c 	ldr	r4, \[pc, #12\]	; a0b0 <_start\+0xa4>
-    a0a0:	e59f400c 	ldr	r4, \[pc, #12\]	; a0b4 <_start\+0xa8>
-    a0a4:	e59f500c 	ldr	r5, \[pc, #12\]	; a0b8 <_start\+0xac>
+    a094:	e59f400c 	ldr	r4, \[pc, #12\]	@ a0a8 <_start\+0x9c>
+    a098:	e59f400c 	ldr	r4, \[pc, #12\]	@ a0ac <_start\+0xa0>
+    a09c:	e59f400c 	ldr	r4, \[pc, #12\]	@ a0b0 <_start\+0xa4>
+    a0a0:	e59f400c 	ldr	r4, \[pc, #12\]	@ a0b4 <_start\+0xa8>
+    a0a4:	e59f500c 	ldr	r5, \[pc, #12\]	@ a0b8 <_start\+0xac>
 #------------------------------------------------------------------------------
 #------ f3
 #------------------------------------------------------------------------------

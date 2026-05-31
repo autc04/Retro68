@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *            Copyright (C) 2014-2022, Free Software Foundation, Inc.       *
+ *            Copyright (C) 2014-2026, Free Software Foundation, Inc.       *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -47,7 +47,6 @@ extern int __gnat_rt_init_count;
 
 #if defined (__MINGW32__)
 #include "mingw32.h"
-#include <windows.h>
 
 extern CRITICAL_SECTION ProcListCS;
 extern HANDLE ProcListEvt;

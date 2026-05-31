@@ -1,5 +1,5 @@
 /* Read and write coverage files, and associated functionality.
-   Copyright (C) 1990-2022 Free Software Foundation, Inc.
+   Copyright (C) 1990-2026 Free Software Foundation, Inc.
    Contributed by James E. Wilson, UC Berkeley/Cygnus Support;
    based on some ideas from Dain Samples of UC Berkeley.
    Further mangling by Bob Manson, Cygnus Support.
@@ -138,7 +138,8 @@ tree
 get_gcov_type (void)
 {
   scalar_int_mode mode
-    = smallest_int_mode_for_size (targetm.gcov_type_size ());
+    = smallest_int_mode_for_size
+      (LONG_LONG_TYPE_SIZE > 32 ? 64 : 32).require ();
   return lang_hooks.types.type_for_mode (mode, false);
 }
 
@@ -147,7 +148,7 @@ get_gcov_type (void)
 static tree
 get_gcov_unsigned_t (void)
 {
-  scalar_int_mode mode = smallest_int_mode_for_size (32);
+  scalar_int_mode mode = smallest_int_mode_for_size (32).require ();
   return lang_hooks.types.type_for_mode (mode, true);
 }
 
@@ -234,9 +235,10 @@ read_counts_file (void)
 	}
       else if (tag == GCOV_TAG_OBJECT_SUMMARY)
 	{
-	  profile_info = XCNEW (gcov_summary);
+	  gcov_profile_info = profile_info = XCNEW (gcov_summary);
 	  profile_info->runs = gcov_read_unsigned ();
 	  profile_info->sum_max = gcov_read_unsigned ();
+	  profile_info->cutoff = 1;
 	}
       else if (GCOV_TAG_IS_COUNTER (tag) && fn_ident)
 	{
@@ -377,7 +379,7 @@ get_coverage_counts (unsigned counter, unsigned cfg_checksum,
                            "use -Wno-error=coverage-mismatch to tolerate "
                            "the mismatch but performance may drop if the "
                            "function is hot\n");
-	  
+
 	  if (!seen_error ()
 	      && !warned++)
 	    {
@@ -429,7 +431,7 @@ coverage_counter_alloc (unsigned counter, unsigned num)
 
   fn_b_ctrs[counter] = fn_n_ctrs[counter];
   fn_n_ctrs[counter] += num;
-  
+
   fn_ctr_mask |= 1 << counter;
   return 1;
 }
@@ -444,7 +446,7 @@ tree_coverage_counter_ref (unsigned counter, unsigned no)
   gcc_assert (no < fn_n_ctrs[counter] - fn_b_ctrs[counter]);
 
   no += fn_b_ctrs[counter];
-  
+
   /* "no" here is an array index, scaled to bytes later.  */
   return build4 (ARRAY_REF, gcov_type_node, fn_v_ctrs[counter],
 		 build_int_cst (integer_type_node, no), NULL, NULL);
@@ -657,7 +659,7 @@ coverage_begin_function (unsigned lineno_checksum, unsigned cfg_checksum)
   int end_line
     = endloc.file == startloc.file ? endloc.line : startloc.line;
   int end_column
-    = endloc.file == startloc.file ? endloc.column: startloc.column;
+    = endloc.file == startloc.file ? endloc.column : startloc.column;
 
   if (startloc.line > end_line)
     {
@@ -727,7 +729,7 @@ coverage_end_function (unsigned lineno_checksum, unsigned cfg_checksum)
 	      DECL_SIZE_UNIT (var) = TYPE_SIZE_UNIT (array_type);
 	      varpool_node::finalize_decl (var);
 	    }
-	  
+
 	  fn_b_ctrs[i] = fn_n_ctrs[i] = 0;
 	  fn_v_ctrs[i] = NULL_TREE;
 	}
@@ -789,18 +791,18 @@ build_fn_info_type (tree type, unsigned counters, tree gcov_info_type)
   tree array_type;
 
   gcc_assert (counters);
-  
+
   /* ctr_info::num */
   field = build_decl (BUILTINS_LOCATION, FIELD_DECL, NULL_TREE,
 		      get_gcov_unsigned_t ());
   fields = field;
-  
+
   /* ctr_info::values */
   field = build_decl (BUILTINS_LOCATION, FIELD_DECL, NULL_TREE,
 		      build_pointer_type (get_gcov_type ()));
   DECL_CHAIN (field) = fields;
   fields = field;
-  
+
   finish_builtin_struct (ctr_info, "__gcov_ctr_info", fields, NULL_TREE);
 
   /* key */
@@ -808,13 +810,13 @@ build_fn_info_type (tree type, unsigned counters, tree gcov_info_type)
 		      build_pointer_type (build_qualified_type
 					  (gcov_info_type, TYPE_QUAL_CONST)));
   fields = field;
-  
+
   /* ident */
   field = build_decl (BUILTINS_LOCATION, FIELD_DECL, NULL_TREE,
 		      get_gcov_unsigned_t ());
   DECL_CHAIN (field) = fields;
   fields = field;
-  
+
   /* lineno_checksum */
   field = build_decl (BUILTINS_LOCATION, FIELD_DECL, NULL_TREE,
 		      get_gcov_unsigned_t ());
@@ -855,7 +857,7 @@ build_fn_info (const struct coverage_data *data, tree type, tree key)
   CONSTRUCTOR_APPEND_ELT (v1, fields,
 			  build1 (ADDR_EXPR, TREE_TYPE (fields), key));
   fields = DECL_CHAIN (fields);
-  
+
   /* ident */
   CONSTRUCTOR_APPEND_ELT (v1, fields,
 			  build_int_cstu (get_gcov_unsigned_t (),
@@ -895,10 +897,10 @@ build_fn_info (const struct coverage_data *data, tree type, tree key)
 	if (var)
 	  CONSTRUCTOR_APPEND_ELT (ctr, DECL_CHAIN (TYPE_FIELDS (ctr_type)),
 				  build_fold_addr_expr (var));
-	
+
 	CONSTRUCTOR_APPEND_ELT (v2, NULL, build_constructor (ctr_type, ctr));
       }
-  
+
   CONSTRUCTOR_APPEND_ELT (v1, fields,
 			  build_constructor (TREE_TYPE (fields), v2));
 
@@ -958,13 +960,13 @@ build_info_type (tree type, tree fn_info_ptr_type)
 		      merge_fn_type);
   DECL_CHAIN (field) = fields;
   fields = field;
-  
+
   /* n_functions */
   field = build_decl (BUILTINS_LOCATION, FIELD_DECL, NULL_TREE,
 		      get_gcov_unsigned_t ());
   DECL_CHAIN (field) = fields;
   fields = field;
-  
+
   /* function_info pointer pointer */
   fn_info_ptr_type = build_pointer_type
     (build_qualified_type (fn_info_ptr_type, TYPE_QUAL_CONST));
@@ -1088,8 +1090,8 @@ build_init_ctor (tree gcov_info_type)
   append_to_statement_list (stmt, &ctor);
 
   /* Generate a constructor to run it.  */
-  int priority = SUPPORTS_INIT_PRIORITY
-    ? MAX_RESERVED_INIT_PRIORITY: DEFAULT_INIT_PRIORITY;
+  int priority = (SUPPORTS_INIT_PRIORITY
+		  ? MAX_RESERVED_INIT_PRIORITY : DEFAULT_INIT_PRIORITY);
   cgraph_build_static_cdtor ('I', ctor, priority);
 }
 
@@ -1111,8 +1113,8 @@ build_gcov_exit_decl (void)
   append_to_statement_list (stmt, &dtor);
 
   /* Generate a destructor to run it.  */
-  int priority = SUPPORTS_INIT_PRIORITY
-    ? MAX_RESERVED_INIT_PRIORITY: DEFAULT_INIT_PRIORITY;
+  int priority = (SUPPORTS_INIT_PRIORITY
+		  ? MAX_RESERVED_INIT_PRIORITY : DEFAULT_INIT_PRIORITY);
 
   cgraph_build_static_cdtor ('D', dtor, priority);
 }
@@ -1173,7 +1175,7 @@ coverage_obj_init (void)
   for (ix = 0; ix != GCOV_COUNTERS; ix++)
     if ((1u << ix) & prg_ctr_mask)
       n_counters++;
-  
+
   /* Build the info and fn_info types.  These are mutually recursive.  */
   gcov_info_type = lang_hooks.types.make_type (RECORD_TYPE);
   gcov_fn_info_type = lang_hooks.types.make_type (RECORD_TYPE);
@@ -1182,7 +1184,7 @@ coverage_obj_init (void)
   gcov_fn_info_ptr_type = build_pointer_type
     (build_qualified_type (gcov_fn_info_type, TYPE_QUAL_CONST));
   build_info_type (gcov_info_type, gcov_fn_info_ptr_type);
-  
+
   /* Build the gcov info var, this is referred to in its own
      initializer.  */
   gcov_info_var = build_decl (BUILTINS_LOCATION,
@@ -1211,10 +1213,10 @@ coverage_obj_fn (vec<constructor_elt, va_gc> *ctor, tree fn,
 {
   tree init = build_fn_info (data, gcov_fn_info_type, gcov_info_var);
   tree var = build_var (fn, gcov_fn_info_type, -1);
-  
+
   DECL_INITIAL (var) = init;
   varpool_node::finalize_decl (var);
-      
+
   CONSTRUCTOR_APPEND_ELT (ctor, NULL,
 			  build1 (ADDR_EXPR, gcov_fn_info_ptr_type, var));
   return ctor;
@@ -1240,10 +1242,37 @@ coverage_obj_finish (vec<constructor_elt, va_gc> *ctor,
   DECL_NAME (fn_info_ary) = get_identifier (name_buf);
   DECL_INITIAL (fn_info_ary) = build_constructor (fn_info_ary_type, ctor);
   varpool_node::finalize_decl (fn_info_ary);
-  
+
   DECL_INITIAL (gcov_info_var)
     = build_info (TREE_TYPE (gcov_info_var), fn_info_ary, object_checksum);
   varpool_node::finalize_decl (gcov_info_var);
+}
+
+/* Open the coverage files.  */
+
+void
+coverage_init_file (void)
+{
+  if (flag_test_coverage && !flag_compare_debug)
+    {
+      if (!gcov_open (bbg_file_name, -1))
+	{
+	  error ("cannot open %s", bbg_file_name);
+	  bbg_file_name = NULL;
+	}
+      else
+	{
+	  gcov_write_unsigned (GCOV_NOTE_MAGIC);
+	  gcov_write_unsigned (GCOV_VERSION);
+	  gcov_write_unsigned (bbg_file_stamp);
+	  /* Use an arbitrary checksum */
+	  gcov_write_unsigned (0);
+	  gcov_write_string (remap_profile_filename (getpwd ()));
+
+	  /* Do not support has_unexecuted_blocks for Ada.  */
+	  gcov_write_unsigned (strcmp (lang_hooks.name, "GNU Ada") != 0);
+	}
+    }
 }
 
 /* Perform file-level initialization. Read in data file, generate name
@@ -1252,6 +1281,9 @@ coverage_obj_finish (vec<constructor_elt, va_gc> *ctor,
 void
 coverage_init (const char *filename)
 {
+  /* If we are in LTO, the profile will be read from object files.  */
+  if (in_lto_p)
+    return;
   const char *original_filename = filename;
   int original_len = strlen (original_filename);
 #if HAVE_DOS_BASED_FILE_SYSTEM
@@ -1311,9 +1343,7 @@ coverage_init (const char *filename)
   strcpy (da_file_name + prefix_len + len, GCOV_DATA_SUFFIX);
 
   bbg_file_stamp = local_tick;
-  if (flag_auto_profile)
-    read_autofdo_file ();
-  else if (flag_branch_probabilities)
+  if (flag_branch_probabilities && !flag_auto_profile)
     read_counts_file ();
 
   /* Name of bbg file.  */
@@ -1327,34 +1357,15 @@ coverage_init (const char *filename)
 	  memcpy (bbg_file_name, original_filename, original_len);
 	  strcpy (bbg_file_name + original_len, GCOV_NOTE_SUFFIX);
 	}
-
-      if (!gcov_open (bbg_file_name, -1))
-	{
-	  error ("cannot open %s", bbg_file_name);
-	  bbg_file_name = NULL;
-	}
-      else
-	{
-	  gcov_write_unsigned (GCOV_NOTE_MAGIC);
-	  gcov_write_unsigned (GCOV_VERSION);
-	  gcov_write_unsigned (bbg_file_stamp);
-	  /* Use an arbitrary checksum */
-	  gcov_write_unsigned (0);
-	  gcov_write_string (getpwd ());
-
-	  /* Do not support has_unexecuted_blocks for Ada.  */
-	  gcov_write_unsigned (strcmp (lang_hooks.name, "GNU Ada") != 0);
-	}
     }
 
   g->get_dumps ()->dump_finish (profile_pass_num);
 }
 
-/* Performs file-level cleanup.  Close notes file, generate coverage
-   variables and constructor.  */
+/* Close the coverage files.  */
 
 void
-coverage_finish (void)
+coverage_finish_file (void)
 {
   if (bbg_file_name && gcov_close ())
     unlink (bbg_file_name);
@@ -1364,7 +1375,14 @@ coverage_finish (void)
     /* Only remove the da file, if we're emitting coverage code and
        cannot uniquely stamp it.  If we can stamp it, libgcov will DTRT.  */
     unlink (da_file_name);
+}
 
+/* Performs file-level cleanup.  Close notes file, generate coverage
+   variables and constructor.  */
+
+void
+coverage_finish (void)
+{
   /* Global GCDA checksum that aggregates all functions.  */
   unsigned object_checksum = 0;
 
@@ -1372,7 +1390,7 @@ coverage_finish (void)
     {
       vec<constructor_elt, va_gc> *fn_ctor = NULL;
       struct coverage_data *fn;
-      
+
       for (fn = functions_head; fn; fn = fn->next)
 	{
 	  fn_ctor = coverage_obj_fn (fn_ctor, fn->fn_decl, fn);

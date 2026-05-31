@@ -1,6 +1,6 @@
 /* Collect static initialization info into data structures that can be
    traversed by C++ initialization and finalization routines.
-   Copyright (C) 1992-2022 Free Software Foundation, Inc.
+   Copyright (C) 1992-2026 Free Software Foundation, Inc.
    Contributed by Chris Smith (csmith@convex.com).
    Heavily modified by Michael Meissner (meissner@cygnus.com),
    Per Bothner (bothner@cygnus.com), and John Gilmore (gnu@cygnus.com).
@@ -579,7 +579,7 @@ static void
 maybe_run_lto_and_relink (char **lto_ld_argv, char **object_lst,
 			  const char **object, bool force)
 {
-  const char **object_file = CONST_CAST2 (const char **, char **, object_lst);
+  const char **object_file = const_cast<const char **> (object_lst);
 
   int num_lto_c_args = 1;    /* Allow space for the terminating NULL.  */
 
@@ -622,8 +622,8 @@ maybe_run_lto_and_relink (char **lto_ld_argv, char **object_lst,
 	 LTO object replaced by all partitions and other LTO
 	 objects removed.  */
 
-      lto_c_argv = (char **) xcalloc (sizeof (char *), num_lto_c_args);
-      lto_c_ptr = CONST_CAST2 (const char **, char **, lto_c_argv);
+      lto_c_argv = (char **) xcalloc (num_lto_c_args, sizeof (char *));
+      lto_c_ptr = const_cast<const char **> (lto_c_argv);
 
       *lto_c_ptr++ = lto_wrapper;
 
@@ -777,6 +777,7 @@ main (int argc, char **argv)
       USE_BFD_LD,
       USE_LLD_LD,
       USE_MOLD_LD,
+      USE_WILD_LD,
       USE_LD_MAX
     } selected_linker = USE_DEFAULT_LD;
   static const char *const ld_suffixes[USE_LD_MAX] =
@@ -786,7 +787,8 @@ main (int argc, char **argv)
       "ld.gold",
       "ld.bfd",
       "ld.lld",
-      "ld.mold"
+      "ld.mold",
+      "wild"
     };
   static const char *const real_ld_suffix = "real-ld";
   static const char *const collect_ld_suffix = "collect-ld";
@@ -865,12 +867,15 @@ main (int argc, char **argv)
   int i;
 
   for (i = 0; i < USE_LD_MAX; i++)
-    full_ld_suffixes[i]
 #ifdef CROSS_DIRECTORY_STRUCTURE
-      = concat (target_machine, "-", ld_suffixes[i], NULL);
-#else
-      = ld_suffixes[i];
+    /* lld and mold are platform-agnostic and not prefixed with target
+       triple.  */
+    if (!(i == USE_LLD_LD || i == USE_MOLD_LD || i == USE_WILD_LD))
+      full_ld_suffixes[i] = concat (target_machine, "-", ld_suffixes[i],
+				    NULL);
+    else
 #endif
+      full_ld_suffixes[i] = ld_suffixes[i];
 
   p = argv[0] + strlen (argv[0]);
   while (p != argv[0] && !IS_DIR_SEPARATOR (p[-1]))
@@ -916,11 +921,11 @@ main (int argc, char **argv)
      set first, in case a diagnostic is issued.  */
 
   ld1_argv = XCNEWVEC (char *, argc + 4);
-  ld1 = CONST_CAST2 (const char **, char **, ld1_argv);
+  ld1 = const_cast<const char **> (ld1_argv);
   ld2_argv = XCNEWVEC (char *, argc + 11);
-  ld2 = CONST_CAST2 (const char **, char **, ld2_argv);
+  ld2 = const_cast<const char **> (ld2_argv);
   object_lst = XCNEWVEC (char *, argc);
-  object = CONST_CAST2 (const char **, char **, object_lst);
+  object = const_cast<const char **> (object_lst);
 
 #ifdef DEBUG
   debug = true;
@@ -961,6 +966,8 @@ main (int argc, char **argv)
 	  selected_linker = USE_LLD_LD;
 	else if (strcmp (argv[i], "-fuse-ld=mold") == 0)
 	  selected_linker = USE_MOLD_LD;
+	else if (strcmp (argv[i], "-fuse-ld=wild") == 0)
+	  selected_linker = USE_WILD_LD;
 	else if (startswith (argv[i], "-o"))
 	  {
 	    /* Parse the output filename if it's given so that we can make
@@ -1032,12 +1039,13 @@ main (int argc, char **argv)
       lto_mode = LTO_MODE_LTO;
   }
 
-  /* -fno-profile-arcs -fno-test-coverage -fno-branch-probabilities
-     -fno-exceptions -w -fno-whole-program */
-  num_c_args += 6;
+  /* -fno-profile-arcs -fno-condition-coverage -fno-path-coverage
+     -fno-test-coverage
+     -fno-branch-probabilities -fno-exceptions -w -fno-whole-program */
+  num_c_args += 8;
 
   c_argv = XCNEWVEC (char *, num_c_args);
-  c_ptr = CONST_CAST2 (const char **, char **, c_argv);
+  c_ptr = const_cast<const char **> (c_argv);
 
   if (argc < 2)
     fatal_error (input_location, "no arguments");
@@ -1052,7 +1060,8 @@ main (int argc, char **argv)
   ld_file_name = 0;
 #ifdef DEFAULT_LINKER
   if (selected_linker == USE_BFD_LD || selected_linker == USE_GOLD_LD ||
-      selected_linker == USE_LLD_LD || selected_linker == USE_MOLD_LD)
+      selected_linker == USE_LLD_LD || selected_linker == USE_MOLD_LD ||
+      selected_linker == USE_WILD_LD)
     {
       char *linker_name;
 # ifdef HOST_EXECUTABLE_SUFFIX
@@ -1230,6 +1239,8 @@ main (int argc, char **argv)
     }
   obstack_free (&temporary_obstack, temporary_firstobj);
   *c_ptr++ = "-fno-profile-arcs";
+  *c_ptr++ = "-fno-condition-coverage";
+  *c_ptr++ = "-fno-path-coverage";
   *c_ptr++ = "-fno-test-coverage";
   *c_ptr++ = "-fno-branch-probabilities";
   *c_ptr++ = "-fno-exceptions";
@@ -1287,7 +1298,7 @@ main (int argc, char **argv)
 	      else if (!use_collect_ld
 		       && startswith (arg, "-fuse-ld="))
 		{
-		  /* Do not pass -fuse-ld={bfd|gold|lld|mold} to the linker. */
+		  /* Do not pass -fuse-ld={bfd|gold|lld|mold|wild} to the linker. */
 		  ld1--;
 		  ld2--;
 		}
@@ -1337,13 +1348,12 @@ main (int argc, char **argv)
 		      if (add_nbr >= add_max)
 			{
 			  int pos =
-			    object - CONST_CAST2 (const char **, char **,
-						  object_lst);
+			    object - const_cast<const char **> (object_lst);
 			  add_max = (add_max == 0) ? 16 : add_max * 2;
 			  object_lst = XRESIZEVEC (char *, object_lst,
                                                    object_nbr + add_max);
-			  object = CONST_CAST2 (const char **, char **,
-						object_lst) + pos;
+			  object =
+			    const_cast<const char **> (object_lst) + pos;
 			  object_nbr += add_max;
 			}
 		      *object++ = xstrdup (buf);
@@ -1507,8 +1517,7 @@ main (int argc, char **argv)
      would otherwise reference them all, hence drag all the corresponding
      objects even if nothing else is referenced.  */
   {
-    const char **export_object_lst
-      = CONST_CAST2 (const char **, char **, object_lst);
+    const char **export_object_lst = const_cast<const char **> (object_lst);
 
     struct id *list = libs.first;
 
@@ -1698,8 +1707,8 @@ main (int argc, char **argv)
       if (strip_flag)
 	{
 	  char **real_strip_argv = XCNEWVEC (char *, 3);
-	  const char ** strip_argv = CONST_CAST2 (const char **, char **,
-						  real_strip_argv);
+	  const char ** strip_argv =
+	    const_cast<const char **> (real_strip_argv);
 
 	  strip_argv[0] = strip_file_name;
 	  strip_argv[1] = output_file;
@@ -2332,7 +2341,7 @@ scan_prog_file (const char *prog_name, scanpass which_pass,
   void (*quit_handler) (int);
 #endif
   char *real_nm_argv[4];
-  const char **nm_argv = CONST_CAST2 (const char **, char**, real_nm_argv);
+  const char **nm_argv = const_cast<const char **> (real_nm_argv);
   int argc = 0;
   struct pex_obj *pex;
   const char *errmsg;
@@ -2516,7 +2525,7 @@ scan_libraries (const char *prog_name)
   void (*quit_handler) (int);
 #endif
   char *real_ldd_argv[4];
-  const char **ldd_argv = CONST_CAST2 (const char **, char **, real_ldd_argv);
+  const char **ldd_argv = const_cast<const char **> (real_ldd_argv);
   int argc = 0;
   struct pex_obj *pex;
   const char *errmsg;
@@ -2751,7 +2760,7 @@ scan_prog_file (const char *prog_name, scanpass which_pass,
 	 non-const char * filename parameter, even though it will not
 	 modify that string.  So we must cast away const-ness here,
 	 using CONST_CAST to prevent complaints from -Wcast-qual.  */
-      if ((ldptr = ldopen (CONST_CAST (char *, prog_name), ldptr)) != NULL)
+      if ((ldptr = ldopen (const_cast<char *> (prog_name), ldptr)) != NULL)
 	{
 	  if (! MY_ISCOFF (HEADER (ldptr).f_magic))
 	    {
@@ -3018,8 +3027,7 @@ do_dsymutil (const char *output_file) {
   const char *dsymutil = 0;
   struct pex_obj *pex;
   char **real_argv = XCNEWVEC (char *, verbose ? 4 : 3);
-  const char ** argv = CONST_CAST2 (const char **, char **,
-				    real_argv);
+  const char ** argv = const_cast<const char **> (real_argv);
 /* For cross-builds search the PATH using target-qualified name if we
    have not already found a suitable dsymutil.  In practice, all modern
    versions of dsymutil handle all supported archs, however the approach
@@ -3068,7 +3076,7 @@ static void
 post_ld_pass (bool temp_file) {
   if (!(temp_file && flag_idsym) && !flag_dsym)
     return;
-      
+
   do_dsymutil (output_file);
 }
 #else

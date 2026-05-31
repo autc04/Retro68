@@ -1,5 +1,5 @@
 /* Darwin support needed only by D front-end.
-   Copyright (C) 2020-2022 Free Software Foundation, Inc.
+   Copyright (C) 2020-2026 Free Software Foundation, Inc.
 
 GCC is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free
@@ -18,6 +18,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "tm.h"
 #include "tm_d.h"
 #include "d/d-target.h"
 #include "d/d-target-def.h"
@@ -29,6 +30,7 @@ darwin_d_os_builtins (void)
 {
   d_add_builtin_version ("Posix");
   d_add_builtin_version ("OSX");
+  d_add_builtin_version ("Apple");
   d_add_builtin_version ("darwin");
 }
 
@@ -66,10 +68,10 @@ darwin_d_register_target_info (void)
 #undef TARGET_D_MINFO_SECTION
 #define TARGET_D_MINFO_SECTION "__DATA,__minfodata"
 
-#undef TARGET_D_MINFO_START_NAME
-#define TARGET_D_MINFO_START_NAME "*section$start$__DATA$__minfodata"
+#undef TARGET_D_MINFO_SECTION_START
+#define TARGET_D_MINFO_SECTION_START "*section$start$__DATA$__minfodata"
 
-#undef TARGET_D_MINFO_END_NAME
-#define TARGET_D_MINFO_END_NAME "*section$end$__DATA$__minfodata"
+#undef TARGET_D_MINFO_SECTION_END
+#define TARGET_D_MINFO_SECTION_END "*section$end$__DATA$__minfodata"
 
 struct gcc_targetdm targetdm = TARGETDM_INITIALIZER;

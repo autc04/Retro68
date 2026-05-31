@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,7 +24,6 @@
 ------------------------------------------------------------------------------
 
 with Atree;          use Atree;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Exp_Ch3;        use Exp_Ch3;
@@ -41,7 +40,6 @@ with Sem;            use Sem;
 with Sem_Aux;        use Sem_Aux;
 with Sem_Ch8;        use Sem_Ch8;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Snames;         use Snames;
@@ -113,8 +111,6 @@ package body Exp_Ch8 is
       --  atomic object. Note that we are only interested in these operations
       --  if they occur as part of the name itself, subscripts are just values
       --  that are computed as part of the evaluation, so they are unimportant.
-      --  In addition, always return True for Modify_Tree_For_C since the
-      --  code generator doesn't know how to handle renamings.
 
       -------------------------
       -- Evaluation_Required --
@@ -122,10 +118,7 @@ package body Exp_Ch8 is
 
       function Evaluation_Required (Nam : Node_Id) return Boolean is
       begin
-         if Modify_Tree_For_C then
-            return True;
-
-         elsif Nkind (Nam) in N_Indexed_Component | N_Slice then
+         if Nkind (Nam) in N_Indexed_Component | N_Slice then
             if Is_Packed (Etype (Prefix (Nam))) then
                return True;
 
@@ -294,10 +287,10 @@ package body Exp_Ch8 is
       begin
          Set_Alias (Id, Empty);
          Set_Has_Completion (Id, False);
+         Set_Has_Delayed_Freeze (Id);
          Rewrite (N,
            Make_Subprogram_Declaration (Loc,
              Specification => Specification (N)));
-         Set_Has_Delayed_Freeze (Id);
 
          Body_Id := Make_Defining_Identifier (Loc, Chars (Id));
          Set_Debug_Info_Needed (Body_Id);
@@ -306,6 +299,7 @@ package body Exp_Ch8 is
             Decl :=
               Build_Variant_Record_Equality
                 (Typ         => Typ,
+                 Spec_Id     => Id,
                  Body_Id     => Body_Id,
                  Param_Specs => Copy_Parameter_List (Id));
 
@@ -348,22 +342,9 @@ package body Exp_Ch8 is
    --  Start of processing for Expand_N_Subprogram_Renaming_Declaration
 
    begin
-      --  When the prefix of the name is a function call, we must force the
-      --  call to be made by removing side effects from the call, since we
-      --  must only call the function once.
+      --  Perform name evaluation in all cases
 
-      if Nkind (Nam) = N_Selected_Component
-        and then Nkind (Prefix (Nam)) = N_Function_Call
-      then
-         Remove_Side_Effects (Prefix (Nam));
-
-      --  For an explicit dereference, the prefix must be captured to prevent
-      --  reevaluation on calls through the renaming, which could result in
-      --  calling the wrong subprogram if the access value were to be changed.
-
-      elsif Nkind (Nam) = N_Explicit_Dereference then
-         Force_Evaluation (Prefix (Nam));
-      end if;
+      Evaluate_Name (Nam);
 
       --  Handle cases where we build a body for a renamed equality
 

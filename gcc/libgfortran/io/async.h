@@ -1,4 +1,4 @@
-/* Copyright (C) 2018-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2018-2026 Free Software Foundation, Inc.
    Contributed by Nicolas Koenig
 
    This file is part of the GNU Fortran runtime library (libgfortran).
@@ -29,6 +29,9 @@
    __gthread_cond_t and __gthread_equal / __gthread_self.  Check
    this.  */
 
+/* #undef __GTHREADS_CXX0X - uncomment for checking non-threading
+   systems.  */
+
 #if defined(__GTHREAD_HAS_COND) && defined(__GTHREADS_CXX0X)
 #define ASYNC_IO 1
 #else
@@ -42,6 +45,9 @@
 #undef DEBUG_ASYNC
 
 #ifdef DEBUG_ASYNC
+#ifndef __GTHREADS_CXX0X
+#error "gthreads support required for DEBUG_ASYNC"
+#endif
 
 /* Define this if you want to use ANSI color escape sequences in your
    debugging output.  */
@@ -175,6 +181,11 @@
     INTERN_UNLOCK (mutex);						\
   }while (0)
 
+#define UNLOCK_UNIT(unit) do { \
+  unit->self = 0;							\
+  UNLOCK(&(unit)->lock);						\
+  } while(0)
+
 #define TRYLOCK(mutex) ({						\
 			 char status[200];				\
 			 int res;					\
@@ -198,6 +209,30 @@
 			 res;						\
     })
 
+#define TRYLOCK_UNIT(unit) ({					\
+			 char status[200];				\
+			 int res;					\
+			 aio_lock_debug *curr;				\
+			 __gthread_mutex_t *mutex = &(unit)->lock;	\
+			 res = __gthread_mutex_trylock (mutex);		\
+			 INTERN_LOCK (&debug_queue_lock);		\
+			 if (res) {					\
+			   if ((curr = IN_DEBUG_QUEUE (mutex))) {	\
+			     sprintf (status, DEBUG_RED "%s():%d" DEBUG_NORM, curr->func, curr->line);	\
+			   } else					\
+			     sprintf (status, DEBUG_RED "unknown" DEBUG_NORM);	\
+			 }						\
+			 else {						\
+			   sprintf (status, DEBUG_GREEN "unlocked" DEBUG_NORM);	\
+			   MUTEX_DEBUG_ADD (mutex);			\
+			 }						\
+			 DEBUG_PRINTF ("%s%-44s prev: %-35s %20s():%-5d %18p\n", aio_prefix, \
+				      DEBUG_DARKRED "TRYLOCK: " DEBUG_NORM #unit, status, __FUNCTION__, __LINE__, \
+				      (void *) mutex);			\
+			 INTERN_UNLOCK (&debug_queue_lock);		\
+			 res;						\
+    })
+
 #define LOCK(mutex) do {						\
     char status[200];							\
     CHECK_LOCK (mutex, status);						\
@@ -210,22 +245,231 @@
     DEBUG_PRINTF ("%s" DEBUG_RED "ACQ:" DEBUG_NORM " %-30s %78p\n", aio_prefix, #mutex, mutex); \
   } while (0)
 
+
+#define LOCK_UNIT(unit) do {		\
+    LOCK (&(unit)->lock);		\
+    (unit)->self = (intptr_t) __gthread_self ();	\
+  } while (0)
+
+#ifdef __GTHREAD_RWLOCK_INIT
+#define RWLOCK_DEBUG_ADD(rwlock) do {		\
+    aio_rwlock_debug *n;				\
+    n = xmalloc (sizeof (aio_rwlock_debug));	\
+    n->prev = TAIL_RWLOCK_DEBUG_QUEUE;			\
+    if (n->prev)				\
+      n->prev->next = n;			\
+    n->next = NULL;				\
+    n->line = __LINE__;				\
+    n->func = __FUNCTION__;			\
+    n->rw = rwlock;				\
+    if (!aio_rwlock_debug_head) {			\
+      aio_rwlock_debug_head = n;			\
+    }						\
+  } while (0)
+
+#define CHECK_RDLOCK(rwlock, status) do {					\
+    aio_rwlock_debug *curr;						\
+    INTERN_WRLOCK (&debug_queue_rwlock);					\
+    if (__gthread_rwlock_tryrdlock (rwlock)) {				\
+      if ((curr = IN_RWLOCK_DEBUG_QUEUE (rwlock))) {				\
+	sprintf (status, DEBUG_RED "%s():%d" DEBUG_NORM, curr->func, curr->line); \
+      } else								\
+	sprintf (status, DEBUG_RED "unknown" DEBUG_NORM);			\
+    }									\
+    else {								\
+      __gthread_rwlock_unlock (rwlock);					\
+      sprintf (status, DEBUG_GREEN "rwunlocked" DEBUG_NORM);			\
+    }									\
+    INTERN_RWUNLOCK (&debug_queue_rwlock);					\
+  }while (0)
+
+#define CHECK_WRLOCK(rwlock, status) do {					\
+    aio_rwlock_debug *curr;						\
+    INTERN_WRLOCK (&debug_queue_rwlock);					\
+    if (__gthread_rwlock_trywrlock (rwlock)) {				\
+      if ((curr = IN_RWLOCK_DEBUG_QUEUE (rwlock))) {				\
+	sprintf (status, DEBUG_RED "%s():%d" DEBUG_NORM, curr->func, curr->line); \
+      } else								\
+	sprintf (status, DEBUG_RED "unknown" DEBUG_NORM);			\
+    }									\
+    else {								\
+      __gthread_rwlock_unlock (rwlock);					\
+      sprintf (status, DEBUG_GREEN "rwunlocked" DEBUG_NORM);			\
+    }									\
+    INTERN_RWUNLOCK (&debug_queue_rwlock);					\
+  }while (0)
+
+#define TAIL_RWLOCK_DEBUG_QUEUE ({			\
+      aio_rwlock_debug *curr = aio_rwlock_debug_head;	\
+      while (curr && curr->next) {		\
+	curr = curr->next;			\
+      }						\
+      curr;					\
+    })
+
+#define IN_RWLOCK_DEBUG_QUEUE(rwlock) ({		\
+      __label__ end;				\
+      aio_rwlock_debug *curr = aio_rwlock_debug_head;	\
+      while (curr) {				\
+	if (curr->rw == rwlock) {			\
+	  goto end;				\
+	}					\
+	curr = curr->next;			\
+      }						\
+    end:;					\
+      curr;					\
+    })
+
+#define RDLOCK(rwlock) do {						\
+    char status[200];							\
+    CHECK_RDLOCK (rwlock, status);						\
+    DEBUG_PRINTF ("%s%-42s prev: %-35s %20s():%-5d %18p\n", aio_prefix,	\
+		 DEBUG_RED "RDLOCK: " DEBUG_NORM #rwlock, status, __FUNCTION__, __LINE__, (void *) rwlock); \
+    INTERN_RDLOCK (rwlock);							\
+    INTERN_WRLOCK (&debug_queue_rwlock);					\
+    RWLOCK_DEBUG_ADD (rwlock);						\
+    INTERN_RWUNLOCK (&debug_queue_rwlock);					\
+    DEBUG_PRINTF ("%s" DEBUG_RED "ACQ:" DEBUG_NORM " %-30s %78p\n", aio_prefix, #rwlock, rwlock); \
+  } while (0)
+
+#define WRLOCK(rwlock) do {						\
+    char status[200];							\
+    CHECK_WRLOCK (rwlock, status);						\
+    DEBUG_PRINTF ("%s%-42s prev: %-35s %20s():%-5d %18p\n", aio_prefix,	\
+		 DEBUG_RED "WRLOCK: " DEBUG_NORM #rwlock, status, __FUNCTION__, __LINE__, (void *) rwlock); \
+    INTERN_WRLOCK (rwlock);							\
+    INTERN_WRLOCK (&debug_queue_rwlock);					\
+    RWLOCK_DEBUG_ADD (rwlock);						\
+    INTERN_RWUNLOCK (&debug_queue_rwlock);					\
+    DEBUG_PRINTF ("%s" DEBUG_RED "ACQ:" DEBUG_NORM " %-30s %78p\n", aio_prefix, #rwlock, rwlock); \
+  } while (0)
+
+#define RWUNLOCK(rwlock) do {						\
+    aio_rwlock_debug *curr;						\
+    DEBUG_PRINTF ("%s%-75s %20s():%-5d %18p\n", aio_prefix, DEBUG_GREEN "RWUNLOCK: " DEBUG_NORM #rwlock, \
+		 __FUNCTION__, __LINE__, (void *) rwlock);		\
+    INTERN_WRLOCK (&debug_queue_rwlock);					\
+    curr = IN_RWLOCK_DEBUG_QUEUE (rwlock);					\
+    if (curr)								\
+      {									\
+	if (curr->prev)							\
+	  curr->prev->next = curr->next;				\
+	if (curr->next) {						\
+	  curr->next->prev = curr->prev;				\
+	  if (curr == aio_rwlock_debug_head)					\
+	    aio_rwlock_debug_head = curr->next;				\
+	} else {							\
+	  if (curr == aio_rwlock_debug_head)					\
+	    aio_rwlock_debug_head = NULL;					\
+	}								\
+	free (curr);							\
+      }									\
+    INTERN_RWUNLOCK (&debug_queue_rwlock);					\
+    INTERN_RWUNLOCK (rwlock);						\
+  } while (0)
+
+#define RD_TO_WRLOCK(rwlock)	\
+  RWUNLOCK (rwlock);	\
+  WRLOCK (rwlock);
+#endif
+
 #define DEBUG_LINE(...) __VA_ARGS__
 
-#else
+#else  /* DEBUG_ASYNC */
+
 #define DEBUG_PRINTF(...) {}
 #define CHECK_LOCK(au, mutex, status) {}
 #define NOTE(str, ...) {}
 #define DEBUG_LINE(...)
 #define T_ERROR(func, ...) func(__VA_ARGS__)
 #define LOCK(mutex) INTERN_LOCK (mutex)
+
+#ifdef __GTHREADS_CXX0X
+
+/* When pthreads are not active, we do not touch the lock for locking /
+   unlocking; the only use for this is checking for recursion.  */
+
+#define LOCK_UNIT(unit) do {					\
+    if (__gthread_active_p ()) {					\
+      LOCK (&(unit)->lock); (unit)->self = (intptr_t) __gthread_self (); \
+    } else {								\
+      (unit)->self = 1;							\
+    }									\
+  } while(0)
+#else
+
+#define LOCK_UNIT(unit) do { \
+    (unit)->self = 1;	     \
+  } while(0)
+
+#endif
+
 #define UNLOCK(mutex) INTERN_UNLOCK (mutex)
+
+#ifdef __GTHREADS_CXX0X
+
+#define UNLOCK_UNIT(unit) do {						\
+    if (__gthread_active_p ()) {					\
+      (unit)->self = 0 ; UNLOCK(&(unit)->lock);				\
+    } else {								\
+      (unit)->self = 0;							\
+    }									\
+} while(0)
+#else
+#define UNLOCK_UNIT(unit) do {			\
+    (unit)->self = 0;				\
+  } while(0)
+
+#endif
+
 #define TRYLOCK(mutex) (__gthread_mutex_trylock (mutex))
+
+#ifdef __GTHREADS_CXX0X
+#define TRYLOCK_UNIT(unit) ({					\
+      int res;							\
+      if (__gthread_active_p ()) {				\
+	res = __gthread_mutex_trylock (&(unit)->lock);		\
+	if (!res)						\
+	  (unit)->self = (intptr_t) __gthread_self ();		\
+      }								\
+      else {							\
+	res = (unit)->self;					\
+	(unit)->self = 1;					\
+      }								\
+      res;							\
+    })
+#else
+#define TRYLOCK_UNIT(unit) ({ \
+      int res = (unit)->self; \
+      (unit)->self = 1;	      \
+      res;		      \
+    })
+#endif
+
+#ifdef __GTHREAD_RWLOCK_INIT
+#define RDLOCK(rwlock) INTERN_RDLOCK (rwlock)
+#define WRLOCK(rwlock) INTERN_WRLOCK (rwlock)
+#define RWUNLOCK(rwlock) INTERN_RWUNLOCK (rwlock)
+#define RD_TO_WRLOCK(rwlock)	\
+  RWUNLOCK (rwlock);	\
+  WRLOCK (rwlock);
+#endif
+#endif
+
+#ifndef __GTHREAD_RWLOCK_INIT
+#define RDLOCK(rwlock) LOCK (rwlock)
+#define WRLOCK(rwlock) LOCK (rwlock)
+#define RWUNLOCK(rwlock) UNLOCK (rwlock)
+#define RD_TO_WRLOCK(rwlock) do {} while (0)
 #endif
 
 #define INTERN_LOCK(mutex) T_ERROR (__gthread_mutex_lock, mutex);
 
 #define INTERN_UNLOCK(mutex) T_ERROR (__gthread_mutex_unlock, mutex);
+
+#define INTERN_RDLOCK(rwlock) T_ERROR (__gthread_rwlock_rdlock, rwlock)
+#define INTERN_WRLOCK(rwlock) T_ERROR (__gthread_rwlock_wrlock, rwlock)
+#define INTERN_RWUNLOCK(rwlock) T_ERROR (__gthread_rwlock_unlock, rwlock)
 
 #if ASYNC_IO
 
@@ -288,13 +532,32 @@ DEBUG_LINE (typedef struct aio_lock_debug{
   struct aio_lock_debug *prev;
 } aio_lock_debug;)
 
+DEBUG_LINE (typedef struct aio_rwlock_debug{
+  __gthread_rwlock_t *rw;
+  int line;
+  const char *func;
+  struct aio_rwlock_debug *next;
+  struct aio_rwlock_debug *prev;
+} aio_rwlock_debug;)
+
 DEBUG_LINE (extern aio_lock_debug *aio_debug_head;)
 DEBUG_LINE (extern __gthread_mutex_t debug_queue_lock;)
+DEBUG_LINE (extern aio_rwlock_debug *aio_rwlock_debug_head;)
+DEBUG_LINE (extern __gthread_rwlock_t debug_queue_rwlock;)
 
 /* Thread - local storage of the current unit we are looking at. Needed for
    error reporting.  */
 
 extern __thread gfc_unit *thread_unit;
+#endif
+
+/* When threading is not active, or there is no thread system, we fake the ID
+   to be 1.  */
+
+#ifdef __GTHREADS_CXX0X
+#define OWN_THREAD_ID (__gthread_active_p () ? (intptr_t) __gthread_self () : 1)
+#else
+#define OWN_THREAD_ID 1
 #endif
 
 enum aio_do {
@@ -351,7 +614,7 @@ typedef struct async_unit
   struct adv_cond work;
   struct adv_cond emptysignal;
   struct st_parameter_dt *pdt;
-  pthread_t thread;
+  __gthread_t thread;
   struct transfer_queue *head;
   struct transfer_queue *tail;
 
@@ -376,7 +639,7 @@ bool async_wait_id (st_parameter_common *, async_unit *, int);
 internal_proto (async_wait_id);
 
 bool collect_async_errors (st_parameter_common *, async_unit *);
-internal_proto (collect_async_errors); 
+internal_proto (collect_async_errors);
 
 void async_close (async_unit *);
 internal_proto (async_close);

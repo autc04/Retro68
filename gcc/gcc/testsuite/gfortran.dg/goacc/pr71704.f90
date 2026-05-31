@@ -41,14 +41,21 @@ real function f7 ()
   f7 = 1
 end
 
+real function f_serial ()
+!$acc serial
+!$acc end serial
+  f_serial = 1
+end
+
 real function f8 ()
 !$acc data
 !$acc end data
   f8 = 1
 end
 
-real function f9 ()
-!$acc host_data
+real function f9 (a)
+  integer a(:)
+!$acc host_data use_device(a)
 !$acc end host_data
   f8 = 1
 end

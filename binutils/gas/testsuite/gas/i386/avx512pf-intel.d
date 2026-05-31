@@ -1,4 +1,3 @@
-#as:
 #objdump: -dwMintel
 #name: i386 AVX512PF insns (Intel disassembly)
 #source: avx512pf.s

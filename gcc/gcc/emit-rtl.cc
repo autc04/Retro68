@@ -1,5 +1,5 @@
 /* Emit RTL for the GCC expander.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -58,11 +58,13 @@ along with GCC; see the file COPYING3.  If not see
 #include "rtl-iter.h"
 #include "stor-layout.h"
 #include "opts.h"
+#include "optabs.h"
 #include "predict.h"
 #include "rtx-vector-builder.h"
 #include "gimple.h"
 #include "gimple-ssa.h"
 #include "gimplify.h"
+#include "bbitmap.h"
 
 struct target_rtl default_target_rtl;
 #if SWITCHABLE_TARGET
@@ -105,8 +107,11 @@ rtx const_true_rtx;
 REAL_VALUE_TYPE dconst0;
 REAL_VALUE_TYPE dconst1;
 REAL_VALUE_TYPE dconst2;
+REAL_VALUE_TYPE dconstm0;
 REAL_VALUE_TYPE dconstm1;
 REAL_VALUE_TYPE dconsthalf;
+REAL_VALUE_TYPE dconstinf;
+REAL_VALUE_TYPE dconstninf;
 
 /* Record fixed-point constant 0 and 1.  */
 FIXED_VALUE_TYPE fconst0[MAX_FCONST0];
@@ -212,7 +217,7 @@ const_int_hasher::hash (rtx x)
   return (hashval_t) INTVAL (x);
 }
 
-/* Returns nonzero if the value represented by X (which is really a
+/* Returns true if the value represented by X (which is really a
    CONST_INT) is the same as that given by Y (which is really a
    HOST_WIDE_INT *).  */
 
@@ -238,7 +243,7 @@ const_wide_int_hasher::hash (rtx x)
   return (hashval_t) hash;
 }
 
-/* Returns nonzero if the value represented by X (which is really a
+/* Returns true if the value represented by X (which is really a
    CONST_WIDE_INT) is the same as that given by Y (which is really a
    CONST_WIDE_INT).  */
 
@@ -271,7 +276,7 @@ const_poly_int_hasher::hash (rtx x)
   return h.end ();
 }
 
-/* Returns nonzero if CONST_POLY_INT X is an rtx representation of Y.  */
+/* Returns true if CONST_POLY_INT X is an rtx representation of Y.  */
 
 bool
 const_poly_int_hasher::equal (rtx x, const compare_type &y)
@@ -302,7 +307,7 @@ const_double_hasher::hash (rtx x)
   return h;
 }
 
-/* Returns nonzero if the value represented by X (really a ...)
+/* Returns true if the value represented by X (really a ...)
    is the same as that represented by Y (really a ...) */
 bool
 const_double_hasher::equal (rtx x, rtx y)
@@ -310,7 +315,7 @@ const_double_hasher::equal (rtx x, rtx y)
   const_rtx const a = x, b = y;
 
   if (GET_MODE (a) != GET_MODE (b))
-    return 0;
+    return false;
   if (TARGET_SUPPORTS_WIDE_INT == 0 && GET_MODE (a) == VOIDmode)
     return (CONST_DOUBLE_LOW (a) == CONST_DOUBLE_LOW (b)
 	    && CONST_DOUBLE_HIGH (a) == CONST_DOUBLE_HIGH (b));
@@ -333,7 +338,7 @@ const_fixed_hasher::hash (rtx x)
   return h;
 }
 
-/* Returns nonzero if the value represented by X is the same as that
+/* Returns true if the value represented by X is the same as that
    represented by Y.  */
 
 bool
@@ -342,7 +347,7 @@ const_fixed_hasher::equal (rtx x, rtx y)
   const_rtx const a = x, b = y;
 
   if (GET_MODE (a) != GET_MODE (b))
-    return 0;
+    return false;
   return fixed_identical (CONST_FIXED_VALUE (a), CONST_FIXED_VALUE (b));
 }
 
@@ -400,7 +405,7 @@ reg_attr_hasher::hash (reg_attrs *x)
   return h.end ();
 }
 
-/* Returns nonzero if the value represented by X  is the same as that given by
+/* Returns true if the value represented by X  is the same as that given by
    Y.  */
 
 bool
@@ -507,10 +512,10 @@ gen_rtx_INSN_LIST (machine_mode mode, rtx insn, rtx insn_list)
 
 rtx_insn *
 gen_rtx_INSN (machine_mode mode, rtx_insn *prev_insn, rtx_insn *next_insn,
-	      basic_block bb, rtx pattern, int location, int code,
+	      basic_block bb, rtx pattern, location_t location, int code,
 	      rtx reg_notes)
 {
-  return as_a <rtx_insn *> (gen_rtx_fmt_uuBeiie (INSN, mode,
+  return as_a <rtx_insn *> (gen_rtx_fmt_uuBeLie (INSN, mode,
 						 prev_insn, next_insn,
 						 bb, pattern, location, code,
 						 reg_notes));
@@ -621,7 +626,7 @@ rtx_to_double_int (const_rtx cst)
     }
   else
     gcc_unreachable ();
-  
+
   return r;
 }
 #endif
@@ -944,12 +949,14 @@ validate_subreg (machine_mode omode, machine_mode imode,
      in post-reload splitters that make arbitrarily mode changes to the
      registers themselves.  */
   else if (VECTOR_MODE_P (omode)
-	   && GET_MODE_INNER (omode) == GET_MODE_INNER (imode))
+	   && GET_MODE_UNIT_SIZE (omode) == GET_MODE_UNIT_SIZE (imode))
     ;
   /* Subregs involving floating point modes are not allowed to
-     change size.  Therefore (subreg:DI (reg:DF) 0) is fine, but
+     change size unless it's an insert into a complex mode.
+     Therefore (subreg:DI (reg:DF) 0) and (subreg:CS (reg:SF) 0) are fine, but
      (subreg:SI (reg:DF) 0) isn't.  */
-  else if (FLOAT_MODE_P (imode) || FLOAT_MODE_P (omode))
+  else if ((FLOAT_MODE_P (imode) || FLOAT_MODE_P (omode))
+	   && !COMPLEX_MODE_P (omode))
     {
       if (! (known_eq (isize, osize)
 	     /* LRA can use subreg to store a floating point value in
@@ -963,13 +970,14 @@ validate_subreg (machine_mode omode, machine_mode imode,
     }
 
   /* Paradoxical subregs must have offset zero.  */
-  if (maybe_gt (osize, isize))
-    return known_eq (offset, 0U);
+  if (maybe_gt (osize, isize) && !known_eq (offset, 0U))
+    return false;
 
-  /* This is a normal subreg.  Verify that the offset is representable.  */
+  /* Verify that the offset is representable.  */
 
-  /* For hard registers, we already have most of these rules collected in
-     subreg_offset_representable_p.  */
+  /* Ensure that subregs of hard registers can be folded.  In other words,
+     the hardware register must be valid in the subreg's outer mode,
+     and consequently the subreg can be replaced with a hardware register.  */
   if (reg && REG_P (reg) && HARD_REGISTER_P (reg))
     {
       unsigned int regno = REGNO (reg);
@@ -980,16 +988,27 @@ validate_subreg (machine_mode omode, machine_mode imode,
       else if (!REG_CAN_CHANGE_MODE_P (regno, imode, omode))
 	return false;
 
-      return subreg_offset_representable_p (regno, imode, offset, omode);
+      /* Pass true to allow_stack_regs because targets like x86
+	 expect to be able to take subregs of the stack pointer.  */
+      return simplify_subreg_regno (regno, imode, offset, omode, true) >= 0;
     }
+  /* Do not allow normal SUBREG with stricter alignment than the inner MEM.
 
-  /* The outer size must be ordered wrt the register size, otherwise
-     we wouldn't know at compile time how many registers the outer
-     mode occupies.  */
-  if (!ordered_p (osize, regsize))
+     PR120329: Combine can create paradoxical mem subregs even for
+     strict-alignment targets.  Allow it until combine is fixed.  */
+  else if (reg && MEM_P (reg) && STRICT_ALIGNMENT
+	   && MEM_ALIGN (reg) < GET_MODE_ALIGNMENT (omode)
+	   && known_le (osize, isize))
     return false;
 
-  /* For pseudo registers, we want most of the same checks.  Namely:
+  /* If ISIZE is greater than REGSIZE, the inner value is split into blocks
+     of size REGSIZE.  The outer size must then be ordered wrt REGSIZE,
+     otherwise we wouldn't know at compile time how many blocks the
+     outer mode occupies.  */
+  if (maybe_gt (isize, regsize) && !ordered_p (osize, regsize))
+    return false;
+
+  /* For normal pseudo registers, we want most of the same checks.  Namely:
 
      Assume that the pseudo register will be allocated to hard registers
      that can hold REGSIZE bytes each.  If OSIZE is not a multiple of REGSIZE,
@@ -998,8 +1017,15 @@ validate_subreg (machine_mode omode, machine_mode imode,
      otherwise it is at the lowest offset.
 
      Given that we've already checked the mode and offset alignment,
-     we only have to check subblock subregs here.  */
+     we only have to check subblock subregs here.
+
+     For paradoxical little-endian registers, this check is redundant.  The
+     offset has already been validated to be zero.
+
+     For paradoxical big-endian registers, this check is not valid
+     because the offset is zero.  */
   if (maybe_lt (osize, regsize)
+      && known_le (osize, isize)
       && ! (lra_in_progress && (FLOAT_MODE_P (imode) || FLOAT_MODE_P (omode))))
     {
       /* It is invalid for the target to pick a register size for a mode
@@ -1701,17 +1727,17 @@ subreg_size_highpart_offset (poly_uint64 outer_bytes, poly_uint64 inner_bytes)
 					* BITS_PER_UNIT);
 }
 
-/* Return 1 iff X, assumed to be a SUBREG,
+/* Return true iff X, assumed to be a SUBREG,
    refers to the least significant part of its containing reg.
-   If X is not a SUBREG, always return 1 (it is its own low part!).  */
+   If X is not a SUBREG, always return true (it is its own low part!).  */
 
-int
+bool
 subreg_lowpart_p (const_rtx x)
 {
   if (GET_CODE (x) != SUBREG)
-    return 1;
+    return true;
   else if (GET_MODE (SUBREG_REG (x)) == VOIDmode)
-    return 0;
+    return false;
 
   return known_eq (subreg_lowpart_offset (GET_MODE (x),
 					  GET_MODE (SUBREG_REG (x))),
@@ -1827,20 +1853,20 @@ mem_attrs::mem_attrs ()
     size_known_p (false)
 {}
 
-/* Returns 1 if both MEM_EXPR can be considered equal
-   and 0 otherwise.  */
+/* Returns true if both MEM_EXPR can be considered equal
+   and false otherwise.  */
 
-int
+bool
 mem_expr_equal_p (const_tree expr1, const_tree expr2)
 {
   if (expr1 == expr2)
-    return 1;
+    return true;
 
   if (! expr1 || ! expr2)
-    return 0;
+    return false;
 
   if (TREE_CODE (expr1) != TREE_CODE (expr2))
-    return 0;
+    return false;
 
   return operand_equal_p (expr1, expr2, 0);
 }
@@ -2119,9 +2145,15 @@ set_mem_attributes_minus_bitpos (rtx ref, tree t, int objectp,
 	      tree *orig_base = &attrs.expr;
 	      while (handled_component_p (*orig_base))
 		orig_base = &TREE_OPERAND (*orig_base, 0);
-	      tree aptrt = reference_alias_ptr_type (*orig_base);
-	      *orig_base = build2 (MEM_REF, TREE_TYPE (*orig_base), *namep,
-				   build_int_cst (aptrt, 0));
+	      if (TREE_CODE (*orig_base) == MEM_REF
+		  || TREE_CODE (*orig_base) == TARGET_MEM_REF)
+		TREE_OPERAND (*orig_base, 0) = *namep;
+	      else
+		{
+		  tree aptrt = reference_alias_ptr_type (*orig_base);
+		  *orig_base = build2 (MEM_REF, TREE_TYPE (*orig_base),
+				       *namep, build_int_cst (aptrt, 0));
+		}
 	    }
 	}
 
@@ -2561,6 +2593,140 @@ replace_equiv_address_nv (rtx memref, rtx addr, bool inplace)
   return change_address_1 (memref, VOIDmode, addr, 0, inplace);
 }
 
+
+/* Emit insns to reload VALUE into a new register.  VALUE is an
+   auto-increment or auto-decrement RTX whose operand is a register or
+   memory location; so reloading involves incrementing that location.
+
+   INC_AMOUNT is the number to increment or decrement by (always
+   positive and ignored for POST_MODIFY/PRE_MODIFY).
+
+   Return a pseudo containing the result.  */
+rtx
+address_reload_context::emit_autoinc (rtx value, poly_int64 inc_amount)
+{
+  /* Since we're going to call recog, and might be called within recog,
+     we need to ensure we save and restore recog_data.  */
+  recog_data_saver recog_save;
+
+  /* REG or MEM to be copied and incremented.  */
+  rtx incloc = XEXP (value, 0);
+
+  const rtx_code code = GET_CODE (value);
+  const bool post_p
+    = code == POST_DEC || code == POST_INC || code == POST_MODIFY;
+
+  bool plus_p = true;
+  rtx inc;
+  if (code == PRE_MODIFY || code == POST_MODIFY)
+    {
+      gcc_assert (GET_CODE (XEXP (value, 1)) == PLUS
+		  || GET_CODE (XEXP (value, 1)) == MINUS);
+      gcc_assert (rtx_equal_p (XEXP (XEXP (value, 1), 0), XEXP (value, 0)));
+      plus_p = GET_CODE (XEXP (value, 1)) == PLUS;
+      inc = XEXP (XEXP (value, 1), 1);
+    }
+  else
+    {
+      if (code == PRE_DEC || code == POST_DEC)
+	inc_amount = -inc_amount;
+
+      inc = gen_int_mode (inc_amount, GET_MODE (value));
+    }
+
+  rtx result;
+  if (!post_p && REG_P (incloc))
+    result = incloc;
+  else
+    {
+      result = get_reload_reg ();
+      /* First copy the location to the result register.  */
+      emit_insn (gen_move_insn (result, incloc));
+    }
+
+  /* See if we can directly increment INCLOC.  */
+  rtx_insn *last = get_last_insn ();
+  rtx_insn *add_insn = emit_insn (plus_p
+				  ? gen_add2_insn (incloc, inc)
+				  : gen_sub2_insn (incloc, inc));
+  const int icode = recog_memoized (add_insn);
+  if (icode >= 0)
+    {
+      if (!post_p && result != incloc)
+	emit_insn (gen_move_insn (result, incloc));
+      return result;
+    }
+  delete_insns_since (last);
+
+  /* If couldn't do the increment directly, must increment in RESULT.
+     The way we do this depends on whether this is pre- or
+     post-increment.  For pre-increment, copy INCLOC to the reload
+     register, increment it there, then save back.  */
+  if (!post_p)
+    {
+      if (incloc != result)
+	emit_insn (gen_move_insn (result, incloc));
+      if (plus_p)
+	emit_insn (gen_add2_insn (result, inc));
+      else
+	emit_insn (gen_sub2_insn (result, inc));
+      if (incloc != result)
+	emit_insn (gen_move_insn (incloc, result));
+    }
+  else
+    {
+      /* Post-increment.
+
+	 Because this might be a jump insn or a compare, and because
+	 RESULT may not be available after the insn in an input
+	 reload, we must do the incrementing before the insn being
+	 reloaded for.
+
+	 We have already copied INCLOC to RESULT.  Increment the copy in
+	 RESULT, save that back, then decrement RESULT so it has
+	 the original value.  */
+      if (plus_p)
+	emit_insn (gen_add2_insn (result, inc));
+      else
+	emit_insn (gen_sub2_insn (result, inc));
+      emit_insn (gen_move_insn (incloc, result));
+      /* Restore non-modified value for the result.  We prefer this
+	 way because it does not require an additional hard
+	 register.  */
+      if (plus_p)
+	{
+	  poly_int64 offset;
+	  if (poly_int_rtx_p (inc, &offset))
+	    emit_insn (gen_add2_insn (result,
+				      gen_int_mode (-offset,
+						    GET_MODE (result))));
+	  else
+	    emit_insn (gen_sub2_insn (result, inc));
+	}
+      else
+	emit_insn (gen_add2_insn (result, inc));
+    }
+  return result;
+}
+
+/* Return a memory reference like MEM, but with the address reloaded into a
+   pseudo register.  */
+
+rtx
+force_reload_address (rtx mem)
+{
+  rtx addr = XEXP (mem, 0);
+  if (GET_RTX_CLASS (GET_CODE (addr)) == RTX_AUTOINC)
+    {
+      const auto size = GET_MODE_SIZE (GET_MODE (mem));
+      addr = address_reload_context ().emit_autoinc (addr, size);
+    }
+  else
+    addr = force_reg (Pmode, addr);
+
+  return replace_equiv_address (mem, addr);
+}
+
 /* Return a memory reference like MEMREF, but with its mode widened to
    MODE and offset by OFFSET.  This would be used by targets that e.g.
    cannot issue QImode memory operations and have to use SImode memory
@@ -2811,7 +2977,7 @@ unshare_all_rtl_again (rtx_insn *insn)
   unshare_all_rtl_1 (insn);
 }
 
-unsigned int
+void
 unshare_all_rtl (void)
 {
   unshare_all_rtl_1 (get_insns ());
@@ -2822,8 +2988,6 @@ unshare_all_rtl (void)
 	SET_DECL_RTL (decl, copy_rtx_if_shared (DECL_RTL (decl)));
       DECL_INCOMING_RTL (decl) = copy_rtx_if_shared (DECL_INCOMING_RTL (decl));
     }
-
-  return 0;
 }
 
 
@@ -2934,7 +3098,6 @@ verify_rtx_sharing (rtx orig, rtx insn)
 	  break;
 	}
     }
-  return;
 }
 
 /* Reset used-flags for INSN.  */
@@ -3197,7 +3360,6 @@ repeat:
       orig1 = last_ptr;
       goto repeat;
     }
-  return;
 }
 
 /* Set the USED bit in X and its non-shareable subparts to FLAG.  */
@@ -3531,7 +3693,11 @@ next_nonnote_nondebug_insn (rtx_insn *insn)
 
 /* Return the next insn after INSN that is not a NOTE nor DEBUG_INSN,
    but stop the search before we enter another basic block.  This
-   routine does not look inside SEQUENCEs.  */
+   routine does not look inside SEQUENCEs.
+   NOTE: This can potentially bleed into next BB. If current insn is
+	 last insn of BB, followed by a code_label before the start of
+	 the next BB, code_label will be returned. But this is the
+	 behavior rest of gcc assumes/relies on e.g. get_last_bb_insn.  */
 
 rtx_insn *
 next_nonnote_nondebug_insn_bb (rtx_insn *insn)
@@ -3677,11 +3843,7 @@ last_call_insn (void)
   return safe_as_a <rtx_call_insn *> (insn);
 }
 
-/* Find the next insn after INSN that really does something.  This routine
-   does not look inside SEQUENCEs.  After reload this also skips over
-   standalone USE and CLOBBER insn.  */
-
-int
+bool
 active_insn_p (const rtx_insn *insn)
 {
   return (CALL_P (insn) || JUMP_P (insn)
@@ -3691,6 +3853,10 @@ active_insn_p (const rtx_insn *insn)
 		  || (GET_CODE (PATTERN (insn)) != USE
 		      && GET_CODE (PATTERN (insn)) != CLOBBER))));
 }
+
+/* Find the next insn after INSN that really does something.  This routine
+   does not look inside SEQUENCEs.  After reload this also skips over
+   standalone USE and CLOBBER insn.  */
 
 rtx_insn *
 next_active_insn (rtx_insn *insn)
@@ -4223,9 +4389,11 @@ add_insn_before (rtx_insn *insn, rtx_insn *before, basic_block bb)
 {
   add_insn_before_nobb (insn, before);
 
+  if (BARRIER_P (insn))
+    return;
+
   if (!bb
-      && !BARRIER_P (before)
-      && !BARRIER_P (insn))
+      && !BARRIER_P (before))
     bb = BLOCK_FOR_INSN (before);
 
   if (bb)
@@ -4257,7 +4425,7 @@ set_insn_deleted (rtx_insn *insn)
 /* Unlink INSN from the insn chain.
 
    This function knows how to handle sequences.
-   
+
    This function does not invalidate data flow information associated with
    INSN (i.e. does not call df_insn_delete).  That makes this function
    usable for only disconnecting an insn from the chain, and re-emit it
@@ -4463,8 +4631,7 @@ reorder_insns (rtx_insn *from, rtx_insn *to, rtx_insn *after)
 
 	start_sequence ();
 	... emit the new instructions ...
-	insns_head = get_insns ();
-	end_sequence ();
+	insns_head = end_sequence ();
 
 	emit_insn_before (insns_head, SPOT);
 
@@ -5163,6 +5330,30 @@ emit_jump_insn (rtx x)
   return last;
 }
 
+/* Make an insn of code JUMP_INSN with pattern X,
+   add a REG_BR_PROB note that indicates very likely probability,
+   and add it to the end of the doubly-linked list.  */
+
+rtx_insn *
+emit_likely_jump_insn (rtx x)
+{
+  rtx_insn *jump = emit_jump_insn (x);
+  add_reg_br_prob_note (jump, profile_probability::very_likely ());
+  return jump;
+}
+
+/* Make an insn of code JUMP_INSN with pattern X,
+   add a REG_BR_PROB note that indicates very unlikely probability,
+   and add it to the end of the doubly-linked list.  */
+
+rtx_insn *
+emit_unlikely_jump_insn (rtx x)
+{
+  rtx_insn *jump = emit_jump_insn (x);
+  add_reg_br_prob_note (jump, profile_probability::very_unlikely ());
+  return jump;
+}
+
 /* Make an insn of code CALL_INSN with pattern X
    and add it to the end of the doubly-linked list.  */
 
@@ -5285,8 +5476,7 @@ gen_clobber (rtx x)
 
   start_sequence ();
   emit_clobber (x);
-  seq = get_insns ();
-  end_sequence ();
+  seq = end_sequence ();
   return seq;
 }
 
@@ -5313,8 +5503,7 @@ gen_use (rtx x)
 
   start_sequence ();
   emit_use (x);
-  seq = get_insns ();
-  end_sequence ();
+  seq = end_sequence ();
   return seq;
 }
 
@@ -5550,22 +5739,22 @@ pop_topmost_sequence (void)
   end_sequence ();
 }
 
-/* After emitting to a sequence, restore previous saved state.
-
-   To get the contents of the sequence just made, you must call
-   `get_insns' *before* calling here.
+/* After emitting to a sequence, restore the previous saved state and return
+   the start of the completed sequence.
 
    If the compiler might have deferred popping arguments while
    generating this sequence, and this sequence will not be immediately
    inserted into the instruction stream, use do_pending_stack_adjust
-   before calling get_insns.  That will ensure that the deferred
+   before calling this function.  That will ensure that the deferred
    pops are inserted into this sequence, and not into some random
    location in the instruction stream.  See INHIBIT_DEFER_POP for more
    information about deferred popping of arguments.  */
 
-void
+rtx_insn *
 end_sequence (void)
 {
+  rtx_insn *insns = get_insns ();
+
   struct sequence_stack *tem = get_current_sequence ()->next;
 
   set_first_insn (tem->first);
@@ -5575,11 +5764,13 @@ end_sequence (void)
   memset (tem, 0, sizeof (*tem));
   tem->next = free_sequence_stack;
   free_sequence_stack = tem;
+
+  return insns;
 }
 
-/* Return 1 if currently emitting into a sequence.  */
+/* Return true if currently emitting into a sequence.  */
 
-int
+bool
 in_sequence_p (void)
 {
   return get_current_sequence ()->next != 0;
@@ -5722,6 +5913,7 @@ copy_insn_1 (rtx orig)
       case 't':
       case 'w':
       case 'i':
+      case 'L':
       case 'p':
       case 's':
       case 'S':
@@ -6196,17 +6388,24 @@ init_emit_once (void)
   else
     const_true_rtx = gen_rtx_CONST_INT (VOIDmode, STORE_FLAG_VALUE);
 
-  double_mode = float_mode_for_size (DOUBLE_TYPE_SIZE).require ();
+  mode = targetm.c.mode_for_floating_type (TI_DOUBLE_TYPE);
+  double_mode = as_a<scalar_float_mode> (mode);
 
   real_from_integer (&dconst0, double_mode, 0, SIGNED);
   real_from_integer (&dconst1, double_mode, 1, SIGNED);
   real_from_integer (&dconst2, double_mode, 2, SIGNED);
+
+  dconstm0 = dconst0;
+  dconstm0.sign = 1;
 
   dconstm1 = dconst1;
   dconstm1.sign = 1;
 
   dconsthalf = dconst1;
   SET_REAL_EXP (&dconsthalf, REAL_EXP (&dconsthalf) - 1);
+
+  real_inf (&dconstinf);
+  real_inf (&dconstninf, true);
 
   for (i = 0; i < 3; i++)
     {
@@ -6596,6 +6795,297 @@ gen_int_shift_amount (machine_mode, poly_int64 value)
 				? DImode
 				: int_mode_for_size (64, 0).require ());
   return gen_int_mode (value, shift_mode);
+}
+
+namespace {
+/* Helper class for expanding an rtx using the encoding generated by
+   genemit.cc.  The code needs to be kept in sync with there.  */
+
+class rtx_expander
+{
+public:
+  rtx_expander (const uint8_t *, rtx *);
+
+  rtx get_rtx ();
+  rtvec get_rtvec ();
+  void expand_seq ();
+
+protected:
+  uint64_t get_uint ();
+  machine_mode get_mode () { return machine_mode (get_uint ()); }
+  char *get_string ();
+  rtx get_shared_operand ();
+  rtx get_unshared_operand ();
+
+  rtx get_rtx (expand_opcode);
+  rtx get_rtx (rtx_code, machine_mode);
+
+  /* Points to the first unread byte.  */
+  const uint8_t *m_seq;
+
+  /* The operands passed to the gen_* function.  */
+  rtx *m_operands;
+
+  /* A bitmap of operands that have already been used to replace a
+     MATCH_OPERAND or MATCH_DUP.  In order to ensure correct sharing,
+     further replacements need to use a copy of the operand, rather than
+     the original rtx.  */
+  bbitmap<MAX_RECOG_OPERANDS> m_used;
+};
+}
+
+rtx_expander::rtx_expander (const uint8_t *seq, rtx *operands)
+  : m_seq (seq), m_operands (operands), m_used ()
+{}
+
+/* Read and return the next encoded "BEB128" integer.  */
+
+inline uint64_t
+rtx_expander::get_uint ()
+{
+  const uint8_t *seq = m_seq;
+  uint64_t res = 0;
+  do
+    res = (res << 7) | (*seq & 127);
+  while (*seq++ >= 128);
+  m_seq = seq;
+  return res;
+}
+
+/* Read an operand number and return the associated operand rtx,
+   without copying it.  */
+
+rtx
+rtx_expander::get_shared_operand ()
+{
+  return m_operands[get_uint ()];
+}
+
+/* Read an operand number and return a correctly-shared instance of
+   the associated operand rtx.  This can be either the original rtx
+   or a copy.  */
+
+rtx
+rtx_expander::get_unshared_operand ()
+{
+  auto opno = get_uint ();
+  auto mask = m_used.from_index (opno);
+  if (m_used & mask)
+    return copy_rtx (m_operands[opno]);
+
+  m_used |= mask;
+  return m_operands[opno];
+}
+
+/* Read an encoded rtx.  */
+
+rtx
+rtx_expander::get_rtx ()
+{
+  auto FIRST_CODE = (unsigned) expand_opcode::FIRST_CODE;
+  auto opcode = get_uint ();
+  if (opcode < FIRST_CODE)
+    return get_rtx (expand_opcode (opcode));
+  return get_rtx (rtx_code (opcode - FIRST_CODE), NUM_MACHINE_MODES);
+}
+
+/* Read an encoded rtx that starts with the given opcode.  */
+
+rtx
+rtx_expander::get_rtx (expand_opcode opcode)
+{
+  switch (opcode)
+    {
+    case expand_opcode::NO_RTX:
+      return NULL_RTX;
+
+    case expand_opcode::MATCH_OPERAND:
+      return get_unshared_operand ();
+
+    case expand_opcode::MATCH_OPERATOR_WITH_MODE:
+      {
+	auto mode = get_mode ();
+	auto op = get_shared_operand ();
+	return get_rtx (GET_CODE (op), mode);
+      }
+
+    case expand_opcode::MATCH_OPERATOR:
+      {
+	auto op = get_shared_operand ();
+	return get_rtx (GET_CODE (op), GET_MODE (op));
+      }
+
+    case expand_opcode::MATCH_PARALLEL:
+      return get_shared_operand ();
+
+    case expand_opcode::CLOBBER_REG:
+      {
+	auto mode = get_mode ();
+	auto regno = get_uint ();
+	return gen_hard_reg_clobber (mode, regno);
+      }
+
+    case expand_opcode::FIRST_CODE:
+      break;
+    }
+  gcc_unreachable ();
+}
+
+/* Read the rest of an rtx of code CODE.  If such rtxes are not always
+   VOIDmode, MODE is the mode that the rtx should have, or NUM_MACHINE_MODES
+   if the mode is encoded at the current iterator position.  */
+
+rtx
+rtx_expander::get_rtx (rtx_code code, machine_mode mode)
+{
+  switch (code)
+    {
+      /* Please keep the cases below in sync with gengenrtl.cc:special_rtx.  */
+
+    case EXPR_LIST:
+    case INSN_LIST:
+    case INSN:
+      gcc_unreachable ();
+
+    case CONST_INT:
+      return GEN_INT (get_uint ());
+
+    case REG:
+      if (mode == NUM_MACHINE_MODES)
+	mode = get_mode ();
+      return gen_rtx_REG (mode, get_uint ());
+
+    case SUBREG:
+      {
+	if (mode == NUM_MACHINE_MODES)
+	  mode = get_mode ();
+	auto reg = get_rtx ();
+	auto byte = get_uint ();
+	return gen_rtx_SUBREG (mode, reg, byte);
+      }
+
+    case MEM:
+      if (mode == NUM_MACHINE_MODES)
+	mode = get_mode ();
+      return gen_rtx_MEM (mode, get_rtx ());
+
+    case PC:
+      return pc_rtx;
+
+    case RETURN:
+      return ret_rtx;
+
+    case SIMPLE_RETURN:
+      return simple_return_rtx;
+
+    case CONST_VECTOR:
+      if (mode == NUM_MACHINE_MODES)
+	mode = get_mode ();
+      return gen_rtx_CONST_VECTOR (mode, get_rtvec ());
+
+      /* Please keep the cases below in sync with
+	 gengenrtl.cc:excluded_rtx.  */
+
+    case VAR_LOCATION:
+      gcc_unreachable ();
+
+    case CONST_DOUBLE:
+      /* genemit.cc only accepts zero const_doubles.  */
+      if (mode == NUM_MACHINE_MODES)
+	mode = get_mode ();
+      return CONST0_RTX (mode);
+
+    case CONST_WIDE_INT:
+    case CONST_POLY_INT:
+    case CONST_FIXED:
+      gcc_unreachable ();
+
+    default:
+      break;
+    }
+
+  rtx x = rtx_alloc (code);
+  if (!always_void_p (code))
+    {
+      if (mode == NUM_MACHINE_MODES)
+	mode = get_mode ();
+      PUT_MODE_RAW (x, mode);
+    }
+
+  const char *fmt = GET_RTX_FORMAT (code);
+  for (unsigned int i = 0; fmt[i]; ++i)
+    switch (fmt[i])
+      {
+	/* Please keep these cases in sync with
+	   gengenrtl.cc:type_from_format.  */
+
+      case 'i':
+	XINT (x, i) = get_uint ();
+	break;
+
+      case 'L':
+      case 'w':
+      case 'p':
+      case 's':
+	gcc_unreachable ();
+
+      case 'e':  case 'u':
+	XEXP (x, i) = get_rtx ();
+	break;
+
+      case 'E':
+	XVEC (x, i) = get_rtvec ();
+	break;
+
+      case 't':
+      case 'B':
+      default:
+	gcc_unreachable ();
+      }
+
+  return x;
+}
+
+/* Read an encoded rtvec.  */
+
+rtvec
+rtx_expander::get_rtvec ()
+{
+  unsigned int len = get_uint ();
+  rtvec v = rtvec_alloc (len);
+  for (unsigned int i = 0; i < len; ++i)
+    RTVEC_ELT (v, i) = get_rtx ();
+  return v;
+}
+
+/* Read and emit an encoded sequence of instructions.  */
+
+void
+rtx_expander::expand_seq ()
+{
+  unsigned int len = get_uint ();
+  for (unsigned int i = 0; i < len; ++i)
+    emit (get_rtx (), i < len - 1);
+}
+
+/* Read an rtx from the bytecode in SEQ, which was generated by genemit.cc.
+   Replace operand placeholders with the values given in OPERANDS.  */
+
+rtx
+expand_rtx (const uint8_t *seq, rtx *operands)
+{
+  return rtx_expander (seq, operands).get_rtx ();
+}
+
+/* Read and emit a sequence of instructions from the bytecode in SEQ,
+   which was generated by genemit.cc.  Replace operand placeholders with
+   the values given in OPERANDS.  */
+
+rtx_insn *
+complete_seq (const uint8_t *seq, rtx *operands)
+{
+  rtx_expander (seq, operands).expand_seq ();
+  return end_sequence ();
 }
 
 /* Initialize fields of rtl_data related to stack alignment.  */

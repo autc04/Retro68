@@ -19,7 +19,7 @@
 
 #ifdef REENTRANT_SYSCALLS_PROVIDED
 
-int _dummy_fstat_syscalls = 1;
+int _dummy_fstat64_syscalls = 1;
 
 #else
 
@@ -55,7 +55,7 @@ _fstat64_r (struct _reent *ptr,
 
   errno = 0;
   if ((ret = _fstat64 (fd, pstat)) == -1 && errno != 0)
-    ptr->_errno = errno;
+    _REENT_ERRNO(ptr) = errno;
   return ret;
 }
 

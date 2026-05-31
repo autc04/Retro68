@@ -1,6 +1,5 @@
 # Check error for ENQCMD[S] 64-bit instructions
 
-	.allow_index_reg
 	.text
 _start:
 	enqcmd (%esi),%rax

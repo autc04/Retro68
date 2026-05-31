@@ -1,5 +1,6 @@
 	.text
 _start:
+	.ifndef use16
 	addsubps 0x12345678,%xmm1
 	comisd 0x12345678,%xmm1
 	comiss 0x12345678,%xmm1
@@ -31,6 +32,7 @@ _start:
 	punpcklqdq 0x12345678,%xmm1
 	ucomisd 0x12345678,%xmm1
 	ucomiss 0x12345678,%xmm1
+	.endif
 
 	cmpeqsd (%eax),%xmm0
 	cmpeqss (%eax),%xmm0
@@ -101,6 +103,7 @@ cmpsd	$0x10,(%eax),%xmm7
 
 	.intel_syntax noprefix
 
+	.ifndef use16
 addsubps xmm1,XMMWORD PTR ds:0x12345678
 comisd xmm1,QWORD PTR ds:0x12345678
 comiss xmm1,DWORD PTR ds:0x12345678
@@ -132,6 +135,8 @@ punpcklwd xmm1,XMMWORD PTR ds:0x12345678
 punpcklqdq xmm1,XMMWORD PTR ds:0x12345678
 ucomisd xmm1,QWORD PTR ds:0x12345678
 ucomiss xmm1,DWORD PTR ds:0x12345678
+	.endif
+
 cmpeqsd xmm0,QWORD PTR [eax]
 cmpeqss xmm0,DWORD PTR [eax]
 cvtpi2pd xmm0,QWORD PTR [eax]
@@ -188,12 +193,8 @@ cmpsd  xmm6,xmm7,0x10
 cmpsd  xmm7,QWORD PTR [eax],0x10
 cvtsi2ss xmm1,eax
 cvtsi2sd xmm1,eax
-cvtsi2ssd xmm1,eax
-cvtsi2sdd xmm1,eax
 cvtsi2ss xmm1,DWORD PTR [eax]
 cvtsi2ss xmm1,[eax]
 cvtsi2sd xmm1,DWORD PTR [eax]
 cvtsi2sd xmm1,[eax]
-cvtsi2ssd xmm1,DWORD PTR [eax]
-cvtsi2sdd xmm1,DWORD PTR [eax]
 cvttps2pi mm0,QWORD PTR[eax]

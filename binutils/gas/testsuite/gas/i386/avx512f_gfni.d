@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 AVX512F/GFNI insns
 #source: avx512f_gfni.s

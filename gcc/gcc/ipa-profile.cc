@@ -1,5 +1,5 @@
 /* Basic IPA optimizations based on profile.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -32,7 +32,7 @@ along with GCC; see the file COPYING3.  If not see
      node corresponding to the target and produce a speculative call.
 
      This call may or may not survive through IPA optimization based on decision
-     of inliner. 
+     of inliner.
    - Finally we propagate the following flags: unlikely executed, executed
      once, executed at startup and executed at exit.  These flags are used to
      control code size/performance threshold and code placement (by producing
@@ -55,6 +55,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-inline.h"
 #include "symbol-summary.h"
 #include "tree-vrp.h"
+#include "sreal.h"
+#include "ipa-cp.h"
 #include "ipa-prop.h"
 #include "ipa-fnsummary.h"
 
@@ -136,7 +138,7 @@ dump_histogram (FILE *file, vec<histogram_entry *> histogram)
   unsigned int i;
   gcov_type overall_time = 0, cumulated_time = 0, cumulated_size = 0,
 	    overall_size = 0;
-  
+
   fprintf (dump_file, "Histogram:\n");
   for (i = 0; i < histogram.length (); i++)
     {
@@ -198,9 +200,9 @@ public:
   {}
 
   /* Duplicate info when an edge is cloned.  */
-  virtual void duplicate (cgraph_edge *, cgraph_edge *,
-			  speculative_call_summary *old_sum,
-			  speculative_call_summary *new_sum);
+  void duplicate (cgraph_edge *, cgraph_edge *,
+		  speculative_call_summary *old_sum,
+		  speculative_call_summary *new_sum) final override;
 };
 
 static ipa_profile_call_summaries *call_sums = NULL;
@@ -314,7 +316,11 @@ ipa_profile_generate_summary (void)
 			      count = all;
 			    }
 			  speculative_call_target item (
-			    val, GCOV_COMPUTE_SCALE (count, all));
+			    val,
+			    profile_count::from_gcov_type (count)
+			      .probability_in
+				(profile_count::from_gcov_type (all))
+				 .to_reg_br_prob_base ());
 			  csum->speculative_call_targets.safe_push (item);
 			}
 
@@ -481,7 +487,6 @@ ipa_profile_read_summary_section (struct lto_file_decl_data *file_data,
   for (i = 0; i < count; i++)
     {
       index = streamer_read_uhwi (ib);
-      encoder = file_data->symtab_node_encoder;
       node
 	= dyn_cast<cgraph_node *> (lto_symtab_encoder_deref (encoder, index));
 
@@ -620,7 +625,7 @@ ipa_propagate_frequency_1 (struct cgraph_node *node, void *data)
   return edge != NULL;
 }
 
-/* Return ture if NODE contains hot calls.  */
+/* Return true if NODE contains hot calls.  */
 
 bool
 contains_hot_call_p (struct cgraph_node *node)
@@ -763,7 +768,8 @@ ipa_profile (void)
   int order_pos;
   bool something_changed = false;
   int i;
-  gcov_type overall_time = 0, cutoff = 0, cumulated = 0, overall_size = 0;
+  widest_int overall_time = 0, cumulated = 0;
+  gcov_type overall_size = 0;
   struct cgraph_node *n,*n2;
   int nindirect = 0, ncommon = 0, nunknown = 0, nuseless = 0, nconverted = 0;
   int nmismatch = 0, nimpossible = 0;
@@ -771,40 +777,57 @@ ipa_profile (void)
   gcov_type threshold;
 
   if (dump_file)
-    dump_histogram (dump_file, histogram);
+    {
+      if (profile_info)
+	{
+	  fprintf (dump_file,
+		   "runs: %i sum_max: %" PRId64 " cutoff: %" PRId64"\n",
+		   profile_info->runs, profile_info->sum_max, profile_info->cutoff);
+	  fprintf (dump_file, "hot bb threshold: %" PRId64 "\n",
+		   get_hot_bb_threshold ());
+	}
+      dump_histogram (dump_file, histogram);
+    }
   for (i = 0; i < (int)histogram.length (); i++)
     {
-      overall_time += histogram[i]->count * histogram[i]->time;
+      overall_time += ((widest_int)histogram[i]->count) * histogram[i]->time;
+      /* Watch for overflow.  */
+      gcc_assert (overall_time >= 0);
       overall_size += histogram[i]->size;
     }
   threshold = 0;
-  if (overall_time)
+  if (overall_time != 0)
     {
       gcc_assert (overall_size);
 
-      cutoff = (overall_time * param_hot_bb_count_ws_permille + 500) / 1000;
+      widest_int cutoff = ((overall_time * param_hot_bb_count_ws_permille
+			   + 500) / 1000);
+      /* Watch for overflow.  */
+      gcc_assert (cutoff >= 0);
       for (i = 0; cumulated < cutoff; i++)
 	{
-	  cumulated += histogram[i]->count * histogram[i]->time;
+	  cumulated += ((widest_int)histogram[i]->count) * histogram[i]->time;
           threshold = histogram[i]->count;
 	}
       if (!threshold)
 	threshold = 1;
       if (dump_file)
 	{
-	  gcov_type cumulated_time = 0, cumulated_size = 0;
+	  widest_int cumulated_time = 0;
+	  gcov_type cumulated_size = 0;
 
           for (i = 0;
 	       i < (int)histogram.length () && histogram[i]->count >= threshold;
 	       i++)
 	    {
-	      cumulated_time += histogram[i]->count * histogram[i]->time;
+	      cumulated_time += ((widest_int)histogram[i]->count)
+				 * histogram[i]->time;
 	      cumulated_size += histogram[i]->size;
 	    }
 	  fprintf (dump_file, "Determined min count: %" PRId64
-		   " Time:%3.2f%% Size:%3.2f%%\n", 
+		   " Time:%3.2f%% Size:%3.2f%%\n",
 		   (int64_t)threshold,
-		   cumulated_time * 100.0 / overall_time,
+		   (cumulated_time * 10000 / overall_time).to_shwi () / 100.0,
 		   cumulated_size * 100.0 / overall_size);
 	}
 
@@ -881,13 +904,6 @@ ipa_profile (void)
 				     "Not speculating: "
 				     "probability is too low.\n");
 			}
-		      else if (!e->maybe_hot_p ())
-			{
-			  nuseless++;
-			  if (dump_file)
-			    fprintf (dump_file,
-				     "Not speculating: call is cold.\n");
-			}
 		      else if (n2->get_availability () <= AVAIL_INTERPOSABLE
 			       && n2->can_be_discarded_p ())
 			{
@@ -905,7 +921,7 @@ ipa_profile (void)
 				     "Not speculating: "
 				     "parameter count mismatch\n");
 			}
-		      else if (e->indirect_info->polymorphic
+		      else if (usable_polymorphic_info_p (e->indirect_info)
 			       && !opt_for_fn (n->decl, flag_devirtualize)
 			       && !possible_polymorphic_call_target_p (e, n2))
 			{
@@ -1054,8 +1070,8 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *) { return flag_ipa_profile || in_lto_p; }
-  virtual unsigned int execute (function *) { return ipa_profile (); }
+  bool gate (function *) final override { return flag_ipa_profile || in_lto_p; }
+  unsigned int execute (function *) final override { return ipa_profile (); }
 
 }; // class pass_ipa_profile
 
@@ -1065,4 +1081,14 @@ ipa_opt_pass_d *
 make_pass_ipa_profile (gcc::context *ctxt)
 {
   return new pass_ipa_profile (ctxt);
+}
+
+/* Reset all state within ipa-profile.cc so that we can rerun the compiler
+   within the same process.  For use by toplev::finalize.  */
+
+void
+ipa_profile_cc_finalize (void)
+{
+  delete call_sums;
+  call_sums = NULL;
 }

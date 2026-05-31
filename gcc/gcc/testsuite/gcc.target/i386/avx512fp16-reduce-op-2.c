@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -mprefer-vector-width=512 -fdump-tree-optimized" } */
+/* { dg-options "-O2 -msse2 -mprefer-vector-width=512 -fdump-tree-optimized" } */
 
 /* { dg-final { scan-tree-dump-times "\.REDUC_PLUS" 3 "optimized" } } */
 /* { dg-final { scan-tree-dump-times "\.REDUC_MIN" 3 "optimized" } } */

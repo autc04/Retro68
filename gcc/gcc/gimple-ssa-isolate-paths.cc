@@ -1,7 +1,7 @@
 /* Detect paths through the CFG which can never be executed in a conforming
    program and isolate them.
 
-   Copyright (C) 2013-2022 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -56,11 +56,13 @@ check_loadstore (gimple *stmt, tree op, tree, void *data)
     {
       TREE_THIS_VOLATILE (op) = 1;
       TREE_SIDE_EFFECTS (op) = 1;
-      update_stmt (stmt);
+      gimple_set_has_volatile_ops (stmt, true);
       return true;
     }
   return false;
 }
+
+static vec<gimple *> *bb_split_points;
 
 /* Insert a trap after SI and split the block after the trap.  */
 
@@ -104,14 +106,20 @@ insert_trap (gimple_stmt_iterator *si_p, tree op)
       gsi_insert_after (si_p, seq, GSI_NEW_STMT);
       if (stmt_ends_bb_p (stmt))
 	{
-	  split_block (gimple_bb (stmt), stmt);
+	  if (dom_info_available_p (CDI_POST_DOMINATORS))
+	    bb_split_points->safe_push (stmt);
+	  else
+	    split_block (gimple_bb (stmt), stmt);
 	  return;
 	}
     }
   else
     gsi_insert_before (si_p, seq, GSI_NEW_STMT);
 
-  split_block (gimple_bb (new_stmt), new_stmt);
+  if (dom_info_available_p (CDI_POST_DOMINATORS))
+    bb_split_points->safe_push (new_stmt);
+  else
+    split_block (gimple_bb (new_stmt), new_stmt);
   *si_p = gsi_for_stmt (stmt);
 }
 
@@ -633,7 +641,8 @@ handle_return_addr_local_phi_arg (basic_block bb, basic_block duplicate,
       if (!return_stmt)
 	continue;
 
-      if (gimple_return_retval (return_stmt) != lhs)
+      if (gimple_return_retval (return_stmt) != lhs
+	  || !dominated_by_p (CDI_DOMINATORS, gimple_bb (use_stmt), bb))
 	continue;
 
       /* Add an entry for the return statement and the locations
@@ -647,7 +656,8 @@ handle_return_addr_local_phi_arg (basic_block bb, basic_block duplicate,
       if (!maybe
 	  && (flag_isolate_erroneous_paths_dereference
 	      || flag_isolate_erroneous_paths_attribute)
-	  && gimple_bb (use_stmt) == bb)
+	  && gimple_bb (use_stmt) == bb
+	  && (duplicate || can_duplicate_block_p (bb)))
 	{
 	  duplicate = isolate_path (bb, duplicate, e,
 				    use_stmt, lhs, true);
@@ -706,6 +716,74 @@ find_implicit_erroneous_behavior (void)
  	 is then dereferenced within BB.  This is somewhat overly
 	 conservative, but probably catches most of the interesting
 	 cases.   */
+      basic_block duplicate = NULL;
+      for (si = gsi_start_phis (bb); !gsi_end_p (si); gsi_next (&si))
+	{
+	  gphi *phi = si.phi ();
+	  tree lhs = gimple_phi_result (phi);
+
+	  /* PHI produces a pointer result.  See if any of the PHI's
+	     arguments are NULL.
+
+	     When we remove an edge, we want to reprocess the current
+	     index since the argument at that index will have been
+	     removed, hence the ugly way we update I for each iteration.  */
+	  for (unsigned i = 0, next_i = 0;
+	       i < gimple_phi_num_args (phi); i = next_i)
+	    {
+	      tree arg = gimple_phi_arg_def (phi, i);
+	      edge e = gimple_phi_arg_edge (phi, i);
+
+	      /* Advance the argument index unless a path involving
+		 the current argument has been isolated.  */
+	      next_i = i + 1;
+
+	      if (!integer_zerop (arg))
+		continue;
+
+	      location_t phi_arg_loc = gimple_phi_arg_location (phi, i);
+
+	      imm_use_iterator iter;
+	      gimple *use_stmt;
+
+	      /* We've got a NULL PHI argument.  Now see if the
+ 	         PHI's result is dereferenced within BB.  */
+	      auto_vec <gimple *, 4> uses_in_bb;
+	      FOR_EACH_IMM_USE_STMT (use_stmt, iter, lhs)
+	        {
+	          /* We only care about uses in BB.  Catching cases in
+		     in other blocks would require more complex path
+		     isolation code.   */
+		  if (gimple_bb (use_stmt) != bb)
+		    continue;
+
+		  location_t loc = gimple_location (use_stmt)
+		    ? gimple_location (use_stmt)
+		    : phi_arg_loc;
+
+		  if (stmt_uses_name_in_undefined_way (use_stmt, lhs, loc))
+		    {
+		      if (!can_duplicate_block_p (bb))
+			break;
+		      uses_in_bb.safe_push (use_stmt);
+		    }
+		}
+	      for (gimple *use_stmt : uses_in_bb)
+		{
+		  duplicate = isolate_path (bb, duplicate, e,
+					    use_stmt, lhs, false);
+
+		  /* When we remove an incoming edge, we need to
+		     reprocess the Ith element.  */
+		  next_i = i;
+		  cfg_altered = true;
+		}
+	    }
+	}
+
+      /* Then look for a PHI which have addresses of locals that
+	 are then returned.  */
+      duplicate = NULL;
       for (si = gsi_start_phis (bb); !gsi_end_p (si); gsi_next (&si))
 	{
 	  gphi *phi = si.phi ();
@@ -723,7 +801,6 @@ find_implicit_erroneous_behavior (void)
 	     When we remove an edge, we want to reprocess the current
 	     index since the argument at that index will have been
 	     removed, hence the ugly way we update I for each iteration.  */
-	  basic_block duplicate = NULL;
 	  for (unsigned i = 0, next_i = 0;
 	       i < gimple_phi_num_args (phi); i = next_i)
 	    {
@@ -742,42 +819,9 @@ find_implicit_erroneous_behavior (void)
 		  cfg_altered = true;
 		  next_i = i;
 		}
-
-	      if (!integer_zerop (arg))
-		continue;
-
-	      location_t phi_arg_loc = gimple_phi_arg_location (phi, i);
-
-	      imm_use_iterator iter;
-	      gimple *use_stmt;
-
-	      /* We've got a NULL PHI argument.  Now see if the
- 	         PHI's result is dereferenced within BB.  */
-	      FOR_EACH_IMM_USE_STMT (use_stmt, iter, lhs)
-	        {
-	          /* We only care about uses in BB.  Catching cases in
-		     in other blocks would require more complex path
-		     isolation code.   */
-		  if (gimple_bb (use_stmt) != bb)
-		    continue;
-
-		  location_t loc = gimple_location (use_stmt)
-		    ? gimple_location (use_stmt)
-		    : phi_arg_loc;
-
-		  if (stmt_uses_name_in_undefined_way (use_stmt, lhs, loc))
-		    {
-		      duplicate = isolate_path (bb, duplicate, e,
-						use_stmt, lhs, false);
-
-		      /* When we remove an incoming edge, we need to
-			 reprocess the Ith element.  */
-		      next_i = i;
-		      cfg_altered = true;
-		    }
-		}
 	    }
 	}
+
     }
 
   diag_returned_locals (false, locmap);
@@ -840,6 +884,8 @@ static void
 find_explicit_erroneous_behavior (void)
 {
   basic_block bb;
+  auto_vec<gimple *> local_bb_split_points;
+  bb_split_points = &local_bb_split_points;
 
   FOR_EACH_BB_FN (bb, cfun)
     {
@@ -881,6 +927,14 @@ find_explicit_erroneous_behavior (void)
 	    warn_return_addr_local (bb, return_stmt);
 	}
     }
+
+  free_dominance_info (CDI_POST_DOMINATORS);
+
+  /* Perform delayed splitting of blocks.  */
+  for (gimple *stmt : local_bb_split_points)
+    split_block (gimple_bb (stmt), stmt);
+
+  bb_split_points = NULL;
 }
 
 /* Search the function for statements which, if executed, would cause
@@ -937,7 +991,6 @@ gimple_ssa_isolate_erroneous_paths (void)
   /* We scramble the CFG and loop structures a bit, clean up
      appropriately.  We really should incrementally update the
      loop structures, in theory it shouldn't be that hard.  */
-  free_dominance_info (CDI_POST_DOMINATORS);
   if (cfg_altered)
     {
       free_dominance_info (CDI_DOMINATORS);
@@ -969,8 +1022,11 @@ public:
   {}
 
   /* opt_pass methods: */
-  opt_pass * clone () { return new pass_isolate_erroneous_paths (m_ctxt); }
-  virtual bool gate (function *)
+  opt_pass * clone () final override
+  {
+    return new pass_isolate_erroneous_paths (m_ctxt);
+  }
+  bool gate (function *) final override
     {
       /* If we do not have a suitable builtin function for the trap statement,
 	 then do not perform the optimization.  */
@@ -979,7 +1035,7 @@ public:
 	      || warn_null_dereference);
     }
 
-  virtual unsigned int execute (function *)
+  unsigned int execute (function *) final override
     {
       return gimple_ssa_isolate_erroneous_paths ();
     }

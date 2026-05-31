@@ -19,7 +19,6 @@ import core.sys.posix.signal; // for sigset_t
 
 version (Posix):
 extern (C) nothrow @nogc:
-@system:
 
 version (RISCV32) version = RISCV_Any;
 version (RISCV64) version = RISCV_Any;
@@ -50,7 +49,7 @@ version (CRuntime_Glibc)
         //enum JB_PC      = 7;
         //enum JB_SIZE    = 64;
 
-        alias long[8] __jmp_buf;
+        alias __jmp_buf = long[8];
     }
     else version (X86)
     {
@@ -62,11 +61,11 @@ version (CRuntime_Glibc)
         //enum JB_PC      = 5;
         //enum JB_SIZE    = 24;
 
-        alias int[6] __jmp_buf;
+        alias __jmp_buf = int[6];
     }
     else version (SPARC)
     {
-        alias int[3] __jmp_buf;
+        alias __jmp_buf = int[3];
     }
     else version (SPARC64)
     {
@@ -74,11 +73,11 @@ version (CRuntime_Glibc)
     }
     else version (AArch64)
     {
-        alias long[22] __jmp_buf;
+        alias __jmp_buf = long[22];
     }
     else version (ARM)
     {
-        alias int[64] __jmp_buf;
+        alias __jmp_buf = int[64];
     }
     else version (HPPA)
     {
@@ -96,11 +95,11 @@ version (CRuntime_Glibc)
     }
     else version (PPC)
     {
-        alias int[64 + (12*4)] __jmp_buf;
+        alias __jmp_buf = int[64 + (12*4)];
     }
     else version (PPC64)
     {
-        alias long[64] __jmp_buf;
+        alias __jmp_buf = long[64];
     }
     else version (MIPS32)
     {
@@ -175,6 +174,21 @@ version (CRuntime_Glibc)
         }
         alias __jmp_buf = __s390_jmp_buf[1];
     }
+    else version (LoongArch64)
+    {
+        struct __loongarch_jmp_buf
+        {
+            long __pc;
+            long __sp;
+            // reserved
+            long __r21;
+            long __fp;
+            long[9] __regs;
+            static if (__traits(getTargetInfo, "floatAbi") != "soft_float")
+                double[8] __fpregs;
+        }
+        alias __jmp_buf = __loongarch_jmp_buf[1];
+    }
     else
         static assert(0, "unimplemented");
 
@@ -185,9 +199,9 @@ version (CRuntime_Glibc)
         sigset_t    __saved_mask;
     }
 
-    alias __jmp_buf_tag[1] jmp_buf;
+    alias jmp_buf = __jmp_buf_tag[1];
 
-    alias _setjmp setjmp; // see XOpen block
+    alias setjmp = _setjmp; // see XOpen block
     void longjmp(ref jmp_buf, int);
 }
 else version (FreeBSD)
@@ -221,7 +235,7 @@ else version (FreeBSD)
     }
     else
         static assert(0);
-    alias _jmp_buf[1] jmp_buf;
+    alias jmp_buf = _jmp_buf[1];
 
     int  setjmp(ref jmp_buf);
     void longjmp(ref jmp_buf, int);
@@ -241,10 +255,10 @@ else version (NetBSD)
     }
     else
         static assert(0);
-    alias _jmp_buf[_JBLEN] jmp_buf;
+    alias jmp_buf = _jmp_buf[_JBLEN];
 
-    int  setjmp(ref jmp_buf);
-    void longjmp(ref jmp_buf, int);
+    pragma(mangle, "__setjmp14")  int  setjmp(ref jmp_buf);
+    pragma(mangle, "__longjmp14") void longjmp(ref jmp_buf, int);
 }
 else version (OpenBSD)
 {
@@ -299,7 +313,7 @@ else version (DragonFlyBSD)
     }
     else
         static assert(0);
-    alias _jmp_buf[1] jmp_buf;
+    alias jmp_buf = _jmp_buf[1];
 
     int  setjmp(ref jmp_buf);
     void longjmp(ref jmp_buf, int);
@@ -328,7 +342,7 @@ else version (CRuntime_Bionic)
         static assert(false, "Architecture not supported.");
     }
 
-    alias c_long[_JBLEN] jmp_buf;
+    alias jmp_buf = c_long[_JBLEN];
 
     int  setjmp(ref jmp_buf);
     void longjmp(ref jmp_buf, int);
@@ -337,11 +351,11 @@ else version (CRuntime_UClibc)
 {
     version (X86_64)
     {
-        alias long[8] __jmp_buf;
+        alias __jmp_buf = long[8];
     }
     else version (ARM)
     {
-        align(8) alias int[64] __jmp_buf;
+        align(8) alias __jmp_buf = int[64];
     }
     else version (MIPS32)
     {
@@ -370,6 +384,22 @@ else version (CRuntime_UClibc)
                 double[6] __fpregs;
         }
     }
+    else version (MIPS64)
+    {
+        struct __jmp_buf
+        {
+            long __pc;
+            long __sp;
+            long[8] __regs;
+            long __fp;
+            long __gp;
+            int __fpc_csr;
+            version (MIPS_N64)
+                double[8] __fpregs;
+            else
+                double[6] __fpregs;
+        }
+    }
     else
         static assert(0, "unimplemented");
 
@@ -380,9 +410,9 @@ else version (CRuntime_UClibc)
         sigset_t    __saved_mask;
     }
 
-    alias __jmp_buf_tag[1] jmp_buf;
+    alias jmp_buf = __jmp_buf_tag[1];
 
-    alias _setjmp setjmp;
+    alias setjmp = _setjmp;
     void longjmp(ref jmp_buf, int);
 }
 
@@ -398,10 +428,10 @@ void siglongjmp(sigjmp_buf, int);
 
 version (CRuntime_Glibc)
 {
-    alias jmp_buf sigjmp_buf;
+    alias sigjmp_buf = jmp_buf;
 
     int __sigsetjmp(sigjmp_buf, int);
-    alias __sigsetjmp sigsetjmp;
+    alias sigsetjmp = __sigsetjmp;
     void siglongjmp(sigjmp_buf, int);
 }
 else version (FreeBSD)
@@ -436,7 +466,7 @@ else version (FreeBSD)
     }
     else
         static assert(0);
-    alias _sigjmp_buf[1] sigjmp_buf;
+    alias sigjmp_buf = _sigjmp_buf[1];
 
     int  sigsetjmp(ref sigjmp_buf);
     void siglongjmp(ref sigjmp_buf, int);
@@ -454,10 +484,10 @@ else version (NetBSD)
     }
     else
         static assert(0);
-    alias _sigjmp_buf[_JBLEN + 1] sigjmp_buf;
+    alias sigjmp_buf = _sigjmp_buf[_JBLEN + 1];
 
-    int  sigsetjmp(ref sigjmp_buf);
-    void siglongjmp(ref sigjmp_buf, int);
+    pragma(mangle, "__sigsetjmp14")  int  sigsetjmp(ref sigjmp_buf);
+    pragma(mangle, "__siglongjmp14") void siglongjmp(ref sigjmp_buf, int);
 }
 else version (OpenBSD)
 {
@@ -475,24 +505,24 @@ else version (DragonFlyBSD)
     }
     else
         static assert(0);
-    alias _sigjmp_buf[1] sigjmp_buf;
+    alias sigjmp_buf = _sigjmp_buf[1];
 
     int  sigsetjmp(ref sigjmp_buf);
     void siglongjmp(ref sigjmp_buf, int);
 }
 else version (CRuntime_Bionic)
 {
-    alias c_long[_JBLEN + 1] sigjmp_buf;
+    alias sigjmp_buf = c_long[_JBLEN + 1];
 
     int  sigsetjmp(ref sigjmp_buf, int);
     void siglongjmp(ref sigjmp_buf, int);
 }
 else version (CRuntime_UClibc)
 {
-    alias jmp_buf sigjmp_buf;
+    alias sigjmp_buf = jmp_buf;
 
     int __sigsetjmp(ref sigjmp_buf, int);
-    alias __sigsetjmp sigsetjmp;
+    alias sigsetjmp = __sigsetjmp;
     void siglongjmp(ref sigjmp_buf, int);
 }
 

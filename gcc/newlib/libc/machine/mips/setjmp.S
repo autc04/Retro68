@@ -67,8 +67,8 @@
    regardless of whether the realignment happened or not.  */
 
 #define FPR_LAYOUT		\
-	and $8, $4, 4;	 	\
-	bne $8, $0, 1f;		\
+	andi $8, $4, 4;	 	\
+	beq $8, $0, 1f;		\
 	GPR_OFFSET ($31, 22);	\
 	addiu $4, $4, -4;	\
 1:				\
@@ -133,7 +133,7 @@ setjmp:
 #undef FPR_OFFSET
 
 	move	$2,$0
-	j	$31
+	jr	$31
 
 	.end	setjmp
 
@@ -154,6 +154,6 @@ longjmp:
 	li	$5,1
 1:
 	move	$2,$5
-	j	$31
+	jr	$31
 
 	.end longjmp

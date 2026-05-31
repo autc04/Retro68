@@ -1,5 +1,5 @@
 /* Implementation of the MINLOC intrinsic
-   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -32,13 +32,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define HAVE_BACK_ARG 1
 
 
-extern void minloc1_8_i8 (gfc_array_i8 * const restrict, 
+extern void minloc1_8_i8 (gfc_array_i8 * const restrict,
 	gfc_array_i8 * const restrict, const index_type * const restrict, GFC_LOGICAL_4 back);
 export_proto(minloc1_8_i8);
 
 void
-minloc1_8_i8 (gfc_array_i8 * const restrict retarray, 
-	gfc_array_i8 * const restrict array, 
+minloc1_8_i8 (gfc_array_i8 * const restrict retarray,
+	gfc_array_i8 * const restrict array,
 	const index_type * const restrict pdim, GFC_LOGICAL_4 back)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -109,12 +109,7 @@ minloc1_8_i8 (gfc_array_i8 * const restrict retarray,
 
       retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-
-	}
+	return;
     }
   else
     {
@@ -231,15 +226,15 @@ minloc1_8_i8 (gfc_array_i8 * const restrict retarray,
 }
 
 
-extern void mminloc1_8_i8 (gfc_array_i8 * const restrict, 
+extern void mminloc1_8_i8 (gfc_array_i8 * const restrict,
 	gfc_array_i8 * const restrict, const index_type * const restrict,
 	gfc_array_l1 * const restrict, GFC_LOGICAL_4 back);
 export_proto(mminloc1_8_i8);
 
 void
-mminloc1_8_i8 (gfc_array_i8 * const restrict retarray, 
-	gfc_array_i8 * const restrict array, 
-	const index_type * const restrict pdim, 
+mminloc1_8_i8 (gfc_array_i8 * const restrict retarray,
+	gfc_array_i8 * const restrict array,
+	const index_type * const restrict pdim,
 	gfc_array_l1 * const restrict mask, GFC_LOGICAL_4 back)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -280,8 +275,8 @@ mminloc1_8_i8 (gfc_array_i8 * const restrict retarray,
     }
 
   len = GFC_DESCRIPTOR_EXTENT(array,dim);
-  if (len <= 0)
-    return;
+  if (len < 0)
+    len = 0;
 
   mbase = mask->base_addr;
 
@@ -339,15 +334,9 @@ mminloc1_8_i8 (gfc_array_i8 * const restrict retarray,
       retarray->offset = 0;
       retarray->dtype.rank = rank;
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
-
+	return;
     }
   else
     {
@@ -470,15 +459,15 @@ mminloc1_8_i8 (gfc_array_i8 * const restrict retarray,
 }
 
 
-extern void sminloc1_8_i8 (gfc_array_i8 * const restrict, 
+extern void sminloc1_8_i8 (gfc_array_i8 * const restrict,
 	gfc_array_i8 * const restrict, const index_type * const restrict,
 	GFC_LOGICAL_4 *, GFC_LOGICAL_4 back);
 export_proto(sminloc1_8_i8);
 
 void
-sminloc1_8_i8 (gfc_array_i8 * const restrict retarray, 
-	gfc_array_i8 * const restrict array, 
-	const index_type * const restrict pdim, 
+sminloc1_8_i8 (gfc_array_i8 * const restrict retarray,
+	gfc_array_i8 * const restrict array,
+	const index_type * const restrict pdim,
 	GFC_LOGICAL_4 * mask, GFC_LOGICAL_4 back)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -547,14 +536,9 @@ sminloc1_8_i8 (gfc_array_i8 * const restrict retarray,
 
       alloc_size = GFC_DESCRIPTOR_STRIDE(retarray,rank-1) * extent[rank-1];
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_INTEGER_8));
+	return;
     }
   else
     {

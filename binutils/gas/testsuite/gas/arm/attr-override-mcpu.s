@@ -1,2 +1,2 @@
 	.cpu arm7tdmi
-	.fpu softfpa
+	.fpu softvfp

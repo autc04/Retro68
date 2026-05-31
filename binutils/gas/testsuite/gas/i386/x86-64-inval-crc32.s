@@ -17,6 +17,8 @@ crc32  %rax, %eax
 crc32  %eax, %rax
 crc32l  %rax, %eax
 crc32l  %eax, %rax
+crc32q  %al, %rax
+crc32q  %ax, %rax
 crc32q  %eax, %rax
 crc32q  %rax, %eax
 

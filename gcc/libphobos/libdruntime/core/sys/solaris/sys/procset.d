@@ -2,7 +2,7 @@
  * D header file defining a process set.
  *
  * Copyright:   Copyright 2014 Jason King.
- * License:     $(HTTP www.boost.org/LICENSE_1.0.txt, Boost License 1.0).
+ * License:     $(HTTP www.boost.org/LICENSE_1_0.txt, Boost License 1.0).
  * Authors:     Jason King
  */
 
@@ -50,4 +50,3 @@ void setprocset(ref procset_t psp, idop_t op, idtype_t ltype, id_t lid, idtype_t
     psp.p_ridtype = rtype;
     psp.p_rid = rid;
 }
-

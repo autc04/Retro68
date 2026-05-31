@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -57,14 +57,13 @@ is
    type Set is tagged private
    with Constant_Indexing => Constant_Reference,
         Default_Iterator  => Iterate,
-        Iterator_Element  => Element_Type;
-        --  Aggregate         => (Empty       => Empty,
-        --                        Add_Unnamed => Include);
+        Iterator_Element  => Element_Type,
+        Aggregate         => (Empty       => Empty,
+                              Add_Unnamed => Include),
+        Preelaborable_Initialization;
 
-   pragma Preelaborable_Initialization (Set);
-
-   type Cursor is private;
-   pragma Preelaborable_Initialization (Cursor);
+   type Cursor is private
+   with Preelaborable_Initialization;
 
    function Has_Element (Position : Cursor) return Boolean;
 
@@ -100,8 +99,7 @@ is
       Process  : not null access procedure (Element : Element_Type));
 
    type Constant_Reference_Type
-      (Element : not null access constant Element_Type) is
-   private
+      (Element : not null access constant Element_Type) is limited private
    with
       Implicit_Dereference => Element;
 
@@ -231,6 +229,25 @@ is
       Start     : Cursor)
       return Set_Iterator_Interfaces.Reversible_Iterator'class;
 
+   --  Ada 2022 features:
+
+   function Has_Element (Container : Set; Position : Cursor) return Boolean;
+
+   function Tampering_With_Cursors_Prohibited (Container : Set) return Boolean;
+
+   function Element (Container : Set; Position : Cursor) return Element_Type;
+
+   procedure Query_Element
+     (Container : Set;
+      Position  : Cursor;
+      Process   : not null access procedure (Element : Element_Type));
+
+   function Next (Container : Set; Position : Cursor) return Cursor;
+
+   procedure Next (Container : Set; Position : in out Cursor);
+
+   ----------------
+
    generic
       type Key_Type (<>) is private;
 
@@ -243,6 +260,9 @@ is
       function Equivalent_Keys (Left, Right : Key_Type) return Boolean;
 
       function Key (Position : Cursor) return Key_Type;
+
+      function Key (Container : Set; Position : Cursor) return Key_Type is
+        (Key (Element (Container, Position)));
 
       function Element (Container : Set; Key : Key_Type) return Element_Type;
 
@@ -269,7 +289,8 @@ is
          Process   : not null access
                        procedure (Element : in out Element_Type));
 
-      type Reference_Type (Element : not null access Element_Type) is private
+      type Reference_Type
+        (Element : not null access Element_Type) is limited private
       with
          Implicit_Dereference => Element;
 
@@ -300,6 +321,9 @@ is
          Pos       : Cursor;
          Old_Key   : Key_Access;
       end record;
+
+      overriding procedure Adjust (Control : in out Reference_Control_Type);
+      pragma Inline (Adjust);
 
       overriding procedure Finalize (Control : in out Reference_Control_Type);
       pragma Inline (Finalize);
@@ -415,10 +439,10 @@ private
 
    for Constant_Reference_Type'Read use Read;
 
-   --  Three operations are used to optimize in the expansion of "for ... of"
-   --  loops: the Next(Cursor) procedure in the visible part, and the following
-   --  Pseudo_Reference and Get_Element_Access functions. See Sem_Ch5 for
-   --  details.
+   --  See Ada.Containers.Vectors for documentation on the following
+
+   procedure _Next (Position : in out Cursor) renames Next;
+   procedure _Previous (Position : in out Cursor) renames Previous;
 
    function Pseudo_Reference
      (Container : aliased Set'Class) return Reference_Control_Type;

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---                     Copyright (C) 2000-2022, AdaCore                     --
+--                     Copyright (C) 2000-2026, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -82,10 +82,6 @@ package GNAT.Dynamic_Tables is
    --  freely (expensive reallocation occurs only at major granularity
    --  chunks controlled by the allocation parameters).
 
-   --  Note: we do not make the table components aliased, since this would
-   --  restrict the use of table for discriminated types. If it is necessary
-   --  to take the access of a table element, use Unrestricted_Access.
-
    --  WARNING: On HPPA, the virtual addressing approach used in this unit is
    --  incompatible with the indexing instructions on the HPPA. So when using
    --  this unit, compile your application with -mdisable-indexing.
@@ -120,9 +116,10 @@ package GNAT.Dynamic_Tables is
    --  freely (expensive reallocation occurs only at major granularity
    --  chunks controlled by the allocation parameters).
 
-   --  Note: we do not make the table components aliased, since this would
-   --  restrict the use of table for discriminated types. If it is necessary
-   --  to take the access of a table element, use Unrestricted_Access.
+   --  Note: For backward compatibility we do not make the table components
+   --  aliased, since for Ada 95 this would have restricted the use of tables
+   --  for discriminated types. If it is necessary to take the access of a
+   --  table element, use Unrestricted_Access.
 
    type Table_Type is
      array (Valid_Table_Index_Type range <>) of Table_Component_Type;
@@ -171,8 +168,9 @@ package GNAT.Dynamic_Tables is
       --
       --     Tab : Table_Type renames X.Table (First .. X.Last);
       --
-      --  Note: The Table component must come first. See declarations of
-      --  SCO_Unit_Table and SCO_Table in scos.h.
+      --  Note: The Table component must come first to simplify interfacing
+      --  with C, similar to how we do it for the Table unit; see declarations
+      --  of Names_Ptr and Names_Char_Ptr in namet.h.
 
       Locked : Boolean := False;
       --  Table reallocation is permitted only if this is False. A client may

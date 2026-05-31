@@ -1,4 +1,6 @@
 /* { dg-require-effective-target vect_double } */
+/* { dg-additional-options "-ffast-math" } */
+/* { dg-additional-options "--param vect-epilogues-nomask=0" } */
 
 #include "tree-vect.h"
 
@@ -82,36 +84,42 @@ main1 ()
       b[i] = ((i & 1) ? -4 * i : 4 * i) + 0.25;
     }
   f1 (16);
+#pragma GCC novector
   for (i = 0; i < 64; i++)
     if (a[i] != ((i & 1) ? -4 * i : 4 * i) + 1 + (i & 3))
       abort ();
     else
       a[i] = 131.25;
   f2 (16);
+#pragma GCC novector
   for (i = 0; i < 64; i++)
     if (a[i] != ((i & 1) ? -4 * i : 4 * i) + 1 + (i & 1))
       abort ();
     else
       a[i] = 131.25;
   f3 ();
+#pragma GCC novector
   for (i = 0; i < 64; i++)
     if (a[i] != ((i & 1) ? -4 * i : 4 * i) + 1)
       abort ();
     else
       a[i] = 131.25;
   f4 (16);
+#pragma GCC novector
   for (i = 0; i < 64; i++)
     if (a[i] != ((i & 1) ? -4 * i : 4 * i))
       abort ();
     else
       a[i] = 131.25;
   f5 (16);
+#pragma GCC novector
   for (i = 0; i < 64; i++)
     if (a[i] != ((i & 1) ? -4 * i : 4 * i))
       abort ();
     else
       a[i] = 131.25;
   f6 ();
+#pragma GCC novector
   for (i = 0; i < 64; i++)
     if (a[i] != ((i & 1) ? -4 * i : 4 * i))
       abort ();
@@ -126,4 +134,4 @@ main ()
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 6 "vect" { target vect_call_lrint } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 4 "vect" { target vect_call_lrint } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 6 "vect" { target vect_call_lrint } } } */

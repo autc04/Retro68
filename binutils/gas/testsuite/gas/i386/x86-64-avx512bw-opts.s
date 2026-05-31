@@ -1,6 +1,5 @@
 # Check 64bit AVX512BW swap instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vmovdqu8	%zmm29, %zmm30	 # AVX512BW

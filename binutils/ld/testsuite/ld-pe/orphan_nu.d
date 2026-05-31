@@ -4,10 +4,11 @@
 #source: orphane.s
 #ld: --file-align 1 --section-align 1  --no-leading-underscore
 #objdump: -h --wide
+#xfail: mcore-*-*
 
 #...
- +0 +\.text .*
- +1 +\.foo +0+20 .*
- +2 +\.foo +0+20 .*
- +3 +\.idata .*
+ +. +\.foo +0+20 .*
+ +. +\.rdata .*
+ +. +\.foo +0+20 .*
+ +. +\.idata .*
 #pass

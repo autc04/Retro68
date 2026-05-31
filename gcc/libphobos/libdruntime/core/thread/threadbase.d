@@ -7,7 +7,7 @@
  *      $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost Software License 1.0).
  *    (See accompanying file LICENSE)
  * Authors:   Sean Kelly, Walter Bright, Alex Rønne Petersen, Martin Nowak
- * Source:    $(DRUNTIMESRC core/thread/osthread.d)
+ * Source:    $(DRUNTIMESRC core/thread/threadbase.d)
  */
 
 /* NOTE: This file has been patched from the original DMD distribution to
@@ -32,9 +32,6 @@ private
     alias ScanDg = void delegate(void* pstart, void* pend) nothrow;
     alias rt_tlsgc_scan =
         externDFunc!("rt.tlsgc.scan", void function(void*, scope ScanDg) nothrow);
-
-    alias rt_tlsgc_processGCMarks =
-        externDFunc!("rt.tlsgc.processGCMarks", void function(void*, scope IsMarkedDg) nothrow);
 }
 
 
@@ -80,13 +77,14 @@ private
 {
     // Handling unaligned mutexes are not supported on all platforms, so we must
     // ensure that the address of all shared data are appropriately aligned.
-    import core.internal.traits : classInstanceAlignment;
-
-    enum mutexAlign = classInstanceAlignment!Mutex;
+    enum mutexAlign = __traits(classInstanceAlignment, Mutex);
     enum mutexClassInstanceSize = __traits(classInstanceSize, Mutex);
 
     alias swapContext = externDFunc!("core.thread.osthread.swapContext", void* function(void*) nothrow @nogc);
+}
 
+package
+{
     alias getStackBottom = externDFunc!("core.thread.osthread.getStackBottom", void* function() nothrow @nogc);
     alias getStackTop = externDFunc!("core.thread.osthread.getStackTop", void* function() nothrow @nogc);
 }
@@ -110,8 +108,8 @@ class ThreadBase
         m_call = fn;
     }
 
-    this(void delegate() dg, size_t sz = 0) @safe pure nothrow @nogc
-    in(dg)
+    this(void delegate() dg, size_t sz = 0) @trusted pure nothrow @nogc
+    in( cast(const void delegate()) dg)
     {
         this(sz);
         m_call = dg;
@@ -130,9 +128,18 @@ class ThreadBase
         return (no_context || not_registered);
     }
 
-    package void tlsGCdataInit() nothrow @nogc
+    ref void* tlsGCData() nothrow @nogc
     {
-        m_tlsgcdata = rt_tlsgc_init();
+        return m_tlsgcdata;
+    }
+
+    package void tlsRTdataInit() nothrow @nogc
+    {
+        m_tlsrtdata = rt_tlsgc_init();
+
+        // Let the selected GC initialize anything it needs.
+        import core.internal.gc.proxy : gc_getProxy;
+        gc_getProxy().initThread(this);
     }
 
     package void initDataStorage() nothrow
@@ -141,18 +148,18 @@ class ThreadBase
 
         m_main.bstack = getStackBottom();
         m_main.tstack = m_main.bstack;
-        tlsGCdataInit();
+        tlsRTdataInit();
     }
 
     package void destroyDataStorage() nothrow @nogc
     {
-        rt_tlsgc_destroy(m_tlsgcdata);
-        m_tlsgcdata = null;
+        rt_tlsgc_destroy(m_tlsrtdata);
+        m_tlsrtdata = null;
     }
 
     package void destroyDataStorageIfAvail() nothrow @nogc
     {
-        if (m_tlsgcdata)
+        if (m_tlsrtdata)
             destroyDataStorage();
     }
 
@@ -180,6 +187,25 @@ class ThreadBase
      */
     abstract Throwable join(bool rethrow = true);
 
+    /**
+     * Filter any exceptions that escaped the thread entry point.
+     * This enables a 'grave digger' approach to exceptions.
+     *
+     * By default this method will call the global handler in core.exception.
+     *
+     * Overriding this method allows a per-thread behavior.
+     *
+     * Params:
+     *         thrown = The thrown exception, may be null after returned.
+     */
+    void filterCaughtThrowable(ref Throwable thrown) @system nothrow
+    {
+        import core.exception : filterThreadThrowableHandler;
+        if (thrown is null)
+            return;
+        else if (auto handler = filterThreadThrowableHandler())
+            handler(thrown);
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     // General Properties
@@ -455,7 +481,6 @@ package:
     string              m_name;
     size_t              m_sz;
     bool                m_isDaemon;
-    bool                m_isInCriticalRegion;
     Throwable           m_unhandled;
 
     ///////////////////////////////////////////////////////////////////////////
@@ -477,6 +502,7 @@ package(core.thread):
     StackContext*       m_curr;
     bool                m_lock;
     private void*       m_tlsgcdata;
+    private void*       m_tlsrtdata;
 
     ///////////////////////////////////////////////////////////////////////////
     // Thread Context and GC Scanning Support
@@ -515,6 +541,13 @@ package(core.thread):
         return m_curr;
     }
 
+    /**
+     * Get an array of the current saved registers for this thread.
+     *
+     * Returns:
+     *  A slice of the array representing all saved registers or null.
+     */
+    public abstract void[] savedRegisters() nothrow @nogc;
 
 package(core.thread):
     ///////////////////////////////////////////////////////////////////////////
@@ -563,25 +596,17 @@ package(core.thread):
         return cast(Mutex)_slock.ptr;
     }
 
-    @property static Mutex criticalRegionLock() nothrow @nogc
-    {
-        return cast(Mutex)_criticalRegionLock.ptr;
-    }
-
     __gshared align(mutexAlign) void[mutexClassInstanceSize] _slock;
-    __gshared align(mutexAlign) void[mutexClassInstanceSize] _criticalRegionLock;
 
-    static void initLocks() @nogc
+    static void initLocks() @nogc nothrow
     {
         import core.lifetime : emplace;
         emplace!Mutex(_slock[]);
-        emplace!Mutex(_criticalRegionLock[]);
     }
 
-    static void termLocks() @nogc
+    static void termLocks() @nogc nothrow
     {
         (cast(Mutex)_slock.ptr).__dtor();
-        (cast(Mutex)_criticalRegionLock.ptr).__dtor();
     }
 
     __gshared StackContext*  sm_cbeg;
@@ -590,8 +615,8 @@ package(core.thread):
     __gshared size_t        sm_tlen;
 
     // can't use core.internal.util.array in public code
-    __gshared ThreadBase* pAboutToStart;
-    __gshared size_t      nAboutToStart;
+    private __gshared ThreadBase* pAboutToStart;
+    private __gshared size_t      nAboutToStart;
 
     //
     // Used for ordering threads in the global thread list.
@@ -660,6 +685,12 @@ package(core.thread):
     // Global Thread List Operations
     ///////////////////////////////////////////////////////////////////////////
 
+    package static void incrementAboutToStart(ThreadBase t) nothrow @nogc
+    {
+        ++nAboutToStart;
+        pAboutToStart = cast(ThreadBase*)realloc(pAboutToStart, ThreadBase.sizeof * nAboutToStart);
+        pAboutToStart[nAboutToStart - 1] = t;
+    }
 
     //
     // Add a thread to the global thread list.
@@ -749,6 +780,25 @@ package(core.thread):
         //       to ensure that.
         slock.unlock_nothrow();
     }
+
+    //
+    // Add a thread to the global thread list, and also register This thread
+    // for use in `getThis`. This does both operations while protected by the
+    // static lock. This helps alternative GCs that use `thread_preSuspend` to
+    // determine whether druntime will provide scanning details during
+    // `thread_scanAll`. Without holding the lock for both operations, it's
+    // possible a `thread_preSuspend` would return true, but the scanning
+    // details would not be handled.
+    //
+    static void registerThis(ThreadBase t, bool rmAboutToStart = true) nothrow @nogc
+    {
+        slock.lock_nothrow();
+        scope(exit) slock.unlock_nothrow();
+
+        setThis(t);
+        add(t, rmAboutToStart);
+    }
+
 }
 
 
@@ -758,20 +808,20 @@ package(core.thread):
 
 private alias attachThread = externDFunc!("core.thread.osthread.attachThread", ThreadBase function(ThreadBase) @nogc nothrow);
 
-extern (C) void _d_monitordelete_nogc(Object h) @nogc;
+extern (C) void _d_monitordelete_nogc(Object h) @nogc nothrow;
 
 /**
  * Terminates the thread module. No other thread routine may be called
  * afterwards.
  */
-package void thread_term_tpl(ThreadT, MainThreadStore)(ref MainThreadStore _mainThreadStore) @nogc
+package void thread_term_tpl(ThreadT, MainThreadStore)(ref MainThreadStore _mainThreadStore) @nogc nothrow
 {
     assert(_mainThreadStore.ptr is cast(void*) ThreadBase.sm_main);
 
     // destruct manually as object.destroy is not @nogc
     (cast(ThreadT) cast(void*) ThreadBase.sm_main).__dtor();
     _d_monitordelete_nogc(ThreadBase.sm_main);
-    _mainThreadStore[] = __traits(initSymbol, ThreadT)[];
+    _mainThreadStore[] = cast(void[]) __traits(initSymbol, ThreadT)[];
     ThreadBase.sm_main = null;
 
     assert(ThreadBase.sm_tbeg && ThreadBase.sm_tlen == 1);
@@ -818,12 +868,24 @@ package ThreadT thread_attachThis_tpl(ThreadT)()
  * Deregisters the calling thread from use with the runtime.  If this routine
  * is called for a thread which is not registered, the result is undefined.
  *
+ * Once the thread is removed from the runtime, it must not use the GC because
+ * it does not participate in the Stop-The-World mechanisms. With the default
+ * GC, that has a global lock, this might not cause races, but in GCs with
+ * regional locks, it definitely can cause races.
+ *
  * NOTE: This routine does not run thread-local static destructors when called.
  *       If full functionality as a D thread is desired, the following function
- *       must be called after thread_detachThis, particularly if the thread is
+ *       must be called before thread_detachThis, particularly if the thread is
  *       being detached at some indeterminate time before program termination:
  *
  *       $(D extern(C) void rt_moduleTlsDtor();)
+ *
+ *       This also does not call the GC thread cleanup routine. After running
+ *       module dtors, it is recommended to call
+ *       $(D gc_getProxy().cleanupThread(Thread.getThis());)
+ *
+ * See_Also:
+ *     $(REF thread_attachThis, core,thread,osthread)
  */
 extern (C) void thread_detachThis() nothrow @nogc
 {
@@ -836,12 +898,22 @@ extern (C) void thread_detachThis() nothrow @nogc
  * Deregisters the given thread from use with the runtime.  If this routine
  * is called for a thread which is not registered, the result is undefined.
  *
+ * Once the thread is removed from the runtime, it must not use the GC because
+ * it does not participate in the Stop-The-World mechanisms. With the default
+ * GC, that has a global lock, this might not cause races, but in GCs with
+ * regional locks, it definitely can cause races.
+ *
  * NOTE: This routine does not run thread-local static destructors when called.
  *       If full functionality as a D thread is desired, the following function
- *       must be called by the detached thread, particularly if the thread is
- *       being detached at some indeterminate time before program termination:
+ *       must be called by the detached thread before calling this function,
+ *       particularly if the thread is being detached at some indeterminate
+ *       time before program termination:
  *
  *       $(D extern(C) void rt_moduleTlsDtor();)
+ *
+ *       This also does not call the GC thread cleanup routine. After running
+ *       module dtors, it is recommended to call (from the thread itself)
+ *       $(D gc_getProxy().cleanupThread(Thread.getThis());)
  */
 extern (C) void thread_detachByAddr(ThreadID addr)
 {
@@ -969,6 +1041,13 @@ package __gshared uint suspendDepth = 0;
 private alias resume = externDFunc!("core.thread.osthread.resume", void function(ThreadBase) nothrow @nogc);
 
 /**
+ * Run the necessary operation required after the world was resumed.
+ */
+extern (C) void thread_postRestartTheWorld() nothrow {
+    ThreadBase.slock.unlock_nothrow();
+}
+
+/**
  * Resume all threads but the calling thread for "stop the world" garbage
  * collection runs.  This function must be called once for each preceding
  * call to thread_suspendAll before the threads are actually resumed.
@@ -994,7 +1073,7 @@ do
         return;
     }
 
-    scope(exit) ThreadBase.slock.unlock_nothrow();
+    scope(exit) thread_postRestartTheWorld();
     {
         if (--suspendDepth > 0)
             return;
@@ -1097,24 +1176,12 @@ private void scanAllTypeImpl(scope ScanAllThreadsTypeFn scan, void* curStackTop)
 
     for (ThreadBase t = ThreadBase.sm_tbeg; t; t = t.next)
     {
-        version (Windows)
-        {
-            // Ideally, we'd pass ScanType.regs or something like that, but this
-            // would make portability annoying because it only makes sense on Windows.
-            scanWindowsOnly(scan, t);
-        }
+        if (auto regs = t.savedRegisters())
+            scan(ScanType.stack, regs.ptr, regs.ptr + regs.length);
 
-        if (t.m_tlsgcdata !is null)
-            rt_tlsgc_scan(t.m_tlsgcdata, (p1, p2) => scan(ScanType.tls, p1, p2));
+        if (t.m_tlsrtdata !is null)
+            rt_tlsgc_scan(t.m_tlsrtdata, (p1, p2) => scan(ScanType.tls, p1, p2));
     }
-}
-
-version (Windows)
-{
-    // Currently scanWindowsOnly can't be handled properly by externDFunc
-    // https://github.com/dlang/druntime/pull/3135#issuecomment-643673218
-    pragma(mangle, "_D4core6thread8osthread15scanWindowsOnlyFNbMDFNbEQBvQBt10threadbase8ScanTypePvQcZvCQDdQDbQBi10ThreadBaseZv")
-    private extern (D) void scanWindowsOnly(scope ScanAllThreadsTypeFn scan, ThreadBase) nothrow;
 }
 
 /**
@@ -1133,75 +1200,6 @@ extern (C) void thread_scanAll(scope ScanAllThreadsFn scan) nothrow
 }
 
 private alias thread_yield = externDFunc!("core.thread.osthread.thread_yield", void function() @nogc nothrow);
-
-/**
- * Signals that the code following this call is a critical region. Any code in
- * this region must finish running before the calling thread can be suspended
- * by a call to thread_suspendAll.
- *
- * This function is, in particular, meant to help maintain garbage collector
- * invariants when a lock is not used.
- *
- * A critical region is exited with thread_exitCriticalRegion.
- *
- * $(RED Warning):
- * Using critical regions is extremely error-prone. For instance, using locks
- * inside a critical region can easily result in a deadlock when another thread
- * holding the lock already got suspended.
- *
- * The term and concept of a 'critical region' comes from
- * $(LINK2 https://github.com/mono/mono/blob/521f4a198e442573c400835ef19bbb36b60b0ebb/mono/metadata/sgen-gc.h#L925, Mono's SGen garbage collector).
- *
- * In:
- *  The calling thread must be attached to the runtime.
- */
-extern (C) void thread_enterCriticalRegion() @nogc
-in
-{
-    assert(ThreadBase.getThis());
-}
-do
-{
-    synchronized (ThreadBase.criticalRegionLock)
-        ThreadBase.getThis().m_isInCriticalRegion = true;
-}
-
-
-/**
- * Signals that the calling thread is no longer in a critical region. Following
- * a call to this function, the thread can once again be suspended.
- *
- * In:
- *  The calling thread must be attached to the runtime.
- */
-extern (C) void thread_exitCriticalRegion() @nogc
-in
-{
-    assert(ThreadBase.getThis());
-}
-do
-{
-    synchronized (ThreadBase.criticalRegionLock)
-        ThreadBase.getThis().m_isInCriticalRegion = false;
-}
-
-
-/**
- * Returns true if the current thread is in a critical region; otherwise, false.
- *
- * In:
- *  The calling thread must be attached to the runtime.
- */
-extern (C) bool thread_inCriticalRegion() @nogc
-in
-{
-    assert(ThreadBase.getThis());
-}
-do
-{
-    synchronized (ThreadBase.criticalRegionLock)
-        return ThreadBase.getThis().m_isInCriticalRegion;
-}
 
 
 /**
@@ -1223,59 +1221,15 @@ package void onThreadError(string msg) nothrow @nogc
     throw error;
 }
 
-unittest
-{
-    assert(!thread_inCriticalRegion());
 
-    {
-        thread_enterCriticalRegion();
+// GC-specific processing of TLSGC data.
+alias ProcessTLSGCDataDg = void* delegate(void* data) nothrow;
 
-        scope (exit)
-            thread_exitCriticalRegion();
-
-        assert(thread_inCriticalRegion());
-    }
-
-    assert(!thread_inCriticalRegion());
-}
-
-
-/**
- * Indicates whether an address has been marked by the GC.
- */
-enum IsMarked : int
-{
-         no, /// Address is not marked.
-        yes, /// Address is marked.
-    unknown, /// Address is not managed by the GC.
-}
-
-alias IsMarkedDg = int delegate(void* addr) nothrow; /// The isMarked callback function.
-
-/**
- * This routine allows the runtime to process any special per-thread handling
- * for the GC.  This is needed for taking into account any memory that is
- * referenced by non-scanned pointers but is about to be freed.  That currently
- * means the array append cache.
- *
- * Params:
- *  isMarked = The function used to check if $(D addr) is marked.
- *
- * In:
- *  This routine must be called just prior to resuming all threads.
- */
-extern(C) void thread_processGCMarks(scope IsMarkedDg isMarked) nothrow
+void thread_processTLSGCData(ProcessTLSGCDataDg dg) nothrow
 {
     for (ThreadBase t = ThreadBase.sm_tbeg; t; t = t.next)
-    {
-        /* Can be null if collection was triggered between adding a
-         * thread and calling rt_tlsgc_init.
-         */
-        if (t.m_tlsgcdata !is null)
-            rt_tlsgc_processGCMarks(t.m_tlsgcdata, isMarked);
-    }
+        t.m_tlsgcdata = dg(t.m_tlsgcdata);
 }
-
 
 /**
  * Returns the stack top of the currently active stack within the calling
@@ -1331,13 +1285,13 @@ package
         return cast(Mutex)ll_lock.ptr;
     }
 
-    void initLowlevelThreads() @nogc
+    void initLowlevelThreads() @nogc nothrow
     {
         import core.lifetime : emplace;
         emplace(lowlevelLock());
     }
 
-    void termLowlevelThreads() @nogc
+    void termLowlevelThreads() @nogc nothrow
     {
         lowlevelLock.__dtor();
     }

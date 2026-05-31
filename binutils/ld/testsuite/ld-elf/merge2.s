@@ -39,12 +39,8 @@
 .LC11:
 	.long	0x12345678
 
-
-	.text
-	.global _start
-_start:
+	.data
 	.long	.LC0
-.LT0:
 	.long	.LC1
 	.long	.LC2
 	.long	.LC3

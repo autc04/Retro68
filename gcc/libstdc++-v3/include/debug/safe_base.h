@@ -1,6 +1,6 @@
 // Safe sequence/iterator base implementation  -*- C++ -*-
 
-// Copyright (C) 2003-2022 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -53,8 +53,10 @@ namespace __gnu_debug
 
   public:
     /** The sequence this iterator references; may be NULL to indicate
-	a singular iterator. */
-    _Safe_sequence_base*	_M_sequence;
+     *  a singular iterator. Stored as pointer-to-const because sequence
+     *  could be declared as const.
+     */
+    const _Safe_sequence_base*	_M_sequence;
 
     /** The version number of this iterator. The sentinel value 0 is
      *  used to indicate an invalidated iterator (i.e., one that is
@@ -75,6 +77,7 @@ namespace __gnu_debug
 
   protected:
     /** Initializes the iterator and makes it singular. */
+    _GLIBCXX20_CONSTEXPR
     _Safe_iterator_base()
     : _M_sequence(0), _M_version(0), _M_prior(0), _M_next(0)
     { }
@@ -86,22 +89,35 @@ namespace __gnu_debug
      *  singular. Otherwise, the iterator will reference @p __seq and
      *  be nonsingular.
      */
+    _GLIBCXX20_CONSTEXPR
     _Safe_iterator_base(const _Safe_sequence_base* __seq, bool __constant)
     : _M_sequence(0), _M_version(0), _M_prior(0), _M_next(0)
-    { this->_M_attach(const_cast<_Safe_sequence_base*>(__seq), __constant); }
+    {
+      if (!std::__is_constant_evaluated())
+	this->_M_attach(__seq, __constant);
+    }
 
     /** Initializes the iterator to reference the same sequence that
 	@p __x does. @p __constant is true if this is a constant
 	iterator, and false if it is mutable. */
+    _GLIBCXX20_CONSTEXPR
     _Safe_iterator_base(const _Safe_iterator_base& __x, bool __constant)
     : _M_sequence(0), _M_version(0), _M_prior(0), _M_next(0)
-    { this->_M_attach(__x._M_sequence, __constant); }
+    {
+      if (!std::__is_constant_evaluated())
+	this->_M_attach(__x._M_sequence, __constant);
+    }
 
-    ~_Safe_iterator_base() { this->_M_detach(); }
+    _GLIBCXX20_CONSTEXPR
+    ~_Safe_iterator_base()
+    {
+      if (!std::__is_constant_evaluated())
+	this->_M_detach();
+    }
 
     /** For use in _Safe_iterator. */
     __gnu_cxx::__mutex&
-    _M_get_mutex() throw ();
+    _M_get_mutex() _GLIBCXX_USE_NOEXCEPT;
 
     /** Attaches this iterator to the given sequence, detaching it
      *	from whatever sequence it was attached to originally. If the
@@ -109,11 +125,12 @@ namespace __gnu_debug
      *	unattached.
      */
     void
-    _M_attach(_Safe_sequence_base* __seq, bool __constant);
+    _M_attach(const _Safe_sequence_base* __seq, bool __constant);
 
     /** Likewise, but not thread-safe. */
     void
-    _M_attach_single(_Safe_sequence_base* __seq, bool __constant) throw ();
+    _M_attach_single(const _Safe_sequence_base* __seq,
+		     bool __constant) _GLIBCXX_USE_NOEXCEPT;
 
     /** Detach the iterator for whatever sequence it is attached to,
      *	if any.
@@ -121,10 +138,23 @@ namespace __gnu_debug
     void
     _M_detach();
 
+#if !_GLIBCXX_INLINE_VERSION
+  private:
+    /***************************************************************/
+    /** Not-const method preserved for abi backward compatibility. */
+    void
+    _M_attach(_Safe_sequence_base* __seq, bool __constant);
+
+    void
+    _M_attach_single(_Safe_sequence_base* __seq,
+		     bool __constant) _GLIBCXX_USE_NOEXCEPT;
+    /***************************************************************/
+#endif
+
   public:
     /** Likewise, but not thread-safe. */
     void
-    _M_detach_single() throw ();
+    _M_detach_single() _GLIBCXX_USE_NOEXCEPT;
 
     /** Determines if we are attached to the given sequence. */
     bool
@@ -133,13 +163,13 @@ namespace __gnu_debug
 
     /** Is this iterator singular? */
     _GLIBCXX_PURE bool
-    _M_singular() const throw ();
+    _M_singular() const _GLIBCXX_USE_NOEXCEPT;
 
     /** Can we compare this iterator to the given iterator @p __x?
 	Returns true if both iterators are nonsingular and reference
 	the same sequence. */
     _GLIBCXX_PURE bool
-    _M_can_compare(const _Safe_iterator_base& __x) const throw ();
+    _M_can_compare(const _Safe_iterator_base& __x) const _GLIBCXX_USE_NOEXCEPT;
 
     /** Invalidate the iterator, making it singular. */
     void
@@ -148,11 +178,11 @@ namespace __gnu_debug
 
     /** Reset all member variables */
     void
-    _M_reset() throw ();
+    _M_reset() _GLIBCXX_USE_NOEXCEPT;
 
     /** Unlink itself */
     void
-    _M_unlink() throw ()
+    _M_unlink() _GLIBCXX_USE_NOEXCEPT
     {
       if (_M_prior)
 	_M_prior->_M_next = _M_next;
@@ -191,45 +221,73 @@ namespace __gnu_debug
 
   public:
     /// The list of mutable iterators that reference this container
-    _Safe_iterator_base* _M_iterators;
+    mutable _Safe_iterator_base* _M_iterators;
 
     /// The list of constant iterators that reference this container
-    _Safe_iterator_base* _M_const_iterators;
+    mutable _Safe_iterator_base* _M_const_iterators;
 
     /// The container version number. This number may never be 0.
     mutable unsigned int _M_version;
 
   protected:
     // Initialize with a version number of 1 and no iterators
+    _GLIBCXX20_CONSTEXPR
     _Safe_sequence_base() _GLIBCXX_NOEXCEPT
     : _M_iterators(0), _M_const_iterators(0), _M_version(1)
     { }
 
 #if __cplusplus >= 201103L
+    _GLIBCXX20_CONSTEXPR
     _Safe_sequence_base(const _Safe_sequence_base&) noexcept
     : _Safe_sequence_base() { }
 
     // Move constructor swap iterators.
+    _GLIBCXX20_CONSTEXPR
     _Safe_sequence_base(_Safe_sequence_base&& __seq) noexcept
     : _Safe_sequence_base()
-    { _M_swap(__seq); }
+    {
+      if (!std::__is_constant_evaluated())
+	_M_swap(__seq);
+    }
 #endif
 
     /** Notify all iterators that reference this sequence that the
 	sequence is being destroyed. */
-    ~_Safe_sequence_base()
-    { this->_M_detach_all(); }
+    _GLIBCXX20_CONSTEXPR
+    ~_Safe_sequence_base() _GLIBCXX_NOEXCEPT
+    {
+      if (!std::__is_constant_evaluated())
+	this->_M_detach_all();
+    }
+
+    // Copy assignment invalidate all iterators.
+    _GLIBCXX20_CONSTEXPR _Safe_sequence_base&
+    operator=(const _Safe_sequence_base&) _GLIBCXX_NOEXCEPT
+    {
+      _M_invalidate_all();
+      return *this;
+    }
+
+#if __cplusplus >= 201103L
+    _GLIBCXX20_CONSTEXPR _Safe_sequence_base&
+    operator=(_Safe_sequence_base&& __x) noexcept
+    {
+      _M_invalidate_all();
+      __x._M_invalidate_all();
+      return *this;
+    }
+#endif
 
     /** Detach all iterators, leaving them singular. */
     void
-    _M_detach_all();
+    _M_detach_all() const;
 
     /** Detach all singular iterators.
      *  @post for all iterators i attached to this sequence,
      *   i->_M_version == _M_version.
      */
     void
-    _M_detach_singular();
+    _M_detach_singular() const;
 
     /** Revalidates all attached singular iterators.  This method may
      *  be used to validate iterators that were invalidated before
@@ -237,7 +295,7 @@ namespace __gnu_debug
      *  valid again).
      */
     void
-    _M_revalidate_singular();
+    _M_revalidate_singular() const;
 
     /** Swap this sequence with the given sequence. This operation
      *  also swaps ownership of the iterators, so that when the
@@ -245,33 +303,54 @@ namespace __gnu_debug
      *  one container now reference the other container.
      */
     void
-    _M_swap(_Safe_sequence_base& __x) _GLIBCXX_USE_NOEXCEPT;
+    _M_swap(const _Safe_sequence_base& __x) const _GLIBCXX_USE_NOEXCEPT;
 
     /** For use in _Safe_sequence. */
     __gnu_cxx::__mutex&
-    _M_get_mutex() throw ();
+    _M_get_mutex() const _GLIBCXX_USE_NOEXCEPT;
 
     /** Invalidates all iterators. */
-    void
+    _GLIBCXX20_CONSTEXPR void
     _M_invalidate_all() const
     { if (++_M_version == 0) _M_version = 1; }
 
   private:
+#if !_GLIBCXX_INLINE_VERSION
+    /***************************************************************/
+    /** Not-const method preserved for abi backward compatibility. */
+    void
+    _M_detach_all();
+
+    void
+    _M_detach_singular();
+
+    void
+    _M_revalidate_singular();
+
+    void
+    _M_swap(_Safe_sequence_base& __x) _GLIBCXX_USE_NOEXCEPT;
+
+    __gnu_cxx::__mutex&
+    _M_get_mutex() _GLIBCXX_USE_NOEXCEPT;
+    /***************************************************************/
+#endif
+
     /** Attach an iterator to this sequence. */
     void
-    _M_attach(_Safe_iterator_base* __it, bool __constant);
+    _M_attach(_Safe_iterator_base* __it, bool __constant) const;
 
     /** Likewise but not thread safe. */
     void
-    _M_attach_single(_Safe_iterator_base* __it, bool __constant) throw ();
+    _M_attach_single(_Safe_iterator_base* __it,
+		     bool __constant) const _GLIBCXX_USE_NOEXCEPT;
 
     /** Detach an iterator from this sequence */
     void
-    _M_detach(_Safe_iterator_base* __it);
+    _M_detach(_Safe_iterator_base* __it) const;
 
     /** Likewise but not thread safe. */
     void
-    _M_detach_single(_Safe_iterator_base* __it) throw ();
+    _M_detach_single(_Safe_iterator_base* __it) const _GLIBCXX_USE_NOEXCEPT;
   };
 } // namespace __gnu_debug
 

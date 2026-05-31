@@ -1,5 +1,5 @@
 /* Shared code for before and after reload gcse implementations.
-   Copyright (C) 1997-2022 Free Software Foundation, Inc.
+   Copyright (C) 1997-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with GCC; see the file COPYING3.  If not see
-   <http://www.gnu.org/licenses/>. 
+   <http://www.gnu.org/licenses/>.
 
    It is expected that more hunks of gcse.cc and postreload-gcse.cc should
    migrate into this file.  */
@@ -27,7 +27,8 @@
 #include "rtl.h"
 #include "df.h"
 #include "gcse-common.h"
-
+#include "regs.h"
+#include "function-abi.h"
 
 /* Record all of the canonicalized MEMs of record_last_mem_set_info's insn.
    Note we store a pair of elements in the list, so they have to be
@@ -97,7 +98,7 @@ record_last_mem_set_info_common (rtx_insn *insn,
 /* For each block, compute whether X is transparent.  X is either an
    expression or an assignment [though we don't care which, for this context
    an assignment is treated as an expression].  For each block where an
-   element of X is modified, reset the INDX bit in BMAP. 
+   element of X is modified, reset the INDX bit in BMAP.
 
    BLOCKS_WITH_CALLS indicates which blocks contain CALL_INSNs which kill
    memory.
@@ -129,13 +130,36 @@ compute_transp (const_rtx x, int indx, sbitmap *bmap,
   switch (code)
     {
     case REG:
-	{
-	  df_ref def;
-	  for (def = DF_REG_DEF_CHAIN (REGNO (x));
-	       def;
-	       def = DF_REF_NEXT_REG (def))
-	    bitmap_clear_bit (bmap[DF_REF_BB (def)->index], indx);
-	}
+      {
+	df_ref def;
+	for (def = DF_REG_DEF_CHAIN (REGNO (x));
+	     def;
+	     def = DF_REF_NEXT_REG (def))
+	  bitmap_clear_bit (bmap[DF_REF_BB (def)->index], indx);
+
+	/* Check for hard registers that are partially clobbered (but not
+	   fully clobbered) by calls.  Such partial clobbers do not have
+	   an associated definition or use in the DF representation,
+	   but they do prevent the register from being transparent.
+
+	   ??? The check here is fairly crude.  We could instead maintain
+	   separate blocks_with_calls bitmaps for each ABI.  */
+	if (HARD_REGISTER_P (x))
+	  for (unsigned int i = 0; i < NUM_ABI_IDS; ++i)
+	    {
+	      const predefined_function_abi &abi = function_abis[i];
+	      if (abi.initialized_p ()
+		  && overlaps_hard_reg_set_p (abi.only_partial_reg_clobbers (),
+					      GET_MODE (x), REGNO (x)))
+		{
+		  bitmap_iterator bi;
+		  unsigned bb_index;
+		  EXECUTE_IF_SET_IN_BITMAP (blocks_with_calls, 0, bb_index, bi)
+		    bitmap_clear_bit (bmap[bb_index], indx);
+		  break;
+		}
+	    }
+      }
 
       return;
 

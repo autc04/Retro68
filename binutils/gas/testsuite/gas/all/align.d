@@ -3,8 +3,9 @@
 # The RX port will always replace zeros in any aligned area with NOPs,
 # even if the user requested that they filled with zeros.
 # RISC-V handles alignment via relaxation and therefor won't have object files
-# with the expected alignment.
-#notarget: riscv*-* rx-*
+# LoongArch handles alignment via relaxation and therefor won't have object
+# files with the expected alignment.
+#notarget: loongarch*-* riscv*-* rx-*
 
 # Test the alignment pseudo-op.
 

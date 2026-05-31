@@ -1,11 +1,9 @@
 /* { dg-do compile } */
 /* { dg-skip-if "" { powerpc*-*-darwin* } } */
-/* { dg-require-effective-target powerpc_vsx_ok } */
 /* { dg-options "-mdejagnu-cpu=power7 -O2 -ftree-vectorize -fno-tree-loop-distribute-patterns -fno-vect-cost-model -fdump-tree-vect-details" } */
+/* { dg-require-effective-target powerpc_vsx } */
 
 /* Taken from vect/vect-align-1.c.  */
-#include <stdlib.h>
-#include <stdarg.h>
 
 /* Compile time known misalignment. Cannot use loop peeling to align
    the store.  */
@@ -28,23 +26,6 @@ main1 (struct foo * __restrict__ p)
     {
       p->y[i] = x[i];
     }
-
-  /* check results:  */
-  for (i = 0; i < N; i++)
-    {
-      if (p->y[i] != x[i])
-	abort ();
-    }
-  return 0;
-}
-
-
-int main (void)
-{
-  int i;
-  struct foo *p = malloc (2*sizeof (struct foo));
-  
-  main1 (p);
   return 0;
 }
 

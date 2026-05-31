@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <algorithm>
 #include <functional>
@@ -71,21 +70,29 @@ test02()
   { bool operator()(int a, int b) { ++counter; return a < b; } };
 
   int x[] = {1,2,3,4,5,6,7,8,9,10};
-  ranges::minmax_element(x, x+2, counted_less{});
+  auto p = ranges::minmax_element(x, x+2, counted_less{});
   VERIFY( counter == 1 );
+  VERIFY( p.min == x+0 );
+  VERIFY( p.max == x+1 );
 
   counter = 0;
-  ranges::minmax_element(x, x+3, counted_less{});
+  p = ranges::minmax_element(x, x+3, counted_less{});
   VERIFY( counter == 3 );
+  VERIFY( p.min == x+0 );
+  VERIFY( p.max == x+2 );
 
   counter = 0;
-  ranges::minmax_element(x, counted_less{});
+  p = ranges::minmax_element(x, counted_less{});
   VERIFY( counter <= 15 );
+  VERIFY( p.min == x+0 );
+  VERIFY( p.max == x+9 );
 
   ranges::reverse(x);
   counter = 0;
-  ranges::minmax_element(x, counted_less{});
+  p = ranges::minmax_element(x, counted_less{});
   VERIFY( counter <= 15 );
+  VERIFY( p.min == x+9 );
+  VERIFY( p.max == x+0 );
 }
 
 int

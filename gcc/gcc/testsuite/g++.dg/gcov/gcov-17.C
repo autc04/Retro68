@@ -1,5 +1,5 @@
 /* { dg-options "--coverage -std=c++11" } */
-/* { dg-do run { target native } } */
+/* { dg-do run } */
 
 template <class T> class Foo
 {
@@ -14,6 +14,11 @@ private:
 
 template class Foo<int>;
 template class Foo<char>;
+
+static void noret()
+{
+  __builtin_exit (0);
+}
 
 int
 main (void)
@@ -34,6 +39,8 @@ main (void)
     __builtin_printf ("Failure\n");
   else
     __builtin_printf ("Success\n");
+
+  noret ();
   return 0;
 }
 

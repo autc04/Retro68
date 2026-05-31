@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -36,8 +36,8 @@
 package Ada.Streams is
    pragma Pure;
 
-   type Root_Stream_Type is abstract tagged limited private;
-   pragma Preelaborable_Initialization (Root_Stream_Type);
+   type Root_Stream_Type is abstract tagged limited private
+   with Preelaborable_Initialization;
 
    type Stream_Element is mod 2 ** Standard'Storage_Unit;
 
@@ -83,5 +83,8 @@ private
 
    for Stream_Element_Array'Read use Read_SEA;
    for Stream_Element_Array'Write use Write_SEA;
+
+   pragma Universal_Aliasing (Stream_Element);
+   --  This type is used to stream any other type
 
 end Ada.Streams;

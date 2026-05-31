@@ -1,17 +1,17 @@
-.macro cond
+.syntax unified
+.thumb
+
 .irp round, a, n, p, m
 .irp cond, eq, ne, gt, ge, lt, le
 .irp size, .s16.f16, .u16.f16, .s32.f32, .u32.f32
+
 it \cond
 vcvt\round\size q0, q1
-.endr
-.endr
-.endr
-.endm
 
-.syntax unified
-.thumb
-cond
+.endr
+.endr
+.endr
+
 vcvta.s64.f64 q0, q1
 vcvta.u64.f64 q0, q1
 vcvta.f64.s64 q0, q1

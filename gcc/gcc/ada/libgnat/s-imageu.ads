@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,22 +29,19 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  This package contains the routines for supporting the Image attribute for
---  modular integer types, and also for conversion operations required in
---  Text_IO.Modular_IO for such types.
+--  This package provides the subprograms supporting the ``Image`` attribute
+--  and ``Ada.Text_IO.Modular_IO`` conversions routines for modular integer
+--  types.
 
 generic
-
    type Uns is mod <>;
 
 package System.Image_U is
-   pragma Pure;
 
    procedure Image_Unsigned
      (V : Uns;
       S : in out String;
-      P : out Natural);
-   pragma Inline (Image_Unsigned);
+      P : out Natural) with Inline;
    --  Computes Uns'Image (V) and stores the result in S (1 .. P) setting
    --  the resulting value of P. The caller guarantees that S is long enough to
    --  hold the result, and that S'First is 1.

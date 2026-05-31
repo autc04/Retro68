@@ -26,7 +26,10 @@ version (Windows)
 }
 else version (Posix)
 {
-    import core.sys.posix.pthread;
+    import core.sys.posix.pthread : pthread_mutex_destroy, pthread_mutex_init, pthread_mutex_lock,
+        PTHREAD_MUTEX_RECURSIVE, pthread_mutex_trylock, pthread_mutex_unlock, pthread_mutexattr_destroy,
+        pthread_mutexattr_init, pthread_mutexattr_settype;
+    import core.sys.posix.sys.types : pthread_mutex_t, pthread_mutexattr_t;
 }
 else
 {
@@ -97,7 +100,8 @@ class Mutex :
                 abort("Error: pthread_mutex_init failed.");
         }
 
-        m_proxy.link = this;
+        auto self = cast(Mutex) this;
+        self.m_proxy.link = self;
         this.__monitor = cast(void*) &m_proxy;
     }
 
@@ -180,13 +184,14 @@ class Mutex :
     final void lock_nothrow(this Q)() nothrow @trusted @nogc
         if (is(Q == Mutex) || is(Q == shared Mutex))
     {
+        auto self = cast(Mutex) this;
         version (Windows)
         {
-            EnterCriticalSection(&m_hndl);
+            EnterCriticalSection(&self.m_hndl);
         }
         else version (Posix)
         {
-            if (pthread_mutex_lock(&m_hndl) == 0)
+            if (pthread_mutex_lock(&self.m_hndl) == 0)
                 return;
 
             SyncError syncErr = cast(SyncError) __traits(initSymbol, SyncError).ptr;
@@ -218,13 +223,14 @@ class Mutex :
     final void unlock_nothrow(this Q)() nothrow @trusted @nogc
         if (is(Q == Mutex) || is(Q == shared Mutex))
     {
+        auto self = cast(Mutex) this;
         version (Windows)
         {
-            LeaveCriticalSection(&m_hndl);
+            LeaveCriticalSection(&self.m_hndl);
         }
         else version (Posix)
         {
-            if (pthread_mutex_unlock(&m_hndl) == 0)
+            if (pthread_mutex_unlock(&self.m_hndl) == 0)
                 return;
 
             SyncError syncErr = cast(SyncError) __traits(initSymbol, SyncError).ptr;
@@ -260,13 +266,14 @@ class Mutex :
     final bool tryLock_nothrow(this Q)() nothrow @trusted @nogc
         if (is(Q == Mutex) || is(Q == shared Mutex))
     {
+        auto self = cast(Mutex) this;
         version (Windows)
         {
-            return TryEnterCriticalSection(&m_hndl) != 0;
+            return TryEnterCriticalSection(&self.m_hndl) != 0;
         }
         else version (Posix)
         {
-            return pthread_mutex_trylock(&m_hndl) == 0;
+            return pthread_mutex_trylock(&self.m_hndl) == 0;
         }
     }
 
@@ -292,7 +299,7 @@ private:
 package:
     version (Posix)
     {
-        pthread_mutex_t* handleAddr()
+        pthread_mutex_t* handleAddr() @nogc
         {
             return &m_hndl;
         }
@@ -317,7 +324,7 @@ unittest
             cargo = 42;
         }
 
-        void useResource() shared @safe nothrow @nogc
+        void useResource() shared @trusted nothrow @nogc
         {
             mtx.lock_nothrow();
             (cast() cargo) += 1;
@@ -344,8 +351,8 @@ unittest
 // Test @nogc usage.
 @system @nogc nothrow unittest
 {
-    import core.stdc.stdlib : malloc, free;
     import core.lifetime : emplace;
+    import core.stdc.stdlib : free, malloc;
 
     auto mtx = cast(shared Mutex) malloc(__traits(classInstanceSize, Mutex));
     emplace(mtx);

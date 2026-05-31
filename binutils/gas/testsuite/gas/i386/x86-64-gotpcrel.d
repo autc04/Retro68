@@ -24,4 +24,16 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	ff 90 00 00 00 00    	call   \*0x0\(%rax\)	5a: R_X86_64_GOTPCREL	foo
 [ 	]*[a-f0-9]+:	ff 25 00 00 00 00    	jmp    \*0x0\(%rip\)        # 64 <_start\+0x64>	60: R_X86_64_GOTPCRELX	foo-0x4
 [ 	]*[a-f0-9]+:	ff a1 00 00 00 00    	jmp    \*0x0\(%rcx\)	66: R_X86_64_GOTPCREL	foo
+[ 	]*[a-f0-9]+:	d5 18 c7 c0 00 00 00 00 	mov    \$0x0,%r16	6e: R_X86_64_GOTPCREL	foo
+[ 	]*[a-f0-9]+:	d5 48 8b 24 25 00 00 00 00 	mov    0x0,%r20	77: R_X86_64_GOTPCREL	foo
+[ 	]*[a-f0-9]+:	d5 48 8b 35 00 00 00 00 	mov    0x0\(%rip\),%r22        # 83 <_start\+0x83>	7f: R_X86_64_CODE_4_GOTPCRELX	foo-0x4
+[ 	]*[a-f0-9]+:	d5 59 8b b4 24 00 00 00 00 	mov    0x0\(%r28\),%r22	88: R_X86_64_GOTPCREL	foo
+[ 	]*[a-f0-9]+:	d5 10 ff 90 00 00 00 00 	call   \*0x0\(%r16\)	90: R_X86_64_GOTPCREL	foo
+[ 	]*[a-f0-9]+:	d5 11 ff a4 24 00 00 00 00 	jmp    \*0x0\(%r28\)	99: R_X86_64_GOTPCREL	foo
+[ 	]*[a-f0-9]+:	d5 18 c7 c0 00 00 00 00 	mov    \$0x0,%r16	a1: R_X86_64_GOTPCREL	foo
+[ 	]*[a-f0-9]+:	d5 48 8b 24 25 00 00 00 00 	mov    0x0,%r20	aa: R_X86_64_GOTPCREL	foo
+[ 	]*[a-f0-9]+:	d5 48 8b 35 00 00 00 00 	mov    0x0\(%rip\),%r22        # b6 <_start\+0xb6>	b2: R_X86_64_CODE_4_GOTPCRELX	foo-0x4
+[ 	]*[a-f0-9]+:	d5 59 8b b4 24 00 00 00 00 	mov    0x0\(%r28\),%r22	bb: R_X86_64_GOTPCREL	foo
+[ 	]*[a-f0-9]+:	d5 10 ff 90 00 00 00 00 	call   \*0x0\(%r16\)	c3: R_X86_64_GOTPCREL	foo
+[ 	]*[a-f0-9]+:	d5 11 ff a4 24 00 00 00 00 	jmp    \*0x0\(%r28\)	cc: R_X86_64_GOTPCREL	foo
 #pass

@@ -8,41 +8,40 @@
  */
 module core.sys.windows.mshtml;
 version (Windows):
-@system:
 
 import core.sys.windows.basetyps, core.sys.windows.oaidl, core.sys.windows.unknwn,
   core.sys.windows.windef, core.sys.windows.wtypes;
 
 // These are used in this file, but not defined in MinGW.
 interface IHTMLStyleSheet {}
-alias IHTMLStyle LPHTMLSTYLE;
-alias IHTMLStyleSheet LPHTMLSTYLESHEET;
+alias LPHTMLSTYLE = IHTMLStyle;
+alias LPHTMLSTYLESHEET = IHTMLStyleSheet;
 interface IHTMLLocation {}
-alias IHTMLLocation LPHTMLLOCATION;
+alias LPHTMLLOCATION = IHTMLLocation;
 interface IHTMLFramesCollection {}
-alias IHTMLFramesCollection LPHTMLFRAMESCOLLECTION;
+alias LPHTMLFRAMESCOLLECTION = IHTMLFramesCollection;
 interface IHTMLStyleSheetsCollection {}
-alias IHTMLStyleSheetsCollection LPHTMLSTYLESHEETSCOLLECTION;
+alias LPHTMLSTYLESHEETSCOLLECTION = IHTMLStyleSheetsCollection;
 interface IHTMLStyle {}
 interface IHTMLFiltersCollection {}
-alias IHTMLFiltersCollection LPHTMLFILTERSCOLLECTION;
+alias LPHTMLFILTERSCOLLECTION = IHTMLFiltersCollection;
 interface IOmHistory : IDispatch {
     HRESULT get_length(short* p);
     HRESULT back(VARIANT*);
     HRESULT forward(VARIANT*);
     HRESULT go(VARIANT*);
 }
-alias IOmHistory LPOMHISTORY;
+alias LPOMHISTORY = IOmHistory;
 interface IOmNavigator {}
-alias IOmNavigator LPOMNAVIGATOR;
+alias LPOMNAVIGATOR = IOmNavigator;
 interface IHTMLImageElementFactory {}
-alias IHTMLImageElementFactory LPHTMLIMAGEELEMENTFACTORY;
+alias LPHTMLIMAGEELEMENTFACTORY = IHTMLImageElementFactory;
 interface IHTMLEventObj {}
-alias IHTMLEventObj LPHTMLEVENTOBJ;
+alias LPHTMLEVENTOBJ = IHTMLEventObj;
 interface IHTMLScreen {}
-alias IHTMLScreen LPHTMLSCREEN;
+alias LPHTMLSCREEN = IHTMLScreen;
 interface IHTMLOptionElementFactory {}
-alias IHTMLOptionElementFactory LPHTMLOPTIONELEMENTFACTORY;
+alias LPHTMLOPTIONELEMENTFACTORY = IHTMLOptionElementFactory;
 
 interface IHTMLLinkElement : IDispatch {
     HRESULT put_href(BSTR);
@@ -66,7 +65,7 @@ interface IHTMLLinkElement : IDispatch {
     HRESULT put_media(BSTR);
     HRESULT get_media(BSTR*);
 }
-alias IHTMLLinkElement LPHTMLLINKELEMENT;
+alias LPHTMLLINKELEMENT = IHTMLLinkElement;
 
 interface IHTMLImgElement : IDispatch {
     HRESULT put_isMap(VARIANT_BOOL);
@@ -118,7 +117,7 @@ interface IHTMLImgElement : IDispatch {
     HRESULT put_start(BSTR);
     HRESULT get_start(BSTR*);
 }
-alias IHTMLImgElement LPHTMLIMGELEMENT;
+alias LPHTMLIMGELEMENT = IHTMLImgElement;
 
 interface IHTMLElementCollection : IDispatch {
     HRESULT toString(BSTR*);
@@ -128,7 +127,7 @@ interface IHTMLElementCollection : IDispatch {
     HRESULT item(VARIANT,VARIANT,IDispatch* pDisp);
     HRESULT tags(VARIANT,IDispatch* pdisp);
 }
-alias IHTMLElementCollection LPHTMLELEMENTCOLLECTION;
+alias LPHTMLELEMENTCOLLECTION = IHTMLElementCollection;
 
 interface IHTMLDocument : IDispatch {
     HRESULT get_Script(IDispatch*);
@@ -251,7 +250,7 @@ interface IHTMLSelectionObject : IDispatch {
     HRESULT clear();
     HRESULT get_type(BSTR*);
 }
-alias IHTMLSelectionObject LPHTMLSELECTIONOBJECT;
+alias LPHTMLSELECTIONOBJECT = IHTMLSelectionObject;
 
 interface IHTMLTxtRange : IDispatch {
     HRESULT get_htmlText(BSTR*);
@@ -375,7 +374,7 @@ interface IHTMLElement : IDispatch {
     HRESULT get_children(IDispatch*);
     HRESULT get_all(IDispatch*);
 }
-alias IHTMLElement LPHTMLELEMENT;
+alias LPHTMLELEMENT = IHTMLElement;
 
 interface IHTMLFramesCollection2 : IDispatch {
     HRESULT item(VARIANT*,VARIANT*);
@@ -452,7 +451,7 @@ interface IHTMLWindow2 : IHTMLFramesCollection2 {
     HRESULT resizeBy(LONG,LONG);
     HRESULT get_external(IDispatch*);
 }
-alias IHTMLWindow2 LPHTMLWINDOW2;
+alias LPHTMLWINDOW2 = IHTMLWindow2;
 
 interface IHTMLFrameBase : IDispatch {
     HRESULT put_src(BSTR);

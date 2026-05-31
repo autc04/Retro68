@@ -1,5 +1,5 @@
 # Expect script for MIPS ELF linker tests
-#   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -45,6 +45,22 @@ if {[istarget "mips*-*-vxworks"]} {
     run_ld_link_tests $mipsvxtests
     run_dump_test "vxworks1-static"
     run_dump_test "vxworks-forced-local-1"
+
+    run_dump_test "mips-hilo"
+    run_dump_test "mips-hilo-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+    run_dump_test "mips16-hilo"
+    run_dump_test "mips16-hilo-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+    run_dump_test "mips16e2-hilo"
+    run_dump_test "mips16e2-hilo-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+    run_dump_test "micromips-hilo"
+    run_dump_test "micromips-hilo-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+    run_dump_test "pcrel-hilo"
+    run_dump_test "pcrel-hilo-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
     return
 }
 
@@ -155,13 +171,23 @@ if {[istarget *-*-openbsd*] } {
     if [istarget *el-*-*] {
 	set abi_asflags(o32) -32
 	set abi_ldflags(o32) -melf32ltsmip
-	set abi_asflags(n64) "-march=from-abi -64"
-	set abi_ldflags(n64) -melf64ltsmip
+	if [istarget *-*-*-gnuabi64] {
+	    set abi_asflags(n32) "-march=from-abi -n32"
+	    set abi_ldflags(n32) -melf32ltsmipn32
+	} else {
+	    set abi_asflags(n64) "-march=from-abi -64"
+	    set abi_ldflags(n64) -melf64ltsmip
+	}
     } else {
 	set abi_asflags(o32) -32
 	set abi_ldflags(o32) -melf32btsmip
-	set abi_asflags(n64) "-march=from-abi -64"
-	set abi_ldflags(n64) -melf64btsmip
+	if [istarget *-*-*-gnuabi64] {
+	    set abi_asflags(n32) "-march=from-abi -n32"
+	    set abi_ldflags(n32) -melf32btsmipn32
+	} else {
+	    set abi_asflags(n64) "-march=from-abi -64"
+	    set abi_ldflags(n64) -melf64btsmip
+	}
     }
     set irixemul 0
 } elseif {[istarget *-*-linux*] } {
@@ -412,14 +438,22 @@ run_dump_test_n64 "bal-jalx-pic-micromips-n64"
 run_dump_test_n64 "bal-jalx-pic-ignore-n64"
 run_dump_test_n64 "bal-jalx-pic-ignore-micromips-n64"
 
-run_dump_test "unaligned-jalx-0" [list [list ld $abi_ldflags(o32)]]
-run_dump_test "unaligned-jalx-1" [list [list ld $abi_ldflags(o32)]]
-run_dump_test "unaligned-jalx-2" [list [list ld $abi_ldflags(o32)]]
-run_dump_test "unaligned-jalx-3" [list [list ld $abi_ldflags(o32)]]
-run_dump_test "unaligned-jalx-mips16-0" [list [list ld $abi_ldflags(o32)]]
-run_dump_test "unaligned-jalx-mips16-1" [list [list ld $abi_ldflags(o32)]]
-run_dump_test "unaligned-jalx-micromips-0" [list [list ld $abi_ldflags(o32)]]
-run_dump_test "unaligned-jalx-micromips-1" [list [list ld $abi_ldflags(o32)]]
+run_dump_test_o32 "unaligned-jalx-0"
+run_dump_test_n32 "unaligned-jalx-0" [list [list name (n32)]]
+run_dump_test_o32 "unaligned-jalx-1"
+run_dump_test_n32 "unaligned-jalx-1" [list [list name (n32)]]
+run_dump_test_o32 "unaligned-jalx-2"
+run_dump_test_n32 "unaligned-jalx-2" [list [list name (n32)]]
+run_dump_test_o32 "unaligned-jalx-3"
+run_dump_test_n32 "unaligned-jalx-3" [list [list name (n32)]]
+run_dump_test_o32 "unaligned-jalx-mips16-0"
+run_dump_test_n32 "unaligned-jalx-mips16-0" [list [list name (n32)]]
+run_dump_test_o32 "unaligned-jalx-mips16-1"
+run_dump_test_n32 "unaligned-jalx-mips16-1" [list [list name (n32)]]
+run_dump_test_o32 "unaligned-jalx-micromips-0"
+run_dump_test_n32 "unaligned-jalx-micromips-0" [list [list name (n32)]]
+run_dump_test_o32 "unaligned-jalx-micromips-1"
+run_dump_test_n32 "unaligned-jalx-micromips-1" [list [list name (n32)]]
 
 run_dump_test_n32 "unaligned-jalx-addend-0"
 run_dump_test_n32 "unaligned-jalx-addend-1"
@@ -491,10 +525,10 @@ if { $irix } {
     run_dump_test_n64 "elf-rel-xgot-n64" {{as -EB} {ld -EB}}
 }
 
-run_dump_test_n32 "relax-jalr-n32" {{as -EB} {ld -EB}}
-run_dump_test_n32 "relax-jalr-n32-shared" {{as -EB} {ld -EB}}
-run_dump_test_n64 "relax-jalr-n64" {{as -EB} {ld -EB}}
-run_dump_test_n64 "relax-jalr-n64-shared" {{as -EB} {ld -EB}}
+run_dump_test_n32 "relax-jalr-n32"
+run_dump_test_n32 "relax-jalr-n32-shared"
+run_dump_test_n64 "relax-jalr-n64"
+run_dump_test_n64 "relax-jalr-n64-shared"
 
 if { $linux_gnu } {
     run_dump_test_o32 "rel32-o32" {{as -EB} {ld -EB}}
@@ -753,6 +787,7 @@ if {$linux_gnu} {
     run_dump_test_n64 "eh-frame2-n64"
 }
 run_dump_test_eabi "eh-frame3"
+run_dump_test_eabi "eh-frame3" {{ld --no-keep-memory} {name --no-keep-memory}}
 run_dump_test_eabi "eh-frame4"
 if {$linux_gnu} {
     set eh_frame5_test {
@@ -795,15 +830,89 @@ run_dump_test_n32 "jalbal" noarch
 
 run_dump_test "mode-change-error-1"
 
-run_dump_test_o32 "mips16-hilo"
-run_dump_test_n32 "mips16-hilo-n32"
+run_dump_test_o32 "mips16-hilo" noarch
+run_dump_test_n32 "mips16-hilo" [list noarch [list name (n32)]]
+run_dump_test_o32 "mips16-hilo-srec" \
+	[list noarch \
+	      [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_n32 "mips16-hilo-srec" \
+	[list noarch \
+	      [list name (n32)] \
+	      [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_o32 "mips16e2-hilo" noarch
+run_dump_test_n32 "mips16e2-hilo" [list noarch [list name (n32)]]
+run_dump_test_o32 "mips16e2-hilo-srec" \
+	[list noarch \
+	      [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_n32 "mips16e2-hilo-srec" \
+	[list noarch \
+	      [list name (n32)] \
+	      [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_o32 "mips-hilo"
+run_dump_test_n32 "mips-hilo" [list [list name (n32)]]
+run_dump_test_n64 "mips-hilo-n64"
+run_dump_test_o32 "mips-hilo-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_n32 "mips-hilo-srec" \
+	[list [list name (n32)] \
+	      [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_n64 "mips-hilo-srec-n64" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_o32 "micromips-hilo" noarch
+run_dump_test_n32 "micromips-hilo" [list noarch [list name (n32)]]
+run_dump_test_n64 "micromips-hilo-n64" noarch
+run_dump_test_o32 "micromips-hilo-srec" \
+	[list noarch \
+	      [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_n32 "micromips-hilo-srec" \
+	[list noarch \
+	      [list name (n32)] \
+	      [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_n64 "micromips-hilo-srec-n64" \
+	[list noarch \
+	      [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_o32 "pcrel-hilo"
+run_dump_test_n32 "pcrel-hilo" [list [list name (n32)]]
+run_dump_test_n64 "pcrel-hilo" [list [list name (n64)]]
+run_dump_test_o32 "pcrel-hilo-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_n32 "pcrel-hilo-srec" \
+	[list [list name (n32)] \
+	      [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_n64 "pcrel-hilo-srec" \
+	[list [list name (n64)] \
+	      [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+
+run_dump_test_o32 "pr19977"
+run_dump_test_n32 "pr19977" [list [list name (n32)]]
+run_dump_test_o32 "pr19977-mips16" noarch
+run_dump_test_n32 "pr19977-mips16" [list noarch [list name (n32)]]
+run_dump_test_o32 "pr19977-micromips" noarch
+run_dump_test_n32 "pr19977-micromips" [list noarch [list name (n32)]]
+run_dump_test_o32 "pr19977-r"
+run_dump_test_o32 "pr19977-r-mips16" noarch
+run_dump_test_o32 "pr19977-r-micromips" noarch
+
+run_dump_test_o32 "mips-hi16-orphan-addend"
+run_dump_test_o32 "mips-hi16-orphan-addend-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_o32 "mips16-hi16-orphan-addend"
+run_dump_test_o32 "mips16-hi16-orphan-addend-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_o32 "micromips-hi16-orphan-addend"
+run_dump_test_o32 "micromips-hi16-orphan-addend-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
+run_dump_test_o32 "pcrel-hi16-orphan-addend"
+run_dump_test_o32 "pcrel-hi16-orphan-addend-srec" \
+	[list [list objdump [expr { [istarget *el-*-*] ? "-EL" : "-EB" }]]]
 
 if { $linux_gnu } {
     run_dump_test_n32 "textrel-1"
     run_dump_test "got-page-1"
     run_dump_test_n32 "got-page-2"
     run_dump_test_n64 "dyn-sec64" noarch
-    run_dump_test "got-page-3"
+    run_dump_test_o32 "got-page-3"
+    run_dump_test_n32 "got-page-3" [list [list name (n32)]]
     if $has_abi(o32) {
 	run_ld_link_tests [subst {
 	    {"GOT page 4 (one file)"
@@ -848,7 +957,8 @@ if { $linux_gnu } {
 	     "got-page-7b.so"}
 	}]
     }
-    run_dump_test "got-dump-1"
+    run_dump_test_o32 "got-dump-1"
+    run_dump_test_n32 "got-dump-1" [list [list name (n32)]]
     run_dump_test_n64 "got-dump-2" noarch
     run_dump_test "reloc-estimate-1"
 }
@@ -1038,7 +1148,9 @@ if { $has_abi(o32) } {
     run_ld_link_tests $mips16_intermix_test
 }
 
-run_dump_test "mips16-local-stubs-1"
+run_dump_test_o32 "mips16-local-stubs-1"
+run_dump_test_n32 "mips16-local-stubs-1" [list [list name (n32)] \
+					       [list xfail *-*-irix6*]]
 
 set mips16_fp_stub_test [list \
     [list "Floating-point stub for mips16 functions" \
@@ -1669,3 +1781,26 @@ run_dump_test_n64 "global-local-symtab-sort-n64${tmips}"
 run_dump_test_o32 "global-local-symtab-final-o32"
 run_dump_test_n32 "global-local-symtab-final-n32"
 run_dump_test_n64 "global-local-symtab-final-n64"
+
+run_dump_test "pr33793"
+
+# Section ordering tests.
+foreach { abi } $abis {
+    set ps2 [expr \
+	({$abi} == {"n32"} && [istarget "mips64*el-ps2-elf*"]) ? {"p"} : {""}]
+    run_ld_link_tests [list \
+	[list \
+	    "MIPS section ordering test 1 ($abi)" \
+	    "$abi_ldflags($abi) -r" "" \
+	    "$abi_asflags($abi) -mpdr" \
+	    [list sections.s] \
+	    [list "readelf -WS sections-1-${abi}${tmips}${ps2}.rd"] \
+	    "sections-1-${abi}.o"] \
+	[list \
+	    "MIPS section ordering test 2 ($abi)" \
+	    "$abi_ldflags($abi) -e 0" "" \
+	    "$abi_asflags($abi) -mpdr" \
+	    [list sections.s] \
+	    [list "readelf -WS sections-2-${abi}${tmips}${ps2}.rd"] \
+	    "sections-2-${abi}"]]
+}

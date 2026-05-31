@@ -1,5 +1,5 @@
 /* Pass manager for Fortran front end.
-   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+   Copyright (C) 2010-2026 Free Software Foundation, Inc.
    Contributed by Thomas König.
 
 This file is part of GCC.
@@ -36,7 +36,6 @@ static bool optimize_op (gfc_expr *);
 static bool optimize_comparison (gfc_expr *, gfc_intrinsic_op);
 static bool optimize_trim (gfc_expr *);
 static bool optimize_lexical_comparison (gfc_expr *);
-static void optimize_minmaxloc (gfc_expr **);
 static bool is_empty_string (gfc_expr *e);
 static void doloop_warn (gfc_namespace *);
 static int do_intent (gfc_expr **);
@@ -191,7 +190,14 @@ check_locus_code (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
 		  void *data ATTRIBUTE_UNUSED)
 {
   current_code = c;
-  if (c && *c && (((*c)->loc.nextc == NULL) || ((*c)->loc.lb == NULL)))
+  if (c
+      && *c
+      && (((*c)->loc.nextc == NULL)
+	  || ((*c)->loc.nextc == (gfc_char_t *) -1
+	      && (*c)->loc.u.location == UNKNOWN_LOCATION)
+	  || ((*c)->loc.nextc != (gfc_char_t *) -1
+	      && ((*c)->loc.u.lb == NULL))))
+
     gfc_warning_internal (0, "Inconsistent internal state: "
 			  "No location in statement");
 
@@ -207,7 +213,13 @@ check_locus_expr (gfc_expr **e, int *walk_subtrees ATTRIBUTE_UNUSED,
 		  void *data ATTRIBUTE_UNUSED)
 {
 
-  if (e && *e && (((*e)->where.nextc == NULL || (*e)->where.lb == NULL)))
+  if (e
+      && *e
+      && (((*e)->where.nextc == NULL)
+	  || ((*e)->where.nextc == (gfc_char_t *) -1
+	      && (*e)->where.u.location == UNKNOWN_LOCATION)
+	  || ((*e)->where.nextc != (gfc_char_t *) -1
+	      && ((*e)->where.u.lb == NULL))))
     gfc_warning_internal (0, "Inconsistent internal state: "
 			  "No location in expression near %L",
 			  &((*current_code)->loc));
@@ -356,17 +368,6 @@ optimize_expr (gfc_expr **e, int *walk_subtrees ATTRIBUTE_UNUSED,
   if ((*e)->expr_type == EXPR_OP && optimize_op (*e))
     gfc_simplify_expr (*e, 0);
 
-  if ((*e)->expr_type == EXPR_FUNCTION && (*e)->value.function.isym)
-    switch ((*e)->value.function.isym->id)
-      {
-      case GFC_ISYM_MINLOC:
-      case GFC_ISYM_MAXLOC:
-	optimize_minmaxloc (e);
-	break;
-      default:
-	break;
-      }
-
   if (function_expr)
     count_arglist --;
 
@@ -424,9 +425,9 @@ copy_walk_reduction_arg (gfc_constructor *c, gfc_expr *fn)
   return fcn;
 }
 
-/* Callback function for optimzation of reductions to scalars.  Transform ANY
+/* Callback function for optimization of reductions to scalars.  Transform ANY
    ([f1,f2,f3, ...]) to f1 .or. f2 .or. f3 .or. ..., with ANY, SUM and PRODUCT
-   correspondingly.  Handly only the simple cases without MASK and DIM.  */
+   correspondingly.  Handle only the simple cases without MASK and DIM.  */
 
 static int
 callback_reduction (gfc_expr **e, int *walk_subtrees ATTRIBUTE_UNUSED,
@@ -515,6 +516,7 @@ callback_reduction (gfc_expr **e, int *walk_subtrees ATTRIBUTE_UNUSED,
       new_expr->ts = fn->ts;
       new_expr->expr_type = EXPR_OP;
       new_expr->rank = fn->rank;
+      new_expr->corank = fn->corank;
       new_expr->where = fn->where;
       new_expr->value.op.op = op;
       new_expr->value.op.op1 = res;
@@ -791,6 +793,7 @@ create_var (gfc_expr * e, const char *vname)
     {
       symbol->as = gfc_get_array_spec ();
       symbol->as->rank = e->rank;
+      symbol->as->corank = e->corank;
 
       if (e->shape == NULL)
 	{
@@ -853,6 +856,7 @@ create_var (gfc_expr * e, const char *vname)
   result->ts = symbol->ts;
   result->ts.deferred = deferred;
   result->rank = e->rank;
+  result->corank = e->corank;
   result->shape = gfc_copy_shape (e->shape, e->rank);
   result->symtree = symtree;
   result->where = e->where;
@@ -1326,7 +1330,7 @@ traverse_io_block (gfc_code *code, bool *has_reached, gfc_code *prev)
       if (iters[i])
 	{
 	  gfc_expr *var = iters[i]->var;
-	  for (int j = i - 1; j < i; j++)
+	  for (int j = 0; j < i; j++)
 	    {
 	      if (iters[j]
 		  && (var_in_expr (var, iters[j]->start)
@@ -1455,7 +1459,7 @@ simplify_io_impl_do (gfc_code **code, int *walk_subtrees,
 }
 
 /* Optimize a namespace, including all contained namespaces.
-  flag_frontend_optimize and flag_fronend_loop_interchange are
+  flag_frontend_optimize and flag_frontend_loop_interchange are
   handled separately.  */
 
 static void
@@ -1477,7 +1481,8 @@ optimize_namespace (gfc_namespace *ns)
       gfc_code_walker (&ns->code, convert_elseif, dummy_expr_callback, NULL);
       gfc_code_walker (&ns->code, cfe_code, cfe_expr_0, NULL);
       gfc_code_walker (&ns->code, optimize_code, optimize_expr, NULL);
-      if (flag_inline_matmul_limit != 0 || flag_external_blas)
+      if (flag_inline_matmul_limit != 0 || flag_external_blas
+	  || flag_external_blas64)
 	{
 	  bool found;
 	  do
@@ -1492,7 +1497,7 @@ optimize_namespace (gfc_namespace *ns)
 			   NULL);
 	}
 
-      if (flag_external_blas)
+      if (flag_external_blas || flag_external_blas64)
 	gfc_code_walker (&ns->code, call_external_blas, dummy_expr_callback,
 			 NULL);
 
@@ -1839,6 +1844,7 @@ combine_array_constructor (gfc_expr *e)
       new_expr->ts = e->ts;
       new_expr->expr_type = EXPR_OP;
       new_expr->rank = c->expr->rank;
+      new_expr->corank = c->expr->corank;
       new_expr->where = c->expr->where;
       new_expr->value.op.op = e->value.op.op;
 
@@ -2262,50 +2268,6 @@ optimize_trim (gfc_expr *e)
   return true;
 }
 
-/* Optimize minloc(b), where b is rank 1 array, into
-   (/ minloc(b, dim=1) /), and similarly for maxloc,
-   as the latter forms are expanded inline.  */
-
-static void
-optimize_minmaxloc (gfc_expr **e)
-{
-  gfc_expr *fn = *e;
-  gfc_actual_arglist *a;
-  char *name, *p;
-
-  if (fn->rank != 1
-      || fn->value.function.actual == NULL
-      || fn->value.function.actual->expr == NULL
-      || fn->value.function.actual->expr->ts.type == BT_CHARACTER
-      || fn->value.function.actual->expr->rank != 1)
-    return;
-
-  *e = gfc_get_array_expr (fn->ts.type, fn->ts.kind, &fn->where);
-  (*e)->shape = fn->shape;
-  fn->rank = 0;
-  fn->shape = NULL;
-  gfc_constructor_append_expr (&(*e)->value.constructor, fn, &fn->where);
-
-  name = XALLOCAVEC (char, strlen (fn->value.function.name) + 1);
-  strcpy (name, fn->value.function.name);
-  p = strstr (name, "loc0");
-  p[3] = '1';
-  fn->value.function.name = gfc_get_string ("%s", name);
-  if (fn->value.function.actual->next)
-    {
-      a = fn->value.function.actual->next;
-      gcc_assert (a->expr == NULL);
-    }
-  else
-    {
-      a = gfc_get_actual_arglist ();
-      fn->value.function.actual->next = a;
-    }
-  a->expr = gfc_get_constant_expr (BT_INTEGER, gfc_default_integer_kind,
-				   &fn->where);
-  mpz_set_ui (a->expr->value.integer, 1);
-}
-
 /* Data package to hand down for DO loop checks in a contained
    procedure.  */
 typedef struct contained_info
@@ -2591,7 +2553,7 @@ doloop_code (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
       break;
 
     case EXEC_INQUIRE:
-      if (co->ext.filepos->err)
+      if (co->ext.inquire->err)
 	seen_goto = true;
       break;
 
@@ -2784,6 +2746,66 @@ insert_index (gfc_expr *e, gfc_symbol *sym, mpz_t val, mpz_t ret)
 
 }
 
+static bool
+evaluate_loop_bound (gfc_expr *e, gfc_symbol *sym, mpz_t val, mpz_t ret)
+{
+  if (e->expr_type == EXPR_CONSTANT)
+    {
+      mpz_init_set (ret, e->value.integer);
+      return true;
+    }
+
+  return insert_index (e, sym, val, ret);
+}
+
+/* Return true if any loop nested inside LOOP_INDEX is not provably entered
+   after substituting OUTER_VAL for OUTER_SYM.  In that case the guarded array
+   reference may never be evaluated, so do not warn from the outer loop alone.  */
+
+static bool
+inner_loop_may_be_skipped (int loop_index, gfc_symbol *outer_sym, mpz_t outer_val)
+{
+  int k;
+  do_t *lp;
+
+  FOR_EACH_VEC_ELT_FROM (doloop_list, k, lp, loop_index + 1)
+    {
+      gfc_code *loop = lp->c;
+      int sgn, cmp;
+      mpz_t do_start, do_end, do_step;
+
+      if (loop == NULL || loop->ext.iterator == NULL || loop->ext.iterator->var == NULL)
+	return true;
+
+      if (!evaluate_loop_bound (loop->ext.iterator->step, outer_sym, outer_val, do_step))
+	return true;
+
+      sgn = mpz_cmp_ui (do_step, 0);
+      if (sgn == 0)
+	{
+	  mpz_clear (do_step);
+	  return true;
+	}
+
+      if (!evaluate_loop_bound (loop->ext.iterator->start, outer_sym, outer_val, do_start)
+	  || !evaluate_loop_bound (loop->ext.iterator->end, outer_sym, outer_val, do_end))
+	{
+	  mpz_clear (do_step);
+	  return true;
+	}
+
+      cmp = mpz_cmp (do_end, do_start);
+      mpz_clear (do_start);
+      mpz_clear (do_end);
+      mpz_clear (do_step);
+
+      if ((sgn > 0 && cmp < 0) || (sgn < 0 && cmp > 0))
+	return true;
+    }
+
+  return false;
+}
+
 /* Check array subscripts for possible out-of-bounds accesses in DO
    loops with constant bounds.  */
 
@@ -2883,7 +2905,10 @@ do_subscript (gfc_expr **e)
 		have_do_end = false;
 
 	      if (!have_do_start && !have_do_end)
-		return 0;
+		{
+		  mpz_clear (do_step);
+		  return 0;
+		}
 
 	      /* No warning inside a zero-trip loop.  */
 	      if (have_do_start && have_do_end)
@@ -2892,7 +2917,12 @@ do_subscript (gfc_expr **e)
 
 		  cmp = mpz_cmp (do_end, do_start);
 		  if ((sgn > 0 && cmp < 0) || (sgn < 0 && cmp > 0))
-		    break;
+		    {
+		      mpz_clear (do_start);
+		      mpz_clear (do_end);
+		      mpz_clear (do_step);
+		      break;
+		    }
 		}
 
 	      /* May have to correct the end value if the step does not equal
@@ -2910,10 +2940,15 @@ do_subscript (gfc_expr **e)
 		  mpz_clear (rem);
 		}
 
+	      bool skip_start = have_do_start
+				&& inner_loop_may_be_skipped (j, do_sym, do_start);
+	      bool skip_end = have_do_end
+			      && inner_loop_may_be_skipped (j, do_sym, do_end);
+
 	      for (i = 0; i< ar->dimen; i++)
 		{
 		  mpz_t val;
-		  if (ar->dimen_type[i] == DIMEN_ELEMENT && have_do_start
+		  if (ar->dimen_type[i] == DIMEN_ELEMENT && have_do_start && !skip_start
 		      && insert_index (ar->start[i], do_sym, do_start, val))
 		    {
 		      if (ar->as->lower[i]
@@ -2939,7 +2974,7 @@ do_subscript (gfc_expr **e)
 		      mpz_clear (val);
 		    }
 
-		  if (ar->dimen_type[i] == DIMEN_ELEMENT && have_do_end
+		  if (ar->dimen_type[i] == DIMEN_ELEMENT && have_do_end && !skip_end
 		      && insert_index (ar->start[i], do_sym, do_end, val))
 		    {
 		      if (ar->as->lower[i]
@@ -2965,6 +3000,12 @@ do_subscript (gfc_expr **e)
 		      mpz_clear (val);
 		    }
 		}
+
+	      if (have_do_start)
+		mpz_clear (do_start);
+	      if (have_do_end)
+		mpz_clear (do_end);
+	      mpz_clear (do_step);
 	    }
 	}
     }
@@ -3038,7 +3079,8 @@ do_intent (gfc_expr **e)
 	  do_sym = dl->ext.iterator->var->symtree->n.sym;
 
 	  if (a->expr && a->expr->symtree
-	      && a->expr->symtree->n.sym == do_sym)
+	      && a->expr->symtree->n.sym == do_sym
+	      && f->sym)
 	    {
 	      if (f->sym->attr.intent == INTENT_OUT)
 		gfc_error_now ("Variable %qs at %L set to undefined value "
@@ -3389,7 +3431,7 @@ runtime_error_ne (gfc_expr *e1, gfc_expr *e2, const char *msg)
   gfc_code *c;
   gfc_actual_arglist *a1, *a2, *a3;
 
-  gcc_assert (e1->where.lb);
+  gcc_assert (GFC_LOCUS_IS_SET (e1->where));
   /* Build the call to runtime_error.  */
   c = XCNEW (gfc_code);
   c->op = EXEC_CALL;
@@ -4668,6 +4710,7 @@ call_external_blas (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
   enum matrix_case m_case;
   bool realloc_c;
   gfc_code **next_code_point;
+  int arg_kind;
 
   /* Many of the tests for inline matmul also apply here.  */
 
@@ -4953,13 +4996,20 @@ call_external_blas (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
 				       transb, 1);
   actual->next = next;
 
-  c1 = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (a->expr), 1,
-			       gfc_integer_4_kind);
-  c2 = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (b->expr), 2,
-			       gfc_integer_4_kind);
+  if (flag_external_blas)
+    arg_kind = gfc_integer_4_kind;
+  else
+    {
+      gcc_assert (flag_external_blas64);
+      arg_kind = gfc_integer_8_kind;
+    }
 
+  c1 = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (a->expr), 1,
+			       arg_kind);
+  c2 = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (b->expr), 2,
+			       arg_kind);
   b1 = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (b->expr), 1,
-			       gfc_integer_4_kind);
+			       arg_kind);
 
   /* Argument M. */
   actual = next;
@@ -4999,7 +5049,7 @@ call_external_blas (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
   actual = next;
   next = gfc_get_actual_arglist ();
   next->expr = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (matrix_a),
-				       1, gfc_integer_4_kind);
+				       1, arg_kind);
   actual->next = next;
 
   /* Argument B.  */
@@ -5012,7 +5062,7 @@ call_external_blas (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
   actual = next;
   next = gfc_get_actual_arglist ();
   next->expr = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (matrix_b),
-				       1, gfc_integer_4_kind);
+				       1, arg_kind);
   actual->next = next;
 
   /* Argument BETA - set to zero.  */
@@ -5036,7 +5086,7 @@ call_external_blas (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
   actual = next;
   next = gfc_get_actual_arglist ();
   next->expr = get_array_inq_function (GFC_ISYM_SIZE, gfc_copy_expr (expr1),
-				       1, gfc_integer_4_kind);
+				       1, arg_kind);
   actual->next = next;
 
   return 0;
@@ -5156,7 +5206,7 @@ index_interchange (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
     return 0;
 
   n_iter = 0;
-  for (fa = co->ext.forall_iterator; fa; fa = fa->next)
+  for (fa = co->ext.concur.forall_iterator; fa; fa = fa->next)
     n_iter ++;
 
   /* Nothing to reorder. */
@@ -5166,7 +5216,7 @@ index_interchange (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
   ind = XALLOCAVEC (ind_type, n_iter + 1);
 
   i = 0;
-  for (fa = co->ext.forall_iterator; fa; fa = fa->next)
+  for (fa = co->ext.concur.forall_iterator; fa; fa = fa->next)
     {
       ind[i].sym = fa->var->symtree->n.sym;
       ind[i].fa = fa;
@@ -5182,7 +5232,7 @@ index_interchange (gfc_code **c, int *walk_subtrees ATTRIBUTE_UNUSED,
   qsort ((void *) ind, n_iter, sizeof (ind_type), loop_comp);
 
   /* Do the actual index interchange.  */
-  co->ext.forall_iterator = fa = ind[0].fa;
+  co->ext.concur.forall_iterator = fa = ind[0].fa;
   for (i=1; i<n_iter; i++)
     {
       fa->next = ind[i].fa;
@@ -5241,6 +5291,11 @@ gfc_expr_walker (gfc_expr **e, walk_expr_fn_t exprfn, void *data)
 	  case EXPR_FUNCTION:
 	    for (a = (*e)->value.function.actual; a; a = a->next)
 	      WALK_SUBEXPR (a->expr);
+	    break;
+	  case EXPR_CONDITIONAL:
+	    WALK_SUBEXPR ((*e)->value.conditional.condition);
+	    WALK_SUBEXPR ((*e)->value.conditional.true_expr);
+	    WALK_SUBEXPR ((*e)->value.conditional.false_expr);
 	    break;
 	  case EXPR_COMPCALL:
 	  case EXPR_PPC:
@@ -5364,6 +5419,7 @@ gfc_code_walker (gfc_code **c, walk_code_fn_t codefn, walk_expr_fn_t exprfn,
 	    {
 
 	    case EXEC_BLOCK:
+	    case EXEC_CHANGE_TEAM:
 	      WALK_SUBCODE (co->ext.block.ns->code);
 	      if (co->ext.block.assoc)
 		{
@@ -5434,7 +5490,7 @@ gfc_code_walker (gfc_code **c, walk_code_fn_t codefn, walk_expr_fn_t exprfn,
 	    case EXEC_DO_CONCURRENT:
 	      {
 		gfc_forall_iterator *fa;
-		for (fa = co->ext.forall_iterator; fa; fa = fa->next)
+		for (fa = co->ext.concur.forall_iterator; fa; fa = fa->next)
 		  {
 		    WALK_SUBEXPR (fa->var);
 		    WALK_SUBEXPR (fa->start);
@@ -5637,6 +5693,8 @@ gfc_code_walker (gfc_code **c, walk_code_fn_t codefn, walk_expr_fn_t exprfn,
 			OMP_LIST_MAP, OMP_LIST_TO, OMP_LIST_FROM };
 		  size_t idx;
 		  WALK_SUBEXPR (co->ext.omp_clauses->if_expr);
+		  for (idx = 0; idx < OMP_IF_LAST; idx++)
+		    WALK_SUBEXPR (co->ext.omp_clauses->if_exprs[idx]);
 		  WALK_SUBEXPR (co->ext.omp_clauses->final_expr);
 		  WALK_SUBEXPR (co->ext.omp_clauses->num_threads);
 		  WALK_SUBEXPR (co->ext.omp_clauses->chunk_size);
@@ -5652,11 +5710,10 @@ gfc_code_walker (gfc_code **c, walk_code_fn_t codefn, walk_expr_fn_t exprfn,
 		  WALK_SUBEXPR (co->ext.omp_clauses->num_tasks);
 		  WALK_SUBEXPR (co->ext.omp_clauses->priority);
 		  WALK_SUBEXPR (co->ext.omp_clauses->detach);
-		  for (idx = 0; idx < OMP_IF_LAST; idx++)
-		    WALK_SUBEXPR (co->ext.omp_clauses->if_exprs[idx]);
-		  for (idx = 0;
-		       idx < sizeof (list_types) / sizeof (list_types[0]);
-		       idx++)
+		  WALK_SUBEXPR (co->ext.omp_clauses->dyn_groupprivate);
+		  WALK_SUBEXPR (co->ext.omp_clauses->novariants);
+		  WALK_SUBEXPR (co->ext.omp_clauses->nocontext);
+		  for (idx = 0; idx < ARRAY_SIZE (list_types); idx++)
 		    for (n = co->ext.omp_clauses->lists[list_types[idx]];
 			 n; n = n->next)
 		      WALK_SUBEXPR (n->expr);
@@ -5728,6 +5785,9 @@ check_externals_procedure (gfc_symbol *sym, locus *loc,
   if (gsym->ns)
     gfc_find_symbol (sym->name, gsym->ns, 0, &def_sym);
 
+  if (gsym->bind_c && def_sym && def_sym->binding_label == NULL)
+    return 0;
+
   if (def_sym)
     {
       gfc_compare_actual_formal (&actual, def_sym->formal, 0, 0, 0, loc);
@@ -5748,6 +5808,7 @@ check_externals_procedure (gfc_symbol *sym, locus *loc,
   gcc_assert (new_sym);
   new_sym->attr = sym->attr;
   new_sym->attr.if_source = IFSRC_DECL;
+  new_sym->ts = sym->ts;
   gfc_current_ns = gsym->ns;
 
   gfc_get_formal_from_actual_arglist (new_sym, actual);
@@ -5794,6 +5855,9 @@ check_externals_expr (gfc_expr **ep, int *walk_subtrees ATTRIBUTE_UNUSED,
   if (e->expr_type != EXPR_FUNCTION)
     return 0;
 
+  if (e->symtree && e->symtree->n.sym->attr.subroutine)
+    return 0;
+
   sym = e->value.function.esym;
   if (sym == NULL)
     return 0;
@@ -5816,11 +5880,16 @@ check_against_globals (gfc_symbol *sym)
   char buf  [200];
 
   if (sym->attr.if_source != IFSRC_IFBODY || sym->attr.flavor != FL_PROCEDURE
-      || sym->attr.generic || sym->error)
+      || sym->attr.generic || sym->error || sym->attr.abstract
+      || sym->attr.dummy)
     return;
 
   if (sym->binding_label)
     sym_name = sym->binding_label;
+  else if (sym->attr.use_rename
+	   && sym->ns->use_stmts->rename
+	   && sym->ns->use_stmts->rename->local_name[0] != '\0')
+    sym_name = sym->ns->use_stmts->rename->local_name;
   else
     sym_name = sym->name;
 

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,101 +34,129 @@ with GNAT.Spelling_Checker; use GNAT.Spelling_Checker;
 separate (Par)
 package body Util is
 
+   ------------
+   -- Append --
+   ------------
+
+   procedure Append
+     (Def_Ids : in out Defining_Identifiers; Def_Id : Entity_Id)
+   is
+   begin
+      if Def_Ids.Num_Idents >= Defining_Identifiers_Array'Last then
+         raise Program_Error;
+      end if;
+
+      Def_Ids.Num_Idents := Def_Ids.Num_Idents + 1;
+      Def_Ids.Idents (Def_Ids.Num_Idents) := Def_Id;
+   end Append;
+
    ---------------------
    -- Bad_Spelling_Of --
    ---------------------
 
    function Bad_Spelling_Of (T : Token_Type) return Boolean is
-      Tname : constant String := Token_Type'Image (T);
-      --  Characters of token name
 
-      S : String (1 .. Tname'Last - 4);
-      --  Characters of token name folded to lower case, omitting TOK_ at start
+      function Bad_Spelling_Helper return Boolean;
+      --  This does all the work, except setting of Token and Token_Node
 
-      M1 : String (1 .. 42) := "incorrect spelling of keyword ************";
-      M2 : String (1 .. 44) := "illegal abbreviation of keyword ************";
-      --  Buffers used to construct error message
+      function Bad_Spelling_Helper return Boolean is
+         Tname : constant String := Token_Type'Image (T);
+         --  Characters of token name
 
-      P1 : constant := 30;
-      P2 : constant := 32;
-      --  Starting subscripts in M1, M2 for keyword name
+         S : String (1 .. Tname'Last - 4);
+         --  Characters of token name folded to lower case, omitting TOK_ at
+         --  start.
 
-      SL : constant Natural := S'Length;
-      --  Length of expected token name excluding TOK_ at start
+         M1 : String (1 .. 42) := "incorrect spelling of keyword ************";
+         M2 : String (1 .. 44) :=
+           "illegal abbreviation of keyword ************";
+         --  Buffers used to construct error message
+
+         P1 : constant := 30;
+         P2 : constant := 32;
+         --  Starting subscripts in M1, M2 for keyword name
+
+         SL : constant Natural := S'Length;
+         --  Length of expected token name excluding TOK_ at start
+
+      begin
+         if Token /= Tok_Identifier then
+            return False;
+         end if;
+
+         for J in S'Range loop
+            S (J) := Fold_Lower (Tname (J + 4));
+         end loop;
+
+         Get_Name_String (Token_Name);
+
+         --  A special check for case of PROGRAM used for PROCEDURE
+
+         if T = Tok_Procedure
+           and then Name_Len = 7
+           and then Name_Buffer (1 .. 7) = "program"
+         then
+            Error_Msg_SC -- CODEFIX
+              ("PROCEDURE expected");
+            return True;
+
+         --  A special check for an illegal abbreviation
+
+         elsif Name_Len < S'Length
+           and then Name_Len >= 4
+           and then Name_Buffer (1 .. Name_Len) = S (1 .. Name_Len)
+         then
+            for J in 1 .. S'Last loop
+               M2 (P2 + J - 1) := Fold_Upper (S (J));
+            end loop;
+
+            Error_Msg_SC (M2 (1 .. P2 - 1 + S'Last));
+            return True;
+         end if;
+
+         --  Now we go into the full circuit to check for a misspelling
+
+         --  Never consider something a misspelling if either the actual or
+         --  expected string is less than 3 characters (before this check we
+         --  used to consider i to be a misspelled if in some cases).
+
+         if SL < 3 or else Name_Len < 3 then
+            return False;
+
+         --  Special case: prefix matches, i.e. the leading characters of the
+         --  token that we have exactly match the required keyword. If there
+         --  are at least two characters left over, assume that we have a case
+         --  of two keywords joined together which should not be joined.
+
+         elsif Name_Len > SL + 1
+           and then S = Name_Buffer (1 .. SL)
+         then
+            Scan_Ptr := Token_Ptr + S'Length;
+            Error_Msg_S ("|missing space");
+            return True;
+         end if;
+
+         if Is_Bad_Spelling_Of (Name_Buffer (1 .. Name_Len), S) then
+            for J in 1 .. S'Last loop
+               M1 (P1 + J - 1) := Fold_Upper (S (J));
+            end loop;
+
+            Error_Msg_SC -- CODFIX
+              (M1 (1 .. P1 - 1 + S'Last));
+            return True;
+
+         else
+            return False;
+         end if;
+      end Bad_Spelling_Helper;
 
    begin
-      if Token /= Tok_Identifier then
-         return False;
-      end if;
-
-      for J in S'Range loop
-         S (J) := Fold_Lower (Tname (J + 4));
-      end loop;
-
-      Get_Name_String (Token_Name);
-
-      --  A special check for case of PROGRAM used for PROCEDURE
-
-      if T = Tok_Procedure
-        and then Name_Len = 7
-        and then Name_Buffer (1 .. 7) = "program"
-      then
-         Error_Msg_SC -- CODEFIX
-           ("PROCEDURE expected");
-         Token := T;
-         return True;
-
-      --  A special check for an illegal abbreviation
-
-      elsif Name_Len < S'Length
-        and then Name_Len >= 4
-        and then Name_Buffer (1 .. Name_Len) = S (1 .. Name_Len)
-      then
-         for J in 1 .. S'Last loop
-            M2 (P2 + J - 1) := Fold_Upper (S (J));
-         end loop;
-
-         Error_Msg_SC (M2 (1 .. P2 - 1 + S'Last));
-         Token := T;
-         return True;
-      end if;
-
-      --  Now we go into the full circuit to check for a misspelling
-
-      --  Never consider something a misspelling if either the actual or
-      --  expected string is less than 3 characters (before this check we
-      --  used to consider i to be a misspelled if in some cases).
-
-      if SL < 3 or else Name_Len < 3 then
-         return False;
-
-      --  Special case: prefix matches, i.e. the leading characters of the
-      --  token that we have exactly match the required keyword. If there
-      --  are at least two characters left over, assume that we have a case
-      --  of two keywords joined together which should not be joined.
-
-      elsif Name_Len > SL + 1
-        and then S = Name_Buffer (1 .. SL)
-      then
-         Scan_Ptr := Token_Ptr + S'Length;
-         Error_Msg_S ("|missing space");
-         Token := T;
-         return True;
-      end if;
-
-      if Is_Bad_Spelling_Of (Name_Buffer (1 .. Name_Len), S) then
-         for J in 1 .. S'Last loop
-            M1 (P1 + J - 1) := Fold_Upper (S (J));
-         end loop;
-
-         Error_Msg_SC -- CODFIX
-           (M1 (1 .. P1 - 1 + S'Last));
-         Token := T;
-         return True;
-
-      else
-         return False;
-      end if;
+      return Result : constant Boolean := Bad_Spelling_Helper do
+         if Result then
+            Token := T;
+            Token_Node := Empty;
+         end if;
+      end return;
    end Bad_Spelling_Of;
 
    ----------------------
@@ -165,7 +193,7 @@ package body Util is
         and then Start_Column <= Scopes (Scope.Last).Ecol
       then
          Error_Msg_BC -- CODEFIX
-           ("(style) incorrect layout");
+           ("(style) incorrect layout?l?");
       end if;
    end Check_Bad_Layout;
 
@@ -176,14 +204,17 @@ package body Util is
    procedure Check_Future_Keyword is
    begin
       --  Ada 2005 (AI-284): Compiling in Ada 95 mode we warn that INTERFACE,
-      --  OVERRIDING, and SYNCHRONIZED are new reserved words.
+      --  OVERRIDING, and SYNCHRONIZED are new reserved words. We make an
+      --  exception if INTERFACE is used in the context of the GNAT-specific
+      --  pragma Interface, since we accept that pragma regardless of the Ada
+      --  version.
 
       if Ada_Version = Ada_95
         and then Warn_On_Ada_2005_Compatibility
       then
-         if Token_Name in Name_Overriding | Name_Synchronized
-           or else (Token_Name = Name_Interface
-                     and then Prev_Token /= Tok_Pragma)
+         if Token_Name in Ada_2005_Reserved_Words
+           and then not (Token_Name = Name_Interface
+                         and then Prev_Token = Tok_Pragma)
          then
             Error_Msg_N ("& is a reserved word in Ada 2005?y?", Token_Node);
          end if;
@@ -194,8 +225,16 @@ package body Util is
       if Ada_Version in Ada_95 .. Ada_2005
         and then Warn_On_Ada_2012_Compatibility
       then
-         if Token_Name = Name_Some then
+         if Token_Name in Ada_2012_Reserved_Words then
             Error_Msg_N ("& is a reserved word in Ada 2012?y?", Token_Node);
+         end if;
+      end if;
+
+      if Ada_Version < Ada_With_All_Extensions then
+         if Token_Name in GNAT_Extensions_Reserved_Words then
+            Error_Msg_N
+              ("& is a reserved word with all extensions enabled?",
+               Token_Node);
          end if;
       end if;
 
@@ -336,7 +375,7 @@ package body Util is
             --  probably the semicolon did end the list. Indeed that is
             --  certainly the only single error correction possible here.
 
-            if Token = Tok_Semicolon or else Token = Tok_EOF then
+            if Token in Tok_Semicolon | Tok_EOF then
                Restore_Scan_State (Scan_State);
                return False;
 
@@ -462,7 +501,7 @@ package body Util is
             declare
                Tname : constant String := Token_Type'Image (Token);
             begin
-               Error_Msg_SC ("|extra " & Tname (5 .. Tname'Last) & "ignored");
+               Error_Msg_SC ("|extra " & Tname (5 .. Tname'Last) & " ignored");
             end;
          end if;
 
@@ -521,44 +560,34 @@ package body Util is
                         raise Program_Error;
 
                      when C_Comma_Right_Paren =>
-                        OK_Next_Tok :=
-                          Token = Tok_Comma or else Token = Tok_Right_Paren;
+                        OK_Next_Tok := Token in Tok_Comma | Tok_Right_Paren;
 
                      when C_Comma_Colon =>
-                        OK_Next_Tok :=
-                          Token = Tok_Comma or else Token = Tok_Colon;
+                        OK_Next_Tok := Token in Tok_Comma | Tok_Colon;
 
                      when C_Do =>
-                        OK_Next_Tok :=
-                          Token = Tok_Do;
+                        OK_Next_Tok := Token = Tok_Do;
 
                      when C_Dot =>
-                        OK_Next_Tok :=
-                          Token = Tok_Dot;
+                        OK_Next_Tok := Token = Tok_Dot;
 
                      when C_Greater_Greater =>
-                        OK_Next_Tok :=
-                          Token = Tok_Greater_Greater;
+                        OK_Next_Tok := Token = Tok_Greater_Greater;
 
                      when C_In =>
-                        OK_Next_Tok :=
-                          Token = Tok_In;
+                        OK_Next_Tok := Token = Tok_In;
 
                      when C_Is =>
-                        OK_Next_Tok :=
-                          Token = Tok_Is;
+                        OK_Next_Tok := Token = Tok_Is;
 
                      when C_Left_Paren_Semicolon =>
-                        OK_Next_Tok :=
-                          Token = Tok_Left_Paren or else Token = Tok_Semicolon;
+                        OK_Next_Tok := Token in Tok_Left_Paren | Tok_Semicolon;
 
                      when C_Use =>
-                        OK_Next_Tok :=
-                          Token = Tok_Use;
+                        OK_Next_Tok := Token = Tok_Use;
 
                      when C_Vertical_Bar_Arrow =>
-                        OK_Next_Tok :=
-                          Token = Tok_Vertical_Bar or else Token = Tok_Arrow;
+                        OK_Next_Tok := Token in Tok_Vertical_Bar | Tok_Arrow;
                   end case;
 
                   Restore_Scan_State (Scan_State);
@@ -690,6 +719,19 @@ package body Util is
       end if;
    end No_Constraint;
 
+   ---------------
+   -- P_Def_Ids --
+   ---------------
+
+   procedure P_Def_Ids (Def_Ids : out Defining_Identifiers) is
+      pragma Assert (Def_Ids.Num_Idents = 0);
+   begin
+      loop
+         Append (Def_Ids, P_Defining_Identifier (C_Comma_Colon));
+         exit when not Comma_Present;
+      end loop;
+   end P_Def_Ids;
+
    ---------------------
    -- Pop_Scope_Stack --
    ---------------------
@@ -698,12 +740,6 @@ package body Util is
    begin
       pragma Assert (Scope.Last > 0);
       Scope.Decrement_Last;
-
-      if Include_Subprogram_In_Messages
-        and then Scopes (Scope.Last).Labl /= Error
-      then
-         Current_Node := Scopes (Scope.Last).Labl;
-      end if;
 
       if Debug_Flag_P then
          Error_Msg_Uint_1 := UI_From_Int (Scope.Last);
@@ -723,7 +759,7 @@ package body Util is
         and then Scope.Last = Style_Max_Nesting_Level + 1
       then
          Error_Msg
-           ("(style) maximum nesting level exceeded",
+           ("(style) maximum nesting level exceeded?L?",
             First_Non_Blank_Location);
       end if;
 
@@ -802,7 +838,7 @@ package body Util is
 
    function Token_Is_At_Start_Of_Line return Boolean is
    begin
-      return (Token_Ptr = First_Non_Blank_Location or else Token = Tok_EOF);
+      return Token_Ptr = First_Non_Blank_Location or else Token = Tok_EOF;
    end Token_Is_At_Start_Of_Line;
 
    -----------------------------------

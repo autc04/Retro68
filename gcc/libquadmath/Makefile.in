@@ -94,7 +94,9 @@ target_triplet = @target@
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
+	$(top_srcdir)/../config/clang-plugin.m4 \
 	$(top_srcdir)/../config/depstand.m4 \
+	$(top_srcdir)/../config/gcc-plugin.m4 \
 	$(top_srcdir)/../config/lead-dot.m4 \
 	$(top_srcdir)/../config/lthostflags.m4 \
 	$(top_srcdir)/../config/multi.m4 \
@@ -355,10 +357,12 @@ INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
+LIBM = @LIBM@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
+LLVM_CONFIG = @LLVM_CONFIG@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
@@ -463,8 +467,10 @@ AUTOMAKE_OPTIONS = foreign info-in-builddir
 @BUILD_LIBQUADMATH_TRUE@@LIBQUAD_USE_SYMVER_SUN_TRUE@@LIBQUAD_USE_SYMVER_TRUE@version_dep = quadmath.map-sun
 @BUILD_LIBQUADMATH_TRUE@toolexeclib_LTLIBRARIES = libquadmath.la
 @BUILD_LIBQUADMATH_TRUE@libquadmath_la_LIBADD = 
+@BUILD_LIBQUADMATH_TRUE@@ENABLE_DARWIN_AT_RPATH_TRUE@libquadmath_darwin_rpath = -Wc,-nodefaultrpaths \
+@BUILD_LIBQUADMATH_TRUE@@ENABLE_DARWIN_AT_RPATH_TRUE@	-Wl,-rpath,@loader_path
 @BUILD_LIBQUADMATH_TRUE@libquadmath_la_LDFLAGS = -version-info `grep -v '^\#' $(srcdir)/libtool-version` \
-@BUILD_LIBQUADMATH_TRUE@			 $(version_arg) $(lt_host_flags) -lm
+@BUILD_LIBQUADMATH_TRUE@	$(version_arg) $(lt_host_flags) $(LIBM) $(libquadmath_darwin_rpath)
 
 @BUILD_LIBQUADMATH_TRUE@libquadmath_la_DEPENDENCIES = $(version_dep) $(libquadmath_la_LIBADD)
 @BUILD_LIBQUADMATH_TRUE@nodist_libsubinclude_HEADERS = quadmath.h quadmath_weak.h
@@ -509,6 +515,7 @@ AUTOMAKE_OPTIONS = foreign info-in-builddir
 @BUILD_LIBQUADMATH_TRUE@	"CXXFLAGS=$(CXXFLAGS)" \
 @BUILD_LIBQUADMATH_TRUE@	"CFLAGS_FOR_BUILD=$(CFLAGS_FOR_BUILD)" \
 @BUILD_LIBQUADMATH_TRUE@	"CFLAGS_FOR_TARGET=$(CFLAGS_FOR_TARGET)" \
+@BUILD_LIBQUADMATH_TRUE@	"EXPECT=$(EXPECT)" \
 @BUILD_LIBQUADMATH_TRUE@	"INSTALL=$(INSTALL)" \
 @BUILD_LIBQUADMATH_TRUE@	"INSTALL_DATA=$(INSTALL_DATA)" \
 @BUILD_LIBQUADMATH_TRUE@	"INSTALL_PROGRAM=$(INSTALL_PROGRAM)" \
@@ -1430,8 +1437,7 @@ uninstall-am: uninstall-dvi-am uninstall-html-am uninstall-info-am \
 @BUILD_LIBQUADMATH_TRUE@@LIBQUAD_USE_SYMVER_SUN_TRUE@@LIBQUAD_USE_SYMVER_TRUE@		$(libquadmath_la_OBJECTS) $(libquadmath_la_LIBADD)
 @BUILD_LIBQUADMATH_TRUE@@LIBQUAD_USE_SYMVER_SUN_TRUE@@LIBQUAD_USE_SYMVER_TRUE@	perl $(top_srcdir)/../contrib/make_sunver.pl \
 @BUILD_LIBQUADMATH_TRUE@@LIBQUAD_USE_SYMVER_SUN_TRUE@@LIBQUAD_USE_SYMVER_TRUE@	  $(srcdir)/quadmath.map \
-@BUILD_LIBQUADMATH_TRUE@@LIBQUAD_USE_SYMVER_SUN_TRUE@@LIBQUAD_USE_SYMVER_TRUE@	 `echo $(libquadmath_la_OBJECTS) $(libquadmath_la_LIBADD) | \
-@BUILD_LIBQUADMATH_TRUE@@LIBQUAD_USE_SYMVER_SUN_TRUE@@LIBQUAD_USE_SYMVER_TRUE@	   sed 's,\([^/ 	]*\)\.l\([ao]\),.libs/\1.\2,g'` \
+@BUILD_LIBQUADMATH_TRUE@@LIBQUAD_USE_SYMVER_SUN_TRUE@@LIBQUAD_USE_SYMVER_TRUE@	 $(libquadmath_la_OBJECTS) $(libquadmath_la_LIBADD) \
 @BUILD_LIBQUADMATH_TRUE@@LIBQUAD_USE_SYMVER_SUN_TRUE@@LIBQUAD_USE_SYMVER_TRUE@	 > $@ || (rm -f $@ ; exit 1)
 
 @BUILD_LIBQUADMATH_TRUE@stamp-geninsrc: libquadmath.info

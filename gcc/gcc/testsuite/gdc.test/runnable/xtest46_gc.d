@@ -11,16 +11,16 @@ int
 int(int i, long j = 7L)
 long
 C10390(C10390(<recursion>))
-tuple(height)
-tuple(get, get)
-tuple(clear)
-tuple(draw, draw)
+AliasSeq!(height)
+AliasSeq!(get, get)
+AliasSeq!(clear)
+AliasSeq!(draw, draw)
 const(int)
 string[]
 double[]
 double[]
 {}
-tuple("m")
+AliasSeq!("m")
 true
 TFunction1: extern (C) void function()
 ---

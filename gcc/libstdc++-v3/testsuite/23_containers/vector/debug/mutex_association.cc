@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2022 Free Software Foundation, Inc.
+// Copyright (C) 2016-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,7 +25,7 @@ class container : public __gnu_debug::_Safe_sequence<container>
 {
 public:
   __gnu_cxx::__mutex&
-  get_mutex()
+  get_mutex() const
   { return this->_M_get_mutex(); }
 };
 

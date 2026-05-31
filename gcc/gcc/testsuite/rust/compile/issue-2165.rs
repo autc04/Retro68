@@ -1,0 +1,16 @@
+#![feature(no_core)]
+#![no_core]
+
+#![feature(lang_items)]
+#[lang = "sized"]
+pub trait Sized {}
+
+pub trait Alpha<T = Self> {
+    type Beta;
+}
+
+impl Alpha for u32 {
+    type Beta = u32;
+}
+
+type Delta = <u32 as Alpha<u32>>::Beta;

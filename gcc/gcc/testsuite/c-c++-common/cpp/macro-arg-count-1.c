@@ -4,12 +4,12 @@
 void test_1 ()
 {
   MACRO_1(42); /* { dg-line "use_of_MACRO_1" } */
-  /* { dg-error "macro \"MACRO_1\" requires 2 arguments, but only 1 given" "" { target *-*-* } use_of_MACRO_1 } */
+  /* { dg-error "macro 'MACRO_1' requires 2 arguments, but only 1 given" "" { target *-*-* } use_of_MACRO_1 } */
   /* { dg-begin-multiline-output "" }
    MACRO_1(42);
              ^
      { dg-end-multiline-output "" } */
-  /* { dg-message "-: macro .MACRO_1. defined here" "" { target *-*-* } def_of_MACRO_1 }
+  /* { dg-message "macro .MACRO_1. defined here" "" { target *-*-* } def_of_MACRO_1 }
   /* { dg-begin-multiline-output "" }
  #define MACRO_1(X,Y)
  
@@ -28,12 +28,12 @@ void test_1 ()
 void test_2 ()
 {
   MACRO_2(1, 2, 3); /* { dg-line "use_of_MACRO_2" } */
-  /* { dg-error "macro \"MACRO_2\" passed 3 arguments, but takes just 2" "" { target *-*-* } use_of_MACRO_2 } */
+  /* { dg-error "macro 'MACRO_2' passed 3 arguments, but takes just 2" "" { target *-*-* } use_of_MACRO_2 } */
   /* { dg-begin-multiline-output "" }
    MACRO_2(1, 2, 3);
                   ^
      { dg-end-multiline-output "" } */
-  /* { dg-message "-: macro .MACRO_2. defined here" "" { target *-*-* } def_of_MACRO_2 }
+  /* { dg-message "macro .MACRO_2. defined here" "" { target *-*-* } def_of_MACRO_2 }
   /* { dg-begin-multiline-output "" }
  #define MACRO_2(X,Y)
  

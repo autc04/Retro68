@@ -393,6 +393,10 @@ class Gogo
   set_c_header(const std::string& s)
   { this->c_header_ = s; }
 
+  // Read an importcfg file.
+  void
+  read_importcfg(const char* filename);
+
   // Read an embedcfg file.
   void
   read_embedcfg(const char* filename);
@@ -699,6 +703,11 @@ class Gogo
   void
   record_interface_type(Interface_type*);
 
+  // Whether we need an initialization function.
+  bool
+  need_init_fn() const
+  { return this->need_init_fn_; }
+
   // Note that we need an initialization function.
   void
   set_need_init_fn()
@@ -816,6 +825,10 @@ class Gogo
   void
   create_function_descriptors();
 
+  // Lower calls to builtin functions.
+  void
+  lower_builtin_calls();
+
   // Finalize the method lists and build stub methods for named types.
   void
   finalize_methods();
@@ -841,6 +854,11 @@ class Gogo
   // Check for return statements.
   void
   check_return_statements();
+
+  // Gather references from global variables initializers to other
+  // variables.
+  void
+  record_global_init_refs();
 
   // Remove deadcode.
   void
@@ -874,7 +892,7 @@ class Gogo
   // Add notes about the escape level of a function's input and output
   // parameters for exporting and importing top level functions.
   void
-  tag_function(Escape_context*, Named_object*);
+  tag_function(Named_object*);
 
   // Reclaim memory of escape analysis Nodes.
   void
@@ -1121,6 +1139,10 @@ class Gogo
   static size_t
   special_name_pos(const std::string& name);
 
+  // Read a file into memory.
+  static bool
+  read_file(const char* filename, Location loc, std::string* data);
+
  private:
   // During parsing, we keep a stack of functions.  Each function on
   // the stack is one that we are currently parsing.  For each
@@ -1290,6 +1312,10 @@ class Gogo
   std::string relative_import_path_;
   // The C header file to write, from the -fgo-c-header option.
   std::string c_header_;
+  // Mapping from imports in the source file to the real import paths.
+  Unordered_map(std::string, std::string) import_map_;
+  // Mapping from import paths to files to read.
+  Unordered_map(std::string, std::string) package_file_;
   // Patterns from an embedcfg file.
   Embed_patterns embed_patterns_;
   // Mapping from file to full path from an embedcfg file.
@@ -1412,7 +1438,7 @@ class Block
 
   // Set final types for unspecified variables and constants.
   void
-  determine_types();
+  determine_types(Gogo*);
 
   // Return true if execution of this block may fall through to the
   // next block.
@@ -1743,7 +1769,7 @@ class Function
 
   // Determine types in the function.
   void
-  determine_types();
+  determine_types(Gogo*);
 
   // Return an expression for the function descriptor, given the named
   // object for this function.  This may only be called for functions
@@ -2333,13 +2359,22 @@ class Variable
     this->toplevel_decl_ = s;
   }
 
+  // Note that the initializer of this global variable refers to VAR.
+  void
+  add_init_ref(Named_object* var);
+
+  // The variables that this variable's initializers refer to.
+  const std::vector<Named_object*>*
+  init_refs() const
+  { return this->init_refs_; }
+
   // Traverse the initializer expression.
   int
   traverse_expression(Traverse*, unsigned int traverse_mask);
 
   // Determine the type of the variable if necessary.
   void
-  determine_type();
+  determine_type(Gogo*);
 
   // Get the backend representation of the variable.
   Bvariable*
@@ -2389,6 +2424,12 @@ class Variable
   Block* preinit_;
   // Location of variable definition.
   Location location_;
+  // The top-level declaration for this variable. Only used for local
+  // variables. Must be a Temporary_statement if not NULL.
+  Statement* toplevel_decl_;
+  // Variables that the initializer of a global variable refers to.
+  // Used for initializer ordering.
+  std::vector<Named_object*>* init_refs_;
   // Any associated go:embed comments.
   std::vector<std::string>* embeds_;
   // Backend representation.
@@ -2439,9 +2480,6 @@ class Variable
   // True if this variable is referenced from an inlined body that
   // will be put into the export data.
   bool is_referenced_by_inline_ : 1;
-  // The top-level declaration for this variable. Only used for local
-  // variables. Must be a Temporary_statement if not NULL.
-  Statement* toplevel_decl_;
 };
 
 // A variable which is really the name for a function return value, or
@@ -2540,7 +2578,8 @@ class Named_constant
   Named_constant(Type* type, Expression* expr, int iota_value,
 		 Location location)
     : type_(type), expr_(expr), iota_value_(iota_value), location_(location),
-      lowering_(false), is_sink_(false), bconst_(NULL)
+      lowering_(false), is_sink_(false), type_is_determined_(false),
+      bconst_(NULL)
   { }
 
   Type*
@@ -2591,7 +2630,7 @@ class Named_constant
 
   // Determine the type of the constant if necessary.
   void
-  determine_type();
+  determine_type(Gogo*);
 
   // Indicate that we found and reported an error for this constant.
   void
@@ -2626,6 +2665,8 @@ class Named_constant
   bool lowering_;
   // Whether this constant is blank named and needs only type checking.
   bool is_sink_;
+  // Whether we have determined the type of the constants.
+  bool type_is_determined_;
   // The backend representation of the constant value.
   Bexpression* bconst_;
 };
@@ -3247,6 +3288,10 @@ class Bindings
   int
   traverse(Traverse*, bool is_global);
 
+  // Determine types for the objects.
+  void
+  determine_types(Gogo*);
+
   // Iterate over definitions.  This does not include things which
   // were only declared.
 
@@ -3658,7 +3703,7 @@ class Package
 
   // Determine types of constants.
   void
-  determine_types();
+  determine_types(Gogo*);
 
  private:
   // The package path for type reflection data.

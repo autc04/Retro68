@@ -1,7 +1,7 @@
 // -*- C++ -*-
 // Utility subroutines for the C++ library testsuite.
 //
-// Copyright (C) 2000-2022 Free Software Foundation, Inc.
+// Copyright (C) 2000-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -23,6 +23,7 @@
 #define _GLIBCXX_TESTSUITE_NEW_OPERATORS_H
 
 #include <new>
+#include <cstdlib>
 #include <testsuite_hooks.h>
 
 namespace __gnu_test

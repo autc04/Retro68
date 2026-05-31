@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2011-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2011-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -256,6 +256,13 @@ package body SPARK_Specific is
                | N_Task_Type_Declaration
             =>
                Context := Defining_Entity (Context);
+               exit;
+
+            when N_Subunit =>
+               Context := Corresponding_Stub (Context);
+
+            when N_Body_Stub =>
+               Context := Corresponding_Spec_Of_Stub (Context);
                exit;
 
             when others =>

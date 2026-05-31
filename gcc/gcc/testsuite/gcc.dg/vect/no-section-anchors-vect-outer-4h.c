@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-additional-options "-fno-section-anchors" } */
 #include <stdarg.h>
 #include "tree-vect.h"
 
@@ -31,7 +32,9 @@ int main (void)
 
   foo ();
 
+#pragma GCC novector
   for (i = 0; i < N; i++) {
+#pragma GCC novector
     for (j = 0; j < M; j++) {
       if (a[j][i] != 4)
         abort ();

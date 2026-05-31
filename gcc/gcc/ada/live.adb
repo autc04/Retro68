@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2000-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2000-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,14 +24,12 @@
 ------------------------------------------------------------------------------
 
 with Atree;          use Atree;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Lib;            use Lib;
 with Nlists;         use Nlists;
 with Sem_Aux;        use Sem_Aux;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Types;          use Types;
@@ -156,8 +154,8 @@ package body Live is
                Traverse (Spec_Of (N));
 
             when N_Package_Body_Stub =>
-               if Present (Library_Unit (N)) then
-                  Traverse (Proper_Body (Unit (Library_Unit (N))));
+               if Present (Subunit_Parent (N)) then
+                  Traverse (Proper_Body (Unit (Stub_Subunit (N))));
                end if;
 
             when N_Package_Body =>
@@ -252,8 +250,8 @@ package body Live is
                Traverse (Spec_Of (N));
 
             when N_Package_Body_Stub =>
-               if Present (Library_Unit (N)) then
-                  Traverse (Proper_Body (Unit (Library_Unit (N))));
+               if Present (Stub_Subunit (N)) then
+                  Traverse (Proper_Body (Unit (Stub_Subunit (N))));
                end if;
 
             when N_Package_Body =>
@@ -321,8 +319,8 @@ package body Live is
                end if;
 
             when N_Package_Body_Stub =>
-               if Present (Library_Unit (N)) then
-                  Traverse (Proper_Body (Unit (Library_Unit (N))));
+               if Present (Stub_Subunit (N)) then
+                  Traverse (Proper_Body (Unit (Stub_Subunit (N))));
                end if;
 
             when N_Expanded_Name
@@ -344,7 +342,7 @@ package body Live is
                end if;
 
             when N_Entity'Range =>
-               if (Ekind (N) = E_Component) and then not Marked (Marks, N) then
+               if Ekind (N) = E_Component and then not Marked (Marks, N) then
                   if Present (Discriminant_Checking_Func (N)) then
                      Process (Discriminant_Checking_Func (N));
                   end if;

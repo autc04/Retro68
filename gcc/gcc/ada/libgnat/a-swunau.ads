@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -72,5 +72,13 @@ package Ada.Strings.Wide_Unbounded.Aux is
    --  This version of Set_Wide_String takes a string access value, rather
    --  than string. The lower bound of the string value is required to be one,
    --  and this requirement is not checked.
+
+   procedure Set_Wide_String
+     (U      : out Unbounded_Wide_String;
+      Length : Positive;
+      Set    : not null access procedure (S : out Wide_String));
+   pragma Inline (Set_Wide_String);
+   --  Create an unbounded string U with the given Length, using Set to fill
+   --  the contents of U.
 
 end Ada.Strings.Wide_Unbounded.Aux;

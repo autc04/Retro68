@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2021, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2026, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -73,6 +73,14 @@ do {							 \
 #define TYPE_IS_FAT_POINTER_P(NODE) \
   (TREE_CODE (NODE) == RECORD_TYPE && TYPE_FAT_POINTER_P (NODE))
 
+/* For RECORD_TYPE, UNION_TYPE, and QUAL_UNION_TYPE, nonzero if this is a
+   record being used as an extended access (only true for RECORD_TYPE).  */
+#define TYPE_EXTENDED_POINTER_P(NODE) \
+  TYPE_LANG_FLAG_7 (RECORD_OR_UNION_CHECK (NODE))
+
+#define TYPE_IS_EXTENDED_POINTER_P(NODE) \
+  (TREE_CODE (NODE) == RECORD_TYPE && TYPE_EXTENDED_POINTER_P (NODE))
+
 /* For integral types and array types, nonzero if this is an implementation
    type for a bit-packed array type.  Such types should not be extended to a
    larger size or validated against a specified size.  */
@@ -96,11 +104,6 @@ do {							 \
 /* For ARRAY_TYPE, nonzero if this type corresponds to a dimension of
    an Ada array other than the first.  */
 #define TYPE_MULTI_ARRAY_P(NODE) TYPE_LANG_FLAG_1 (ARRAY_TYPE_CHECK (NODE))
-
-/* For FUNCTION_TYPE and METHOD_TYPE, nonzero if function returns an
-   unconstrained array or record type.  */
-#define TYPE_RETURN_UNCONSTRAINED_P(NODE) \
-  TYPE_LANG_FLAG_1 (FUNC_OR_METHOD_CHECK (NODE))
 
 /* For RECORD_TYPE, UNION_TYPE, and QUAL_UNION_TYPE, nonzero if this denotes
    a justified modular type (will only be true for RECORD_TYPE).  */
@@ -188,9 +191,6 @@ do {							 \
 
 /* True for a dummy type if TYPE appears in a profile.  */
 #define TYPE_DUMMY_IN_PROFILE_P(NODE) TYPE_LANG_FLAG_6 (NODE)
-
-/* True if objects of this type are guaranteed to be properly aligned.  */
-#define TYPE_ALIGN_OK(NODE) TYPE_LANG_FLAG_7 (NODE)
 
 /* True for types that implement a packed array and for original packed array
    types.  */
@@ -392,6 +392,25 @@ do {						   \
 #define SET_TYPE_SCALE_FACTOR(NODE, X) \
   SET_TYPE_LANG_SPECIFIC (INTEGER_TYPE_CHECK (NODE), X)
 
+/* For an UNCONSTRAINED_ARRAY_TYPE, this is the twin UNCONSTRAINED_ARRAY_TYPE
+   built for extended access types.  */
+#define TYPE_EXTENDED_UNCONSTRAINED_ARRAY(NODE) \
+  GET_TYPE_LANG_SPECIFIC (TREE_CHECK2 ((NODE), UNCONSTRAINED_ARRAY_TYPE, \
+				       ENUMERAL_TYPE))
+#define SET_TYPE_EXTENDED_UNCONSTRAINED_ARRAY(NODE, X) \
+  SET_TYPE_LANG_SPECIFIC (TREE_CHECK2 ((NODE), UNCONSTRAINED_ARRAY_TYPE, \
+				       ENUMERAL_TYPE), X)
+
+/* When the compiler only has a dummy type for an unconstrained array type, we
+   don't build a duplicate dummy only to store the record type for the extended
+   access. Instead, we store it in the original dummy type, using the same
+   lang_type field that will hold the tree for the duplicated array type built
+   later.  */
+#define TYPE_DUMMY_EXT_POINTER_TO(NODE) \
+  GET_TYPE_LANG_SPECIFIC (TREE_CHECK ((NODE), ENUMERAL_TYPE))
+#define SET_TYPE_DUMMY_EXT_POINTER_TO(NODE, X) \
+  SET_TYPE_LANG_SPECIFIC (TREE_CHECK ((NODE), ENUMERAL_TYPE), X)
+
 /* For types with TYPE_CAN_HAVE_DEBUG_TYPE_P, this is the type to use in
    debugging information.  */
 #define TYPE_DEBUG_TYPE(NODE) \
@@ -577,5 +596,6 @@ do {						   \
 
 /* Small kludge to be able to define Ada built-in functions locally.
    We overload them on top of the C++ coroutines builtin functions.  */
-#define BUILT_IN_LIKELY   BUILT_IN_CORO_PROMISE
-#define BUILT_IN_UNLIKELY BUILT_IN_CORO_RESUME
+#define BUILT_IN_LIKELY      BUILT_IN_CORO_PROMISE
+#define BUILT_IN_UNLIKELY    BUILT_IN_CORO_RESUME
+#define BUILT_IN_RETURN_SLOT BUILT_IN_CORO_DESTROY

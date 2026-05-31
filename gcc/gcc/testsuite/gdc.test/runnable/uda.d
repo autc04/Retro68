@@ -2,30 +2,30 @@
 EXTRA_FILES: imports/a9741.d
 TEST_OUTPUT:
 ---
-tuple(3, 4, 7, (SSS))
-tuple(3, 4, 7, (SSS))
+AliasSeq!(3, 4, 7, (SSS))
+AliasSeq!(3, 4, 7, (SSS))
 7
 SSS
-tuple("hello")
-tuple('c')
-tuple((FFF))
-tuple(10)
-tuple(20)
-tuple(30)
-tuple((Test6))
-tuple(Test7(3, "foo"))
-tuple((Test8!"foo"))
-tuple((Test9!"foo"))
-tuple(Test10(3))
-tuple(Test11(3))
-tuple(10)
-tuple(20)
-tuple()
-tuple(40)
+AliasSeq!("hello")
+AliasSeq!('c')
+AliasSeq!((FFF))
+AliasSeq!(10)
+AliasSeq!(20)
+AliasSeq!(30)
+AliasSeq!((Test6))
+AliasSeq!(Test7(3, "foo"))
+AliasSeq!((Test8!"foo"))
+AliasSeq!((Test9!"foo"))
+AliasSeq!(Test10(3))
+AliasSeq!(Test11(3))
+AliasSeq!(10)
+AliasSeq!(20)
+AliasSeq!()
+AliasSeq!(40)
 B9741
-tuple((A9741))
-tuple(1)
-tuple(2)
+AliasSeq!((A9741))
+AliasSeq!(1)
+AliasSeq!(2)
 ---
 
 RUN_OUTPUT:
@@ -697,6 +697,12 @@ static if(is(typeof(foo20831) Params20831 == __parameters))
 
 /************************************************/
 
+// https://github.com/dlang/dmd/issues/19788
+@10 void f(@20 int x)
+{
+    static assert([__traits(getAttributes, x)] == [20]);
+}
+
 /************************************************/
 // https://issues.dlang.org/show_bug.cgi?id=15804
 
@@ -744,6 +750,22 @@ template test15804()
 alias a15804 = test15804!();
 
 /************************************************/
+// https://github.com/dlang/dmd/issues/22282
+
+struct S22282
+{
+    int a,b;
+    this(string a, string b) { }
+    ~this() { }
+}
+
+void issue22282()
+{
+	enum var;
+	@var S22282 file = S22282("tmp", "w");
+}
+
+/************************************************/
 
 int main()
 {
@@ -767,6 +789,7 @@ int main()
     test18();
     test19();
     test20();
+    issue22282();
 
     printf("Success\n");
     return 0;

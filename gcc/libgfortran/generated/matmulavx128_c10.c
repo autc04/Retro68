@@ -1,5 +1,5 @@
 /* Implementation of the MATMUL intrinsic
-   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Thomas Koenig <tkoenig@gcc.gnu.org>.
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -49,7 +49,7 @@ matmul_c10_avx128_fma3 (gfc_array_c10 * const restrict retarray,
 	int blas_limit, blas_call gemm) __attribute__((__target__("avx,fma")));
 internal_proto(matmul_c10_avx128_fma3);
 void
-matmul_c10_avx128_fma3 (gfc_array_c10 * const restrict retarray, 
+matmul_c10_avx128_fma3 (gfc_array_c10 * const restrict retarray,
 	gfc_array_c10 * const restrict a, gfc_array_c10 * const restrict b, int try_blas,
 	int blas_limit, blas_call gemm)
 {
@@ -619,7 +619,7 @@ matmul_c10_avx128_fma4 (gfc_array_c10 * const restrict retarray,
 	int blas_limit, blas_call gemm) __attribute__((__target__("avx,fma4")));
 internal_proto(matmul_c10_avx128_fma4);
 void
-matmul_c10_avx128_fma4 (gfc_array_c10 * const restrict retarray, 
+matmul_c10_avx128_fma4 (gfc_array_c10 * const restrict retarray,
 	gfc_array_c10 * const restrict a, gfc_array_c10 * const restrict b, int try_blas,
 	int blas_limit, blas_call gemm)
 {

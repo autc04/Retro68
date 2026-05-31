@@ -1,5 +1,5 @@
 /* Definitions for Linux-based systems with libraries in ELF format.
-   Copyright (C) 2021-2022 Free Software Foundation, Inc.
+   Copyright (C) 2021-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,9 +21,17 @@ along with GCC; see the file COPYING3.  If not see
  * This ensures that a compiler configured with --disable-multilib
  * can work in a multilib environment.  */
 
-#if defined(LA_DISABLE_MULTILIB) && defined(LA_DISABLE_MULTIARCH)
+#if !defined(LA_DEFAULT_TARGET_MUSL) \
+  && defined(LA_DISABLE_MULTILIB) \
+  && defined(LA_DISABLE_MULTIARCH)
 
-  #if DEFAULT_ABI_BASE == ABI_BASE_LP64D
+  #if DEFAULT_ABI_BASE == ABI_BASE_ILP32D
+    #define ABI_LIBDIR "lib32"
+  #elif DEFAULT_ABI_BASE == ABI_BASE_ILP32F
+    #define ABI_LIBDIR "lib32/f32"
+  #elif DEFAULT_ABI_BASE == ABI_BASE_ILP32S
+    #define ABI_LIBDIR "lib32/sf"
+  #elif DEFAULT_ABI_BASE == ABI_BASE_LP64D
     #define ABI_LIBDIR "lib64"
   #elif DEFAULT_ABI_BASE == ABI_BASE_LP64F
     #define ABI_LIBDIR "lib64/f32"
@@ -48,3 +56,10 @@ along with GCC; see the file COPYING3.  If not see
 #define STACK_CHECK_PROTECT (TARGET_64BIT ? 16 * 1024 : 12 * 1024)
 
 #define TARGET_ASM_FILE_END file_end_indicate_exec_stack
+
+/* The stack pointer needs to be moved while checking the stack.  */
+#define STACK_CHECK_MOVING_SP 1
+
+/* Depend on glibc because the libatomic ifunc resolver needs glibc
+   ifunc resolver interface.  */
+#define HAVE_IFUNC_FOR_LIBATOMIC_16B (HAVE_AS_16B_ATOMIC && OPTION_GLIBC)

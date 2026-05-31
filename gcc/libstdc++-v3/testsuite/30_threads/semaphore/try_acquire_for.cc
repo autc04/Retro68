@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,9 +15,8 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a -pthread" }
-// { dg-do run { target c++2a } }
-// { dg-require-effective-target pthread }
+// { dg-do run { target c++20 } }
+// { dg-additional-options "-pthread" { target pthread } }
 // { dg-require-gthreads "" }
 // { dg-add-options libatomic }
 
@@ -25,6 +24,7 @@
 #include <chrono>
 #include <thread>
 #include <atomic>
+#include <initializer_list>
 #include <testsuite_hooks.h>
 
 void test01()
@@ -79,8 +79,42 @@ void test02()
   b.wait(1);
 }
 
+void
+test03()
+{
+  using tick = std::chrono::system_clock::duration::period;
+  using halftick = std::ratio<tick::num, 2 * tick::den>;
+  std::chrono::duration<long long, halftick> timeout(1);
+  std::binary_semaphore s(1);
+
+  // Using higher resolution than chrono::system_clock should compile:
+  s.try_acquire_for(timeout);
+}
+
+// Prove semaphore doesn't suffer from PR116586
+template <typename Clock>
+void
+test_relative(std::chrono::nanoseconds offset)
+{
+  std::binary_semaphore sem(1);
+  VERIFY(sem.try_acquire_for(offset));
+  VERIFY(!sem.try_acquire_for(offset));
+}
+
 int main()
 {
   test01();
   test02();
+  test03();
+  using namespace std::chrono;
+  for (const nanoseconds offset : {
+      nanoseconds{0},
+      nanoseconds{-10ms},
+      nanoseconds{-10s}
+    }) {
+    test_relative<std::chrono::system_clock>(offset);
+    test_relative<std::chrono::system_clock>(offset - std::chrono::system_clock::now().time_since_epoch());
+    test_relative<std::chrono::steady_clock>(offset);
+    test_relative<std::chrono::steady_clock>(offset - std::chrono::steady_clock::now().time_since_epoch());
+  }
 }

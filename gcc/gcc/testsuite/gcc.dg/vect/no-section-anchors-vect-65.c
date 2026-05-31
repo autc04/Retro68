@@ -1,5 +1,6 @@
 /* { dg-require-effective-target vect_int } */
 /* { dg-add-options bind_pic_locally } */
+/* { dg-additional-options "-fno-section-anchors" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -44,6 +45,7 @@ int main1 ()
   /* check results: */  
   for (i = 0; i < M; i++)
     {
+#pragma GCC novector
       for (j = 0; j < N; j++)
         {
            if (ia[i][1][j] != ib[2][i][j])
@@ -64,6 +66,7 @@ int main1 ()
   /* check results: */
   for (i = 0; i < M; i++)
     {
+#pragma GCC novector
       for (j = 0; j < N; j++)
         {
            if (ic[j] != ib[2][i][j])

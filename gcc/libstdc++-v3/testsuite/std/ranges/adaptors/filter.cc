@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,15 +15,20 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
+
+#include <ranges>
+
+#if __cpp_lib_ranges_filter != 202603L
+# error "Feature-test macro for ranges_filter has wrong value in <ranges>."
+#endif
 
 #include <algorithm>
-#include <ranges>
 #include <testsuite_hooks.h>
 #include <testsuite_iterators.h>
 
 using __gnu_test::test_range;
+using __gnu_test::input_iterator_wrapper;
 using __gnu_test::bidirectional_iterator_wrapper;
 using __gnu_test::forward_iterator_wrapper;
 using __gnu_test::random_access_iterator_wrapper;
@@ -167,6 +172,35 @@ test07()
 
 static_assert( test07() );
 
+void
+test08()
+{
+  // P3725R3 Filter View Extensions for Safer Use
+  int x[] = {1,2,3,4,5,6};
+  __gnu_test::test_range<int, input_iterator_wrapper> rx(x);
+  auto v = rx | views::filter([](int i) { return (i % 2) == 0; });
+  using R = decltype(v);
+  static_assert( ranges::input_range<R> && !ranges::forward_range<R> );
+  static_assert( ranges::input_range<const R> && !ranges::forward_range<const R> );
+  const auto& cv = v;
+  auto it = v.begin();
+  decltype(cv.begin()) cit = it;
+  auto sent = v.end();
+  decltype(cv.end()) csent = sent;
+  VERIFY( cit == cit && it == cit && cit == it );
+  VERIFY( cit != csent && it != csent && cit != sent );
+  VERIFY( ranges::equal(cv, (int[]){2,4,6}) );
+
+  [](auto&& rx) {
+    // filter_view of forward+ range is still not const-iterable.
+    static_assert( ranges::forward_range<decltype(rx)> );
+    auto v = rx | views::filter([](int) { return true; });
+    using R = decltype(v);
+    static_assert( ranges::forward_range<R> );
+    static_assert( ! ranges::range<const R> );
+  }(__gnu_test::test_range<int, forward_iterator_wrapper>(x));
+}
+
 int
 main()
 {
@@ -178,4 +212,5 @@ main()
   test05<random_access_iterator_wrapper>();
   test06();
   test07();
+  test08();
 }

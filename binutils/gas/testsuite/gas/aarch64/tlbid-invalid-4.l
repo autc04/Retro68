@@ -1,0 +1,13 @@
+.*: Assembler messages:
+.*: Error: selected processor does not support system register name 'vmalle1os'
+.*: Error: selected processor does not support system register name 'vmalle1osnxs'
+.*: Error: selected processor does not support system register name 'vmalle1is'
+.*: Error: selected processor does not support system register name 'vmalle1isnxs'
+.*: Error: selected processor does not support system register name 'alle2os'
+.*: Error: selected processor does not support system register name 'alle2osnxs'
+.*: Error: selected processor does not support system register name 'alle1os'
+.*: Error: selected processor does not support system register name 'alle1osnxs'
+.*: Error: selected processor does not support system register name 'alle2is'
+.*: Error: selected processor does not support system register name 'alle2isnxs'
+.*: Error: selected processor does not support system register name 'alle1is'
+.*: Error: selected processor does not support system register name 'alle1isnxs'

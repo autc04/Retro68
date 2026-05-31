@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1998-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1998-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,6 +36,7 @@ with GNAT.OS_Lib;                use GNAT.OS_Lib;
 with GNAT.Heap_Sort_G;
 with GNAT.Table;
 
+with Osint;
 with Switch;                     use Switch;
 with Types;
 
@@ -44,11 +45,8 @@ procedure Gnatchop is
    Config_File_Name : constant String_Access := new String'("gnat.adc");
    --  The name of the file holding the GNAT configuration pragmas
 
-   Gcc : String_Access := new String'("gcc");
+   Gcc : String_Access := null;
    --  May be modified by switch --GCC=
-
-   Gcc_Set : Boolean := False;
-   --  True if a switch --GCC= is used
 
    Gnat_Cmd : String_Access;
    --  Command to execute the GNAT compiler
@@ -140,7 +138,7 @@ procedure Gnatchop is
       --  Line number from GNAT output line
 
       Offset : File_Offset;
-      --  Offset name from GNAT output line
+      --  Offset from GNAT output line
 
       SR_Present : Boolean;
       --  Set True if SR parameter present
@@ -221,12 +219,6 @@ procedure Gnatchop is
    Maximum_File_Name_Length_String : constant String :=
                                        Integer'Image
                                          (Maximum_File_Name_Length);
-
-   function Locate_Executable
-     (Program_Name    : String;
-      Look_For_Prefix : Boolean := True) return String_Access;
-   --  Locate executable for given program name. This takes into account
-   --  the target-prefix of the current command, if Look_For_Prefix is True.
 
    subtype EOL_Length is Natural range 0 .. 2;
    --  Possible lengths of end of line sequence
@@ -492,76 +484,6 @@ procedure Gnatchop is
           Unit.Table (Sorted_Units.Table (U + 1)).File_Name.all;
    end Is_Duplicated;
 
-   -----------------------
-   -- Locate_Executable --
-   -----------------------
-
-   function Locate_Executable
-     (Program_Name    : String;
-      Look_For_Prefix : Boolean := True) return String_Access
-   is
-      Gnatchop_Str    : constant String := "gnatchop";
-      Current_Command : constant String := Normalize_Pathname (Command_Name);
-      End_Of_Prefix   : Natural;
-      Start_Of_Prefix : Positive;
-      Start_Of_Suffix : Positive;
-      Result          : String_Access;
-
-   begin
-      Start_Of_Prefix := Current_Command'First;
-      Start_Of_Suffix := Current_Command'Last + 1;
-      End_Of_Prefix   := Start_Of_Prefix - 1;
-
-      if Look_For_Prefix then
-
-         --  Find Start_Of_Prefix
-
-         for J in reverse Current_Command'Range loop
-            if Current_Command (J) = '/'                 or else
-               Current_Command (J) = Directory_Separator or else
-               Current_Command (J) = ':'
-            then
-               Start_Of_Prefix := J + 1;
-               exit;
-            end if;
-         end loop;
-
-         --  Find End_Of_Prefix
-
-         for J in Start_Of_Prefix ..
-                  Current_Command'Last - Gnatchop_Str'Length + 1
-         loop
-            if Current_Command (J .. J + Gnatchop_Str'Length - 1) =
-                                                                  Gnatchop_Str
-            then
-               End_Of_Prefix := J - 1;
-               exit;
-            end if;
-         end loop;
-      end if;
-
-      if End_Of_Prefix > Current_Command'First then
-         Start_Of_Suffix := End_Of_Prefix + Gnatchop_Str'Length + 1;
-      end if;
-
-      declare
-         Command : constant String :=
-                     Current_Command (Start_Of_Prefix .. End_Of_Prefix)
-                       & Program_Name
-                       & Current_Command (Start_Of_Suffix ..
-                                          Current_Command'Last);
-      begin
-         Result := Locate_Exec_On_Path (Command);
-
-         if Result = null then
-            Error_Msg
-              (Command & ": installation problem, executable not found");
-         end if;
-      end;
-
-      return Result;
-   end Locate_Executable;
-
    ---------------
    -- Parse_EOL --
    ---------------
@@ -721,7 +643,7 @@ procedure Gnatchop is
       begin
          Parse_Token (Source, Parse_Ptr, Token_Ptr);
 
-         if Source'Last  + 1 - Token_Ptr < Literal'Length
+         if Source'Last + 1 - Token_Ptr < Literal'Length
            or else
              Source (Token_Ptr .. Token_Ptr + Literal'Length - 1) /= Literal
          then
@@ -984,7 +906,6 @@ procedure Gnatchop is
       Read_Ptr    : File_Offset := 1;
 
    begin
-
       loop
          This_Read := Read (FD,
            A => Buffer (Read_Ptr)'Address,
@@ -1089,8 +1010,8 @@ procedure Gnatchop is
                exit;
 
             when '-' =>
-               Gcc     := new String'(Parameter);
-               Gcc_Set := True;
+               Free (Gcc);
+               Gcc := new String'(Parameter);
 
             when 'c' =>
                Compilation_Mode := True;
@@ -1398,8 +1319,7 @@ procedure Gnatchop is
       Success : Boolean;
       TS_Time : OS_Time;
 
-      BOM_Present : Boolean;
-      BOM         : BOM_Kind;
+      BOM : BOM_Kind;
       --  Record presence of UTF8 BOM in input
 
    begin
@@ -1426,7 +1346,6 @@ procedure Gnatchop is
       --  Test for presence of BOM
 
       Read_BOM (Buffer.all, BOM_Length, BOM, XML_Support => False);
-      BOM_Present := BOM /= Unknown;
 
       --  Only chop those units that come from this file
 
@@ -1436,7 +1355,7 @@ procedure Gnatchop is
               (Source    => Buffer,
                Num       => Unit_Number,
                TS_Time   => TS_Time,
-               Write_BOM => BOM_Present and then Unit_Number /= 1,
+               Write_BOM => BOM /= Unknown,
                Success   => Success);
             exit when not Success;
          end if;
@@ -1687,6 +1606,13 @@ procedure Gnatchop is
             String'Write
               (Stream_IO.Stream (File),
                Source.all (Source'First .. Source'First + BOM_Length - 1));
+
+            --  The BOM is part of the first unit so do not write it twice
+
+            if Num = 1 then
+               Info.Offset := Info.Offset + BOM_Length;
+               Length := Length - BOM_Length;
+            end if;
          end if;
 
          --  Prepend configuration pragmas if necessary
@@ -1724,7 +1650,7 @@ procedure Gnatchop is
       end;
    end Write_Unit;
 
-      procedure Check_Version_And_Help is new Check_Version_And_Help_G (Usage);
+   procedure Check_Version_And_Help is new Check_Version_And_Help_G (Usage);
 
 --  Start of processing for gnatchop
 
@@ -1768,9 +1694,13 @@ begin
 
    --  Check presence of required executables
 
-   Gnat_Cmd := Locate_Executable (Gcc.all, not Gcc_Set);
+   if Gcc = null then
+      Gcc := Osint.Program_Name ("gcc", "gnatchop");
+   end if;
+   Gnat_Cmd := Locate_Exec_On_Path (Gcc.all);
 
    if Gnat_Cmd = null then
+      Error_Msg (Gcc.all & ": installation problem, executable not found");
       goto No_Files_Written;
    end if;
 

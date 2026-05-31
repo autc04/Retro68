@@ -7,9 +7,8 @@
 
 import core.stdc.stdio;
 
-version (CppRuntime_Clang)       version = CppMangle_Itanium;
-version (CppRuntime_DigitalMars) version = CppMangle_MSVC;
-version (CppRuntime_Gcc)         version = CppMangle_Itanium;
+version (CppRuntime_LLVM)        version = CppMangle_Itanium;
+version (CppRuntime_GNU)         version = CppMangle_Itanium;
 version (CppRuntime_Microsoft)   version = CppMangle_MSVC;
 version (CppRuntime_Sun)         version = CppMangle_Itanium;
 
@@ -528,7 +527,6 @@ version (CppMangle_Itanium)
     static assert(basic_ostream!(char, char_traits!char).food.mangleof == "_ZNSo4foodEv");
     static assert(basic_iostream!(char, char_traits!char).fooe.mangleof == "_ZNSd4fooeEv");
 
-    static assert(func_18957_2.mangleof == `_Z12func_18957_2PSaIiE`);
     static assert(func_18957_2!(allocator!int).mangleof == `_Z12func_18957_2ISaIiEET_PS1_`);
 
     static assert(func_20413.mangleof == `_Z10func_20413St4pairIifES_IfiE`);
@@ -668,6 +666,8 @@ extern (C++) class C18890_2
     Agg s;
 }
 
+void test18890()
+{
 version (CppMangle_Itanium)
 {
     static assert(C18890.__dtor.mangleof == "_ZN6C18890D1Ev");
@@ -692,6 +692,7 @@ version (CppMangle_MSVC)
         static assert(C18890_2.__xdtor.mangleof == "??_GC18890_2@@UEAAPEAXI@Z");
     }
 }
+}
 
 /**************************************/
 // https://issues.dlang.org/show_bug.cgi?id=18891
@@ -706,6 +707,8 @@ extern (C++) class C18891
     Agg s;
 }
 
+void test18891()
+{
 version (CppMangle_Itanium)
 {
     static assert(C18891.__dtor.mangleof == "_ZN6C18891D1Ev");
@@ -723,6 +726,7 @@ version (CppMangle_MSVC)
         static assert(C18891.__dtor.mangleof == "??1C18891@@UEAA@XZ");
         static assert(C18891.__xdtor.mangleof == "??_GC18891@@UEAAPEAXI@Z");
     }
+}
 }
 
 /**************************************/
@@ -1327,3 +1331,8 @@ extern (C++)
             static assert(funccpp.mangleof == "?funccpp@@YAHP6AXXZ@Z");
     }
 }
+
+/*****************************************/
+
+extern(C++) enum _LIBNAME = "library";
+extern(C++) enum _DEBUG = _LIBNAME.length && 'd' == _LIBNAME[$-1];

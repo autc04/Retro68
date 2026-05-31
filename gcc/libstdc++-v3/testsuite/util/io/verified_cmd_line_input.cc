@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005-2022 Free Software Foundation, Inc.
+// Copyright (C) 2005-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -38,7 +38,7 @@
 #include <limits.h>
 #include <utility>
 #include <stdlib.h>
-#include <bits/functexcept.h>
+#include <bits/exception_defines.h>
 
 namespace __gnu_pbds
 {

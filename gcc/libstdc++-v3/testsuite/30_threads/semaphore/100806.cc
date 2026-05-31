@@ -1,6 +1,5 @@
-// { dg-options "-std=gnu++2a -pthread" }
-// { dg-do run { target c++2a } }
-// { dg-require-effective-target pthread }
+// { dg-do run { target c++20 } }
+// { dg-additional-options "-pthread" { target pthread } }
 // { dg-require-gthreads "" }
 // { dg-add-options libatomic }
 
@@ -13,7 +12,7 @@
 #include <chrono>
 #include <vector>
 
-std::counting_semaphore<4> semaphore{6};
+std::counting_semaphore<6> semaphore{6};
 
 std::mutex mtx;
 std::vector<std::string> results;

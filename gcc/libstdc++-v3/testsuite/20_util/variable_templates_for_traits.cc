@@ -1,7 +1,8 @@
-// { dg-additional-options "-Wno-deprecated" { target c++2a } }
+// { dg-additional-options "-Wno-deprecated-declarations" { target c++20 } }
 // { dg-do compile { target c++17 } }
+// { dg-additional-options "-freflection" { target c++26 } }
 
-// Copyright (C) 2014-2022 Free Software Foundation, Inc.
+// Copyright (C) 2014-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -129,8 +130,12 @@ private:
   int i2;
 };
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+// Deprecated in C++26
 static_assert(is_trivial_v<int> && is_trivial<int>::value, "");
 static_assert(!is_trivial_v<NType> && !is_trivial<NType>::value, "");
+#pragma GCC diagnostic pop
 
 static_assert(is_trivially_copyable_v<int>
 	      && is_trivially_copyable<int>::value, "");
@@ -326,6 +331,17 @@ static_assert(is_convertible_v<int&, const int&>
 static_assert(!is_convertible_v<const int&, int&>
 	      && !is_convertible<const int&, int&>::value, "");
 
+#if __cpp_impl_reflection >= 202506L
+static_assert(is_reflection_v<decltype(^^int)>
+	      && is_reflection<decltype(^^int)>::value, "");
+static_assert(!is_reflection_v<int> && !is_reflection<int>::value, "");
+#endif
+
+#if __cpp_lib_is_structural >= 202603L
+static_assert(is_structural_v<int> && is_structural<int>::value, "");
+static_assert(!is_structural_v<int &&> && !is_structural<int &&>::value, "");
+#endif
+
 static_assert(negation_v<false_type>, "");
 static_assert(!negation_v<true_type>, "");
 static_assert(conjunction_v<>, "");
@@ -346,3 +362,17 @@ static_assert(disjunction_v<false_type, false_type,
               true_type>, "");
 static_assert(!disjunction_v<false_type, false_type,
               false_type>, "");
+#if __cpp_lib_reference_from_temporary >= 202202L
+static_assert(std::reference_converts_from_temporary_v<int&&, int>
+	      && std::reference_converts_from_temporary_v<const int&, int>
+	      && !std::reference_converts_from_temporary_v<int&&, int&&>
+	      && !std::reference_converts_from_temporary_v<const int&, int&&>
+	      && std::reference_converts_from_temporary_v<int&&, long&&>
+	      && std::reference_converts_from_temporary_v<int&&, long>, "");
+static_assert(std::reference_constructs_from_temporary_v<int&&, int>
+	      && std::reference_constructs_from_temporary_v<const int&, int>
+	      && !std::reference_constructs_from_temporary_v<int&&, int&&>
+	      && !std::reference_constructs_from_temporary_v<const int&, int&&>
+	      && std::reference_constructs_from_temporary_v<int&&, long&&>
+	      && std::reference_constructs_from_temporary_v<int&&, long>, "");
+#endif

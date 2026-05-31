@@ -1,7 +1,6 @@
 # Check AVX GFNI instructions
 
-.allow_index_reg
-.text
+	.text
 _start:
 	vgf2p8mulb %ymm4, %ymm5, %ymm6
 	vgf2p8mulb -123456(%rax,%r14,8), %ymm5, %ymm6
@@ -27,7 +26,7 @@ _start:
 	vgf2p8affineinvqb $123, -123456(%rax,%r14,8), %xmm5, %xmm6
 	vgf2p8affineinvqb $123, 126(%rdx), %xmm5, %xmm6
 
-.intel_syntax noprefix
+	.intel_syntax noprefix
 
 	vgf2p8mulb ymm6, ymm5, ymm4
 	vgf2p8mulb ymm6, ymm5, YMMWORD PTR [rax+r14*8-123456]

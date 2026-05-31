@@ -22,7 +22,6 @@ version (DragonFlyBSD) version = LinuxOrCompatible;
 
 version (LinuxOrCompatible):
 extern (C):
-@system:
 nothrow:
 @nogc:
 
@@ -55,7 +54,7 @@ struct inotify_event
 
 enum: uint
 {
-    IN_ACCESS        = 0x00000000,
+    IN_ACCESS        = 0x00000001,
     IN_MODIFY        = 0x00000002,
     IN_ATTRIB        = 0x00000004,
     IN_CLOSE_WRITE   = 0x00000008,
@@ -120,6 +119,11 @@ else version (SPARC_Any)
     enum IN_NONBLOCK = 0x800; // octal!4000
 }
 else version (IBMZ_Any)
+{
+    enum IN_CLOEXEC = 0x80000; // octal!2000000
+    enum IN_NONBLOCK = 0x800; // octal!4000
+}
+else version (LoongArch64)
 {
     enum IN_CLOEXEC = 0x80000; // octal!2000000
     enum IN_NONBLOCK = 0x800; // octal!4000

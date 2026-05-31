@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -134,40 +134,30 @@ package body Fname is
       Renamings_Included : Boolean := True) return Boolean
    is
    begin
-      --  Definitely false if longer than 12 characters (8.3), except for the
-      --  Interfaces packages and also the implementation units of the 128-bit
-      --  types under System.
-
-      if Fname'Length > 12
-        and then Fname (Fname'First .. Fname'First + 1) /= "i-"
-        and then Fname (Fname'First .. Fname'First + 1) /= "s-"
-      then
-         return False;
-      end if;
-
       if not Has_Internal_Extension (Fname) then
          return False;
       end if;
 
       --  Definitely predefined if prefix is a- i- or s-
 
-      if Fname'Length >= 2 then
-         declare
-            S : String renames Fname (Fname'First .. Fname'First + 1);
-         begin
-            if S = "a-" or else S = "i-" or else S = "s-" then
-               return True;
-            end if;
-         end;
-      end if;
+      pragma Assert (Fname'Length >= 2);
+      declare
+         S : String renames Fname (Fname'First .. Fname'First + 1);
+      begin
+         if S = "a-" or else S = "i-" or else S = "s-" then
+            return True;
+         end if;
+      end;
 
       --  We include the "." in the prefixes below, so we don't match (e.g.)
       --  adamant.ads. So the first line matches "ada.ads", "ada.adb", and
       --  "ada.ali". But that's not necessary if they have 8 characters.
 
       if Has_Prefix (Fname, "ada.")             --  Ada
-        or else Has_Prefix (Fname, "interfac")  --  Interfaces
+        or else Fname = "interfac.ads"
+        or else Has_Prefix (Fname, "interfac__")
         or else Has_Prefix (Fname, "system.a")  --  System
+        or else Has_Prefix (Fname, "system-")   --  System with platform suffix
       then
          return True;
       end if;

@@ -1,5 +1,5 @@
 /* Demangler for the Rust programming language
-   Copyright (C) 2016-2022 Free Software Foundation, Inc.
+   Copyright (C) 2016-2026 Free Software Foundation, Inc.
    Written by David Tolnay (dtolnay@gmail.com).
    Rewritten by Eduard-Mihai Burtescu (eddyb@lyken.rs) for v0 support.
 
@@ -126,7 +126,7 @@ parse_integer_62 (struct rust_demangler *rdm)
     return 0;
 
   x = 0;
-  while (!eat (rdm, '_'))
+  while (!eat (rdm, '_') && !rdm->errored)
     {
       c = next (rdm);
       x *= 62;
@@ -651,10 +651,17 @@ demangle_binder (struct rust_demangler *rdm)
     return;
 
   bound_lifetimes = parse_opt_integer_62 (rdm, 'G');
+  /* Reject implausibly large lifetime counts to prevent
+     resource exhaustion from crafted symbols (PR demangler/106641).  */
+  if (bound_lifetimes > 1024)
+    {
+      rdm->errored = 1;
+      return;
+    }
   if (bound_lifetimes > 0)
     {
       PRINT ("for<");
-      for (i = 0; i < bound_lifetimes; i++)
+      for (i = 0; i < bound_lifetimes && !rdm->errored; i++)
         {
           if (i > 0)
             PRINT (", ");
@@ -1082,6 +1089,18 @@ demangle_path_maybe_open_generics (struct rust_demangler *rdm)
   if (rdm->errored)
     return open;
 
+  if (rdm->recursion != RUST_NO_RECURSION_LIMIT)
+    {
+      ++ rdm->recursion;
+      if (rdm->recursion > RUST_MAX_RECURSION_COUNT)
+	{
+	  /* FIXME: There ought to be a way to report
+	     that the recursion limit has been reached.  */
+	  rdm->errored = 1;
+	  goto end_of_func;
+	}
+    }
+
   if (eat (rdm, 'B'))
     {
       backref = parse_integer_62 (rdm);
@@ -1107,6 +1126,11 @@ demangle_path_maybe_open_generics (struct rust_demangler *rdm)
     }
   else
     demangle_path (rdm, 0);
+
+ end_of_func:
+  if (rdm->recursion != RUST_NO_RECURSION_LIMIT)
+    -- rdm->recursion;
+
   return open;
 }
 
@@ -1148,6 +1172,15 @@ demangle_const (struct rust_demangler *rdm)
   if (rdm->errored)
     return;
 
+  if (rdm->recursion != RUST_NO_RECURSION_LIMIT)
+    {
+      ++ rdm->recursion;
+      if (rdm->recursion > RUST_MAX_RECURSION_COUNT)
+	/* FIXME: There ought to be a way to report
+	   that the recursion limit has been reached.  */
+	goto fail_return;
+    }
+
   if (eat (rdm, 'B'))
     {
       backref = parse_integer_62 (rdm);
@@ -1158,7 +1191,7 @@ demangle_const (struct rust_demangler *rdm)
           demangle_const (rdm);
           rdm->next = old_next;
         }
-      return;
+      goto pass_return;
     }
 
   ty_tag = next (rdm);
@@ -1167,7 +1200,7 @@ demangle_const (struct rust_demangler *rdm)
     /* Placeholder. */
     case 'p':
       PRINT ("_");
-      return;
+      goto pass_return;
 
     /* Unsigned integer types. */
     case 'h':
@@ -1200,18 +1233,21 @@ demangle_const (struct rust_demangler *rdm)
       break;
 
     default:
-      rdm->errored = 1;
-      return;
+      goto fail_return;
     }
 
-  if (rdm->errored)
-    return;
-
-  if (rdm->verbose)
+  if (!rdm->errored && rdm->verbose)
     {
       PRINT (": ");
       PRINT (basic_type (ty_tag));
     }
+  goto pass_return;
+
+ fail_return:
+  rdm->errored = 1;
+ pass_return:
+  if (rdm->recursion != RUST_NO_RECURSION_LIMIT)
+    -- rdm->recursion;
 }
 
 static void

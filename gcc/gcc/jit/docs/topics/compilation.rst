@@ -1,4 +1,4 @@
-.. Copyright (C) 2014-2022 Free Software Foundation, Inc.
+.. Copyright (C) 2014-2026 Free Software Foundation, Inc.
    Originally contributed by David Malcolm <dmalcolm@redhat.com>
 
    This is free software: you can redistribute it and/or modify it
@@ -20,7 +20,7 @@
 Compiling a context
 ===================
 
-Once populated, a :c:type:`gcc_jit_context *` can be compiled to
+Once populated, a :c:expr:`gcc_jit_context *` can be compiled to
 machine code, either in-memory via :c:func:`gcc_jit_context_compile` or
 to disk via :c:func:`gcc_jit_context_compile_to_file`.
 
@@ -80,7 +80,7 @@ In-memory compilation
 
    Note that the resulting machine code becomes invalid after
    :func:`gcc_jit_result_release` is called on the
-   :type:`gcc_jit_result *`; attempting to call it after that may lead
+   :expr:`gcc_jit_result *`; attempting to call it after that may lead
    to a segmentation fault.
 
 .. function:: void *\
@@ -98,8 +98,8 @@ In-memory compilation
    If the global is found, the result will need to be cast to a
    pointer of the correct type before it can be called.
 
-   This is a *pointer* to the global, so e.g. for an :c:type:`int` this is
-   an :c:type:`int *`.
+   This is a *pointer* to the global, so e.g. for an :expr:`int` this is
+   an :expr:`int *`.
 
    For example, given an ``int foo;`` created this way:
 
@@ -125,7 +125,7 @@ In-memory compilation
 
    Note that the resulting address becomes invalid after
    :func:`gcc_jit_result_release` is called on the
-   :type:`gcc_jit_result *`; attempting to use it after that may lead
+   :expr:`gcc_jit_result *`; attempting to use it after that may lead
    to a segmentation fault.
 
 .. function:: void\
@@ -153,30 +153,36 @@ For linking in object files, use :c:func:`gcc_jit_context_add_driver_option`.
                                                enum gcc_jit_output_kind output_kind,\
                                                const char *output_path)
 
-   Compile the :c:type:`gcc_jit_context *` to a file of the given
+   Compile the :c:expr:`gcc_jit_context *` to a file of the given
    kind.
 
 :c:func:`gcc_jit_context_compile_to_file` ignores the suffix of
 ``output_path``, and insteads uses the given
-:c:type:`enum gcc_jit_output_kind` to decide what to do.
+:c:enum:`gcc_jit_output_kind` to decide what to do.
 
 .. note::
 
    This is different from the ``gcc`` program, which does make use of the
    suffix of the output file when determining what to do.
 
-.. type:: enum gcc_jit_output_kind
+.. enum:: gcc_jit_output_kind
 
 The available kinds of output are:
 
-==============================================  ==============
-Output kind                                     Typical suffix
-==============================================  ==============
-:c:macro:`GCC_JIT_OUTPUT_KIND_ASSEMBLER`        .s
-:c:macro:`GCC_JIT_OUTPUT_KIND_OBJECT_FILE`      .o
-:c:macro:`GCC_JIT_OUTPUT_KIND_DYNAMIC_LIBRARY`  .so or .dll
-:c:macro:`GCC_JIT_OUTPUT_KIND_EXECUTABLE`       None, or .exe
-==============================================  ==============
+.. list-table::
+   :header-rows: 1
+
+   * - Output kind
+     - Typical suffix
+
+   * - :c:macro:`GCC_JIT_OUTPUT_KIND_ASSEMBLER`
+     - .s
+   * - :c:macro:`GCC_JIT_OUTPUT_KIND_OBJECT_FILE`
+     - .o
+   * - :c:macro:`GCC_JIT_OUTPUT_KIND_DYNAMIC_LIBRARY`
+     - .so or .dll
+   * - :c:macro:`GCC_JIT_OUTPUT_KIND_EXECUTABLE`
+     - None, or .exe
 
 .. c:macro:: GCC_JIT_OUTPUT_KIND_ASSEMBLER
 
@@ -193,3 +199,59 @@ Output kind                                     Typical suffix
 .. c:macro:: GCC_JIT_OUTPUT_KIND_EXECUTABLE
 
    Compile the context to an executable.
+
+Getting information about a target
+**********************************
+
+You can query the target information by using the following API:
+
+.. function:: gcc_jit_target_info * \
+              gcc_jit_context_get_target_info (gcc_jit_context *ctxt)
+
+   Compute the information about a target.
+
+   If the result is non-NULL, the caller becomes responsible for
+   calling :func:`gcc_jit_target_info_release` on it once they're done
+   with it.
+
+.. function:: void \
+              gcc_jit_target_info_release (gcc_jit_target_info *info)
+
+   This function releases all resources associated with the given target info.
+
+.. function:: int \
+              gcc_jit_target_info_cpu_supports (gcc_jit_target_info *info,
+                                                const char *feature)
+
+   Check if the specified target INFO supports the cpu FEATURE.
+
+.. function:: const char * \
+              gcc_jit_target_info_arch (gcc_jit_target_info *info)
+
+   Get the architecture of the currently running CPU, e.g. the value of -march
+   equivalent to -march=native. Ex.: znver3
+
+   The underlying buffer is only valid until the gcc_jit_target_info is
+   released.
+
+.. function:: int \
+              gcc_jit_target_info_supports_target_dependent_type (gcc_jit_target_info *info,
+                                                                  enum gcc_jit_types type)
+
+   Check if the specified target INFO supports target-dependent types like
+   128-bit integers.
+
+   The API entrypoints relating to the target info:
+
+      * :c:func:`gcc_jit_context_get_target_info`
+      * :c:func:`gcc_jit_target_info_release`
+      * :c:func:`gcc_jit_target_info_cpu_supports`
+      * :c:func:`gcc_jit_target_info_arch`
+      * :c:func:`gcc_jit_target_info_supports_target_dependent_type`
+
+   were added in :ref:`LIBGCCJIT_ABI_35`; you can test for their presence
+   using
+
+   .. code-block:: c
+
+      #ifdef LIBGCCJIT_HAVE_TARGET_INFO_API

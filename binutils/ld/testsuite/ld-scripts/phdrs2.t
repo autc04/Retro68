@@ -19,5 +19,5 @@ SECTIONS
 	LONG(EMPTY_START) ;
 	 } : Bar
 	
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

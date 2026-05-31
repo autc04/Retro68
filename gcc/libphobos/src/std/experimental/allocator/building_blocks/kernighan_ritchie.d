@@ -111,11 +111,13 @@ struct KRRegion(ParentAllocator = NullAllocator)
 
         this(this) @disable;
 
+        nothrow @nogc @trusted
         void[] payload() inout
         {
             return (cast(ubyte*) &this)[0 .. size];
         }
 
+        nothrow @nogc @trusted
         bool adjacent(in Node* right) const
         {
             assert(right);
@@ -123,6 +125,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
             return p.ptr < right && right < p.ptr + p.length + Node.sizeof;
         }
 
+        nothrow @nogc @trusted
         bool coalesce(void* memoryEnd = null)
         {
             // Coalesce the last node before the memory end with any possible gap
@@ -139,6 +142,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
             return true;
         }
 
+        nothrow @nogc @safe
         Tuple!(void[], Node*) allocateHere(size_t bytes)
         {
             assert(bytes >= Node.sizeof);
@@ -152,7 +156,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
             if (leftover >= Node.sizeof)
             {
                 // There's room for another node
-                auto newNode = cast(Node*) ((cast(ubyte*) &this) + bytes);
+                auto newNode = (() @trusted => cast(Node*) ((cast(ubyte*) &this) + bytes))();
                 newNode.size = leftover;
                 newNode.next = next == &this ? newNode : next;
                 assert(next);
@@ -174,8 +178,8 @@ struct KRRegion(ParentAllocator = NullAllocator)
     else alias parent = ParentAllocator.instance;
     private void[] payload;
     private Node* root;
-    private bool regionMode() const { return bytesUsedRegionMode != size_t.max; }
-    private void cancelRegionMode() { bytesUsedRegionMode = size_t.max; }
+    nothrow @nogc @safe private bool regionMode() const { return bytesUsedRegionMode != size_t.max; }
+    nothrow @nogc @safe private void cancelRegionMode() { bytesUsedRegionMode = size_t.max; }
     private size_t bytesUsedRegionMode = 0;
 
     auto byNodePtr()
@@ -257,6 +261,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
         }
     }
 
+    nothrow @nogc @safe
     private Node* sortFreelist(Node* root)
     {
         // Find a monotonic run
@@ -274,6 +279,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
         return merge(root, tail);
     }
 
+    nothrow @nogc @safe
     private Node* merge(Node* left, Node* right)
     {
         assert(left != right);
@@ -290,6 +296,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
         return result;
     }
 
+    nothrow @nogc @safe
     private void coalesceAndMakeCircular()
     {
         for (auto n = root;;)
@@ -368,6 +375,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
     Otherwise, sorts the free list accumulated so far and switches strategy for
     future allocations to KR style.
     */
+    nothrow @nogc @safe
     void switchToFreeList()
     {
         if (!regionMode) return;
@@ -396,6 +404,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
 
     Returns: A word-aligned buffer of `n` bytes, or `null`.
     */
+    nothrow @nogc @safe
     void[] allocate(size_t n)
     {
         if (!n || !root) return null;
@@ -413,7 +422,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
                 immutable balance = root.size - actualBytes;
                 if (balance >= Node.sizeof)
                 {
-                    auto newRoot = cast(Node*) (result + actualBytes);
+                    auto newRoot = (() @trusted => cast(Node*) ((cast(ubyte*) result) + actualBytes))();
                     newRoot.next = root.next;
                     newRoot.size = balance;
                     root = newRoot;
@@ -423,7 +432,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
                     root = null;
                     switchToFreeList;
                 }
-                return result[0 .. n];
+                return (() @trusted => result[0 .. n])();
             }
 
             // Not enough memory, switch to freelist mode and fall through
@@ -554,6 +563,7 @@ struct KRRegion(ParentAllocator = NullAllocator)
     at the front of the free list. These blocks get coalesced, whether
     `allocateAll` succeeds or fails due to fragmentation.
     */
+    nothrow @nogc @safe
     void[] allocateAll()
     {
         if (regionMode) switchToFreeList;
@@ -647,7 +657,7 @@ fronting the GC allocator.
     import std.experimental.allocator.gc_allocator : GCAllocator;
     import std.typecons : Ternary;
     // KRRegion fronting a general-purpose allocator
-    ubyte[1024 * 128] buf;
+    align(KRRegion!().alignment) ubyte[1024 * 128] buf;
     auto alloc = fallbackAllocator(KRRegion!()(buf), GCAllocator.instance);
     auto b = alloc.allocate(100);
     assert(b.length == 100);
@@ -827,7 +837,7 @@ version (StdUnittest)
 
     // Both sequences must work on either system
 
-    // A sequence of allocs which generates the error described in issue 16564
+    // A sequence of allocs which generates the error described in https://issues.dlang.org/show_bug.cgi?id=16564
     // that is a gap at the end of buf from the perspective of the allocator
 
     // for 64 bit systems (leftover balance = 8 bytes < 16)
@@ -916,7 +926,7 @@ version (StdUnittest)
 @system unittest
 {   import std.typecons : Ternary;
 
-    ubyte[1024] b;
+    align(KRRegion!().alignment) ubyte[1024] b;
     auto alloc = KRRegion!()(b);
 
     auto k = alloc.allocate(128);

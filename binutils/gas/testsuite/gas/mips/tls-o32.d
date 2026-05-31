@@ -37,12 +37,12 @@ Disassembly of section .text:
   50:	24630000 	addiu	v1,v1,0
 			50: R_MIPS_TLS_DTPREL_LO16	tlsvar_ld
   54:	00621821 	addu	v1,v1,v0
-  58:	7c02283b 	0x7c02283b
+  58:	7c02283b 	.word	0x7c02283b
   5c:	8f830000 	lw	v1,0\(gp\)
 			5c: R_MIPS_TLS_GOTTPREL	tlsvar_ie
   60:	00000000 	nop
   64:	00621821 	addu	v1,v1,v0
-  68:	7c02283b 	0x7c02283b
+  68:	7c02283b 	.word	0x7c02283b
   6c:	3c030000 	lui	v1,0x0
 			6c: R_MIPS_TLS_TPREL_HI16	tlsvar_le
   70:	34630000 	ori	v1,v1,0x0

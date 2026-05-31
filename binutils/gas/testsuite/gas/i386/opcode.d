@@ -1,4 +1,4 @@
-#as: -J
+#as: -J --divide
 #objdump: -dw
 #name: i386 opcodes
 
@@ -101,7 +101,7 @@ Disassembly of section .text:
  123:	60 [ 	]*pusha
  124:	61 [ 	]*popa
  125:	62 90 90 90 90 90 [ 	]*bound  %edx,-0x6f6f6f70\(%eax\)
- 12b:	63 90 90 90 90 90 [ 	]*arpl   %dx,-0x6f6f6f70\(%eax\)
+ 12b:	63 90 90 90 90 90 [ 	]*arpl   %edx,-0x6f6f6f70\(%eax\)
  131:	68 90 90 90 90 [ 	]*push   \$0x90909090
  136:	69 90 90 90 90 90 90 90 90 90 [ 	]*imul   \$0x90909090,-0x6f6f6f70\(%eax\),%edx
  140:	6a 90 [ 	]*push   \$0xffffff90
@@ -205,8 +205,8 @@ Disassembly of section .text:
  279:	cd 90 [ 	]*int    \$0x90
  27b:	ce [ 	]*into
  27c:	cf [ 	]*iret
- 27d:	d0 90 90 90 90 90 [ 	]*rclb   -0x6f6f6f70\(%eax\)
- 283:	d1 90 90 90 90 90 [ 	]*rcll   -0x6f6f6f70\(%eax\)
+ 27d:	d0 90 90 90 90 90 [ 	]*rclb   \$1,-0x6f6f6f70\(%eax\)
+ 283:	d1 90 90 90 90 90 [ 	]*rcll   \$1,-0x6f6f6f70\(%eax\)
  289:	d2 90 90 90 90 90 [ 	]*rclb   %cl,-0x6f6f6f70\(%eax\)
  28f:	d3 90 90 90 90 90 [ 	]*rcll   %cl,-0x6f6f6f70\(%eax\)
  295:	d4 90 [ 	]*aam    \$0x90
@@ -522,7 +522,7 @@ Disassembly of section .text:
  869:	66 ca 90 90 [ 	]*lretw  \$0x9090
  86d:	66 cb [ 	]*lretw
  86f:	66 cf [ 	]*iretw
- 871:	66 d1 90 90 90 90 90 [ 	]*rclw   -0x6f6f6f70\(%eax\)
+ 871:	66 d1 90 90 90 90 90 [ 	]*rclw   \$1,-0x6f6f6f70\(%eax\)
  878:	66 d3 90 90 90 90 90 [ 	]*rclw   %cl,-0x6f6f6f70\(%eax\)
  87f:	66 e5 90 [ 	]*in     \$0x90,%ax
  882:	66 e7 90 [ 	]*out    %ax,\$0x90
@@ -587,27 +587,32 @@ Disassembly of section .text:
  9f5:	85 c3 [ 	]*test   %eax,%ebx
  9f7:	85 d8 [ 	]*test   %ebx,%eax
  9f9:	85 18 [ 	]*test   %ebx,\(%eax\)
- 9fb:	f1 [ 	]*int1
+[ 	]*[a-f0-9]+:	f1[ 	]*int1
+[ 	]*[a-f0-9]+:	d6[ 	]*salc
 [ 	]*[a-f0-9]+:	0f 4a 90 90 90 90 90 	cmovp  -0x6f6f6f70\(%eax\),%edx
 [ 	]*[a-f0-9]+:	0f 4b 90 90 90 90 90 	cmovnp -0x6f6f6f70\(%eax\),%edx
 [ 	]*[a-f0-9]+:	66 0f 4a 90 90 90 90 90 	cmovp  -0x6f6f6f70\(%eax\),%dx
 [ 	]*[a-f0-9]+:	66 0f 4b 90 90 90 90 90 	cmovnp -0x6f6f6f70\(%eax\),%dx
+[ 	]*[a-f0-9]+:	df 28                	fildll \(%eax\)
+[ 	]*[a-f0-9]+:	df 28                	fildll \(%eax\)
+[ 	]*[a-f0-9]+:	df 38                	fistpll \(%eax\)
+[ 	]*[a-f0-9]+:	df 38                	fistpll \(%eax\)
  +[a-f0-9]+:	82 c3 01             	add    \$0x1,%bl
- +[a-f0-9]+:	82 f3 01             	xor    \$0x1,%bl
+ +[a-f0-9]+:	82 cb 01             	or     \$0x1,%bl
  +[a-f0-9]+:	82 d3 01             	adc    \$0x1,%bl
  +[a-f0-9]+:	82 db 01             	sbb    \$0x1,%bl
  +[a-f0-9]+:	82 e3 01             	and    \$0x1,%bl
  +[a-f0-9]+:	82 eb 01             	sub    \$0x1,%bl
  +[a-f0-9]+:	82 f3 01             	xor    \$0x1,%bl
  +[a-f0-9]+:	82 fb 01             	cmp    \$0x1,%bl
- +[a-f0-9]+:	62 f3 7d 08 15 e8 ab 	vpextrw \$0xab,%xmm5,%eax
+ +[a-f0-9]+:	62 f3 7d 08 15 e8 ab 	\{evex\} vpextrw \$0xab,%xmm5,%eax
  +[a-f0-9]+:	f6 c9 01             	test   \$(0x)?0*1,%cl
  +[a-f0-9]+:	66 f7 c9 02 00       	test   \$(0x)?0*2,%cx
  +[a-f0-9]+:	f7 c9 04 00 00 00    	test   \$(0x)?0*4,%ecx
  +[a-f0-9]+:	c0 f0 02             	shl    \$0x2,%al
  +[a-f0-9]+:	c1 f0 01             	shl    \$0x1,%eax
- +[a-f0-9]+:	d0 f0                	shl    %al
- +[a-f0-9]+:	d1 f0                	shl    %eax
+ +[a-f0-9]+:	d0 f0                	shl    \$1,%al
+ +[a-f0-9]+:	d1 f0                	shl    \$1,%eax
  +[a-f0-9]+:	d2 f0                	shl    %cl,%al
  +[a-f0-9]+:	d3 f0                	shl    %cl,%eax
 #pass

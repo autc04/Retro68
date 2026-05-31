@@ -1,4 +1,7 @@
 /**
+$(RED Warning:
+      This binding is out-of-date and does not allow use on non-Windows platforms. Use `etc.c.odbc.sqlext` instead.)
+
  * Windows API header module
  *
  * Translated from MinGW Windows headers
@@ -6,9 +9,10 @@
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  * Source: $(DRUNTIMESRC core/sys/windows/_sqlext.d)
  */
+
 module core.sys.windows.sqlext;
+deprecated ("The ODBC 3.5 modules are deprecated. Please use the ODBC4 modules in the `etc.c.odbc` package."):
 version (Windows):
-@system:
 
 /* Conversion notes:
    The MinGW file was a horrible mess. All of the #defines were sorted alphabetically,

@@ -1,5 +1,5 @@
 #source: v32-err-1.s
-#as: --underscore --em=criself --march=v32
+#as: --underscore --emulation=criself --march=v32
 #objdump: -dr
 
 # Check that v32 insns that are expected to give syntax errors

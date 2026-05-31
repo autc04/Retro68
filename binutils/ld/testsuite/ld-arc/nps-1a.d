@@ -1,6 +1,6 @@
 #source: nps-1.s
 #as: -mcpu=arc700 -mnps400
-#ld: -defsym=foo=0x57f03000
+#ld: -defsym=foo=0x57f03000 -T sda-relocs.ld
 #objdump: -d
 
 .*: +file format .*arc.*

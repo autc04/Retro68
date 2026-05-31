@@ -8,6 +8,8 @@ $(BOOKTABLE Cheat Sheet,
 $(TR $(TH Function Name) $(TH Description))
 $(T2 cache,
         Eagerly evaluates and caches another range's `front`.)
+$(T2 lazyCache,
+        Lazily evaluates and caches another range's `front`, unlike `cache`.)
 $(T2 cacheBidirectional,
         As above, but also provides `back` and `popBack`.)
 $(T2 chunkBy,
@@ -50,7 +52,7 @@ $(T2 reduce,
 $(T2 splitWhen,
         Lazily splits a range by comparing adjacent elements.)
 $(T2 splitter,
-        Lazily splits a range by a separator.)
+        Lazily splits a range by a separator, element predicate or whitespace.)
 $(T2 substitute,
         `[1, 2].substitute(1, 0.1)` returns `[0.1, 2]`.)
 $(T2 sum,
@@ -421,6 +423,203 @@ private struct _Cache(R, bool bidir)
 }
 
 /**
+ * Similar to `cache`, but lazily evaluates the elements. Unlike `cache`,
+ * this function does not eagerly evaluate the front of the range until
+ * it's explicitly requested.
+ *
+ * This can be useful when evaluation of range elements has side effects that
+ * should be delayed until actually needed.
+ *
+ * See_Also: cache
+ *
+ * Params:
+ *    range = an $(REF_ALTTEXT input range, isInputRange, std,range,primitives)
+ *
+ * Returns:
+ *    An $(REF_ALTTEXT input range, isInputRange, std,range,primitives) with the lazily cached values of range
+ */
+
+auto lazyCache(Range)(Range range)
+if (isInputRange!Range)
+{
+    return LazyCache!(Range, isBidirectionalRange!Range)(range);
+}
+
+///
+@safe unittest
+{
+    import std.algorithm.comparison : equal;
+    import std.range, std.stdio;
+    import std.typecons : tuple;
+
+    ulong counter = 0;
+    double fun(int x)
+    {
+        ++counter;
+        // http://en.wikipedia.org/wiki/Quartic_function
+        return ( (x + 4.0) * (x + 1.0) * (x - 1.0) * (x - 3.0) ) / 14.0 + 0.5;
+    }
+    // With lazyCache, front won't be evaluated until requested
+    counter = 0;
+    auto result = iota(-4, 5).map!(a => tuple(a, fun(a)))()
+                            .lazyCache();
+    // At this point, no elements have been evaluated yet
+    assert(counter == 0);
+    // Now access the first element
+    auto firstElement = result.front;
+    // Only now the first element is evaluated
+    assert(counter == 1);
+    // Process the result lazily
+    auto filtered = result.filter!(a => a[1] < 0)()
+                         .map!(a => a[0])();
+    // Values are calculated as we iterate
+    assert(equal(filtered, [-3, -2, 2]));
+    // Only elements we actually accessed were evaluated
+    assert(counter == iota(-4, 5).length);
+}
+
+private struct LazyCache(R, bool bidir)
+{
+    import core.exception : RangeError;
+
+    private
+    {
+        import std.algorithm.internal : algoFormat;
+        import std.meta : AliasSeq;
+
+        alias E  = ElementType!R;
+        alias UE = Unqual!E;
+
+        R source;
+
+        static if (bidir) alias CacheTypes = AliasSeq!(UE, UE);
+        else              alias CacheTypes = AliasSeq!UE;
+        CacheTypes caches;
+        // Flags to track if front/back have been cached
+        bool frontCached = false;
+        static if (bidir) bool backCached = false;
+
+        static assert(isAssignable!(UE, E) && is(UE : E),
+            algoFormat(
+                "Cannot instantiate range with %s because %s elements are not assignable to %s.",
+                R.stringof,
+                E.stringof,
+                UE.stringof
+            )
+        );
+    }
+
+    this(R range)
+    {
+        source = range;
+        // Don't eagerly evaluate anything in the constructor
+    }
+
+    static if (isInfinite!R)
+        enum empty = false;
+    else
+        bool empty() @property
+        {
+            return source.empty;
+        }
+
+    mixin ImplementLength!source;
+
+    E front() @property
+    {
+        version (assert) if (empty) throw new RangeError();
+        // Only evaluate front if it hasn't been cached yet
+        if (!frontCached && !source.empty)
+        {
+            caches[0] = source.front;
+            frontCached = true;
+        }
+        return caches[0];
+    }
+    static if (bidir) E back() @property
+    {
+        version (assert) if (empty) throw new RangeError();
+        // Only evaluate back if it hasn't been cached yet
+        if (!backCached && !source.empty)
+        {
+            caches[1] = source.back;
+            backCached = true;
+        }
+        return caches[1];
+    }
+
+    void popFront()
+    {
+        version (assert) if (empty) throw new RangeError();
+        source.popFront();
+        // Reset the cache state for front
+        frontCached = false;
+    }
+    static if (bidir) void popBack()
+    {
+        version (assert) if (empty) throw new RangeError();
+        source.popBack();
+        // Reset the cache state for back
+        backCached = false;
+    }
+
+    static if (isForwardRange!R)
+    {
+        private this(R source, ref CacheTypes caches, bool frontCached, bool backCached = false)
+        {
+            this.source = source;
+            this.caches = caches;
+            this.frontCached = frontCached;
+            static if (bidir) this.backCached = backCached;
+        }
+        typeof(this) save() @property
+        {
+            static if (bidir)
+                return typeof(this)(source.save, caches, frontCached, backCached);
+            else
+                return typeof(this)(source.save, caches, frontCached);
+        }
+    }
+
+    static if (hasSlicing!R)
+    {
+        enum hasEndSlicing = is(typeof(source[size_t.max .. $]));
+
+        static if (hasEndSlicing)
+        {
+            private static struct DollarToken{}
+            enum opDollar = DollarToken.init;
+
+            auto opSlice(size_t low, DollarToken)
+            {
+                return typeof(this)(source[low .. $]);
+            }
+        }
+
+        static if (!isInfinite!R)
+        {
+            typeof(this) opSlice(size_t low, size_t high)
+            {
+                return typeof(this)(source[low .. high]);
+            }
+        }
+        else static if (hasEndSlicing)
+        {
+            auto opSlice(size_t low, size_t high)
+            in
+            {
+                assert(low <= high, "Bounds error when slicing lazyCache.");
+            }
+            do
+            {
+                import std.range : takeExactly;
+                return this[low .. $].takeExactly(high - low);
+            }
+        }
+    }
+}
+
+/**
 Implements the homonym function (also known as `transform`) present
 in many languages of functional flavor. The call `map!(fun)(range)`
 returns a range of which elements are obtained by applying `fun(a)`
@@ -443,37 +642,25 @@ if (fun.length >= 1)
         A range with each fun applied to all the elements. If there is more than one
         fun, the element type will be `Tuple` containing one element for each fun.
      */
-    auto map(Range)(Range r) if (isInputRange!(Unqual!Range))
+    auto map(Range)(Range r)
+    if (isInputRange!(Unqual!Range))
     {
-        import std.meta : AliasSeq, staticMap;
+        import std.meta : staticMap;
+        import std.functional : adjoin;
 
         alias RE = ElementType!(Range);
-        static if (fun.length > 1)
+
+        alias _funs = staticMap!(unaryFun, fun);
+        alias _fun = adjoin!_funs;
+
+        // Once https://issues.dlang.org/show_bug.cgi?id=5710 is fixed
+        // accross all compilers (as of 2020-04, it wasn't fixed in LDC and GDC),
+        // this validation loop can be moved into a template.
+        foreach (f; _funs)
         {
-            import std.functional : adjoin;
-            import std.meta : staticIndexOf;
-
-            alias _funs = staticMap!(unaryFun, fun);
-            alias _fun = adjoin!_funs;
-
-            // Once https://issues.dlang.org/show_bug.cgi?id=5710 is fixed
-            // accross all compilers (as of 2020-04, it wasn't fixed in LDC and GDC),
-            // this validation loop can be moved into a template.
-            foreach (f; _funs)
-            {
-                static assert(!is(typeof(f(RE.init)) == void),
-                    "Mapping function(s) must not return void: " ~ _funs.stringof);
-            }
-        }
-        else
-        {
-            alias _fun = unaryFun!fun;
-            alias _funs = AliasSeq!(_fun);
-
-            // Do the validation separately for single parameters due to
-            // https://issues.dlang.org/show_bug.cgi?id=15777.
-            static assert(!is(typeof(_fun(RE.init)) == void),
-                "Mapping function(s) must not return void: " ~ _funs.stringof);
+            static assert(!is(typeof(f(RE.init)) == void),
+                    "Mapping function(s) must not return void. " ~
+                    " Consider using `each` instead of `map!(" ~ _funs.stringof ~ ")`");
         }
 
         return MapResult!(_fun, Range)(r);
@@ -771,6 +958,23 @@ private struct MapResult(alias fun, Range)
     assert(dd.length == 4);
 }
 
+// Verify fix for: https://issues.dlang.org/show_bug.cgi?id=16034
+@safe unittest
+{
+    struct One
+    {
+        int entry = 1;
+        @disable this(this);
+    }
+
+    One[] ones = [One(), One()];
+
+    import std.algorithm.comparison : equal;
+
+    assert(ones.map!`a.entry + 1`.equal([2, 2]));
+}
+
+
 @safe unittest
 {
     import std.algorithm.comparison : equal;
@@ -861,8 +1065,8 @@ See_Also: $(REF tee, std,range)
 template each(alias fun = "a")
 {
     import std.meta : AliasSeq;
-    import std.traits : Parameters;
-    import std.typecons : Flag, Yes, No;
+    import std.traits : Parameters, isInstanceOf;
+    import std.typecons : Flag, Yes, No, Tuple;
 
 private:
     alias BinaryArgs = AliasSeq!(fun, "i", "a");
@@ -908,7 +1112,8 @@ public:
     Flag!"each" each(Range)(Range r)
     if (!isForeachIterable!Range && (
         isRangeIterable!Range ||
-        __traits(compiles, typeof(r.front).length)))
+        // Tuples get automatically expanded if function takes right number of args
+        (isInputRange!Range && isInstanceOf!(Tuple, typeof(r.front)))))
     {
         static if (isRangeIterable!Range)
         {
@@ -949,7 +1154,11 @@ public:
         }
         else
         {
-            // range interface with >2 parameters.
+            /* Range over Tuples, fun must have correct number of args
+            * If number of args of fun is <= 2, calling fun(tuple) or fun(idx, tuple)
+            * will have precendence over fun(tuple.expand).
+            * Provide types to delegate params to control this.
+            */
             for (auto range = r; !range.empty; range.popFront())
             {
                 static if (!is(typeof(fun(r.front.expand)) == Flag!"each"))
@@ -1263,19 +1472,22 @@ public:
 
 // filter
 /**
-Implements the higher order filter function. The predicate is passed to
-$(REF unaryFun, std,functional), and can either accept a string, or any callable
-that can be executed via `pred(element)`.
+`filter!(predicate)(range)` returns a new range containing only elements `x` in `range` for
+which `predicate(x)` returns `true`.
+
+The predicate is passed to $(REF unaryFun, std,functional), and can be either a string, or
+any callable that can be executed via `pred(element)`.
 
 Params:
     predicate = Function to apply to each element of range
 
 Returns:
-    `filter!(predicate)(range)` returns a new range containing only elements `x` in `range` for
-    which `predicate(x)` returns `true`.
+    An input range that contains the filtered elements. If `range` is at least a forward range, the return value of `filter`
+    will also be a forward range.
 
 See_Also:
-    $(HTTP en.wikipedia.org/wiki/Filter_(higher-order_function), Filter (higher-order function))
+    $(HTTP en.wikipedia.org/wiki/Filter_(higher-order_function), Filter (higher-order function)),
+    $(REF filterBidirectional, std,algorithm,iteration)
  */
 template filter(alias predicate)
 if (is(typeof(unaryFun!predicate)))
@@ -1288,7 +1500,8 @@ if (is(typeof(unaryFun!predicate)))
         A range containing only elements `x` in `range` for
         which `predicate(x)` returns `true`.
      */
-    auto filter(Range)(Range range) if (isInputRange!(Unqual!Range))
+    auto filter(Range)(Range range)
+    if (isInputRange!(Unqual!Range))
     {
         return FilterResult!(unaryFun!predicate, Range)(range);
     }
@@ -1525,7 +1738,8 @@ template filterBidirectional(alias pred)
     Returns:
         A range containing only the elements in `r` for which `pred` returns `true`.
      */
-    auto filterBidirectional(Range)(Range r) if (isBidirectionalRange!(Unqual!Range))
+    auto filterBidirectional(Range)(Range r)
+    if (isBidirectionalRange!(Unqual!Range))
     {
         return FilterBidiResult!(unaryFun!pred, Range)(r);
     }
@@ -1795,7 +2009,7 @@ if (isInputRange!R)
     assert(equal(g3, [ tuple(1, 2u), tuple(2, 2u) ]));
 
     interface I {}
-    class C : I { override size_t toHash() const nothrow @safe { return 0; } }
+    static class C : I { override size_t toHash() const nothrow @safe { return 0; } }
     const C[] a4 = [new const C()];
     auto g4 = a4.group!"a is b";
     assert(g4.front[1] == 1);
@@ -2006,8 +2220,8 @@ private struct ChunkByGroup(alias eq, Range, bool eqEquivalenceAssured)
         }
     }
 
-    // Cannot be a copy constructor due to issue 22239
-    this(this) @trusted
+    // Cannot be a copy constructor due to https://issues.dlang.org/show_bug.cgi?id=22239
+    this(this) scope @trusted
     {
         import core.lifetime : emplace;
         // since mothership has to be in a union, we have to manually trigger
@@ -2108,8 +2322,8 @@ if (isForwardRange!Range)
         }();
     }
 
-    // Cannot be a copy constructor due to issue 22239
-    this(this) @trusted
+    // Cannot be a copy constructor due to https://issues.dlang.org/show_bug.cgi?id=22239
+    this(this) scope @trusted
     {
         import core.lifetime : emplace;
         // since _impl has to be in a union, we have to manually trigger
@@ -2252,25 +2466,26 @@ if (isForwardRange!Range)
     import std.algorithm.comparison : equal;
 
     size_t popCount = 0;
-    class RefFwdRange
+    static class RefFwdRange
     {
         int[]  impl;
+        size_t* pcount;
 
         @safe nothrow:
 
-        this(int[] data) { impl = data; }
+        this(int[] data, size_t* pcount) { impl = data; this.pcount = pcount; }
         @property bool empty() { return impl.empty; }
         @property auto ref front() { return impl.front; }
         void popFront()
         {
             impl.popFront();
-            popCount++;
+            (*pcount)++;
         }
-        @property auto save() { return new RefFwdRange(impl); }
+        @property auto save() { return new RefFwdRange(impl, pcount); }
     }
     static assert(isForwardRange!RefFwdRange);
 
-    auto testdata = new RefFwdRange([1, 3, 5, 2, 4, 7, 6, 8, 9]);
+    auto testdata = new RefFwdRange([1, 3, 5, 2, 4, 7, 6, 8, 9], &popCount);
     auto groups = testdata.chunkBy!((a,b) => (a % 2) == (b % 2));
     auto outerSave1 = groups.save;
 
@@ -2796,10 +3011,10 @@ if (isInputRange!Range)
 
 /**
 Splits a forward range into subranges in places determined by a binary
-predicate.
+predicate called with adjacent elements.
 
 When iterating, one element of `r` is compared with `pred` to the next
-element. If `pred` return true, a new subrange is started for the next element.
+element. If `pred` returns true, a new subrange is started for the next element.
 Otherwise, they are part of the same subrange.
 
 If the elements are compared with an inequality (!=) operator, consider
@@ -2809,7 +3024,8 @@ Params:
 pred = Predicate for determining where to split. The earlier element in the
 source range is always given as the first argument.
 r = A $(REF_ALTTEXT forward range, isForwardRange, std,range,primitives) to be split.
-Returns: a range of subranges of `r`, split such that within a given subrange,
+
+Returns: A range of subranges of `r`, split such that within a given subrange,
 calling `pred` with any pair of adjacent elements as arguments returns `false`.
 Copying the range currently has reference semantics, but this may change in the future.
 
@@ -2819,7 +3035,7 @@ relations.
 */
 
 auto splitWhen(alias pred, Range)(Range r)
-if (isForwardRange!Range)
+if (is(typeof(binaryFun!pred(r.front, r.front)) : bool) && isForwardRange!Range)
 {   import std.functional : not;
     return ChunkByImpl!(not!pred, not!pred, GroupingOpType.binaryAny, Range)(r);
 }
@@ -2948,10 +3164,24 @@ iterated from the back to the front, the separator will still be consumed from
 front to back, even if it is a bidirectional range too.
  */
 auto joiner(RoR, Separator)(RoR r, Separator sep)
-if (isInputRange!RoR && isInputRange!(ElementType!RoR)
-        && isForwardRange!Separator
-        && is(ElementType!Separator : ElementType!(ElementType!RoR)))
 {
+    static assert(isInputRange!RoR, "The type of RoR '", RoR.stringof
+            , " must be an InputRange (isInputRange!", RoR.stringof, ").");
+    static assert(isInputRange!(ElementType!RoR), "The ElementyType of RoR '"
+            , ElementType!(RoR).stringof, "' must be an InputRange "
+            , "(isInputRange!(ElementType!(", RoR.stringof , "))).");
+    static assert(isForwardRange!Separator, "The type of the Separator '"
+            , Separator.stringof, "' must be a ForwardRange (isForwardRange!("
+            , Separator.stringof, ")).");
+    static assert(is(ElementType!Separator : ElementType!(ElementType!RoR))
+            , "The type of the elements of the separator range does not match "
+            , "the type of the elements that are joined. Separator type '"
+            , ElementType!(Separator).stringof, "' is not implicitly"
+            , "convertible to range element type '"
+            , ElementType!(ElementType!RoR).stringof, "' (is(ElementType!"
+            , Separator.stringof, " : ElementType!(ElementType!", RoR.stringof
+            , "))).");
+
     static struct Result
     {
         private RoR _items;
@@ -3597,18 +3827,18 @@ if (isInputRange!RoR && isInputRange!(ElementType!RoR)
 
 /// Ditto
 auto joiner(RoR)(RoR r)
-if (isInputRange!RoR && isInputRange!(ElementType!RoR))
+if (isInputRange!RoR && isInputRange!(Unqual!(ElementType!RoR)))
 {
     static struct Result
     {
     private:
         RoR _items;
-        ElementType!RoR _current;
+        Unqual!(ElementType!RoR) _current;
         enum isBidirectional = isForwardRange!RoR && isForwardRange!(ElementType!RoR) &&
                                isBidirectionalRange!RoR && isBidirectionalRange!(ElementType!RoR);
         static if (isBidirectional)
         {
-            ElementType!RoR _currentBack;
+            Unqual!(ElementType!RoR) _currentBack;
             bool reachedFinalElement;
         }
 
@@ -4258,24 +4488,50 @@ if (isInputRange!RoR && isInputRange!(ElementType!RoR))
     assert([only(S(null))].joiner.front == S(null));
 }
 
+// https://issues.dlang.org/show_bug.cgi?id=22785
+@safe unittest
+{
+
+    import std.algorithm.iteration : joiner, map;
+    import std.array : array;
+
+    static immutable struct S
+    {
+        int value;
+    }
+
+    static immutable struct T
+    {
+        S[] arr;
+    }
+
+    auto range = [T([S(3)]), T([S(4), S(5)])];
+
+    assert(range.map!"a.arr".joiner.array == [S(3), S(4), S(5)]);
+}
+
 /++
 Implements the homonym function (also known as `accumulate`, $(D
 compress), `inject`, or `foldl`) present in various programming
 languages of functional flavor. There is also $(LREF fold) which does
 the same thing but with the opposite parameter order.
-The call `reduce!(fun)(seed, range)` first assigns `seed` to
-an internal variable `result`, also called the accumulator.
-Then, for each element `x` in `range`, `result = fun(result, x)`
-gets evaluated. Finally, `result` is returned.
+
+* Use `seed` to initialize an internal `accumulator`.
+* For each element `e` in $(D range), evaluate `accumulator = fun(result, e)`.
+* Return $(D accumulator).
+
 The one-argument version `reduce!(fun)(range)`
 works similarly, but it uses the first element of the range as the
-seed (the range must be non-empty).
+seed (the range must be non-empty, else this throws).
+
+If range has only one element, the functions are never invoked and
+`result` and the seed is returned unchanged.
 
 Returns:
-    the accumulated `result`
+    the accumulated result
 
 Params:
-    fun = one or more functions
+    fun = one or more functions of the form `Acc function(Acc, ElemT)`
 
 See_Also:
     $(HTTP en.wikipedia.org/wiki/Fold_(higher-order_function), Fold (higher-order function))
@@ -4752,26 +5008,43 @@ private template ReduceSeedType(E)
 /++
 Implements the homonym function (also known as `accumulate`, $(D
 compress), `inject`, or `foldl`) present in various programming
-languages of functional flavor. The call `fold!(fun)(range, seed)`
-first assigns `seed` to an internal variable `result`,
-also called the accumulator. Then, for each element `x` in $(D
-range), `result = fun(result, x)` gets evaluated. Finally, $(D
-result) is returned. The one-argument version `fold!(fun)(range)`
+languages of functional flavor, iteratively calling one or more predicates.
+
+$(P Each predicate in `fun` must take two arguments:)
+* An accumulator value
+* An element of the range `r`
+$(P Each function must return a value which implicitly converts to the
+type of the accumulator.)
+
+$(P For a single function,
+the call `fold!(fun)(range, seed)` will:)
+
+* Use `seed` to initialize an internal `accumulator`.
+* For each element `e` in $(D range), evaluate `accumulator = fun(result, e)`.
+* Return $(D accumulator).
+
+$(P The one-argument version `fold!(fun)(range)`
 works similarly, but it uses the first element of the range as the
-seed (the range must be non-empty).
+seed (the range must be non-empty) and iterates over the remaining
+elements.)
+
+Multiple results are produced when using multiple functions.
+
+If range has only one element, the functions are never invoked and
+`result` and the seed is returned unchanged.
 
 Params:
-    fun = the predicate function(s) to apply to the elements
+    fun = one or more functions of the form `Acc function(Acc, ElemT)`
 
 See_Also:
-    $(HTTP en.wikipedia.org/wiki/Fold_(higher-order_function), Fold (higher-order function))
+    * $(HTTP en.wikipedia.org/wiki/Fold_(higher-order_function), Fold (higher-order function))
 
-    $(LREF sum) is similar to `fold!((a, b) => a + b)` that offers
-    precise summing of floating point numbers.
+    * $(LREF sum) is similar to `fold!((a, b) => a + b)` that offers
+      precise summing of floating point numbers.
 
-    This is functionally equivalent to $(LREF reduce) with the argument order
-    reversed, and without the need to use $(REF_ALTTEXT `tuple`,tuple,std,typecons)
-    for multiple seeds.
+    * `fold` is functionally equivalent to $(LREF reduce) with the argument order
+      reversed, and without the need to use $(REF_ALTTEXT `tuple`,tuple,std,typecons)
+      for multiple seeds.
 +/
 template fold(fun...)
 if (fun.length >= 1)
@@ -4779,20 +5052,21 @@ if (fun.length >= 1)
     /**
     Params:
         r = the $(REF_ALTTEXT input range, isInputRange, std,range,primitives) to fold
-        seed = the initial value of the accumulator
+        seeds = the initial values of each accumulator (optional), one for each predicate
     Returns:
-        the accumulated `result`
+        Either the accumulated result for a single predicate, or a
+        $(REF_ALTTEXT `Tuple`,Tuple,std,typecons) of results.
      */
-    auto fold(R, S...)(R r, S seed)
+    auto fold(R, S...)(R r, S seeds)
     {
         static if (S.length < 2)
         {
-            return reduce!fun(seed, r);
+            return reduce!fun(seeds, r);
         }
         else
         {
             import std.typecons : tuple;
-            return reduce!fun(tuple(seed), r);
+            return reduce!fun(tuple(seeds), r);
         }
     }
 }
@@ -4803,10 +5077,10 @@ if (fun.length >= 1)
     immutable arr = [1, 2, 3, 4, 5];
 
     // Sum all elements
-    assert(arr.fold!((a, b) => a + b) == 15);
+    assert(arr.fold!((a, e) => a + e) == 15);
 
     // Sum all elements with explicit seed
-    assert(arr.fold!((a, b) => a + b)(6) == 21);
+    assert(arr.fold!((a, e) => a + e)(6) == 21);
 
     import std.algorithm.comparison : min, max;
     import std.typecons : tuple;
@@ -4818,10 +5092,10 @@ if (fun.length >= 1)
     assert(arr.fold!(min, max)(0, 7) == tuple(0, 7));
 
     // Can be used in a UFCS chain
-    assert(arr.map!(a => a + 1).fold!((a, b) => a + b) == 20);
+    assert(arr.map!(a => a + 1).fold!((a, e) => a + e) == 20);
 
     // Return the last element of any range
-    assert(arr.fold!((a, b) => b) == 5);
+    assert(arr.fold!((a, e) => e) == 5);
 }
 
 @safe @nogc pure nothrow unittest
@@ -4851,7 +5125,7 @@ This function is also known as
     $(HTTP mathworld.wolfram.com/CumulativeSum.html, Cumulative Sum).
 
 Params:
-    fun = one or more functions to use as fold operation
+    fun = one or more functions of the form `Acc function(Acc, ElemT)`
 
 Returns:
     The function returns a range containing the consecutive reduced values. If
@@ -5234,12 +5508,9 @@ empty elements.
 The predicate is passed to $(REF binaryFun, std,functional) and accepts
 any callable function that can be executed via `pred(element, s)`.
 
-Notes:
+Note:
     If splitting a string on whitespace and token compression is desired,
-    consider using `splitter` without specifying a separator.
-
-    If no separator is passed, the $(REF_ALTTEXT, unary, unaryFun, std,functional)
-    predicate `isTerminator` decides whether to accept an element of `r`.
+    consider using the `splitter(r)` overload.
 
 Params:
     pred = The predicate for comparing each element with the separator,
@@ -5248,7 +5519,6 @@ Params:
         split. Must support slicing and `.length` or be a narrow string type.
     s = The element (or range) to be treated as the separator
         between range segments to be split.
-    isTerminator = The predicate for deciding where to split the range when no separator is passed
     keepSeparators = The flag for deciding if the separators are kept
 
 Constraints:
@@ -5262,23 +5532,26 @@ Returns:
     the returned range will be likewise.
     When a range is used a separator, bidirectionality isn't possible.
 
-    If keepSeparators is equal to Yes.keepSeparators the output will also contain the
+    If `keepSeparators` is equal to `Yes.keepSeparators` the output will also contain the
     separators.
 
     If an empty range is given, the result is an empty range. If a range with
     one separator is given, the result is a range with two empty elements.
 
 See_Also:
- $(REF _splitter, std,regex) for a version that splits using a regular expression defined separator,
- $(REF _split, std,array) for a version that splits eagerly and
- $(LREF splitWhen), which compares adjacent elements instead of element against separator.
+ - $(REF _splitter, std,regex) for a version that splits using a regular expression defined separator.
+ - $(REF _split, std,array) for a version that splits eagerly.
+ - $(LREF splitWhen), which compares adjacent elements instead of element against separator.
 */
 auto splitter(alias pred = "a == b",
               Flag!"keepSeparators" keepSeparators = No.keepSeparators,
               Range,
               Separator)(Range r, Separator s)
 if (is(typeof(binaryFun!pred(r.front, s)) : bool)
-        && ((hasSlicing!Range && hasLength!Range) || isNarrowString!Range))
+        && ((hasSlicing!Range && hasLength!Range) || isNarrowString!Range)
+        && (is(ElementType!Range : Separator)
+        || !(isForwardRange!Separator && (hasLength!Separator
+        || isNarrowString!Separator))))
 {
     import std.algorithm.searching : find;
     import std.conv : unsigned;
@@ -5350,6 +5623,7 @@ if (is(typeof(binaryFun!pred(r.front, s)) : bool)
             assert(!empty, "Attempting to fetch the front of an empty splitter.");
             static if (keepSeparators)
             {
+                if (_frontLength != _unComputed && !_wasSeparator) return _input[0 .. _frontLength];
                 if (!_wasSeparator)
                 {
                     _frontLength = _separatorLength;
@@ -5674,29 +5948,6 @@ if (is(typeof(binaryFun!pred(r.front, s)) : bool)
         .equal([ [[0]], [[1]], [[2]] ]));
 }
 
-/// Use splitter without a separator
-@safe unittest
-{
-    import std.algorithm.comparison : equal;
-    import std.range.primitives : front;
-
-    assert(equal(splitter!(a => a == '|')("a|bc|def"), [ "a", "bc", "def" ]));
-    assert(equal(splitter!(a => a == ' ')("hello  world"), [ "hello", "", "world" ]));
-
-    int[] a = [ 1, 2, 0, 0, 3, 0, 4, 5, 0 ];
-    int[][] w = [ [1, 2], [], [3], [4, 5], [] ];
-    assert(equal(splitter!(a => a == 0)(a), w));
-
-    a = [ 0 ];
-    assert(equal(splitter!(a => a == 0)(a), [ (int[]).init, (int[]).init ]));
-
-    a = [ 0, 1 ];
-    assert(equal(splitter!(a => a == 0)(a), [ [], [1] ]));
-
-    w = [ [0], [1], [2] ];
-    assert(equal(splitter!(a => a.front == 1)(w), [ [[0]], [[2]] ]));
-}
-
 /// Leading separators, trailing separators, or no separators.
 @safe unittest
 {
@@ -5734,17 +5985,6 @@ if (is(typeof(binaryFun!pred(r.front, s)) : bool)
     import std.range : retro;
     assert("a|bc|def".splitter!("a == b", Yes.keepSeparators)('|')
         .retro.equal([ "def", "|", "bc", "|", "a" ]));
-}
-
-/// Splitting by word lazily
-@safe unittest
-{
-    import std.ascii : isWhite;
-    import std.algorithm.comparison : equal;
-    import std.algorithm.iteration : splitter;
-
-    string str = "Hello World!";
-    assert(str.splitter!(isWhite).equal(["Hello", "World!"]));
 }
 
 @safe unittest
@@ -5843,6 +6083,20 @@ if (is(typeof(binaryFun!pred(r.front, s)) : bool)
     assert("abXcdxef".splitter!((a, b) => a.toLower == b)('x').equal(["ab", "cd", "ef"]));
 }
 
+// https://github.com/dlang/phobos/issues/10759
+@safe unittest
+{
+    import std.algorithm.iteration : splitter;
+    import std.algorithm.searching : canFind;
+    import std.range.primitives;
+    import std.typecons : Yes;
+
+    auto range = "16x13+0-2".splitter!((a, b) => "x+-".canFind(a), Yes.keepSeparators)(0);
+    assert(range.front == "16");
+    assert(range.front == "16");
+    assert(range.front == "16");
+}
+
 /// ditto
 auto splitter(alias pred = "a == b",
               Flag!"keepSeparators" keepSeparators = No.keepSeparators,
@@ -5856,7 +6110,7 @@ if (is(typeof(binaryFun!pred(r.front, s.front)) : bool)
     import std.algorithm.searching : find;
     import std.conv : unsigned;
 
-    static struct Result
+    struct Result
     {
     private:
         Range _input;
@@ -6055,7 +6309,7 @@ if (is(typeof(binaryFun!pred(r.front, s.front)) : bool)
     import std.algorithm.comparison : equal;
 
     // Test by-reference separator
-    class RefSep {
+    static class RefSep {
     @safe:
         string _impl;
         this(string s) { _impl = s; }
@@ -6071,11 +6325,70 @@ if (is(typeof(binaryFun!pred(r.front, s.front)) : bool)
     assert(words.equal([ "i", "am", "pointing" ]));
 }
 
-/// ditto
+// https://github.com/dlang/phobos/issues/10760
+@safe unittest
+{
+    import std.algorithm.searching : canFind;
+    import std.typecons : Yes;
+    import std.algorithm.comparison : equal;
+
+    auto r = "16x16+0-2".splitter!((a, b) => "x+-".canFind(a), Yes.keepSeparators)("x");
+    assert(r.equal(["16", "x", "16", "+", "0", "-", "2"]));
+}
+
+/++
+Lazily splits a range `r` whenever a predicate `isTerminator` returns true for an element.
+
+As above, two adjacent separators are considered to surround an empty element in
+the split range.
+
+Params:
+    r = The $(REF_ALTTEXT forward range, isForwardRange, std,range,primitives) to be
+        split.
+    isTerminator = A $(REF_ALTTEXT unary, unaryFun, std,functional) predicate for
+        deciding where to split the range.
+
+Returns:
+    A forward range of slices of the original range split by whitespace.
+ +/
 auto splitter(alias isTerminator, Range)(Range r)
 if (isForwardRange!Range && is(typeof(unaryFun!isTerminator(r.front))))
 {
     return SplitterResult!(unaryFun!isTerminator, Range)(r);
+}
+
+///
+@safe unittest
+{
+    import std.ascii : isWhite;
+    import std.algorithm.comparison : equal;
+    import std.algorithm.iteration : splitter;
+
+    string str = "Hello World\t!";
+    assert(str.splitter!(isWhite).equal(["Hello", "World", "!"]));
+}
+
+///
+@safe unittest
+{
+    import std.algorithm.comparison : equal;
+    import std.range.primitives : front;
+
+    assert(equal(splitter!(a => a == '|')("a|bc|def"), [ "a", "bc", "def" ]));
+    assert(equal(splitter!(a => a == ' ')("hello  world"), [ "hello", "", "world" ]));
+
+    int[] a = [ 1, 2, 0, 0, 3, 0, 4, 5, 0 ];
+    int[][] w = [ [1, 2], [], [3], [4, 5], [] ];
+    assert(equal(splitter!(a => a == 0)(a), w));
+
+    a = [ 0 ];
+    assert(equal(splitter!(a => a == 0)(a), [ (int[]).init, (int[]).init ]));
+
+    a = [ 0, 1 ];
+    assert(equal(splitter!(a => a == 0)(a), [ [], [1] ]));
+
+    w = [ [0], [1], [2] ];
+    assert(equal(splitter!(a => a.front == 1)(w), [ [[0]], [[2]] ]));
 }
 
 private struct SplitterResult(alias isTerminator, Range)
@@ -7716,8 +8029,9 @@ if (isInputRange!R &&
 
 // uniq
 /**
-Lazily iterates unique consecutive elements of the given range (functionality
-akin to the $(HTTP wikipedia.org/wiki/_Uniq, _uniq) system
+Lazily iterates unique consecutive elements of the given range, which is
+assumed to be sorted (functionality akin to the
+$(HTTP wikipedia.org/wiki/_Uniq, _uniq) system
 utility). Equivalence of elements is assessed by using the predicate
 `pred`, by default `"a == b"`. The predicate is passed to
 $(REF binaryFun, std,functional), and can either accept a string, or any callable
@@ -7877,19 +8191,34 @@ Returns:
     A $(REF_ALTTEXT forward range, isForwardRange, std,range,primitives)
     of elements of which are an $(REF indexed, std,range) view into `r`.
 
+Note:
+    The elements of the resulting range reuse the same internal buffer of
+    permutations, so each element is invalidated by `popFront`.  If copies of
+    intermediate permutations are desired, they need to be individually copied,
+    such as using `.map!(e => e.array)` to save them in individual, independent
+    arrays.
+
 See_Also:
 $(REF nextPermutation, std,algorithm,sorting).
 */
 Permutations!Range permutations(Range)(Range r)
-if (isRandomAccessRange!Range && hasLength!Range)
 {
+    static assert(isRandomAccessRange!Range, Range.stringof,
+            " must be a RandomAccessRange");
+    static assert(hasLength!Range, Range.stringof
+            , " must have a length");
+
     return typeof(return)(r);
 }
 
 /// ditto
 struct Permutations(Range)
-if (isRandomAccessRange!Range && hasLength!Range)
 {
+    static assert(isRandomAccessRange!Range, Range.stringof,
+            " must be a RandomAccessRange");
+    static assert(hasLength!Range, Range.stringof
+            , " must have a length");
+
     private size_t[] _indices, _state;
     private Range _r;
     private bool _empty;
@@ -7905,7 +8234,13 @@ if (isRandomAccessRange!Range && hasLength!Range)
         _indices = iota(size_t(r.length)).array;
         _empty = r.length == 0;
     }
-
+    private this(size_t[] indices, size_t[] state, Range r, bool empty_)
+    {
+        _indices = indices;
+        _state = state;
+        _r = r;
+        _empty = empty_;
+    }
     /// Returns: `true` if the range is empty, `false` otherwise.
     @property bool empty() const pure nothrow @safe @nogc
     {
@@ -7946,6 +8281,11 @@ if (isRandomAccessRange!Range && hasLength!Range)
 
         next(2);
     }
+    /// Returns: an independent copy of the permutations range.
+    auto save()
+    {
+        return typeof(this)(_indices.dup, _state.dup, _r.save, _empty);
+    }
 }
 
 ///
@@ -7960,4 +8300,16 @@ if (isRandomAccessRange!Range && hasLength!Range)
          [0, 2, 1],
          [1, 2, 0],
          [2, 1, 0]]));
+}
+
+@safe unittest
+{
+    import std.algorithm.comparison : equal;
+    import std.range : ElementType;
+    import std.array : array;
+    auto p = [1, 2, 3].permutations;
+    auto x = p.save.front;
+    p.popFront;
+    auto y = p.front;
+    assert(x != y);
 }

@@ -1,4 +1,4 @@
-/* { dg-require-effective-target alloca } */
+/* { dg-additional-options "-fpermissive" } */
 #include <string.h>
 #include <stdio.h>
 

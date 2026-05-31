@@ -62,16 +62,21 @@ COMMON_FLAG(
 COMMON_FLAG(const char *, log_suffix, nullptr,
             "String to append to log file name, e.g. \".txt\".")
 COMMON_FLAG(
-    bool, log_to_syslog, (bool)SANITIZER_ANDROID || (bool)SANITIZER_MAC,
+    bool, log_to_syslog, (bool)SANITIZER_ANDROID || (bool)SANITIZER_APPLE,
     "Write all sanitizer output to syslog in addition to other means of "
     "logging.")
+COMMON_FLAG(bool, log_fallback_to_stderr, false,
+            "When set, fallback to stderr if we are unable to open log path.")
 COMMON_FLAG(
     int, verbosity, 0,
     "Verbosity level (0 - silent, 1 - a bit of output, 2+ - more output).")
-COMMON_FLAG(bool, strip_env, 1,
+COMMON_FLAG(bool, strip_env, true,
             "Whether to remove the sanitizer from DYLD_INSERT_LIBRARIES to "
-            "avoid passing it to children. Default is true.")
-COMMON_FLAG(bool, detect_leaks, !SANITIZER_MAC, "Enable memory leak detection.")
+            "avoid passing it to children on Apple platforms. Default is true.")
+COMMON_FLAG(bool, verify_interceptors, true,
+            "Verify that interceptors are working on Apple platforms. Default "
+            "is true.")
+COMMON_FLAG(bool, detect_leaks, !SANITIZER_APPLE, "Enable memory leak detection.")
 COMMON_FLAG(
     bool, leak_check_at_exit, true,
     "Invoke leak checking in an atexit handler. Has no effect if "
@@ -108,6 +113,11 @@ COMMON_FLAG(HandleSignalMode, handle_sigfpe, kHandleSignalYes,
 COMMON_FLAG(bool, allow_user_segv_handler, true,
             "Deprecated. True has no effect, use handle_sigbus=1. If false, "
             "handle_*=1 will be upgraded to handle_*=2.")
+COMMON_FLAG(bool, cloak_sanitizer_signal_handlers, false,
+            "If set, signal/sigaction will pretend that sanitizers did not "
+            "preinstall any signal handlers. If the user subsequently installs "
+            "a signal handler, this will disable cloaking for the respective "
+            "signal.")
 COMMON_FLAG(bool, use_sigaltstack, true,
             "If set, uses alternate stack for signal handling.")
 COMMON_FLAG(bool, detect_deadlocks, true,
@@ -179,6 +189,7 @@ COMMON_FLAG(bool, use_madv_dontdump, true,
           "in core file.")
 COMMON_FLAG(bool, symbolize_inline_frames, true,
             "Print inlined frames in stacktraces. Defaults to true.")
+COMMON_FLAG(bool, demangle, true, "Print demangled symbols.")
 COMMON_FLAG(bool, symbolize_vs_style, false,
             "Print file locations in Visual Studio style (e.g: "
             " file(10,42): ...")
@@ -191,6 +202,8 @@ COMMON_FLAG(const char *, stack_trace_format, "DEFAULT",
             "Format string used to render stack frames. "
             "See sanitizer_stacktrace_printer.h for the format description. "
             "Use DEFAULT to get default format.")
+COMMON_FLAG(int, compress_stack_depot, 0,
+            "Compress stack depot to save memory.")
 COMMON_FLAG(bool, no_huge_pages_for_shadow, true,
             "If true, the shadow is not allowed to use huge pages. ")
 COMMON_FLAG(bool, strict_string_checks, false,
@@ -242,7 +255,7 @@ COMMON_FLAG(bool, decorate_proc_maps, (bool)SANITIZER_ANDROID,
 COMMON_FLAG(int, exitcode, 1, "Override the program exit status if the tool "
                               "found an error")
 COMMON_FLAG(
-    bool, abort_on_error, (bool)SANITIZER_ANDROID || (bool)SANITIZER_MAC,
+    bool, abort_on_error, (bool)SANITIZER_ANDROID || (bool)SANITIZER_APPLE,
     "If set, the tool calls abort() instead of _exit() after printing the "
     "error report.")
 COMMON_FLAG(bool, suppress_equal_pcs, true,
@@ -263,3 +276,16 @@ COMMON_FLAG(bool, detect_write_exec, false,
 COMMON_FLAG(bool, test_only_emulate_no_memorymap, false,
             "TEST ONLY fail to read memory mappings to emulate sanitized "
             "\"init\"")
+// With static linking, dladdr((void*)pthread_join) or similar will return the
+// path to the main program. This flag will replace dlopen(<main program,...>
+// with dlopen(NULL,...), which is the correct way to get a handle to the main
+// program.
+COMMON_FLAG(bool, test_only_replace_dlopen_main_program, false,
+            "TEST ONLY replace dlopen(<main program>,...) with dlopen(NULL)")
+
+COMMON_FLAG(bool, enable_symbolizer_markup, SANITIZER_FUCHSIA,
+            "Use sanitizer symbolizer markup, available on Linux "
+            "and always set true for Fuchsia.")
+
+COMMON_FLAG(bool, detect_invalid_join, true,
+            "If set, check invalid joins of threads.")

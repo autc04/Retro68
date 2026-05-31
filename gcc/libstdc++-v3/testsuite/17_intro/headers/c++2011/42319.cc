@@ -1,7 +1,7 @@
 // { dg-do compile }
-// { dg-options "-std=gnu++11" }
+// { dg-add-options no_pch }
 
-// Copyright (C) 2009-2022 Free Software Foundation, Inc.
+// Copyright (C) 2009-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,4 +19,4 @@
 // <http://www.gnu.org/licenses/>.
 
 // libstdc++/42319
-#include <bits/char_traits.h>
+#include <ios>

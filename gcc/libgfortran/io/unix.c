@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
@@ -1028,8 +1028,7 @@ mem_flush (unix_stream *s __attribute__ ((unused)))
 static int
 mem_close (unix_stream *s)
 {
-  if (s)
-    free (s);
+  free (s);
   return 0;
 }
 
@@ -1774,7 +1773,7 @@ find_file (const char *file, gfc_charlen_type file_len)
   id = id_from_path (path);
 #endif
 
-  LOCK (&unit_lock);
+  RDLOCK (&unit_rwlock);
 retry:
   u = find_file0 (unit_root, FIND_FILE0_ARGS);
   if (u != NULL)
@@ -1783,20 +1782,20 @@ retry:
       if (! __gthread_mutex_trylock (&u->lock))
 	{
 	  /* assert (u->closed == 0); */
-	  UNLOCK (&unit_lock);
+	  RWUNLOCK (&unit_rwlock);
 	  goto done;
 	}
 
       inc_waiting_locked (u);
     }
-  UNLOCK (&unit_lock);
+  RWUNLOCK (&unit_rwlock);
   if (u != NULL)
     {
-      LOCK (&u->lock);
+      LOCK_UNIT (u);
       if (u->closed)
 	{
-	  LOCK (&unit_lock);
-	  UNLOCK (&u->lock);
+	  RDLOCK (&unit_rwlock);
+	  UNLOCK_UNIT (u);
 	  if (predec_waiting_locked (u) == 0)
 	    free (u);
 	  goto retry;
@@ -1826,7 +1825,7 @@ flush_all_units_1 (gfc_unit *u, int min_unit)
 	    return u;
 	  if (u->s)
 	    sflush (u->s);
-	  UNLOCK (&u->lock);
+	  UNLOCK_UNIT (u);
 	}
       u = u->right;
     }
@@ -1839,31 +1838,31 @@ flush_all_units (void)
   gfc_unit *u;
   int min_unit = 0;
 
-  LOCK (&unit_lock);
+  WRLOCK (&unit_rwlock);
   do
     {
       u = flush_all_units_1 (unit_root, min_unit);
       if (u != NULL)
 	inc_waiting_locked (u);
-      UNLOCK (&unit_lock);
+      RWUNLOCK (&unit_rwlock);
       if (u == NULL)
 	return;
 
-      LOCK (&u->lock);
+      LOCK_UNIT (u);
 
       min_unit = u->unit_number + 1;
 
       if (u->closed == 0)
 	{
 	  sflush (u->s);
-	  LOCK (&unit_lock);
-	  UNLOCK (&u->lock);
+	  WRLOCK (&unit_rwlock);
+	  UNLOCK_UNIT (u);
 	  (void) predec_waiting_locked (u);
 	}
       else
 	{
-	  LOCK (&unit_lock);
-	  UNLOCK (&u->lock);
+	  WRLOCK (&unit_rwlock);
+	  UNLOCK_UNIT (u);
 	  if (predec_waiting_locked (u) == 0)
 	    free (u);
 	}
@@ -2047,7 +2046,7 @@ inquire_access (const char *string, gfc_charlen_type len, int mode)
   int res = access (path, mode);
   free (path);
   if (res == -1)
-    return no;
+    return unknown;
 
   return yes;
 }

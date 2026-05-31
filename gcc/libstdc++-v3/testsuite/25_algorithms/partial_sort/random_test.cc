@@ -1,4 +1,4 @@
-// Copyright (C) 2013-2022 Free Software Foundation, Inc.
+// Copyright (C) 2013-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -37,9 +37,9 @@ struct testPartialSort
   template<typename Container, typename RandomGen>
   void operator()(Container con, RandomGen& rg)
   {
-    const int size = con.end() - con.begin();
+    const auto size = con.end() - con.begin();
     auto dist = std::uniform_int_distribution<>(0, size);
-    const int element = dist(rg);
+    const decltype(size) element = dist(rg);
 
     std::partial_sort(con.begin(), con.begin() + element, con.end());
 

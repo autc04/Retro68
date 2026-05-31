@@ -291,7 +291,7 @@ public:
                 // be there, but since PosixTimeZone _does_ use leap seconds if
                 // the time zone file does, we'll test that functionality if the
                 // appropriate files exist.
-                if (chainPath(PosixTimeZone.defaultTZDatabaseDir, "right", tzName).exists)
+                if (chainPath(PosixTimeZone.getDefaultTZDatabaseDir(), "right", tzName).exists)
                 {
                     auto leapTZ = PosixTimeZone.getTimeZone("right/" ~ tzName);
 
@@ -1550,7 +1550,7 @@ package:
             isoString = A string which represents a time zone in the ISO format.
       +/
     static immutable(SimpleTimeZone) fromISOString(S)(S isoString) @safe pure
-        if (isSomeString!S)
+    if (isSomeString!S)
     {
         import std.algorithm.searching : startsWith;
         import std.conv : text, to, ConvException;
@@ -1704,7 +1704,7 @@ package:
             isoExtString = A string which represents a time zone in the ISO format.
       +/
     static immutable(SimpleTimeZone) fromISOExtString(S)(scope S isoExtString) @safe pure
-        if (isSomeString!S)
+    if (isSomeString!S)
     {
         import std.algorithm.searching : startsWith;
         import std.conv : ConvException, to;
@@ -2014,7 +2014,8 @@ public:
             the TZDatabaseDir version to pass an arbitrary path at compile-time,
             rather than hard-coding it here. Android concatenates all time zone
             data into a single file called tzdata and stores it in the directory
-            below.
+            below. If the TZDIR environment variable is set, it is consulted
+            before this constant.
           +/
         enum defaultTZDatabaseDir = "";
     }
@@ -2038,6 +2039,18 @@ public:
     else version (Windows)
     {
         enum defaultTZDatabaseDir = "";
+    }
+
+    private static string getDefaultTZDatabaseDir()
+    {
+        import core.stdc.stdlib : getenv;
+        import std.string : fromStringz;
+
+        auto dir = getenv("TZDIR");
+        if (dir)
+            return fromStringz(dir).idup;
+
+        return defaultTZDatabaseDir;
     }
 
 
@@ -2067,7 +2080,7 @@ public:
       +/
     // TODO make it possible for tzDatabaseDir to be gzipped tar file rather than an uncompressed
     //      directory.
-    static immutable(PosixTimeZone) getTimeZone(string name, string tzDatabaseDir = defaultTZDatabaseDir) @trusted
+    static immutable(PosixTimeZone) getTimeZone(string name, string tzDatabaseDir = getDefaultTZDatabaseDir()) @trusted
     {
         import std.algorithm.sorting : sort;
         import std.conv : to;
@@ -2418,7 +2431,7 @@ public:
         Throws:
             `FileException` if it fails to read from disk.
       +/
-    static string[] getInstalledTZNames(string subName = "", string tzDatabaseDir = defaultTZDatabaseDir) @safe
+    static string[] getInstalledTZNames(string subName = "", string tzDatabaseDir = getDefaultTZDatabaseDir()) @safe
     {
         import std.algorithm.sorting : sort;
         import std.array : appender;
@@ -2510,11 +2523,12 @@ public:
         {}
         else
         {
-            foreach (DirEntry de; dirEntries(defaultTZDatabaseDir, SpanMode.depth))
+            string tzDatabaseDir = getDefaultTZDatabaseDir();
+            foreach (DirEntry de; dirEntries(tzDatabaseDir, SpanMode.depth))
             {
                 if (de.isFile)
                 {
-                    auto tzName = de.name[defaultTZDatabaseDir.length .. $];
+                    auto tzName = de.name[tzDatabaseDir.length .. $];
 
                     if (!canFind(tzNames, tzName))
                         assertThrown!DateTimeException(testPTZFailure(tzName));
@@ -2642,7 +2656,7 @@ private:
         Reads an int from a TZ file.
       +/
     static T readVal(T)(ref File tzFile) @trusted
-        if ((isIntegral!T || isSomeChar!T) || is(immutable T == immutable bool))
+    if ((isIntegral!T || isSomeChar!T) || is(immutable T == immutable bool))
     {
         import std.bitmanip : bigEndianToNative;
         T[1] buff;
@@ -2657,7 +2671,7 @@ private:
         Reads an array of values from a TZ file.
       +/
     static T readVal(T)(ref File tzFile, size_t length) @trusted
-        if (isArray!T)
+    if (isArray!T)
     {
         auto buff = new T(length);
 
@@ -2672,7 +2686,7 @@ private:
         Reads a `TempTTInfo` from a TZ file.
       +/
     static T readVal(T)(ref File tzFile) @safe
-        if (is(T == TempTTInfo))
+    if (is(T == TempTTInfo))
     {
         return TempTTInfo(readVal!int(tzFile),
                           readVal!bool(tzFile),
@@ -3339,7 +3353,7 @@ else version (Posix)
     Windows uses a different set of time zone names than the IANA time zone
     database does, and how they correspond to one another changes over time
     (particularly when Microsoft updates Windows).
-    $(HTTP unicode.org/cldr/data/common/supplemental/windowsZones.xml, windowsZones.xml)
+    $(HTTP github.com/unicode-org/cldr/blob/main/common/supplemental/windowsZones.xml, windowsZones.xml)
     provides the current conversions (which may or may not match up with what's
     on a particular Windows box depending on how up-to-date it is), and
     parseTZConversions reads in those conversions from windowsZones.xml so that
@@ -3358,7 +3372,7 @@ else version (Posix)
 
     Params:
         windowsZonesXMLText = The text from
-        $(HTTP unicode.org/cldr/data/common/supplemental/windowsZones.xml, windowsZones.xml)
+        $(HTTP github.com/unicode-org/cldr/blob/main/common/supplemental/windowsZones.xml, windowsZones.xml)
 
     Throws:
         Exception if there is an error while parsing the given XML.
@@ -3372,7 +3386,7 @@ else version (Posix)
     // and parse it so that it's guaranteed to be up-to-date, though
     // that has the downside that the code needs to worry about the
     // site being down or unicode.org changing the URL.
-    auto url = "http://unicode.org/cldr/data/common/supplemental/windowsZones.xml";
+    auto url = "https://raw.githubusercontent.com/unicode-org/cldr/main/common/supplemental/windowsZones.xml";
     auto conversions2 = parseTZConversions(std.net.curl.get(url));
 --------------------
   +/
@@ -3397,8 +3411,7 @@ struct TZConversions
 TZConversions parseTZConversions(string windowsZonesXMLText) @safe pure
 {
     // This is a bit hacky, since it doesn't properly read XML, but it avoids
-    // needing to pull in std.xml (which we're theoretically replacing at some
-    // point anyway).
+    // needing to pull in an xml parsing module.
     import std.algorithm.iteration : uniq;
     import std.algorithm.searching : find;
     import std.algorithm.sorting : sort;
@@ -3459,7 +3472,7 @@ TZConversions parseTZConversions(string windowsZonesXMLText) @safe pure
     import std.algorithm.iteration : uniq;
     import std.algorithm.sorting : isSorted;
 
-    // Reduced text from http://unicode.org/cldr/data/common/supplemental/windowsZones.xml
+    // Reduced text from https://github.com/unicode-org/cldr/blob/main/common/supplemental/windowsZones.xml
     auto sampleFileText =
 `<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE supplementalData SYSTEM "../../common/dtd/ldmlSupplemental.dtd">

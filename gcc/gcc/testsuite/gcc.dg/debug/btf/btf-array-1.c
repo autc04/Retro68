@@ -8,7 +8,7 @@
    a1 : cta_nelems = 2, 5
    buf : cta_nelems = 0.  */
 
-/* { dg-do compile )  */
+/* { dg-do compile } */
 /* { dg-options "-O0 -gbtf -dA" } */
 
 /* { dg-final { scan-assembler-times "0x3000000\[\t \]+\[^\n\]*btt_info" 5 } } */
@@ -17,6 +17,9 @@
 /* { dg-final { scan-assembler-times "\[\t \]0x3\[\t \]+\[^\n\]*bta_nelems" 1 } } */
 /* { dg-final { scan-assembler-times "\[\t \]0x5\[\t \]+\[^\n\]*bta_nelems" 1 } } */
 /* { dg-final { scan-assembler-times "\[\t \]0\[\t \]+\[^\n\]*bta_nelems" 1 } } */
+
+/* { dg-final { scan-assembler-times " bta_elem_type: \\(BTF_KIND_INT 'int'\\)" 4 } } */
+/* { dg-final { scan-assembler-times " bta_elem_type: \\(BTF_KIND_ARRAY ''\\)" 1 } } */
 
 int b1[2] = {0,1};
 int c1[5] = {0,1,2,3,4};

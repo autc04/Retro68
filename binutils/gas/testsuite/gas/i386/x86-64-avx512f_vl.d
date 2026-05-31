@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 AVX512F/VL insns
 #source: x86-64-avx512f_vl.s

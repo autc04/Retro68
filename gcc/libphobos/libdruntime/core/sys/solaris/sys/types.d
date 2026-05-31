@@ -2,7 +2,7 @@
  * D header file that defines Solaris-specific types.
  *
  * Copyright:   Copyright 2014 Jason King.
- * License:     $(HTTP www.boost.org/LICENSE_1.0.txt, Boost License 1.0).
+ * License:     $(HTTP www.boost.org/LICENSE_1_0.txt, Boost License 1.0).
  * Authors:     Jason King
  */
 
@@ -19,6 +19,6 @@ version (Solaris):
 nothrow:
 @nogc:
 
-alias short pri_t;
+alias pri_t = short;
 
 enum P_MYID = -1;

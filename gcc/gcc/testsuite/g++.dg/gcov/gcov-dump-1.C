@@ -1,5 +1,5 @@
-/* { dg-options "-fprofile-generate -ftest-coverage -lgcov" } */
-/* { dg-do run { target native } } */
+/* { dg-options "-fprofile-generate -ftest-coverage " } */
+/* { dg-do run } */
 
 int value;
 

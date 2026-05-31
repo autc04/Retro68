@@ -1,4 +1,4 @@
-/* { dg-options "-O2" } */
+/* { dg-options "-O2 -fschedule-insns" } */
 
 typedef float __attribute__ ((vector_size (8))) fvec;
 typedef int __attribute__ ((vector_size (8))) ivec;
@@ -27,4 +27,4 @@ void ldp2 (fvec *a, ivec *b, struct vec_pair *p)
   *b = p->b;
 }
 
-/* { dg-final { scan-assembler-times "ldp\td\[0-9\], d\[0-9\]+, \\\[x\[0-9\]+\\\]" 2 } } */
+/* { dg-final { scan-assembler-times "ldp\td\[0-9\]+, d\[0-9\]+, \\\[x\[0-9\]+\\\]" 2 } } */

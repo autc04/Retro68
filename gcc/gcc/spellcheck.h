@@ -1,5 +1,5 @@
 /* Find near-matches for strings and identifiers.
-   Copyright (C) 2015-2022 Free Software Foundation, Inc.
+   Copyright (C) 2015-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -39,13 +39,13 @@ find_closest_string (const char *target,
    class best_match.
    Specializations should provide the implementations of the following:
 
-     static size_t get_length (TYPE);
-     static const char *get_string (TYPE);
+     static size_t get_length (StringlikeType);
+     static const char *get_string (StringlikeType);
 
    get_string should return a non-NULL ptr, which does not need to be
    0-terminated.  */
 
-template <typename TYPE>
+template <typename StringlikeType>
 struct edit_distance_traits {};
 
 /* Specialization of edit_distance_traits for C-style strings.  */
@@ -74,28 +74,29 @@ extern edit_distance_t get_edit_distance_cutoff (size_t goal_len,
    string-like types (const char *, frontend identifiers, and preprocessor
    macros).
 
-   This type accumulates the best possible match against GOAL_TYPE for
-   a sequence of elements of CANDIDATE_TYPE, whilst minimizing the
+   This type accumulates the best possible match against GoalType for
+   a sequence of elements of CandidateType, whilst minimizing the
    number of calls to get_edit_distance and to
    edit_distance_traits<T>::get_length.  */
 
-template <typename GOAL_TYPE, typename CANDIDATE_TYPE>
+template <typename GoalType, typename CandidateType>
 class best_match
 {
  public:
-  typedef GOAL_TYPE goal_t;
-  typedef CANDIDATE_TYPE candidate_t;
+  typedef GoalType goal_t;
+  typedef CandidateType candidate_t;
   typedef edit_distance_traits<goal_t> goal_traits;
   typedef edit_distance_traits<candidate_t> candidate_traits;
 
   /* Constructor.  */
 
-  best_match (GOAL_TYPE goal,
+  best_match (goal_t goal,
 	      edit_distance_t best_distance_so_far = MAX_EDIT_DISTANCE)
   : m_goal (goal_traits::get_string (goal)),
     m_goal_len (goal_traits::get_length (goal)),
     m_best_candidate (NULL),
-    m_best_distance (best_distance_so_far)
+    m_best_distance (best_distance_so_far),
+    m_best_candidate_len (0)
   {}
 
   /* Compare the edit distance between CANDIDATE and m_goal,
@@ -128,11 +129,29 @@ class best_match
 
     /* Otherwise, compute the distance and see if the candidate
        has beaten the previous best value.  */
+    const char *candidate_str = candidate_traits::get_string (candidate);
     edit_distance_t dist
-      = get_edit_distance (m_goal, m_goal_len,
-			   candidate_traits::get_string (candidate),
-			   candidate_len);
+      = get_edit_distance (m_goal, m_goal_len, candidate_str, candidate_len);
+
+    bool is_better = false;
     if (dist < m_best_distance)
+      is_better = true;
+    else if (dist == m_best_distance)
+      {
+	/* Prefer a candidate that inserts a trailing '=',
+	   so that for
+	   "-ftrivial-auto-var-init"
+	   we suggest
+	   "-ftrivial-auto-var-init="
+	   rather than
+	   "-Wtrivial-auto-var-init".  */
+	/* Prefer a candidate has a difference in trailing sign character.  */
+	if (candidate_str[candidate_len - 1] == '='
+	    && m_goal[m_goal_len - 1] != '=')
+	  is_better = true;
+      }
+
+    if (is_better)
       {
 	m_best_distance = dist;
 	m_best_candidate = candidate;
@@ -144,7 +163,7 @@ class best_match
      m_best_candidate, update (without recomputing the edit distance to
      the goal).  */
 
-  void set_best_so_far (CANDIDATE_TYPE best_candidate,
+  void set_best_so_far (candidate_t best_candidate,
 			edit_distance_t best_distance,
 			size_t best_candidate_len)
   {

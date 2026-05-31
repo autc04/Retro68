@@ -9,4 +9,3 @@ foo (unsigned long long value)
   return value;
 }
 /* { dg-final { scan-assembler {\mrldimi\M} } } */
-

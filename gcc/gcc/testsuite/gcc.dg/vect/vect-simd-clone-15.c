@@ -10,7 +10,7 @@
 
 int array[N];
 
-#pragma omp declare simd linear(val(b):-3), notinbranch
+#pragma omp declare simd linear(b: val, step (-3)), notinbranch
 __attribute__((noinline)) int
 foo (int a, int b)
 {
@@ -32,6 +32,7 @@ main ()
   int i;
   check_vect ();
   bar ();
+#pragma GCC novector
   for (i = 0; i < N; i++)
     if (array[i] != ((i >> 1) + (-3 * i)))
       abort ();

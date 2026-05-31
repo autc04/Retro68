@@ -1,6 +1,5 @@
 # Check 64bit AVX512{CD,VL} instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vpconflictd	%xmm29, %xmm30	 # AVX512{CD,VL}

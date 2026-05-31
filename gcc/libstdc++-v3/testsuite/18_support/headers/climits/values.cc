@@ -1,6 +1,6 @@
 // { dg-do compile }
 
-// Copyright (C) 2007-2022 Free Software Foundation, Inc.
+// Copyright (C) 2007-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -49,4 +49,12 @@ namespace gnu
   unsigned short us = USHRT_MAX;
   unsigned long ul = ULONG_MAX;
 
+#if __cplusplus >= 201103L
+  // long long
+  long long ll1 = LLONG_MIN;
+  long long ll2 = LLONG_MAX;
+
+  // unsigned long long
+  unsigned long long ull1 = ULLONG_MAX;
+#endif
 }

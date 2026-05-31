@@ -1,5 +1,5 @@
 /* A pure C API to enable client code to embed GCC as a JIT-compiler.
-   Copyright (C) 2013-2022 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,7 +20,13 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef LIBGCCJIT_H
 #define LIBGCCJIT_H
 
+#include <stdint.h>
 #include <stdio.h>
+#ifdef __has_include
+#if __has_include (<sys/types.h>)
+#include <sys/types.h>
+#endif
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,6 +57,9 @@ typedef struct gcc_jit_context gcc_jit_context;
 
 /* A gcc_jit_result encapsulates the result of an in-memory compilation.  */
 typedef struct gcc_jit_result gcc_jit_result;
+
+/* A gcc_jit_target_info encapsulates the target info.  */
+typedef struct gcc_jit_target_info gcc_jit_target_info;
 
 /* An object created within a context.  Such objects are automatically
    cleaned up when the context is released.
@@ -171,6 +180,9 @@ enum gcc_jit_str_option
   /* The name of the program, for use as a prefix when printing error
      messages to stderr.  If NULL, or default, "libgccjit.so" is used.  */
   GCC_JIT_STR_OPTION_PROGNAME,
+
+  /* Special characters to allow in function names.  */
+  GCC_JIT_STR_OPTION_SPECIAL_CHARS_IN_FUNC_NAMES,
 
   GCC_JIT_NUM_STR_OPTIONS
 };
@@ -604,7 +616,13 @@ enum gcc_jit_types
   GCC_JIT_TYPE_INT16_T,
   GCC_JIT_TYPE_INT32_T,
   GCC_JIT_TYPE_INT64_T,
-  GCC_JIT_TYPE_INT128_T
+  GCC_JIT_TYPE_INT128_T,
+
+  GCC_JIT_TYPE_BFLOAT16,
+  GCC_JIT_TYPE_FLOAT16,
+  GCC_JIT_TYPE_FLOAT32,
+  GCC_JIT_TYPE_FLOAT64,
+  GCC_JIT_TYPE_FLOAT128,
 };
 
 extern gcc_jit_type *
@@ -630,6 +648,15 @@ gcc_jit_type_get_const (gcc_jit_type *type);
 extern gcc_jit_type *
 gcc_jit_type_get_volatile (gcc_jit_type *type);
 
+#define LIBGCCJIT_HAVE_gcc_jit_type_get_restrict
+
+/* Given type "T", get type "restrict T".
+   This API entrypoint was added in LIBGCCJIT_ABI_25; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_gcc_jit_type_get_restrict  */
+extern gcc_jit_type *
+gcc_jit_type_get_restrict (gcc_jit_type *type);
+
 #define LIBGCCJIT_HAVE_SIZED_INTEGERS
 
 /* Given types LTYPE and RTYPE, return non-zero if they are compatible.
@@ -653,6 +680,20 @@ gcc_jit_context_new_array_type (gcc_jit_context *ctxt,
 				gcc_jit_location *loc,
 				gcc_jit_type *element_type,
 				int num_elements);
+
+/* Given type "T", get type "T[N]" (for a constant N).
+
+   This API entrypoint was added in LIBGCCJIT_ABI_37; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_gcc_jit_context_new_array_type_u64
+*/
+extern gcc_jit_type *
+gcc_jit_context_new_array_type_u64 (gcc_jit_context *ctxt,
+				    gcc_jit_location *loc,
+				    gcc_jit_type *element_type,
+				    uint64_t num_elements);
+
+#define LIBGCCJIT_HAVE_gcc_jit_context_new_array_type_u64
 
 /* Struct-handling.  */
 
@@ -1021,6 +1062,19 @@ extern gcc_jit_lvalue *
 gcc_jit_global_set_initializer_rvalue (gcc_jit_lvalue *global,
 				       gcc_jit_rvalue *init_value);
 
+#define LIBGCCJIT_HAVE_gcc_jit_context_get_target_builtin_function
+
+/* Create a reference to a machine-specific builtin function (sometimes called
+   intrinsic functions).
+
+   This API entrypoint was added in LIBGCCJIT_ABI_32; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_gcc_jit_context_get_target_builtin_function
+*/
+extern gcc_jit_function *
+gcc_jit_context_get_target_builtin_function (gcc_jit_context *ctxt,
+					     const char *name);
+
 #define LIBGCCJIT_HAVE_gcc_jit_global_set_initializer
 
 /* Set an initial value for a global, which must be an array of
@@ -1035,6 +1089,11 @@ extern gcc_jit_lvalue *
 gcc_jit_global_set_initializer (gcc_jit_lvalue *global,
 				const void *blob,
 				size_t num_bytes);
+
+extern void
+gcc_jit_global_set_readonly (gcc_jit_lvalue *global);
+
+#define LIBGCCJIT_HAVE_gcc_jit_global_set_readonly
 
 /* Upcasting.  */
 extern gcc_jit_object *
@@ -1083,6 +1142,31 @@ gcc_jit_context_new_rvalue_from_ptr (gcc_jit_context *ctxt,
 extern gcc_jit_rvalue *
 gcc_jit_context_null (gcc_jit_context *ctxt,
 		      gcc_jit_type *pointer_type);
+
+#define LIBGCCJIT_HAVE_gcc_jit_context_new_sizeof
+
+/* Generates an rvalue that is equal to the size of type.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_27; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_gcc_jit_context_new_sizeof  */
+
+extern gcc_jit_rvalue *
+gcc_jit_context_new_sizeof (gcc_jit_context *ctxt,
+			    gcc_jit_type *type);
+
+#define LIBGCCJIT_HAVE_gcc_jit_context_new_alignof
+
+/* Generates an rvalue that is equal to the alignment of type.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_38; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_gcc_jit_context_new_alignof  */
+
+extern gcc_jit_rvalue *
+gcc_jit_context_new_alignof (gcc_jit_context *ctxt,
+			     gcc_jit_type *type);
+
 
 /* String literals. */
 extern gcc_jit_rvalue *
@@ -1292,6 +1376,45 @@ gcc_jit_context_new_array_access (gcc_jit_context *ctxt,
 				  gcc_jit_rvalue *ptr,
 				  gcc_jit_rvalue *index);
 
+#define LIBGCCJIT_HAVE_gcc_jit_context_convert_vector
+
+/* Given a vector rvalue, cast it to the type ``type``, doing an element-wise
+   conversion.  */
+extern gcc_jit_rvalue *
+gcc_jit_context_convert_vector (gcc_jit_context *ctxt,
+				gcc_jit_location *loc,
+				gcc_jit_rvalue *vector,
+				gcc_jit_type *type);
+
+/* Build a permutation vector rvalue from an 3 arrays of elements.
+
+   "vec_type" should be a vector type, created using gcc_jit_type_get_vector.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_31; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_VECTOR_OPERATIONS
+*/
+extern gcc_jit_rvalue *
+gcc_jit_context_new_rvalue_vector_perm (gcc_jit_context *ctxt,
+					gcc_jit_location *loc,
+					gcc_jit_rvalue *elements1,
+					gcc_jit_rvalue *elements2,
+					gcc_jit_rvalue *mask);
+
+#define LIBGCCJIT_HAVE_VECTOR_OPERATIONS
+
+/* Get the element at INDEX in VECTOR.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_31; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_VECTOR_OPERATIONS
+*/
+extern gcc_jit_lvalue *
+gcc_jit_context_new_vector_access (gcc_jit_context *ctxt,
+				   gcc_jit_location *loc,
+				   gcc_jit_rvalue *vector,
+				   gcc_jit_rvalue *index);
+
 /* Field access is provided separately for both lvalues and rvalues.  */
 
 /* Accessing a field of an lvalue of struct type, analogous to:
@@ -1374,6 +1497,13 @@ gcc_jit_function_new_local (gcc_jit_function *func,
 			    gcc_jit_location *loc,
 			    gcc_jit_type *type,
 			    const char *name);
+
+extern gcc_jit_lvalue *
+gcc_jit_function_new_temp (gcc_jit_function *func,
+			   gcc_jit_location *loc,
+			   gcc_jit_type *type);
+
+#define LIBGCCJIT_HAVE_gcc_jit_function_new_temp
 
 /**********************************************************************
  Statement-creation.
@@ -1989,6 +2119,156 @@ gcc_jit_vector_type_get_element_type (gcc_jit_vector_type *vector_type);
  * and alignment qualifiers.  */
 extern gcc_jit_type *
 gcc_jit_type_unqualified (gcc_jit_type *type);
+
+#define LIBGCCJIT_HAVE_ATTRIBUTES
+
+/* Function attributes.  */
+enum gcc_jit_fn_attribute
+{
+  GCC_JIT_FN_ATTRIBUTE_ALIAS,
+  GCC_JIT_FN_ATTRIBUTE_ALWAYS_INLINE,
+  GCC_JIT_FN_ATTRIBUTE_INLINE,
+  GCC_JIT_FN_ATTRIBUTE_NOINLINE,
+  GCC_JIT_FN_ATTRIBUTE_TARGET,
+  GCC_JIT_FN_ATTRIBUTE_USED,
+  GCC_JIT_FN_ATTRIBUTE_VISIBILITY,
+  GCC_JIT_FN_ATTRIBUTE_COLD,
+  GCC_JIT_FN_ATTRIBUTE_RETURNS_TWICE,
+  GCC_JIT_FN_ATTRIBUTE_PURE,
+  GCC_JIT_FN_ATTRIBUTE_CONST,
+  GCC_JIT_FN_ATTRIBUTE_WEAK,
+  GCC_JIT_FN_ATTRIBUTE_NONNULL,
+
+  // ARM attributes.
+  GCC_JIT_FN_ATTRIBUTE_ARM_CMSE_NONSECURE_CALL,
+  GCC_JIT_FN_ATTRIBUTE_ARM_CMSE_NONSECURE_ENTRY,
+  GCC_JIT_FN_ATTRIBUTE_ARM_PCS,
+
+  // AVR attributes.
+  GCC_JIT_FN_ATTRIBUTE_AVR_INTERRUPT,
+  GCC_JIT_FN_ATTRIBUTE_AVR_NOBLOCK,
+  GCC_JIT_FN_ATTRIBUTE_AVR_SIGNAL,
+
+  // AMD GCN attributes.
+  GCC_JIT_FN_ATTRIBUTE_GCN_AMDGPU_HSA_KERNEL,
+
+  // MSP430 attributes.
+  GCC_JIT_FN_ATTRIBUTE_MSP430_INTERRUPT,
+
+  // Nvidia PTX attributes.
+  GCC_JIT_FN_ATTRIBUTE_NVPTX_KERNEL,
+
+  // RISC-V attributes.
+  GCC_JIT_FN_ATTRIBUTE_RISCV_INTERRUPT,
+
+  // x86 attributes.
+  GCC_JIT_FN_ATTRIBUTE_X86_FAST_CALL,
+  GCC_JIT_FN_ATTRIBUTE_X86_INTERRUPT,
+  GCC_JIT_FN_ATTRIBUTE_X86_MS_ABI,
+  GCC_JIT_FN_ATTRIBUTE_X86_STDCALL,
+  GCC_JIT_FN_ATTRIBUTE_X86_SYSV_ABI,
+  GCC_JIT_FN_ATTRIBUTE_X86_THIS_CALL,
+
+  /* Maximum value of this enum, should always be last. */
+  GCC_JIT_FN_ATTRIBUTE_MAX,
+};
+
+/* Add an attribute to a function.  */
+extern void
+gcc_jit_function_add_attribute (gcc_jit_function *func,
+				enum gcc_jit_fn_attribute attribute);
+
+extern void
+gcc_jit_function_add_string_attribute (gcc_jit_function *func,
+				       enum gcc_jit_fn_attribute attribute,
+				       const char* value);
+
+/* Create a gcc_jit_target_info instance.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_35; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_TARGET_INFO_API
+*/
+extern gcc_jit_target_info *
+gcc_jit_context_get_target_info (gcc_jit_context *ctxt);
+
+/* Release a gcc_jit_target_info instance.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_35; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_TARGET_INFO_API
+*/
+extern void
+gcc_jit_target_info_release (gcc_jit_target_info *info);
+
+/* Returns non-zero if FEATURE is supported by the specified target.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_35; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_TARGET_INFO_API
+*/
+extern int
+gcc_jit_target_info_cpu_supports (gcc_jit_target_info *info,
+				  const char *feature);
+
+/* Returns the ARCH of the currently running CPU.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_35; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_TARGET_INFO_API
+*/
+extern const char *
+gcc_jit_target_info_arch (gcc_jit_target_info *info);
+
+/* Returns non-zero if the target natively supports the target-dependent type
+   TYPE.
+
+   This API entrypoint was added in LIBGCCJIT_ABI_35; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_TARGET_INFO_API
+*/
+extern int
+gcc_jit_target_info_supports_target_dependent_type (gcc_jit_target_info *info,
+						    enum gcc_jit_types type);
+
+/* The target info API was added in LIBGCCJIT_ABI_35; you can test for its
+   presence using
+     #ifdef LIBGCCJIT_HAVE_TARGET_INFO_API
+*/
+#define LIBGCCJIT_HAVE_TARGET_INFO_API
+
+extern void
+gcc_jit_function_add_integer_array_attribute (
+  gcc_jit_function *func,
+  enum gcc_jit_fn_attribute attribute,
+  const int* value,
+  size_t length);
+
+/* Variable attributes.  */
+enum gcc_jit_variable_attribute
+{
+  GCC_JIT_VARIABLE_ATTRIBUTE_VISIBILITY,
+
+  /* Maximum value of this enum, should always be last. */
+  GCC_JIT_VARIABLE_ATTRIBUTE_MAX,
+};
+
+/* Add a string attribute to a variable.  */
+extern void
+gcc_jit_lvalue_add_string_attribute (gcc_jit_lvalue *variable,
+				     enum gcc_jit_variable_attribute attribute,
+				     const char* value);
+
+extern void
+gcc_jit_context_set_output_ident (gcc_jit_context *ctxt,
+				  const char* output_ident);
+
+#define LIBGCCJIT_HAVE_gcc_jit_context_set_output_ident
+
+extern void
+gcc_jit_context_set_abort_on_unsupported_target_builtin (gcc_jit_context *ctxt);
+
+#define LIBGCCJIT_HAVE_gcc_jit_context_set_abort_on_unsupported_target_builtin
 
 #ifdef __cplusplus
 }

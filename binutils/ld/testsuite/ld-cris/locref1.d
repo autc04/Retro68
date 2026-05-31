@@ -1,4 +1,4 @@
-#as: --no-underscore --pic --em=criself
+#as: --no-underscore --pic --emulation=criself
 #source: expdyn1.s
 #source: locref1.s
 #ld: -m crislinux

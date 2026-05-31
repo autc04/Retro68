@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2013-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2013-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -47,8 +47,9 @@ package Ada.Containers.Indefinite_Holders is
    pragma Preelaborate (Indefinite_Holders);
    pragma Remote_Types (Indefinite_Holders);
 
-   type Holder is tagged private;
-   pragma Preelaborable_Initialization (Holder);
+   type Holder is tagged private
+   with
+      Preelaborable_Initialization;
 
    Empty_Holder : constant Holder;
 
@@ -75,12 +76,12 @@ package Ada.Containers.Indefinite_Holders is
       Process   : not null access procedure (Element : in out Element_Type));
 
    type Constant_Reference_Type
-      (Element : not null access constant Element_Type) is private
+     (Element : not null access constant Element_Type) is limited private
    with
       Implicit_Dereference => Element;
 
    type Reference_Type
-     (Element : not null access Element_Type) is private
+     (Element : not null access Element_Type) is limited private
    with
       Implicit_Dereference => Element;
 
@@ -109,7 +110,7 @@ private
 
    type Holder_Access is access all Holder;
 
-   type Shared_Holder is record
+   type Shared_Holder is limited record
       Counter : System.Atomic_Counters.Atomic_Counter;
       Element : Element_Access;
    end record;

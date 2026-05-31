@@ -1,44 +1,44 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: bad type in SIMD instruction -- `vqmovnt.s8 q0,q1'
-[^:]*:11: Error: bad type in SIMD instruction -- `vqmovnt.s64 q0,q1'
-[^:]*:12: Error: bad type in SIMD instruction -- `vqmovnt.i16 q0,q1'
-[^:]*:13: Error: bad type in SIMD instruction -- `vqmovnb.u8 q0,q1'
-[^:]*:14: Error: bad type in SIMD instruction -- `vqmovnb.u64 q0,q1'
-[^:]*:15: Error: bad type in SIMD instruction -- `vqmovnb.i16 q0,q1'
-[^:]*:16: Error: bad type in SIMD instruction -- `vqmovunt.s8 q0,q1'
-[^:]*:17: Error: bad type in SIMD instruction -- `vqmovunt.s64 q0,q1'
-[^:]*:18: Error: bad type in SIMD instruction -- `vqmovunt.i16 q0,q1'
-[^:]*:19: Error: bad type in SIMD instruction -- `vqmovunb.s8 q0,q1'
-[^:]*:20: Error: bad type in SIMD instruction -- `vqmovunb.s64 q0,q1'
-[^:]*:21: Error: bad type in SIMD instruction -- `vqmovunb.i16 q0,q1'
-[^:]*:22: Error: bad type in SIMD instruction -- `vqmovunt.u16 q0,q1'
-[^:]*:23: Error: bad type in SIMD instruction -- `vqmovunt.u32 q0,q1'
-[^:]*:24: Error: bad type in SIMD instruction -- `vqmovunb.u16 q0,q1'
-[^:]*:25: Error: bad type in SIMD instruction -- `vqmovunb.u32 q0,q1'
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:27: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:28: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:29: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:3: Error: bad type in SIMD instruction -- `vqmovnt.s8 q0,q1'
+[^:]*:4: Error: bad type in SIMD instruction -- `vqmovnt.s64 q0,q1'
+[^:]*:5: Error: bad type in SIMD instruction -- `vqmovnt.i16 q0,q1'
+[^:]*:6: Error: bad type in SIMD instruction -- `vqmovnb.u8 q0,q1'
+[^:]*:7: Error: bad type in SIMD instruction -- `vqmovnb.u64 q0,q1'
+[^:]*:8: Error: bad type in SIMD instruction -- `vqmovnb.i16 q0,q1'
+[^:]*:9: Error: bad type in SIMD instruction -- `vqmovunt.s8 q0,q1'
+[^:]*:10: Error: bad type in SIMD instruction -- `vqmovunt.s64 q0,q1'
+[^:]*:11: Error: bad type in SIMD instruction -- `vqmovunt.i16 q0,q1'
+[^:]*:12: Error: bad type in SIMD instruction -- `vqmovunb.s8 q0,q1'
+[^:]*:13: Error: bad type in SIMD instruction -- `vqmovunb.s64 q0,q1'
+[^:]*:14: Error: bad type in SIMD instruction -- `vqmovunb.i16 q0,q1'
+[^:]*:15: Error: bad type in SIMD instruction -- `vqmovunt.u16 q0,q1'
+[^:]*:16: Error: bad type in SIMD instruction -- `vqmovunt.u32 q0,q1'
+[^:]*:17: Error: bad type in SIMD instruction -- `vqmovunb.u16 q0,q1'
+[^:]*:18: Error: bad type in SIMD instruction -- `vqmovunb.u32 q0,q1'
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:24: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:31: Error: syntax error -- `vqmovnteq.s16 q0,q1'
 [^:]*:32: Error: syntax error -- `vqmovnteq.s16 q0,q1'
 [^:]*:34: Error: syntax error -- `vqmovnteq.s16 q0,q1'

@@ -1,5 +1,5 @@
 /* Affinity tests.
-   Copyright (C) 2013-2022 Free Software Foundation, Inc.
+   Copyright (C) 2013-2026 Free Software Foundation, Inc.
 
    GCC is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free
@@ -17,8 +17,8 @@
 
 /* { dg-do run } */
 /* { dg-set-target-env-var OMP_PROC_BIND "false" } */
-/* { dg-additional-options "-Wno-deprecated-declarations" } */
-/* { dg-additional-options "-DINTERPOSE_GETAFFINITY -DDO_FORK -ldl -Wno-deprecated-declarations" { target *-*-linux* } } */
+/* { dg-additional-options "-Wno-deprecated-declarations -Wno-deprecated-openmp" }
+/* { dg-additional-options "-DINTERPOSE_GETAFFINITY -DDO_FORK -ldl" { target *-*-linux* } } */
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

@@ -4,7 +4,7 @@
    
    This testcase has a mix of C constructs containing COMPLEX_TYPE.  */
 
-/* { dg-do compile )  */
+/* { dg-do compile } */
 /* { dg-options "-O0 -gctf -dA" } */
 /* { dg-require-effective-target libc_has_complex_functions } */
 
@@ -14,8 +14,8 @@
 
 #include <complex.h>
 
-double complex z1 = I * I;
+double complex z1 = -1;
 
-const long double complex z2 = I * I;
+const long double complex z2 = -1;
 
-float complex z4 = 1+2.11*I;
+float complex z4 = 1;

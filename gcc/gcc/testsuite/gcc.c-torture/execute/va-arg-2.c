@@ -2,9 +2,12 @@
    in regs and on the stack.  We test 16 cases, trying to catch multiple
    targets (some use 3 regs for argument passing, some use 12, etc.).
    We test both the arguments and the `lastarg' (the argument to va_start).  */
+/* { dg-additional-options "-std=gnu17" } */
 
 #include <stdarg.h>
 
+extern void abort (void);
+extern void exit (int);
 extern __SIZE_TYPE__ strlen ();
 
 int
@@ -267,7 +270,8 @@ f15 (int a1, int a2, int a3, int a4, int a5,
   va_end(ap);
 }
 
-main ()
+int
+main (void)
 {
   char *f = "0123456789abcdef";
 

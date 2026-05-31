@@ -20,7 +20,7 @@ Disassembly of section .text:
   19:	c1 e9 02             	shr    \$0x2,%ecx
   1c:	c1 e9 02             	shr    \$0x2,%ecx
   1f:	f6 c2 02             	test   \$0x2,%dl
-  22:	f3 ab                	rep stos %eax,%es:\(%rdi\)
+  22:	f3 ab                	rep stos %eax,\(%rdi\)
   24:	75 dd                	jne    (0x)?3( .*)?
   26:	31 c0                	xor    %eax,%eax
   28:	c1 e9 02             	shr    \$0x2,%ecx

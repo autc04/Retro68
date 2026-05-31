@@ -31,7 +31,6 @@ version (linux) public import core.sys.linux.sys.time;
 
 version (Posix):
 extern (C) nothrow @nogc:
-@system:
 
 //
 // XOpen (XSI)
@@ -90,7 +89,9 @@ else version (CRuntime_Musl)
         time_t      tv_sec;
         suseconds_t tv_usec;
     }
+    pragma(mangle, muslRedirTime64Mangle!("gettimeofday", "__gettimeofday_time64"))
     int gettimeofday(timeval*, void*);
+    pragma(mangle, muslRedirTime64Mangle!("utimes", "__utimes_time64"))
     int utimes(const scope char*, ref const(timeval)[2]);
 }
 else version (Darwin)
@@ -159,9 +160,13 @@ else version (NetBSD)
         timeval it_value;
     }
 
+    pragma(mangle, "__getitimer50")
     int getitimer(int, itimerval*);
+    pragma(mangle, "__gettimeofday50")
     int gettimeofday(timeval*, void*); // timezone_t* is normally void*
+    pragma(mangle, "__setitimer50")
     int setitimer(int, const scope itimerval*, itimerval*);
+    pragma(mangle, "__utimes50")
     int utimes(const scope char*, ref const(timeval)[2]);
 }
 else version (OpenBSD)

@@ -1,4 +1,4 @@
-# Copyright (C) 2005-2022 Free Software Foundation, Inc.
+# Copyright (C) 2005-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -144,12 +144,15 @@ check_for_options c "--help=joined,undocumented" "" "" ""
 # find the source a failure.
 
 foreach cls { "ada" "c" "c++" "d" "fortran" "go" \
-		"common" "optimizers" "param" "target" "warnings" } {
+	      "objc" "objc++" "rust" "modula-2" "cobol" "algol68" \
+	      "common" "optimizers" "param" "target" "warnings" } {
     check_for_options c "--help=$cls" "" "^ +-.*\[^:.\]$" ""
 }
 
 # Listing only excludes gives empty results.
 check_for_options c "--help=^joined,^separate" "" "" ""
+
+check_for_options c "--help=hardened" "The following options are enabled by -fhardened" "" ""
 
 if [ info exists prev_columns ] {
     # Reset the enviroment variable to its oriuginal value.

@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2015-2026 Free Software Foundation, Inc.
    Contributed by Alexander Monakov <amonakov@ispras.ru>
 
    This file is part of the GNU Offloading and Multi Processing Library
@@ -31,11 +31,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define UNLIKELY(x) (__builtin_expect ((x), 0))
+
+extern void *GOMP_INDIRECT_ADDR_MAP;
+
 struct gomp_thread *nvptx_thrs __attribute__((shared,nocommon));
 int __gomp_team_num __attribute__((shared,nocommon));
 
 static void gomp_thread_start (struct gomp_thread_pool *);
+extern void build_indirect_map (void);
 
+/* There should be some .shared space reserved for us.  There's no way to
+   express this magic extern sizeless array in C so use asm.  */
+asm (".extern .shared .u8 __nvptx_lowlat_pool[];\n");
+
+/* Defined in basic-allocator.c via config/nvptx/allocator.c.  */
+void __nvptx_lowlat_init (void *heap, size_t size);
 
 /* This externally visible function handles target region entry.  It
    sets up a per-team thread pool and transfers control by calling FN (FN_DATA)
@@ -52,6 +63,7 @@ gomp_nvptx_main (void (*fn) (void *), void *fn_data)
   int tid, ntids;
   asm ("mov.u32 %0, %%tid.y;" : "=r" (tid));
   asm ("mov.u32 %0, %%ntid.y;" : "=r" (ntids));
+
   if (tid == 0)
     {
       gomp_global_icv.nthreads_var = ntids;
@@ -63,6 +75,24 @@ gomp_nvptx_main (void (*fn) (void *), void *fn_data)
       nvptx_thrs = alloca (ntids * sizeof (*nvptx_thrs));
       memset (nvptx_thrs, 0, ntids * sizeof (*nvptx_thrs));
 
+      /* Initialize indirect function support for older libgomp.  */
+      unsigned int block_id;
+      asm ("mov.u32 %0, %%ctaid.x;" : "=r" (block_id));
+      if (UNLIKELY (GOMP_INDIRECT_ADDR_MAP != NULL && block_id == 0))
+	build_indirect_map ();
+
+      /* Find the low-latency heap details ....  */
+      uint32_t *shared_pool;
+      uint32_t shared_pool_size = 0;
+      asm ("cvta.shared.u64\t%0, __nvptx_lowlat_pool;" : "=r"(shared_pool));
+#if __PTX_ISA_VERSION_MAJOR__ > 4 \
+    || (__PTX_ISA_VERSION_MAJOR__ == 4 && __PTX_ISA_VERSION_MINOR__ >= 1)
+      asm ("mov.u32\t%0, %%dynamic_smem_size;\n"
+	   : "=r"(shared_pool_size));
+#endif
+      __nvptx_lowlat_init (shared_pool, shared_pool_size);
+
+      /* Initialize the thread pool.  */
       struct gomp_thread_pool *pool = alloca (sizeof (*pool));
       pool->threads = alloca (ntids * sizeof (*pool->threads));
       for (tid = 0; tid < ntids; tid++)

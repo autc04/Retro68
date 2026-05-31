@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2022 Free Software Foundation, Inc.
+// Copyright (C) 2019-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,13 +15,18 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
+// { dg-require-atomic-cmpxchg-word "" }
 // { dg-add-options libatomic }
 
 #include <atomic>
 #include <limits.h>
 #include <testsuite_hooks.h>
+#include <type_traits>
+
+template<typename T>
+using volatile_
+ = std::conditional_t<std::atomic_ref<T>::is_always_lock_free, volatile T, T>;
 
 struct X
 {
@@ -108,9 +113,15 @@ test02()
   X i;
   std::atomic_ref<X> a0(i);
   std::atomic_ref<X> a1(i);
+  std::atomic_ref<const X> a1c(i);
+  std::atomic_ref<volatile_<X>> a1v(i);
+  std::atomic_ref<volatile_<const X>> a1cv(i);
   std::atomic_ref<X> a2(a0);
   a0 = 42;
   VERIFY( a1.load() == 42 );
+  VERIFY( a1c.load() == 42 );
+  VERIFY( a1v.load() == 42 );
+  VERIFY( a1cv.load() == 42 );
   VERIFY( a2.load() == 42 );
 }
 

@@ -1,8 +1,8 @@
 /* REQUIRED_ARGS: -preview=dip1000
    TEST_OUTPUT:
 ---
-fail_compilation/test20569.d(19): Error: cannot take address of `scope` local `s1` in `@safe` function `main`
-fail_compilation/test20569.d(23): Error: cannot take address of `scope` local `s2` in `@safe` function `main`
+fail_compilation/test20569.d(19): Error: taking address of `scope` variable `s1` with pointers is not allowed in a `@safe` function
+fail_compilation/test20569.d(23): Error: taking address of `scope` variable `s2` with pointers is not allowed in a `@safe` function
 ---
  */
 

@@ -1,27 +1,43 @@
 # Check if objdump works correctly when some bits in instruction
 # has non-default value
 
-# vrndscalesd	{sae}, $123, %xmm4, %xmm5, %xmm6{%k7}	 # with null RC
-.byte 0x62, 0xf3, 0xd5, 0x1f, 0x0b, 0xf4, 0x7b
+	 vrndscalesd	$123, {sae}, %xmm4, %xmm5, %xmm6{%k7} # with null RC
 # vrndscalesd	{sae}, $123, %xmm4, %xmm5, %xmm6{%k7}	 # with not-null RC
-.byte 0x62, 0xf3, 0xd5, 0x5f, 0x0b, 0xf4, 0x7b
-# vpminud	%zmm4, %zmm5, %zmm6{%k7}	# with 11 EVEX.{B,R'}
-.byte 0x62, 0xf2, 0x55, 0x4f, 0x3b, 0xf4
+	.insn EVEX.66.0f3a.W1 0x0b, $123, {ru-sae}, %xmm4, %xmm5, %xmm6{%k7}
+
+	 vpminud	%zmm4, %zmm5, %zmm6{%k7}	# with 11 EVEX.{B,R'}
 # vpminud	%zmm4, %zmm5, %zmm6{%k7}	# with not-11 EVEX.{B,R'}
 .byte 0x62, 0xc2, 0x55, 0x4f, 0x3b, 0xf4
 # vpminud	%zmm4, %zmm5, %zmm6{%k7}	# with set EVEX.b bit
-.byte 0x62, 0xf2, 0x55, 0x1f, 0x3b, 0xf4
-# vpmovdb	%zmm6, 2032(%rdx)		# with unset EVEX.b bit
-.byte 0x62, 0xf2, 0x7e, 0x48, 0x31, 0x72, 0x7f
-# vpmovdb	%zmm6, 2032(%rdx)		# with set EVEX.b bit - we should get (bad) operand
-.byte 0x62, 0xf2, 0x7e, 0x58, 0x31, 0x72, 0x7f
+	.insn EVEX.66.0F38.W0 0x3b, {rn-sae}, %zmm4, %zmm5, %zmm6{%k7}
+
+	 vpmovdb	%zmm6, 2032(%edx)	# with unset EVEX.b bit
+# vpmovdb	%zmm6, 2032(%edx)		# with set EVEX.b bit - we should get (bad) operand
+	.insn EVEX.f3.0f38.W0 0x31, %zmm6, 2032(%edx){1to4}
+
 # vaddps xmm0, xmm0, xmm3 # with EVEX.z set
 .byte 0x62, 0xf1, 0x7c, 0x88, 0x58, 0xc3
+
 # vgatherdps (%ecx), %zmm0{%k7}			# without SIB / index register
-.byte 0x62, 0xf2, 0x7d, 0x4f, 0x92, 0x01
+	.insn EVEX.66.0F38.W0 0x92, (%ecx), %zmm0{%k7}
 # vgatherdps (%bx,%xmm?), %zmm0{%k7}		# with 16-bit addressing
-.byte 0x67, 0x62, 0xf2, 0x7d, 0x4f, 0x92, 0x01
+	.insn EVEX.66.0F38.W0 0x92, (%bx,%di), %zmm0{%k7}
 # vgatherdps (%eax,%zmm1), %zmm0{%k7}{z}	# with set EVEX.z
-.byte 0x62, 0xf2, 0x7d, 0xcf, 0x92, 0x04, 0x08
+	.insn EVEX.66.0F38.W0 0x92, (%eax,%zmm1), %zmm0{%k7}{z}
 # vgatherdps (%eax,%zmm1), %zmm0		# without actual mask register
-.byte 0x62, 0xf2, 0x7d, 0x48, 0x92, 0x04, 0x08
+	.insn EVEX.66.0F38.W0 0x92, (%eax,%zmm1), %zmm0
+
+	# vcmpeqps %zmm0, %zmm0, %k0{%k7} with EVEX.z set
+	.insn EVEX.0f 0xc2, $0, %zmm0, %zmm0, %k0{%k7}{z}
+
+	# vmovaps %zmm0, (%eax){%k7} with EVEX.z set
+	.insn EVEX.0f 0x29, %zmm0, (%eax){%k7}{z}
+
+	# vpextrw $0, %xmm0, %ecx with non-zero EVEX.aaa
+	.insn EVEX.66.0f 0xc5, $0, %xmm0, %ecx{%k2}
+
+	# vpextrd $0, %xmm0, (%ecx) with non-zero EVEX.aaa
+	.insn EVEX.66.0f3a 0x16, $0, %xmm0, (%ecx){%k2}
+
+	# vmovntdqa (%ecx), %zmm0 with non-zero EVEX.aaa
+	.insn EVEX.66.0f38.W0 0x2a, (%ecx), %zmm0{%k2}

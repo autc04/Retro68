@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: head/include/semaphore.h 314424 2017-02-28 21:47:00Z vangyzen $
+ * $FreeBSD$
  */
 
 /* semaphore.h: POSIX 1003.1b semaphores */
@@ -55,6 +55,12 @@ int	 sem_timedwait(sem_t * __restrict, const struct timespec * __restrict);
 int	 sem_trywait(sem_t *);
 int	 sem_unlink(const char *);
 int	 sem_wait(sem_t *);
+
+#if (__GNU_VISIBLE || __POSIX_VISIBLE >= 202405)
+int sem_clockwait(sem_t * __restrict, __clockid_t,
+       const struct timespec * __restrict);
+#endif /* __GNU_VISIBLE || __POSIX_VISIBLE >= 202405 */
+
 __END_DECLS
 
 #endif /* !_SEMAPHORE_H_ */

@@ -1,22 +1,18 @@
 /*
 TEST_OUTPUT:
 ---
-fail_compilation/fail10534.d(28): Error: `a` is not of arithmetic type, it is a `int delegate()`
-fail_compilation/fail10534.d(28): Error: `b` is not of arithmetic type, it is a `int delegate()`
-fail_compilation/fail10534.d(29): Error: `a` is not of arithmetic type, it is a `int delegate()`
-fail_compilation/fail10534.d(29): Error: `b` is not of arithmetic type, it is a `int delegate()`
-fail_compilation/fail10534.d(30): Error: `a` is not of arithmetic type, it is a `int delegate()`
-fail_compilation/fail10534.d(30): Error: `b` is not of arithmetic type, it is a `int delegate()`
-fail_compilation/fail10534.d(31): Error: `a` is not of arithmetic type, it is a `int delegate()`
-fail_compilation/fail10534.d(31): Error: `b` is not of arithmetic type, it is a `int delegate()`
-fail_compilation/fail10534.d(36): Error: `a` is not of arithmetic type, it is a `int function()`
-fail_compilation/fail10534.d(36): Error: `b` is not of arithmetic type, it is a `int function()`
-fail_compilation/fail10534.d(37): Error: `a` is not of arithmetic type, it is a `int function()`
-fail_compilation/fail10534.d(37): Error: `b` is not of arithmetic type, it is a `int function()`
-fail_compilation/fail10534.d(38): Error: `a` is not of arithmetic type, it is a `int function()`
-fail_compilation/fail10534.d(38): Error: `b` is not of arithmetic type, it is a `int function()`
-fail_compilation/fail10534.d(39): Error: `a` is not of arithmetic type, it is a `int function()`
-fail_compilation/fail10534.d(39): Error: `b` is not of arithmetic type, it is a `int function()`
+fail_compilation/fail10534.d(24): Error: illegal operator `+` for `a` of type `int delegate()`
+fail_compilation/fail10534.d(24): Error: illegal operator `+` for `b` of type `int delegate()`
+fail_compilation/fail10534.d(25): Error: illegal operator `-` for `a` of type `int delegate()`
+fail_compilation/fail10534.d(25): Error: illegal operator `-` for `b` of type `int delegate()`
+fail_compilation/fail10534.d(26): Error: illegal operator `/` for `a` of type `int delegate()`
+fail_compilation/fail10534.d(27): Error: illegal operator `*` for `a` of type `int delegate()`
+fail_compilation/fail10534.d(32): Error: illegal operator `+` for `a` of type `int function()`
+fail_compilation/fail10534.d(32): Error: illegal operator `+` for `b` of type `int function()`
+fail_compilation/fail10534.d(33): Error: illegal operator `-` for `a` of type `int function()`
+fail_compilation/fail10534.d(33): Error: illegal operator `-` for `b` of type `int function()`
+fail_compilation/fail10534.d(34): Error: illegal operator `/` for `a` of type `int function()`
+fail_compilation/fail10534.d(35): Error: illegal operator `*` for `a` of type `int function()`
 ---
 */
 

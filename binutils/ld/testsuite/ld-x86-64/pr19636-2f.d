@@ -1,6 +1,6 @@
 #source: pr19636-2.s
 #as: --64 -mrelax-relocations=no
-#ld: -shared -Bsymbolic -m elf_x86_64 --no-dynamic-linker
+#ld: -shared -Bsymbolic -m elf_x86_64 --no-dynamic-linker -z nomark-plt
 #readelf : -r --wide --dyn-syms
 
 Relocation section '\.rela\.dyn' at offset [0x0-9a-f]+ contains 2 entries:

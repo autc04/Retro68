@@ -1,6 +1,5 @@
-;;   This file contains instructions that support fixed-point operations
-;;   for Atmel AVR micro controllers.
-;;   Copyright (C) 2012-2022 Free Software Foundation, Inc.
+;;   Support fixed-point operations for AVR 8-bit microcontrollers.
+;;   Copyright (C) 2012-2026 Free Software Foundation, Inc.
 ;;
 ;;   Contributed by Sean D'Epagnier  (sean@depagnier.com)
 ;;                  Georg-Johann Lay (avr@gjlay.de)
@@ -63,10 +62,8 @@
   "<FIXED_B:MODE>mode != <FIXED_A:MODE>mode"
   "#"
   "&& reload_completed"
-  [(parallel [(set (match_dup 0)
-                   (fract_convert:FIXED_A
-                    (match_dup 1)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*fract<FIXED_B:mode><FIXED_A:mode>2"
   [(set (match_operand:FIXED_A 0 "register_operand" "=r")
@@ -87,10 +84,8 @@
   "<FIXED_B:MODE>mode != <FIXED_A:MODE>mode"
   "#"
   "&& reload_completed"
-  [(parallel [(set (match_dup 0)
-                   (unsigned_fract_convert:FIXED_A
-                    (match_dup 1)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*fractuns<FIXED_B:mode><FIXED_A:mode>2"
   [(set (match_operand:FIXED_A 0 "register_operand" "=r")
@@ -125,10 +120,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (match_dup 0)
-                   (ss_addsub:ALL124S (match_dup 1)
-                                      (match_dup 2)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*<code_stdname><mode>3"
   [(set (match_operand:ALL124S 0 "register_operand"                          "=??d,d")
@@ -150,10 +143,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (match_dup 0)
-                   (us_addsub:ALL124U (match_dup 1)
-                                      (match_dup 2)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*<code_stdname><mode>3"
   [(set (match_operand:ALL124U 0 "register_operand"                          "=??r,d")
@@ -190,9 +181,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (match_dup 0)
-                   (ss_neg:QQ (match_dup 1)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*ssnegqq2"
   [(set (match_operand:QQ 0 "register_operand"            "=r")
@@ -208,9 +198,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (match_dup 0)
-                   (ss_abs:QQ (match_dup 1)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*ssabsqq2"
   [(set (match_operand:QQ 0 "register_operand"            "=r")
@@ -231,7 +220,7 @@
         (match_dup 2))]
   ""
   {
-    operands[2] = gen_rtx_REG (<MODE>mode, 26 - GET_MODE_SIZE (<MODE>mode));
+    operands[2] = gen_rtx_REG (<MODE>mode, 26 - <SIZE>);
   })
 
 ;; "*ssneghq2"  "*ssnegha2"
@@ -242,9 +231,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:ALL2S 24)
-                   (ss_abs_neg:ALL2S (reg:ALL2S 24)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*<code_stdname><mode>2"
   [(set (reg:ALL2S 24)
@@ -262,9 +250,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:ALL4S 22)
-                   (ss_abs_neg:ALL4S (reg:ALL4S 22)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*<code_stdname><mode>2"
   [(set (reg:ALL4S 22)
@@ -297,10 +284,8 @@
   "AVR_HAVE_MUL"
   "#"
   "&& reload_completed"
-  [(parallel [(set (match_dup 0)
-                   (mult:QQ (match_dup 1)
-                            (match_dup 2)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*mulqq3_enh"
   [(set (match_operand:QQ 0 "register_operand"         "=r")
@@ -318,10 +303,8 @@
   "AVR_HAVE_MUL"
   "#"
   "&& reload_completed"
-  [(parallel [(set (match_dup 0)
-                   (mult:UQQ (match_dup 1)
-                             (match_dup 2)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*muluqq3_enh"
   [(set (match_operand:UQQ 0 "register_operand"          "=r")
@@ -378,12 +361,8 @@
   "!AVR_HAVE_MUL"
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:QQ 23)
-                   (mult:QQ (reg:QQ 24)
-                            (reg:QQ 25)))
-              (clobber (reg:QI 22))
-              (clobber (reg:HI 24))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*mulqq3.call"
   [(set (reg:QQ 23)
@@ -426,11 +405,8 @@
   "AVR_HAVE_MUL"
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:ALL2QA 24)
-                   (mult:ALL2QA (reg:ALL2QA 18)
-                                (reg:ALL2QA 26)))
-              (clobber (reg:HI 22))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*mul<mode>3.call"
   [(set (reg:ALL2QA 24)
@@ -469,10 +445,8 @@
   "AVR_HAVE_MUL"
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:ALL4A 24)
-                   (mult:ALL4A (reg:ALL4A 16)
-                               (reg:ALL4A 20)))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*mul<mode>3.call"
   [(set (reg:ALL4A 24)
@@ -515,11 +489,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:ALL1Q 24)
-                   (usdiv:ALL1Q (reg:ALL1Q 25)
-                                (reg:ALL1Q 22)))
-              (clobber (reg:QI 25))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*<code><mode>3.call"
   [(set (reg:ALL1Q 24)
@@ -561,12 +532,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:ALL2QA 24)
-                   (usdiv:ALL2QA (reg:ALL2QA 26)
-                                 (reg:ALL2QA 22)))
-              (clobber (reg:HI 26))
-              (clobber (reg:QI 21))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*<code><mode>3.call"
   [(set (reg:ALL2QA 24)
@@ -609,12 +576,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:ALL4A 22)
-                   (usdiv:ALL4A (reg:ALL4A 24)
-                                (reg:ALL4A 18)))
-              (clobber (reg:HI 26))
-              (clobber (reg:HI 30))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*<code><mode>3.call"
   [(set (reg:ALL4A 22)
@@ -651,7 +614,7 @@
   {
     if (CONST_INT_P (operands[2])
         && !(optimize_size
-             && 4 == GET_MODE_SIZE (<MODE>mode)))
+             && 4 == <SIZE>))
       {
         emit_insn (gen_round<mode>3_const (operands[0], operands[1], operands[2]));
         DONE;
@@ -661,8 +624,8 @@
     const unsigned int regno_in[]  = { -1U, 22, 22, -1U, 18 };
     const unsigned int regno_out[] = { -1U, 24, 24, -1U, 22 };
 
-    operands[3] = gen_rtx_REG (<MODE>mode, regno_out[(size_t) GET_MODE_SIZE (<MODE>mode)]);
-    operands[4] = gen_rtx_REG (<MODE>mode,  regno_in[(size_t) GET_MODE_SIZE (<MODE>mode)]);
+    operands[3] = gen_rtx_REG (<MODE>mode, regno_out[(size_t) <SIZE>]);
+    operands[4] = gen_rtx_REG (<MODE>mode,  regno_in[(size_t) <SIZE>]);
     avr_fix_inputs (operands, 1 << 2, regmask (<MODE>mode, REGNO (operands[4])));
     operands[5] = simplify_gen_subreg (QImode, force_reg (HImode, operands[2]), HImode, 0);
     // $2 is no more needed, but is referenced for expand.
@@ -685,12 +648,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (match_dup 0)
-                   (unspec:ALL124QA [(match_dup 1)
-                                     (match_dup 2)
-                                     (const_int 0)]
-                                    UNSPEC_ROUND))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*round<mode>3_const"
   [(set (match_operand:ALL124QA 0 "register_operand"                  "=d")
@@ -715,11 +674,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:ALL1Q 24)
-                   (unspec:ALL1Q [(reg:ALL1Q 22)
-                                  (reg:QI 24)] UNSPEC_ROUND))
-              (clobber (reg:ALL1Q 22))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*round<mode>3.libgcc"
   [(set (reg:ALL1Q 24)
@@ -741,11 +697,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:ALL2QA 24)
-                   (unspec:ALL2QA [(reg:ALL2QA 22)
-                                   (reg:QI 24)] UNSPEC_ROUND))
-              (clobber (reg:ALL2QA 22))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*round<mode>3.libgcc"
   [(set (reg:ALL2QA 24)
@@ -767,11 +720,8 @@
   ""
   "#"
   "&& reload_completed"
-  [(parallel [(set (reg:ALL4QA 22)
-                   (unspec:ALL4QA [(reg:ALL4QA 18)
-                                   (reg:QI 24)] UNSPEC_ROUND))
-              (clobber (reg:ALL4QA 18))
-              (clobber (reg:CC REG_CC))])])
+  [(scratch)]
+  { DONE_ADD_CCC })
 
 (define_insn "*round<mode>3.libgcc"
   [(set (reg:ALL4QA 22)

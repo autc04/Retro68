@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---            Copyright (C) 2020-2022, Free Software Foundation, Inc.       --
+--            Copyright (C) 2020-2026, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -37,22 +37,34 @@ with System.Unsigned_Types; use System.Unsigned_Types;
 generic
 
    type Uns is mod <>;
+   --  Modular type used for the value
+
+   Parts : Positive;
+   --  Number of Uns parts in the value
 
    Precision_Limit : Uns;
-
-   Round : Boolean;
+   --  Precision limit for each part of the value
 
 package System.Value_R is
    pragma Preelaborate;
 
+   subtype Data_Index is Positive range 1 .. Parts;
+   --  The type indexing the value
+
+   type Scale_Array is array (Data_Index) of Integer;
+   --  The scale for each part of the value
+
+   type Value_Array is array (Data_Index) of Uns;
+   --  The value split into parts
+
    function Scan_Raw_Real
-     (Str   : String;
-      Ptr   : not null access Integer;
-      Max   : Integer;
-      Base  : out Unsigned;
-      Scale : out Integer;
-      Extra : out Unsigned;
-      Minus : out Boolean) return Uns;
+     (Str    : String;
+      Ptr    : not null access Integer;
+      Max    : Integer;
+      Base   : out Unsigned;
+      Scale  : out Scale_Array;
+      Extra2 : out Unsigned;
+      Minus  : out Boolean) return Value_Array;
    --  This function scans the string starting at Str (Ptr.all) for a valid
    --  real literal according to the syntax described in (RM 3.5(43)). The
    --  substring scanned extends no further than Str (Max). There are three
@@ -60,13 +72,18 @@ package System.Value_R is
    --
    --  If a valid real is found after scanning past any initial spaces, then
    --  Ptr.all is updated past the last character of the real (but trailing
-   --  spaces are not scanned out) and the Base, Scale, Extra and Minus out
+   --  spaces are not scanned out) and the Base, Scale, Extra2 and Minus out
    --  parameters are set; if Val is the result of the call, then the real
    --  represented by the literal is equal to
    --
-   --    (Val * Base + Extra) * (Base ** (Scale - 1))
+   --    (Val (1) * Base ** 2 + Extra2) * (Base ** (Scale (1) - 2))
    --
-   --  with the negative sign if Minus is true.
+   --  when Parts = 1 and
+   --
+   --    Sum [Val (N) * (Base ** Scale (N)), N in 1 .. Parts]
+   --
+   --  when Parts > 1, with the negative sign if Minus is true. Note that
+   --  Val (1) cannot be zero unless Val is entirely filled with zero.
    --
    --  If no valid real is found, then Ptr.all points either to an initial
    --  non-blank character, or to Max + 1 if the field is all spaces and the
@@ -89,11 +106,11 @@ package System.Value_R is
    --  case is not supported. Most such cases are eliminated by the caller.
 
    function Value_Raw_Real
-     (Str   : String;
-      Base  : out Unsigned;
-      Scale : out Integer;
-      Extra : out Unsigned;
-      Minus : out Boolean) return Uns;
+     (Str    : String;
+      Base   : out Unsigned;
+      Scale  : out Scale_Array;
+      Extra2 : out Unsigned;
+      Minus  : out Boolean) return Value_Array;
    --  Used in computing X'Value (Str) where X is a real type. Str is the
    --  string argument of the attribute. Constraint_Error is raised if the
    --  string is malformed.

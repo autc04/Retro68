@@ -3,8 +3,7 @@
    Exercise -Wdangling-pointer for escaping stores of addreses of auto
    variables.
    { dg-do compile }
-   { dg-options "-O0 -Wall -ftrack-macro-expansion=0" }
-   { dg-require-effective-target alloca } */
+   { dg-options "-O0 -Wall -ftrack-macro-expansion=0" } */
 
 void* alloca (__SIZE_TYPE__);
 
@@ -75,9 +74,9 @@ void nowarn_store_arg_store (void **vpp)
 
 void* nowarn_store_arg_store_arg (void **vpp1, void **vpp2)
 {
-  int x;
+  int x;              // { dg-message "'x' declared here" }
   void **p = (void**)sink (0);
-  *vpp1 = &x;         // warn here?
+  *vpp1 = &x;         // { dg-warning "storing the address of local variable 'x' in '\\*vpp1'" }
   *vpp2 = 0;          // might overwrite *vpp1
   return p;
 }

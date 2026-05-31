@@ -22,7 +22,7 @@ FLAGS 1: .*
 FLAGS 2: .*
 
 Disassembly of section \.text:
-[0-9a-f]+ <[^>]*> 7aa2080b 	0x7aa2080b
+[0-9a-f]+ <[^>]*> 7aa2080b 	.word	0x7aa2080b
 [0-9a-f]+ <[^>]*> 46c520c0 	add\.ps	\$f3,\$f4,\$f5
 [0-9a-f]+ <[^>]*> 46c83998 	addr\.ps	\$f6,\$f7,\$f8
 	\.\.\.

@@ -3,7 +3,7 @@
   *
   * Copyright: Copyright © 2019, The D Language Foundation
   * License: <a href="http://www.boost.org/LICENSE_1_0.txt">Boost License 1.0</a>.
-  * Authors: Ernesto Castellotti
+  * Authors: Emily Castellotti
   */
 module core.sys.linux.err;
 import core.stdc.stdarg : va_list;
@@ -12,7 +12,6 @@ version (linux):
 extern (C):
 nothrow:
 @nogc:
-@system:
 
 void err(int eval, scope const char* fmt, ...);
 void errx(int eval, scope const char* fmt, ...);

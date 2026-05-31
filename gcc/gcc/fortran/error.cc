@@ -1,5 +1,5 @@
 /* Handle errors.
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Niels Kristian Bech Jensen
 
 This file is part of GCC.
@@ -24,6 +24,7 @@ along with GCC; see the file COPYING3.  If not see
    for possible use later.  If a line does not match a legal
    construction, then the saved error message is reported.  */
 
+#define INCLUDE_VECTOR
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -31,30 +32,70 @@ along with GCC; see the file COPYING3.  If not see
 #include "gfortran.h"
 
 #include "diagnostic.h"
-#include "diagnostic-color.h"
+#include "diagnostics/color.h"
 #include "tree-diagnostic.h" /* tree_diagnostics_defaults */
+#include "diagnostics/text-sink.h"
 
 static int suppress_errors = 0;
 
 static bool warnings_not_errors = false;
 
-static int terminal_width;
-
 /* True if the error/warnings should be buffered.  */
 static bool buffered_p;
 
-static gfc_error_buffer error_buffer;
-/* These are always buffered buffers (.flush_p == false) to be used by
-   the pretty-printer.  */
-static output_buffer *pp_error_buffer, *pp_warning_buffer;
-static int warningcount_buffered, werrorcount_buffered;
+static gfc_error_buffer *error_buffer;
+static diagnostics::buffer *pp_error_buffer, *pp_warning_buffer;
 
-/* Return true if there output_buffer is empty.  */
-
-static bool
-gfc_output_buffer_empty_p (const output_buffer * buf)
+gfc_error_buffer::gfc_error_buffer ()
+: flag (false), buffer (*global_dc)
 {
-  return output_buffer_last_position_in_text (buf) == NULL;
+}
+
+/* Return a location_t suitable for 'tree' for a gfortran locus.  During
+   parsing in gfortran, loc->u.lb->location contains only the line number
+   and LOCATION_COLUMN is 0; hence, the column has to be added when generating
+   locations for 'tree'.  If available, return location_t directly, which
+   might be a range. */
+
+location_t
+gfc_get_location_with_offset (locus *loc, unsigned offset)
+{
+  if (loc->nextc == (gfc_char_t *) -1)
+    {
+      gcc_checking_assert (offset == 0);
+      return loc->u.location;
+    }
+  gcc_checking_assert (loc->nextc >= loc->u.lb->line);
+  return linemap_position_for_loc_and_offset (line_table, loc->u.lb->location,
+					      loc->nextc - loc->u.lb->line
+					      + offset);
+}
+
+/* Convert a locus to a range. */
+
+locus
+gfc_get_location_range (locus *caret_loc, unsigned caret_offset,
+			locus *start_loc, unsigned start_offset,
+			locus *end_loc)
+{
+  location_t caret;
+  location_t start = gfc_get_location_with_offset (start_loc, start_offset);
+  location_t end = gfc_get_location_with_offset (end_loc, 0);
+
+  if (caret_loc)
+    caret = gfc_get_location_with_offset (caret_loc, caret_offset);
+
+  locus range;
+  range.nextc = (gfc_char_t *) -1;
+  range.u.location = make_location (caret_loc ? caret : start, start, end);
+  return range;
+}
+
+/* Return buffered_p.  */
+bool
+gfc_buffered_p (void)
+{
+  return buffered_p;
 }
 
 /* Go one level deeper suppressing errors.  */
@@ -92,21 +133,11 @@ gfc_query_suppress_errors (void)
 }
 
 
-/* Determine terminal width (for trimming source lines in output).  */
-
-static int
-gfc_get_terminal_width (void)
-{
-  return isatty (STDERR_FILENO) ? get_terminal_width () : INT_MAX;
-}
-
-
 /* Per-file error initialization.  */
 
 void
 gfc_error_init_1 (void)
 {
-  terminal_width = gfc_get_terminal_width ();
   gfc_buffer_error (false);
 }
 
@@ -119,136 +150,6 @@ gfc_buffer_error (bool flag)
   buffered_p = flag;
 }
 
-
-/* Add a single character to the error buffer or output depending on
-   buffered_p.  */
-
-static void
-error_char (char)
-{
-  /* FIXME: Unused function to be removed in a subsequent patch.  */
-}
-
-
-/* Copy a string to wherever it needs to go.  */
-
-static void
-error_string (const char *p)
-{
-  while (*p)
-    error_char (*p++);
-}
-
-
-/* Print a formatted integer to the error buffer or output.  */
-
-#define IBUF_LEN 60
-
-static void
-error_uinteger (unsigned long long int i)
-{
-  char *p, int_buf[IBUF_LEN];
-
-  p = int_buf + IBUF_LEN - 1;
-  *p-- = '\0';
-
-  if (i == 0)
-    *p-- = '0';
-
-  while (i > 0)
-    {
-      *p-- = i % 10 + '0';
-      i = i / 10;
-    }
-
-  error_string (p + 1);
-}
-
-static void
-error_integer (long long int i)
-{
-  unsigned long long int u;
-
-  if (i < 0)
-    {
-      u = (unsigned long long int) -i;
-      error_char ('-');
-    }
-  else
-    u = i;
-
-  error_uinteger (u);
-}
-
-
-static void
-error_hwuint (unsigned HOST_WIDE_INT i)
-{
-  char *p, int_buf[IBUF_LEN];
-
-  p = int_buf + IBUF_LEN - 1;
-  *p-- = '\0';
-
-  if (i == 0)
-    *p-- = '0';
-
-  while (i > 0)
-    {
-      *p-- = i % 10 + '0';
-      i = i / 10;
-    }
-
-  error_string (p + 1);
-}
-
-static void
-error_hwint (HOST_WIDE_INT i)
-{
-  unsigned HOST_WIDE_INT u;
-
-  if (i < 0)
-    {
-      u = (unsigned HOST_WIDE_INT) -i;
-      error_char ('-');
-    }
-  else
-    u = i;
-
-  error_uinteger (u);
-}
-
-
-static size_t
-gfc_widechar_display_length (gfc_char_t c)
-{
-  if (gfc_wide_is_printable (c) || c == '\t')
-    /* Printable ASCII character, or tabulation (output as a space).  */
-    return 1;
-  else if (c < ((gfc_char_t) 1 << 8))
-    /* Displayed as \x??  */
-    return 4;
-  else if (c < ((gfc_char_t) 1 << 16))
-    /* Displayed as \u????  */
-    return 6;
-  else
-    /* Displayed as \U????????  */
-    return 10;
-}
-
-
-/* Length of the ASCII representation of the wide string, escaping wide
-   characters as print_wide_char_into_buffer() does.  */
-
-static size_t
-gfc_wide_display_length (const gfc_char_t *str)
-{
-  size_t i, len;
-
-  for (i = 0, len = 0; str[i]; i++)
-    len += gfc_widechar_display_length (str[i]);
-
-  return len;
-}
 
 static int
 print_wide_char_into_buffer (gfc_char_t c, char *buf)
@@ -324,559 +225,26 @@ gfc_print_wide_char (gfc_char_t c)
 }
 
 
-/* Show the file, where it was included, and the source line, give a
-   locus.  Calls error_printf() recursively, but the recursion is at
-   most one level deep.  */
-
-static void error_printf (const char *, ...) ATTRIBUTE_GCC_GFC(1,2);
+/* Clear any output buffered in THIS_BUFFER without issuing
+   it to global_dc.  */
 
 static void
-show_locus (locus *loc, int c1, int c2)
+gfc_clear_diagnostic_buffer (diagnostics::buffer *this_buffer)
 {
-  gfc_linebuf *lb;
-  gfc_file *f;
-  gfc_char_t *p;
-  int i, offset, cmax;
-
-  /* TODO: Either limit the total length and number of included files
-     displayed or add buffering of arbitrary number of characters in
-     error messages.  */
-
-  /* Write out the error header line, giving the source file and error
-     location (in GNU standard "[file]:[line].[column]:" format),
-     followed by an "included by" stack and a blank line.  This header
-     format is matched by a testsuite parser defined in
-     lib/gfortran-dg.exp.  */
-
-  lb = loc->lb;
-  f = lb->file;
-
-  error_string (f->filename);
-  error_char (':');
-
-  error_integer (LOCATION_LINE (lb->location));
-
-  if ((c1 > 0) || (c2 > 0))
-    error_char ('.');
-
-  if (c1 > 0)
-    error_integer (c1);
-
-  if ((c1 > 0) && (c2 > 0))
-    error_char ('-');
-
-  if (c2 > 0)
-    error_integer (c2);
-
-  error_char (':');
-  error_char ('\n');
-
-  for (;;)
-    {
-      i = f->inclusion_line;
-
-      f = f->up;
-      if (f == NULL) break;
-
-      error_printf ("    Included at %s:%d:", f->filename, i);
-    }
-
-  error_char ('\n');
-
-  /* Calculate an appropriate horizontal offset of the source line in
-     order to get the error locus within the visible portion of the
-     line.  Note that if the margin of 5 here is changed, the
-     corresponding margin of 10 in show_loci should be changed.  */
-
-  offset = 0;
-
-  /* If the two loci would appear in the same column, we shift
-     '2' one column to the right, so as to print '12' rather than
-     just '1'.  We do this here so it will be accounted for in the
-     margin calculations.  */
-
-  if (c1 == c2)
-    c2 += 1;
-
-  cmax = (c1 < c2) ? c2 : c1;
-  if (cmax > terminal_width - 5)
-    offset = cmax - terminal_width + 5;
-
-  /* Show the line itself, taking care not to print more than what can
-     show up on the terminal.  Tabs are converted to spaces, and
-     nonprintable characters are converted to a "\xNN" sequence.  */
-
-  p = &(lb->line[offset]);
-  i = gfc_wide_display_length (p);
-  if (i > terminal_width)
-    i = terminal_width - 1;
-
-  while (i > 0)
-    {
-      static char buffer[11];
-      i -= print_wide_char_into_buffer (*p++, buffer);
-      error_string (buffer);
-    }
-
-  error_char ('\n');
-
-  /* Show the '1' and/or '2' corresponding to the column of the error
-     locus.  Note that a value of -1 for c1 or c2 will simply cause
-     the relevant number not to be printed.  */
-
-  c1 -= offset;
-  c2 -= offset;
-  cmax -= offset;
-
-  p = &(lb->line[offset]);
-  for (i = 0; i < cmax; i++)
-    {
-      int spaces, j;
-      spaces = gfc_widechar_display_length (*p++);
-
-      if (i == c1)
-	error_char ('1'), spaces--;
-      else if (i == c2)
-	error_char ('2'), spaces--;
-
-      for (j = 0; j < spaces; j++)
-	error_char (' ');
-    }
-
-  if (i == c1)
-    error_char ('1');
-  else if (i == c2)
-    error_char ('2');
-
-  error_char ('\n');
-
-}
-
-
-/* As part of printing an error, we show the source lines that caused
-   the problem.  We show at least one, and possibly two loci; the two
-   loci may or may not be on the same source line.  */
-
-static void
-show_loci (locus *l1, locus *l2)
-{
-  int m, c1, c2;
-
-  if (l1 == NULL || l1->lb == NULL)
-    {
-      error_printf ("<During initialization>\n");
-      return;
-    }
-
-  /* While calculating parameters for printing the loci, we consider possible
-     reasons for printing one per line.  If appropriate, print the loci
-     individually; otherwise we print them both on the same line.  */
-
-  c1 = l1->nextc - l1->lb->line;
-  if (l2 == NULL)
-    {
-      show_locus (l1, c1, -1);
-      return;
-    }
-
-  c2 = l2->nextc - l2->lb->line;
-
-  if (c1 < c2)
-    m = c2 - c1;
-  else
-    m = c1 - c2;
-
-  /* Note that the margin value of 10 here needs to be less than the
-     margin of 5 used in the calculation of offset in show_locus.  */
-
-  if (l1->lb != l2->lb || m > terminal_width - 10)
-    {
-      show_locus (l1, c1, -1);
-      show_locus (l2, -1, c2);
-      return;
-    }
-
-  show_locus (l1, c1, c2);
-
-  return;
-}
-
-
-/* Workhorse for the error printing subroutines.  This subroutine is
-   inspired by g77's error handling and is similar to printf() with
-   the following %-codes:
-
-   %c Character, %d or %i Integer, %s String, %% Percent
-   %L  Takes locus argument
-   %C  Current locus (no argument)
-
-   If a locus pointer is given, the actual source line is printed out
-   and the column is indicated.  Since we want the error message at
-   the bottom of any source file information, we must scan the
-   argument list twice -- once to determine whether the loci are
-   present and record this for printing, and once to print the error
-   message after and loci have been printed.  A maximum of two locus
-   arguments are permitted.
-
-   This function is also called (recursively) by show_locus in the
-   case of included files; however, as show_locus does not resupply
-   any loci, the recursion is at most one level deep.  */
-
-#define MAX_ARGS 10
-
-static void ATTRIBUTE_GCC_GFC(2,0)
-error_print (const char *type, const char *format0, va_list argp)
-{
-  enum { TYPE_CURRENTLOC, TYPE_LOCUS, TYPE_INTEGER, TYPE_UINTEGER,
-	 TYPE_LONGINT, TYPE_ULONGINT, TYPE_LLONGINT, TYPE_ULLONGINT,
-	 TYPE_HWINT, TYPE_HWUINT, TYPE_CHAR, TYPE_STRING, NOTYPE };
-  struct
-  {
-    int type;
-    int pos;
-    union
-    {
-      int intval;
-      unsigned int uintval;
-      long int longintval;
-      unsigned long int ulongintval;
-      long long int llongintval;
-      unsigned long long int ullongintval;
-      HOST_WIDE_INT hwintval;
-      unsigned HOST_WIDE_INT hwuintval;
-      char charval;
-      const char * stringval;
-    } u;
-  } arg[MAX_ARGS], spec[MAX_ARGS];
-  /* spec is the array of specifiers, in the same order as they
-     appear in the format string.  arg is the array of arguments,
-     in the same order as they appear in the va_list.  */
-
-  char c;
-  int i, n, have_l1, pos, maxpos;
-  locus *l1, *l2, *loc;
-  const char *format;
-
-  loc = l1 = l2 = NULL;
-
-  have_l1 = 0;
-  pos = -1;
-  maxpos = -1;
-
-  n = 0;
-  format = format0;
-
-  for (i = 0; i < MAX_ARGS; i++)
-    {
-      arg[i].type = NOTYPE;
-      spec[i].pos = -1;
-    }
-
-  /* First parse the format string for position specifiers.  */
-  while (*format)
-    {
-      c = *format++;
-      if (c != '%')
-	continue;
-
-      if (*format == '%')
-	{
-	  format++;
-	  continue;
-	}
-
-      if (ISDIGIT (*format))
-	{
-	  /* This is a position specifier.  For example, the number
-	     12 in the format string "%12$d", which specifies the third
-	     argument of the va_list, formatted in %d format.
-	     For details, see "man 3 printf".  */
-	  pos = atoi(format) - 1;
-	  gcc_assert (pos >= 0);
-	  while (ISDIGIT(*format))
-	    format++;
-	  gcc_assert (*format == '$');
-	  format++;
-	}
-      else
-	pos++;
-
-      c = *format++;
-
-      if (pos > maxpos)
-	maxpos = pos;
-
-      switch (c)
-	{
-	  case 'C':
-	    arg[pos].type = TYPE_CURRENTLOC;
-	    break;
-
-	  case 'L':
-	    arg[pos].type = TYPE_LOCUS;
-	    break;
-
-	  case 'd':
-	  case 'i':
-	    arg[pos].type = TYPE_INTEGER;
-	    break;
-
-	  case 'u':
-	    arg[pos].type = TYPE_UINTEGER;
-	    break;
-
-	  case 'l':
-	    c = *format++;
-	    if (c == 'l')
-	      {
-		c = *format++;
-		if (c == 'u')
-		  arg[pos].type = TYPE_ULLONGINT;
-		else if (c == 'i' || c == 'd')
-		  arg[pos].type = TYPE_LLONGINT;
-		else
-		  gcc_unreachable ();
-	      }
-	    else if (c == 'u')
-	      arg[pos].type = TYPE_ULONGINT;
-	    else if (c == 'i' || c == 'd')
-	      arg[pos].type = TYPE_LONGINT;
-	    else
-	      gcc_unreachable ();
-	    break;
-
-	  case 'w':
-	    c = *format++;
-	    if (c == 'u')
-	      arg[pos].type = TYPE_HWUINT;
-	    else if (c == 'i' || c == 'd')
-	      arg[pos].type = TYPE_HWINT;
-	    else
-	      gcc_unreachable ();
-	    break;
-
-	  case 'c':
-	    arg[pos].type = TYPE_CHAR;
-	    break;
-
-	  case 's':
-	    arg[pos].type = TYPE_STRING;
-	    break;
-
-	  default:
-	    gcc_unreachable ();
-	}
-
-      spec[n++].pos = pos;
-    }
-
-  /* Then convert the values for each %-style argument.  */
-  for (pos = 0; pos <= maxpos; pos++)
-    {
-      gcc_assert (arg[pos].type != NOTYPE);
-      switch (arg[pos].type)
-	{
-	  case TYPE_CURRENTLOC:
-	    loc = &gfc_current_locus;
-	    /* Fall through.  */
-
-	  case TYPE_LOCUS:
-	    if (arg[pos].type == TYPE_LOCUS)
-	      loc = va_arg (argp, locus *);
-
-	    if (have_l1)
-	      {
-		l2 = loc;
-		arg[pos].u.stringval = "(2)";
-		/* Point %C first offending character not the last good one. */
-		if (arg[pos].type == TYPE_CURRENTLOC && *l2->nextc != '\0')
-		  l2->nextc++;
-	      }
-	    else
-	      {
-		l1 = loc;
-		have_l1 = 1;
-		arg[pos].u.stringval = "(1)";
-		/* Point %C first offending character not the last good one. */
-		if (arg[pos].type == TYPE_CURRENTLOC && *l1->nextc != '\0')
-		  l1->nextc++;
-	      }
-	    break;
-
-	  case TYPE_INTEGER:
-	    arg[pos].u.intval = va_arg (argp, int);
-	    break;
-
-	  case TYPE_UINTEGER:
-	    arg[pos].u.uintval = va_arg (argp, unsigned int);
-	    break;
-
-	  case TYPE_LONGINT:
-	    arg[pos].u.longintval = va_arg (argp, long int);
-	    break;
-
-	  case TYPE_ULONGINT:
-	    arg[pos].u.ulongintval = va_arg (argp, unsigned long int);
-	    break;
-
-	  case TYPE_LLONGINT:
-	    arg[pos].u.llongintval = va_arg (argp, long long int);
-	    break;
-
-	  case TYPE_ULLONGINT:
-	    arg[pos].u.ullongintval = va_arg (argp, unsigned long long int);
-	    break;
-
-	  case TYPE_HWINT:
-	    arg[pos].u.hwintval = va_arg (argp, HOST_WIDE_INT);
-	    break;
-
-	  case TYPE_HWUINT:
-	    arg[pos].u.hwuintval = va_arg (argp, unsigned HOST_WIDE_INT);
-	    break;
-
-	  case TYPE_CHAR:
-	    arg[pos].u.charval = (char) va_arg (argp, int);
-	    break;
-
-	  case TYPE_STRING:
-	    arg[pos].u.stringval = (const char *) va_arg (argp, char *);
-	    break;
-
-	  default:
-	    gcc_unreachable ();
-	}
-    }
-
-  for (n = 0; spec[n].pos >= 0; n++)
-    spec[n].u = arg[spec[n].pos].u;
-
-  /* Show the current loci if we have to.  */
-  if (have_l1)
-    show_loci (l1, l2);
-
-  if (*type)
-    {
-      error_string (type);
-      error_char (' ');
-    }
-
-  have_l1 = 0;
-  format = format0;
-  n = 0;
-
-  for (; *format; format++)
-    {
-      if (*format != '%')
-	{
-	  error_char (*format);
-	  continue;
-	}
-
-      format++;
-      if (ISDIGIT (*format))
-	{
-	  /* This is a position specifier.  See comment above.  */
-	  while (ISDIGIT (*format))
-	    format++;
-
-	  /* Skip over the dollar sign.  */
-	  format++;
-	}
-
-      switch (*format)
-	{
-	case '%':
-	  error_char ('%');
-	  break;
-
-	case 'c':
-	  error_char (spec[n++].u.charval);
-	  break;
-
-	case 's':
-	case 'C':		/* Current locus */
-	case 'L':		/* Specified locus */
-	  error_string (spec[n++].u.stringval);
-	  break;
-
-	case 'd':
-	case 'i':
-	  error_integer (spec[n++].u.intval);
-	  break;
-
-	case 'u':
-	  error_uinteger (spec[n++].u.uintval);
-	  break;
-
-	case 'l':
-	  format++;
-	  if (*format == 'l')
-	    {
-	      format++;
-	      if (*format == 'u')
-		error_uinteger (spec[n++].u.ullongintval);
-	      else
-		error_integer (spec[n++].u.llongintval);
-	    }
-	  if (*format == 'u')
-	    error_uinteger (spec[n++].u.ulongintval);
-	  else
-	    error_integer (spec[n++].u.longintval);
-	  break;
-
-	case 'w':
-	  format++;
-	  if (*format == 'u')
-	    error_hwuint (spec[n++].u.hwintval);
-	  else
-	    error_hwint (spec[n++].u.hwuintval);
-	  break;
-	}
-    }
-
-  error_char ('\n');
-}
-
-
-/* Wrapper for error_print().  */
-
-static void
-error_printf (const char *gmsgid, ...)
-{
-  va_list argp;
-
-  va_start (argp, gmsgid);
-  error_print ("", _(gmsgid), argp);
-  va_end (argp);
-}
-
-
-/* Clear any output buffered in a pretty-print output_buffer.  */
-
-static void
-gfc_clear_pp_buffer (output_buffer *this_buffer)
-{
-  pretty_printer *pp = global_dc->printer;
-  output_buffer *tmp_buffer = pp->buffer;
-  pp->buffer = this_buffer;
-  pp_clear_output_area (pp);
-  pp->buffer = tmp_buffer;
-  /* We need to reset last_location, otherwise we may skip caret lines
-     when we actually give a diagnostic.  */
-  global_dc->last_location = UNKNOWN_LOCATION;
+  gcc_assert (this_buffer);
+  global_dc->clear_diagnostic_buffer (*this_buffer);
 }
 
 /* The currently-printing diagnostic, for use by gfc_format_decoder,
    for colorizing %C and %L.  */
 
-static diagnostic_info *curr_diagnostic;
+static diagnostics::diagnostic_info *curr_diagnostic;
 
 /* A helper function to call diagnostic_report_diagnostic, while setting
    curr_diagnostic for the duration of the call.  */
 
 static bool
-gfc_report_diagnostic (diagnostic_info *diagnostic)
+gfc_report_diagnostic (diagnostics::diagnostic_info *diagnostic)
 {
   gcc_assert (diagnostic != NULL);
   curr_diagnostic = diagnostic;
@@ -894,43 +262,23 @@ gfc_warning (int opt, const char *gmsgid, va_list ap)
   va_list argp;
   va_copy (argp, ap);
 
-  diagnostic_info diagnostic;
+  diagnostics::diagnostic_info diagnostic;
   rich_location rich_loc (line_table, UNKNOWN_LOCATION);
-  bool fatal_errors = global_dc->fatal_errors;
-  pretty_printer *pp = global_dc->printer;
-  output_buffer *tmp_buffer = pp->buffer;
+  diagnostics::buffer *old_buffer = global_dc->get_diagnostic_buffer ();
+  gcc_assert (!old_buffer);
 
-  gfc_clear_pp_buffer (pp_warning_buffer);
+  gfc_clear_diagnostic_buffer (pp_warning_buffer);
 
   if (buffered_p)
-    {
-      pp->buffer = pp_warning_buffer;
-      global_dc->fatal_errors = false;
-      /* To prevent -fmax-errors= triggering.  */
-      --werrorcount;
-    }
+    global_dc->set_diagnostic_buffer (pp_warning_buffer);
 
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc,
-		       DK_WARNING);
-  diagnostic.option_index = opt;
+		       diagnostics::kind::warning);
+  diagnostic.m_option_id = opt;
   bool ret = gfc_report_diagnostic (&diagnostic);
 
   if (buffered_p)
-    {
-      pp->buffer = tmp_buffer;
-      global_dc->fatal_errors = fatal_errors;
-
-      warningcount_buffered = 0;
-      werrorcount_buffered = 0;
-      /* Undo the above --werrorcount if not Werror, otherwise
-	 werrorcount is correct already.  */
-      if (!ret)
-	++werrorcount;
-      else if (diagnostic.kind == DK_ERROR)
-	++werrorcount_buffered;
-      else
-	++werrorcount, --warningcount, ++warningcount_buffered;
-    }
+    global_dc->set_diagnostic_buffer (old_buffer);
 
   va_end (argp);
   return ret;
@@ -973,7 +321,11 @@ char const*
 notify_std_msg(int std)
 {
 
-  if (std & GFC_STD_F2018_DEL)
+  if (std & GFC_STD_F2023_DEL)
+    return _("Prohibited in Fortran 2023:");
+  else if (std & GFC_STD_F2023)
+    return _("Fortran 2023:");
+  else if (std & GFC_STD_F2018_DEL)
     return _("Fortran 2018 deleted feature:");
   else if (std & GFC_STD_F2018_OBS)
     return _("Fortran 2018 obsolescent feature:");
@@ -993,6 +345,8 @@ notify_std_msg(int std)
     return _("Obsolescent feature:");
   else if (std & GFC_STD_F95_DEL)
     return _("Deleted feature:");
+  else if (std & GFC_STD_UNSIGNED)
+    return _("Unsigned:");
   else
     gcc_unreachable ();
 }
@@ -1055,8 +409,9 @@ gfc_notify_std (int std, const char *gmsgid, ...)
 static bool
 gfc_format_decoder (pretty_printer *pp, text_info *text, const char *spec,
 		    int precision, bool wide, bool set_locus, bool hash,
-		    bool *quoted, const char **buffer_ptr)
+		    bool *quoted, pp_token_list &formatted_token_list)
 {
+  unsigned offset = 0;
   switch (*spec)
     {
     case 'C':
@@ -1065,21 +420,19 @@ gfc_format_decoder (pretty_printer *pp, text_info *text, const char *spec,
 	static const char *result[2] = { "(1)", "(2)" };
 	locus *loc;
 	if (*spec == 'C')
-	  loc = &gfc_current_locus;
+	  {
+	    loc = &gfc_current_locus;
+	    /* Point %C first offending character not the last good one. */
+	    if (*loc->nextc != '\0')
+	      offset++;
+	  }
 	else
-	  loc = va_arg (*text->args_ptr, locus *);
-	gcc_assert (loc->nextc - loc->lb->line >= 0);
-	unsigned int offset = loc->nextc - loc->lb->line;
-	if (*spec == 'C' && *loc->nextc != '\0')
-	  /* Point %C first offending character not the last good one. */
-	  offset++;
+	  loc = va_arg (*text->m_args_ptr, locus *);
+
 	/* If location[0] != UNKNOWN_LOCATION means that we already
 	   processed one of %C/%L.  */
 	int loc_num = text->get_location (0) == UNKNOWN_LOCATION ? 0 : 1;
-	location_t src_loc
-	  = linemap_position_for_loc_and_offset (line_table,
-						 loc->lb->location,
-						 offset);
+	location_t src_loc = gfc_get_location_with_offset (loc, offset);
 	text->set_location (loc_num, src_loc, SHOW_RANGE_WITH_CARET);
 	/* Colorize the markers to match the color choices of
 	   diagnostic_show_locus (the initial location has a color given
@@ -1089,7 +442,7 @@ gfc_format_decoder (pretty_printer *pp, text_info *text, const char *spec,
 	const char *color
 	  = (loc_num
 	     ? "range1"
-	     : diagnostic_get_color_for_kind (curr_diagnostic->kind));
+	     : diagnostics::get_color_for_kind (curr_diagnostic->m_kind));
 	pp_string (pp, colorize_start (pp_show_color (pp), color));
 	pp_string (pp, result[loc_num]);
 	pp_string (pp, colorize_stop (pp_show_color (pp)));
@@ -1100,15 +453,16 @@ gfc_format_decoder (pretty_printer *pp, text_info *text, const char *spec,
 	 etc. diagnostics can use the FE printer while the FE is still
 	 active.  */
       return default_tree_printer (pp, text, spec, precision, wide,
-				   set_locus, hash, quoted, buffer_ptr);
+				   set_locus, hash, quoted,
+				   formatted_token_list);
     }
 }
 
 /* Return a malloc'd string describing the kind of diagnostic.  The
    caller is responsible for freeing the memory.  */
 static char *
-gfc_diagnostic_build_kind_prefix (diagnostic_context *context,
-				  const diagnostic_info *diagnostic)
+gfc_diagnostic_build_kind_prefix (diagnostics::context *context,
+				  const diagnostics::diagnostic_info *diagnostic)
 {
   static const char *const diagnostic_kind_text[] = {
 #define DEFINE_DIAGNOSTIC_KIND(K, T, C) (T),
@@ -1122,15 +476,16 @@ gfc_diagnostic_build_kind_prefix (diagnostic_context *context,
 #undef DEFINE_DIAGNOSTIC_KIND
     NULL
   };
-  gcc_assert (diagnostic->kind < DK_LAST_DIAGNOSTIC_KIND);
-  const char *text = _(diagnostic_kind_text[diagnostic->kind]);
+  const int diag_kind_idx = static_cast<int> (diagnostic->m_kind);
+  gcc_assert (diagnostic->m_kind < diagnostics::kind::last_diagnostic_kind);
+  const char *text = _(diagnostic_kind_text[diag_kind_idx]);
   const char *text_cs = "", *text_ce = "";
-  pretty_printer *pp = context->printer;
+  pretty_printer *const pp = context->get_reference_printer ();
 
-  if (diagnostic_kind_color[diagnostic->kind])
+if (diagnostic_kind_color[diag_kind_idx])
     {
       text_cs = colorize_start (pp_show_color (pp),
-				diagnostic_kind_color[diagnostic->kind]);
+				diagnostic_kind_color[diag_kind_idx]);
       text_ce = colorize_stop (pp_show_color (pp));
     }
   return build_message_string ("%s%s:%s ", text_cs, text, text_ce);
@@ -1139,17 +494,17 @@ gfc_diagnostic_build_kind_prefix (diagnostic_context *context,
 /* Return a malloc'd string describing a location.  The caller is
    responsible for freeing the memory.  */
 static char *
-gfc_diagnostic_build_locus_prefix (diagnostic_context *context,
-				   expanded_location s)
+gfc_diagnostic_build_locus_prefix (const diagnostics::location_print_policy &loc_policy,
+				   expanded_location s,
+				   bool colorize)
 {
-  pretty_printer *pp = context->printer;
-  const char *locus_cs = colorize_start (pp_show_color (pp), "locus");
-  const char *locus_ce = colorize_stop (pp_show_color (pp));
+  const char *locus_cs = colorize_start (colorize, "locus");
+  const char *locus_ce = colorize_stop (colorize);
   return (s.file == NULL
 	  ? build_message_string ("%s%s:%s", locus_cs, progname, locus_ce )
-	  : !strcmp (s.file, N_("<built-in>"))
+	  : !strcmp (s.file, special_fname_builtin ())
 	  ? build_message_string ("%s%s:%s", locus_cs, s.file, locus_ce)
-	  : context->show_column
+	  : loc_policy.show_column_p ()
 	  ? build_message_string ("%s%s:%d:%d:%s", locus_cs, s.file, s.line,
 				  s.column, locus_ce)
 	  : build_message_string ("%s%s:%d:%s", locus_cs, s.file, s.line, locus_ce));
@@ -1158,18 +513,18 @@ gfc_diagnostic_build_locus_prefix (diagnostic_context *context,
 /* Return a malloc'd string describing two locations.  The caller is
    responsible for freeing the memory.  */
 static char *
-gfc_diagnostic_build_locus_prefix (diagnostic_context *context,
-				   expanded_location s, expanded_location s2)
+gfc_diagnostic_build_locus_prefix (const diagnostics::location_print_policy &loc_policy,
+				   expanded_location s, expanded_location s2,
+				   bool colorize)
 {
-  pretty_printer *pp = context->printer;
-  const char *locus_cs = colorize_start (pp_show_color (pp), "locus");
-  const char *locus_ce = colorize_stop (pp_show_color (pp));
+  const char *locus_cs = colorize_start (colorize, "locus");
+  const char *locus_ce = colorize_stop (colorize);
 
   return (s.file == NULL
 	  ? build_message_string ("%s%s:%s", locus_cs, progname, locus_ce )
-	  : !strcmp (s.file, N_("<built-in>"))
+	  : !strcmp (s.file, special_fname_builtin ())
 	  ? build_message_string ("%s%s:%s", locus_cs, s.file, locus_ce)
-	  : context->show_column
+	  : loc_policy.show_column_p ()
 	  ? build_message_string ("%s%s:%d:%d-%d:%s", locus_cs, s.file, s.line,
 				  MIN (s.column, s2.column),
 				  MAX (s.column, s2.column), locus_ce)
@@ -1195,14 +550,16 @@ gfc_diagnostic_build_locus_prefix (diagnostic_context *context,
        [locus of primary range]: Error: Some error at (1) and (2)
 */
 static void
-gfc_diagnostic_starter (diagnostic_context *context,
-			diagnostic_info *diagnostic)
+gfc_diagnostic_text_starter (diagnostics::text_sink &text_output,
+			     const diagnostics::diagnostic_info *diagnostic)
 {
+  diagnostics::context *const context = &text_output.get_context ();
+  pretty_printer *const pp = text_output.get_printer ();
   char * kind_prefix = gfc_diagnostic_build_kind_prefix (context, diagnostic);
 
   expanded_location s1 = diagnostic_expand_location (diagnostic);
   expanded_location s2;
-  bool one_locus = diagnostic->richloc->get_num_locations () < 2;
+  bool one_locus = diagnostic->m_richloc->get_num_locations () < 2;
   bool same_locus = false;
 
   if (!one_locus)
@@ -1211,15 +568,17 @@ gfc_diagnostic_starter (diagnostic_context *context,
       same_locus = diagnostic_same_line (context, s1, s2);
     }
 
+  diagnostics::location_print_policy loc_policy (text_output);
+  const bool colorize = pp_show_color (pp);
   char * locus_prefix = (one_locus || !same_locus)
-    ? gfc_diagnostic_build_locus_prefix (context, s1)
-    : gfc_diagnostic_build_locus_prefix (context, s1, s2);
+    ? gfc_diagnostic_build_locus_prefix (loc_policy, s1, colorize)
+    : gfc_diagnostic_build_locus_prefix (loc_policy, s1, s2, colorize);
 
-  if (!context->show_caret
+  if (!context->get_source_printing_options ().enabled
       || diagnostic_location (diagnostic, 0) <= BUILTINS_LOCATION
-      || diagnostic_location (diagnostic, 0) == context->last_location)
+      || diagnostic_location (diagnostic, 0) == context->m_last_location)
     {
-      pp_set_prefix (context->printer,
+      pp_set_prefix (pp,
 		     concat (locus_prefix, " ", kind_prefix, NULL));
       free (locus_prefix);
 
@@ -1233,50 +592,57 @@ gfc_diagnostic_starter (diagnostic_context *context,
 	  [locus]:[prefix]: (1)
 
 	 and we flush with a new line before setting the new prefix.  */
-      pp_string (context->printer, "(1)");
-      pp_newline (context->printer);
-      locus_prefix = gfc_diagnostic_build_locus_prefix (context, s2);
-      pp_set_prefix (context->printer,
+      pp_string (pp, "(1)");
+      pp_newline (pp);
+      locus_prefix = gfc_diagnostic_build_locus_prefix (loc_policy, s2, colorize);
+      pp_set_prefix (pp,
 		     concat (locus_prefix, " ", kind_prefix, NULL));
       free (kind_prefix);
       free (locus_prefix);
     }
   else
     {
-      pp_verbatim (context->printer, "%s", locus_prefix);
+      pp_verbatim (pp, "%s", locus_prefix);
       free (locus_prefix);
       /* Fortran uses an empty line between locus and caret line.  */
-      pp_newline (context->printer);
-      pp_set_prefix (context->printer, NULL);
-      pp_newline (context->printer);
-      diagnostic_show_locus (context, diagnostic->richloc, diagnostic->kind);
+      pp_newline (pp);
+      pp_set_prefix (pp, NULL);
+      pp_newline (pp);
+      diagnostic_show_locus (context,
+			     text_output.get_source_printing_options (),
+			     diagnostic->m_richloc, diagnostic->m_kind,
+			     pp);
       /* If the caret line was shown, the prefix does not contain the
 	 locus.  */
-      pp_set_prefix (context->printer, kind_prefix);
+      pp_set_prefix (pp, kind_prefix);
     }
 }
 
 static void
-gfc_diagnostic_start_span (diagnostic_context *context,
+gfc_diagnostic_start_span (const diagnostics::location_print_policy &loc_policy,
+			   diagnostics::to_text &sink,
 			   expanded_location exploc)
 {
-  char *locus_prefix;
-  locus_prefix = gfc_diagnostic_build_locus_prefix (context, exploc);
-  pp_verbatim (context->printer, "%s", locus_prefix);
+  pretty_printer *pp = diagnostics::get_printer (sink);
+  const bool colorize = pp_show_color (pp);
+  char *locus_prefix
+    = gfc_diagnostic_build_locus_prefix (loc_policy, exploc, colorize);
+  pp_verbatim (pp, "%s", locus_prefix);
   free (locus_prefix);
-  pp_newline (context->printer);
+  pp_newline (pp);
   /* Fortran uses an empty line between locus and caret line.  */
-  pp_newline (context->printer);
+  pp_newline (pp);
 }
 
 
 static void
-gfc_diagnostic_finalizer (diagnostic_context *context,
-			  diagnostic_info *diagnostic ATTRIBUTE_UNUSED,
-			  diagnostic_t orig_diag_kind ATTRIBUTE_UNUSED)
+gfc_diagnostic_text_finalizer (diagnostics::text_sink &text_output,
+			       const diagnostics::diagnostic_info *,
+			       enum diagnostics::kind orig_diag_kind ATTRIBUTE_UNUSED)
 {
-  pp_destroy_prefix (context->printer);
-  pp_newline_and_flush (context->printer);
+  pretty_printer *const pp = text_output.get_printer ();
+  pp_destroy_prefix (pp);
+  pp_newline_and_flush (pp);
 }
 
 /* Immediate warning (i.e. do not buffer the warning) with an explicit
@@ -1286,13 +652,14 @@ bool
 gfc_warning_now_at (location_t loc, int opt, const char *gmsgid, ...)
 {
   va_list argp;
-  diagnostic_info diagnostic;
+  diagnostics::diagnostic_info diagnostic;
   rich_location rich_loc (line_table, loc);
   bool ret;
 
   va_start (argp, gmsgid);
-  diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc, DK_WARNING);
-  diagnostic.option_index = opt;
+  diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc,
+		       diagnostics::kind::warning);
+  diagnostic.m_option_id = opt;
   ret = gfc_report_diagnostic (&diagnostic);
   va_end (argp);
   return ret;
@@ -1304,14 +671,14 @@ bool
 gfc_warning_now (int opt, const char *gmsgid, ...)
 {
   va_list argp;
-  diagnostic_info diagnostic;
+  diagnostics::diagnostic_info diagnostic;
   rich_location rich_loc (line_table, UNKNOWN_LOCATION);
   bool ret;
 
   va_start (argp, gmsgid);
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc,
-		       DK_WARNING);
-  diagnostic.option_index = opt;
+		       diagnostics::kind::warning);
+  diagnostic.m_option_id = opt;
   ret = gfc_report_diagnostic (&diagnostic);
   va_end (argp);
   return ret;
@@ -1323,14 +690,14 @@ bool
 gfc_warning_internal (int opt, const char *gmsgid, ...)
 {
   va_list argp;
-  diagnostic_info diagnostic;
+  diagnostics::diagnostic_info diagnostic;
   rich_location rich_loc (line_table, UNKNOWN_LOCATION);
   bool ret;
 
   va_start (argp, gmsgid);
   diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc,
-		       DK_WARNING);
-  diagnostic.option_index = opt;
+		       diagnostics::kind::warning);
+  diagnostic.m_option_id = opt;
   ret = gfc_report_diagnostic (&diagnostic);
   va_end (argp);
   return ret;
@@ -1342,13 +709,14 @@ void
 gfc_error_now (const char *gmsgid, ...)
 {
   va_list argp;
-  diagnostic_info diagnostic;
+  diagnostics::diagnostic_info diagnostic;
   rich_location rich_loc (line_table, UNKNOWN_LOCATION);
 
-  error_buffer.flag = true;
+  error_buffer->flag = true;
 
   va_start (argp, gmsgid);
-  diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc, DK_ERROR);
+  diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc,
+		       diagnostics::kind::error);
   gfc_report_diagnostic (&diagnostic);
   va_end (argp);
 }
@@ -1360,11 +728,12 @@ void
 gfc_fatal_error (const char *gmsgid, ...)
 {
   va_list argp;
-  diagnostic_info diagnostic;
+  diagnostics::diagnostic_info diagnostic;
   rich_location rich_loc (line_table, UNKNOWN_LOCATION);
 
   va_start (argp, gmsgid);
-  diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc, DK_FATAL);
+  diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc,
+		       diagnostics::kind::fatal);
   gfc_report_diagnostic (&diagnostic);
   va_end (argp);
 
@@ -1376,9 +745,7 @@ gfc_fatal_error (const char *gmsgid, ...)
 void
 gfc_clear_warning (void)
 {
-  gfc_clear_pp_buffer (pp_warning_buffer);
-  warningcount_buffered = 0;
-  werrorcount_buffered = 0;
+  gfc_clear_diagnostic_buffer (pp_warning_buffer);
 }
 
 
@@ -1388,21 +755,8 @@ gfc_clear_warning (void)
 void
 gfc_warning_check (void)
 {
-  if (! gfc_output_buffer_empty_p (pp_warning_buffer))
-    {
-      pretty_printer *pp = global_dc->printer;
-      output_buffer *tmp_buffer = pp->buffer;
-      pp->buffer = pp_warning_buffer;
-      pp_really_flush (pp);
-      warningcount += warningcount_buffered;
-      werrorcount += werrorcount_buffered;
-      gcc_assert (warningcount_buffered + werrorcount_buffered == 1);
-      pp->buffer = tmp_buffer;
-      diagnostic_action_after_output (global_dc,
-				      warningcount_buffered
-				      ? DK_WARNING : DK_ERROR);
-      diagnostic_check_max_errors (global_dc, true);
-    }
+  if (! pp_warning_buffer->empty_p ())
+    global_dc->flush_diagnostic_buffer (*pp_warning_buffer);
 }
 
 
@@ -1413,7 +767,6 @@ gfc_error_opt (int opt, const char *gmsgid, va_list ap)
 {
   va_list argp;
   va_copy (argp, ap);
-  bool saved_abort_on_error = false;
 
   if (warnings_not_errors)
     {
@@ -1428,37 +781,22 @@ gfc_error_opt (int opt, const char *gmsgid, va_list ap)
       return;
     }
 
-  diagnostic_info diagnostic;
+  diagnostics::diagnostic_info diagnostic;
   rich_location richloc (line_table, UNKNOWN_LOCATION);
-  bool fatal_errors = global_dc->fatal_errors;
-  pretty_printer *pp = global_dc->printer;
-  output_buffer *tmp_buffer = pp->buffer;
+  diagnostics::buffer *old_buffer = global_dc->get_diagnostic_buffer ();
+  gcc_assert (!old_buffer);
 
-  gfc_clear_pp_buffer (pp_error_buffer);
+  gfc_clear_diagnostic_buffer (pp_error_buffer);
 
   if (buffered_p)
-    {
-      /* To prevent -dH from triggering an abort on a buffered error,
-	 save abort_on_error and restore it below.  */
-      saved_abort_on_error = global_dc->abort_on_error;
-      global_dc->abort_on_error = false;
-      pp->buffer = pp_error_buffer;
-      global_dc->fatal_errors = false;
-      /* To prevent -fmax-errors= triggering, we decrease it before
-	 report_diagnostic increases it.  */
-      --errorcount;
-    }
+    global_dc->set_diagnostic_buffer (pp_error_buffer);
 
-  diagnostic_set_info (&diagnostic, gmsgid, &argp, &richloc, DK_ERROR);
+  diagnostic_set_info (&diagnostic, gmsgid, &argp, &richloc,
+		       diagnostics::kind::error);
   gfc_report_diagnostic (&diagnostic);
 
   if (buffered_p)
-    {
-      pp->buffer = tmp_buffer;
-      global_dc->fatal_errors = fatal_errors;
-      global_dc->abort_on_error = saved_abort_on_error;
-
-    }
+    global_dc->set_diagnostic_buffer (old_buffer);
 
   va_end (argp);
 }
@@ -1491,7 +829,7 @@ gfc_internal_error (const char *gmsgid, ...)
 {
   int e, w;
   va_list argp;
-  diagnostic_info diagnostic;
+  diagnostics::diagnostic_info diagnostic;
   rich_location rich_loc (line_table, UNKNOWN_LOCATION);
 
   gfc_get_errors (&w, &e);
@@ -1499,7 +837,8 @@ gfc_internal_error (const char *gmsgid, ...)
     exit(EXIT_FAILURE);
 
   va_start (argp, gmsgid);
-  diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc, DK_ICE);
+  diagnostic_set_info (&diagnostic, gmsgid, &argp, &rich_loc,
+		       diagnostics::kind::ice);
   gfc_report_diagnostic (&diagnostic);
   va_end (argp);
 
@@ -1512,9 +851,9 @@ gfc_internal_error (const char *gmsgid, ...)
 void
 gfc_clear_error (void)
 {
-  error_buffer.flag = false;
+  error_buffer->flag = false;
   warnings_not_errors = false;
-  gfc_clear_pp_buffer (pp_error_buffer);
+  gfc_clear_diagnostic_buffer (pp_error_buffer);
 }
 
 
@@ -1523,8 +862,8 @@ gfc_clear_error (void)
 bool
 gfc_error_flag_test (void)
 {
-  return error_buffer.flag
-    || !gfc_output_buffer_empty_p (pp_error_buffer);
+  return (error_buffer->flag
+	  || !pp_error_buffer->empty_p ());
 }
 
 
@@ -1534,19 +873,11 @@ gfc_error_flag_test (void)
 bool
 gfc_error_check (void)
 {
-  if (error_buffer.flag
-      || ! gfc_output_buffer_empty_p (pp_error_buffer))
+  if (error_buffer->flag
+      || ! pp_error_buffer->empty_p ())
     {
-      error_buffer.flag = false;
-      pretty_printer *pp = global_dc->printer;
-      output_buffer *tmp_buffer = pp->buffer;
-      pp->buffer = pp_error_buffer;
-      pp_really_flush (pp);
-      ++errorcount;
-      gcc_assert (gfc_output_buffer_empty_p (pp_error_buffer));
-      pp->buffer = tmp_buffer;
-      diagnostic_action_after_output (global_dc, DK_ERROR);
-      diagnostic_check_max_errors (global_dc, true);
+      error_buffer->flag = false;
+      global_dc->flush_diagnostic_buffer (*pp_error_buffer);
       return true;
     }
 
@@ -1561,21 +892,18 @@ static void
 gfc_move_error_buffer_from_to (gfc_error_buffer * buffer_from,
 			       gfc_error_buffer * buffer_to)
 {
-  output_buffer * from = &(buffer_from->buffer);
-  output_buffer * to =  &(buffer_to->buffer);
+  diagnostics::buffer * from = &(buffer_from->buffer);
+  diagnostics::buffer * to =  &(buffer_to->buffer);
 
   buffer_to->flag = buffer_from->flag;
   buffer_from->flag = false;
 
-  gfc_clear_pp_buffer (to);
-  /* We make sure this is always buffered.  */
-  to->flush_p = false;
+  gfc_clear_diagnostic_buffer (to);
 
-  if (! gfc_output_buffer_empty_p (from))
+  if (! from->empty_p ())
     {
-      const char *str = output_buffer_formatted_text (from);
-      output_buffer_append_r (to, str, strlen (str));
-      gfc_clear_pp_buffer (from);
+      from->move_to (*to);
+      gfc_clear_diagnostic_buffer (from);
     }
 }
 
@@ -1584,7 +912,7 @@ gfc_move_error_buffer_from_to (gfc_error_buffer * buffer_from,
 void
 gfc_push_error (gfc_error_buffer *err)
 {
-  gfc_move_error_buffer_from_to (&error_buffer, err);
+  gfc_move_error_buffer_from_to (error_buffer, err);
 }
 
 
@@ -1593,7 +921,7 @@ gfc_push_error (gfc_error_buffer *err)
 void
 gfc_pop_error (gfc_error_buffer *err)
 {
-  gfc_move_error_buffer_from_to (err, &error_buffer);
+  gfc_move_error_buffer_from_to (err, error_buffer);
 }
 
 
@@ -1602,7 +930,7 @@ gfc_pop_error (gfc_error_buffer *err)
 void
 gfc_free_error (gfc_error_buffer *err)
 {
-  gfc_clear_pp_buffer (&(err->buffer));
+  gfc_clear_diagnostic_buffer (&(err->buffer));
 }
 
 
@@ -1629,18 +957,16 @@ gfc_errors_to_warnings (bool f)
 void
 gfc_diagnostics_init (void)
 {
-  diagnostic_starter (global_dc) = gfc_diagnostic_starter;
-  global_dc->start_span = gfc_diagnostic_start_span;
-  diagnostic_finalizer (global_dc) = gfc_diagnostic_finalizer;
-  diagnostic_format_decoder (global_dc) = gfc_format_decoder;
-  global_dc->caret_chars[0] = '1';
-  global_dc->caret_chars[1] = '2';
-  pp_warning_buffer = new (XNEW (output_buffer)) output_buffer ();
-  pp_warning_buffer->flush_p = false;
-  /* pp_error_buffer is statically allocated.  This simplifies memory
-     management when using gfc_push/pop_error. */
-  pp_error_buffer = &(error_buffer.buffer);
-  pp_error_buffer->flush_p = false;
+  diagnostics::text_starter (global_dc) = gfc_diagnostic_text_starter;
+  diagnostics::start_span (global_dc) = gfc_diagnostic_start_span;
+  diagnostics::text_finalizer (global_dc) = gfc_diagnostic_text_finalizer;
+  global_dc->set_format_decoder (gfc_format_decoder);
+  auto &source_printing_opts = global_dc->get_source_printing_options ();
+  source_printing_opts.caret_chars[0] = '1';
+  source_printing_opts.caret_chars[1] = '2';
+  pp_warning_buffer = new diagnostics::buffer (*global_dc);
+  error_buffer = new gfc_error_buffer ();
+  pp_error_buffer = &(error_buffer->buffer);
 }
 
 void
@@ -1649,8 +975,12 @@ gfc_diagnostics_finish (void)
   tree_diagnostics_defaults (global_dc);
   /* We still want to use the gfc starter and finalizer, not the tree
      defaults.  */
-  diagnostic_starter (global_dc) = gfc_diagnostic_starter;
-  diagnostic_finalizer (global_dc) = gfc_diagnostic_finalizer;
-  global_dc->caret_chars[0] = '^';
-  global_dc->caret_chars[1] = '^';
+  diagnostics::text_starter (global_dc) = gfc_diagnostic_text_starter;
+  diagnostics::text_finalizer (global_dc) = gfc_diagnostic_text_finalizer;
+  auto &source_printing_opts = global_dc->get_source_printing_options ();
+  source_printing_opts.caret_chars[0] = '^';
+  source_printing_opts.caret_chars[1] = '^';
+  delete error_buffer;
+  error_buffer = nullptr;
+  pp_error_buffer = nullptr;
 }

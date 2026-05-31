@@ -1,5 +1,5 @@
 /* PEF support for BFD.
-   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -41,6 +41,7 @@
 #define bfd_pef_bfd_is_target_special_symbol        _bfd_bool_bfd_asymbol_false
 #define bfd_pef_get_lineno			    _bfd_nosymbols_get_lineno
 #define bfd_pef_find_nearest_line		    _bfd_nosymbols_find_nearest_line
+#define bfd_pef_find_nearest_line_with_alt	    _bfd_nosymbols_find_nearest_line_with_alt
 #define bfd_pef_find_line			    _bfd_nosymbols_find_line
 #define bfd_pef_find_inliner_info		    _bfd_nosymbols_find_inliner_info
 #define bfd_pef_get_symbol_version_string	    _bfd_nosymbols_get_symbol_version_string
@@ -54,7 +55,6 @@
 #define bfd_pef_bfd_relax_section		    bfd_generic_relax_section
 #define bfd_pef_bfd_gc_sections			    bfd_generic_gc_sections
 #define bfd_pef_bfd_lookup_section_flags	    bfd_generic_lookup_section_flags
-#define bfd_pef_bfd_merge_sections		    bfd_generic_merge_sections
 #define bfd_pef_bfd_is_group_section		    bfd_generic_is_group_section
 #define bfd_pef_bfd_group_name			    bfd_generic_group_name
 #define bfd_pef_bfd_discard_group		    bfd_generic_discard_group
@@ -69,7 +69,6 @@
   _bfd_generic_copy_link_hash_symbol_type
 #define bfd_pef_bfd_final_link			    _bfd_generic_final_link
 #define bfd_pef_bfd_link_split_section		    _bfd_generic_link_split_section
-#define bfd_pef_get_section_contents_in_window	    _bfd_generic_get_section_contents_in_window
 #define bfd_pef_bfd_link_check_relocs		    _bfd_generic_link_check_relocs
 
 static int
@@ -180,7 +179,7 @@ bfd_pef_parse_traceback_table (bfd *abfd,
 
       /* Strip leading period inserted by compiler.  */
       if (namebuf[0] == '.')
-	memmove (namebuf, namebuf + 1, name.name_len + 1);
+	memmove (namebuf, namebuf + 1, name.name_len);
 
       sym->name = namebuf;
 
@@ -210,16 +209,18 @@ bfd_pef_print_symbol (bfd *abfd,
 		      bfd_print_symbol_type how)
 {
   FILE *file = (FILE *) afile;
+  const char *symname = (symbol->name != bfd_symbol_error_name
+			 ? symbol->name : _("<corrupt>"));
 
   switch (how)
     {
     case bfd_print_symbol_name:
-      fprintf (file, "%s", symbol->name);
+      fprintf (file, "%s", symname);
       break;
     default:
       bfd_print_symbol_vandf (abfd, (void *) file, symbol);
-      fprintf (file, " %-5s %s", symbol->section->name, symbol->name);
-      if (startswith (symbol->name, "__traceback_"))
+      fprintf (file, " %-5s %s", symbol->section->name, symname);
+      if (startswith (symname, "__traceback_"))
 	{
 	  unsigned char *buf;
 	  size_t offset = symbol->value + 4;
@@ -385,8 +386,8 @@ bfd_pef_scan_section (bfd *abfd, bfd_pef_section *section)
 {
   unsigned char buf[28];
 
-  bfd_seek (abfd, section->header_offset, SEEK_SET);
-  if (bfd_bread ((void *) buf, 28, abfd) != 28)
+  if (bfd_seek (abfd, section->header_offset, SEEK_SET) != 0
+      || bfd_read (buf, 28, abfd) != 28)
     return -1;
 
   section->name_offset = bfd_h_get_32 (abfd, buf);
@@ -481,7 +482,7 @@ bfd_pef_scan_start_address (bfd *abfd)
 
   loaderlen = loadersec->size;
   if (loaderlen < 56)
-    goto error;
+    goto wrong;
   if (bfd_seek (abfd, loadersec->filepos, SEEK_SET) != 0)
     goto error;
   loaderbuf = _bfd_malloc_and_read (abfd, loaderlen, loaderlen);
@@ -490,7 +491,7 @@ bfd_pef_scan_start_address (bfd *abfd)
 
   ret = bfd_pef_parse_loader_header (abfd, loaderbuf, 56, &header);
   if (ret < 0)
-    goto error;
+    goto wrong;
 
   if (header.main_section < 0)
     goto end;
@@ -500,7 +501,7 @@ bfd_pef_scan_start_address (bfd *abfd)
       break;
 
   if (section == NULL)
-    goto error;
+    goto wrong;
 
   abfd->start_address = section->vma + header.main_offset;
 
@@ -508,6 +509,8 @@ bfd_pef_scan_start_address (bfd *abfd)
   free (loaderbuf);
   return 0;
 
+ wrong:
+  bfd_set_error (bfd_error_wrong_format);
  error:
   free (loaderbuf);
   return -1;
@@ -557,8 +560,6 @@ bfd_pef_scan (bfd *abfd,
   if (bfd_pef_scan_start_address (abfd) < 0)
     return -1;
 
-  abfd->tdata.pef_data = mdata;
-
   return 0;
 }
 
@@ -567,9 +568,8 @@ bfd_pef_read_header (bfd *abfd, bfd_pef_header *header)
 {
   unsigned char buf[40];
 
-  bfd_seek (abfd, 0, SEEK_SET);
-
-  if (bfd_bread ((void *) buf, 40, abfd) != 40)
+  if (bfd_seek (abfd, 0, SEEK_SET) != 0
+      || bfd_read (buf, 40, abfd) != 40)
     return -1;
 
   header->tag1 = bfd_getb32 (buf);
@@ -594,25 +594,26 @@ bfd_pef_object_p (bfd *abfd)
   bfd_pef_data_struct *mdata;
 
   if (bfd_pef_read_header (abfd, &header) != 0)
-    goto wrong;
+    return NULL;
 
   if (header.tag1 != BFD_PEF_TAG1 || header.tag2 != BFD_PEF_TAG2)
-    goto wrong;
+    {
+      bfd_set_error (bfd_error_wrong_format);
+      return NULL;
+    }
 
   mdata = (bfd_pef_data_struct *) bfd_zalloc (abfd, sizeof (*mdata));
   if (mdata == NULL)
-    goto fail;
+    return NULL;
 
   if (bfd_pef_scan (abfd, &header, mdata))
-    goto wrong;
+    {
+      bfd_release (abfd, mdata);
+      return NULL;
+    }
 
+  abfd->tdata.pef_data = mdata;
   return _bfd_no_cleanup;
-
- wrong:
-  bfd_set_error (bfd_error_wrong_format);
-
- fail:
-  return NULL;
 }
 
 static int
@@ -750,6 +751,13 @@ bfd_pef_parse_function_stubs (bfd *abfd,
   if (ret < 0)
     goto error;
 
+  if ((loaderlen - 56) / 24 < header.imported_library_count)
+    goto error;
+
+  if ((loaderlen - 56 - header.imported_library_count * 24) / 4
+      < header.total_imported_symbol_count)
+    goto error;
+
   libraries = bfd_malloc
     (header.imported_library_count * sizeof (bfd_pef_imported_library));
   imports = bfd_malloc
@@ -757,8 +765,6 @@ bfd_pef_parse_function_stubs (bfd *abfd,
   if (libraries == NULL || imports == NULL)
     goto error;
 
-  if (loaderlen < (56 + (header.imported_library_count * 24)))
-    goto error;
   for (i = 0; i < header.imported_library_count; i++)
     {
       ret = bfd_pef_parse_imported_library
@@ -767,9 +773,6 @@ bfd_pef_parse_function_stubs (bfd *abfd,
 	goto error;
     }
 
-  if (loaderlen < (56 + (header.imported_library_count * 24)
-		   + (header.total_imported_symbol_count * 4)))
-    goto error;
   for (i = 0; i < header.total_imported_symbol_count; i++)
     {
       ret = (bfd_pef_parse_imported_symbol
@@ -1016,6 +1019,7 @@ const bfd_target pef_vec =
   16,				/* AR_max_namelen.  */
   0,				/* match priority.  */
   TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+  false,			/* merge sections */
   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
@@ -1061,7 +1065,6 @@ const bfd_target pef_vec =
 #define bfd_pef_xlib_new_section_hook		    _bfd_generic_new_section_hook
 #define bfd_pef_xlib_get_section_contents	    _bfd_generic_get_section_contents
 #define bfd_pef_xlib_set_section_contents	    _bfd_generic_set_section_contents
-#define bfd_pef_xlib_get_section_contents_in_window _bfd_generic_get_section_contents_in_window
 #define bfd_pef_xlib_set_section_contents_in_window _bfd_generic_set_section_contents_in_window
 
 static int
@@ -1069,9 +1072,8 @@ bfd_pef_xlib_read_header (bfd *abfd, bfd_pef_xlib_header *header)
 {
   unsigned char buf[80];
 
-  bfd_seek (abfd, 0, SEEK_SET);
-
-  if (bfd_bread ((void *) buf, sizeof buf, abfd) != sizeof buf)
+  if (bfd_seek (abfd, 0, SEEK_SET) != 0
+      || bfd_read (buf, sizeof buf, abfd) != sizeof buf)
     return -1;
 
   header->tag1 = bfd_getb32 (buf);
@@ -1122,25 +1124,18 @@ bfd_pef_xlib_object_p (bfd *abfd)
 {
   bfd_pef_xlib_header header;
 
-  if (bfd_pef_xlib_read_header (abfd, &header) != 0)
+  if (bfd_pef_xlib_read_header (abfd, &header) != 0
+      || header.tag1 != BFD_PEF_XLIB_TAG1
+      || (header.tag2 != BFD_PEF_VLIB_TAG2
+	  && header.tag2 != BFD_PEF_BLIB_TAG2))
     {
-      bfd_set_error (bfd_error_wrong_format);
-      return NULL;
-    }
-
-  if ((header.tag1 != BFD_PEF_XLIB_TAG1)
-      || ((header.tag2 != BFD_PEF_VLIB_TAG2)
-	  && (header.tag2 != BFD_PEF_BLIB_TAG2)))
-    {
-      bfd_set_error (bfd_error_wrong_format);
+      if (bfd_get_error () != bfd_error_system_call)
+	bfd_set_error (bfd_error_wrong_format);
       return NULL;
     }
 
   if (bfd_pef_xlib_scan (abfd, &header) != 0)
-    {
-      bfd_set_error (bfd_error_wrong_format);
-      return NULL;
-    }
+    return NULL;
 
   return _bfd_no_cleanup;
 }
@@ -1161,6 +1156,7 @@ const bfd_target pef_xlib_vec =
   16,				/* AR_max_namelen.  */
   0,				/* match priority.  */
   TARGET_KEEP_UNUSED_SECTION_SYMBOLS, /* keep unused section symbols.  */
+  TARGET_MERGE_SECTIONS,
   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
   bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */

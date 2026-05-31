@@ -49,9 +49,6 @@
         arsh32	%r4, 0x7eadbeef
         arsh32	%r5, %r6
         neg32	%r2
-	endle	%r9,16
-        endle	%r8,32
-        endle	%r7,64
-        endbe	%r6,16
-        endbe	%r5,32
-        endbe	%r4,64
+        movs32  %r1,%r2,8
+        movs32  %r1,%r2,16
+        movs32  %r1,%r2,32

@@ -3,7 +3,7 @@
 # as: -march=armv7-a+neon-fp16
 # readelf: -A
 # This test is only valid on EABI based ports.
-# target: *-*-*eabi* *-*-nacl*
+# target: *-*-*eabi*
 #...
   Tag_ARM_ISA_use: Yes
   Tag_THUMB_ISA_use: Thumb-2

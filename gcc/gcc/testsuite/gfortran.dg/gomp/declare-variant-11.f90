@@ -49,8 +49,8 @@ contains
 
   subroutine f13 ()
     !$omp declare variant (f10) match (device={isa("avx512f")})
-    !$omp declare variant (f11) match (user={condition(1)},device={isa(avx512f)},implementation={vendor(gnu)})
-    !$omp declare variant (f12) match (user={condition(2 + 1)},device={isa(avx512f)})
+    !$omp declare variant (f11) match (user={condition(.true.)},device={isa(avx512f)},implementation={vendor(gnu)})
+    !$omp declare variant (f12) match (user={condition(.true. .NEQV. .false.)},device={isa(avx512f)})
   end subroutine
 
   subroutine f14 ()
@@ -126,8 +126,8 @@ contains
     end do
     !$omp end parallel do
 
-    call f27 ()	! { dg-final { scan-tree-dump-times "f25 \\\(\\\);" 1 "gimple" { target { { i?86-*-* x86_64-*-* } && lp64 } } } }
-		! { dg-final { scan-tree-dump-times "f24 \\\(\\\);" 1 "gimple" { target { { i?86-*-* x86_64-*-* } && { ! lp64 } } } } }
+    call f27 () ! { dg-final { scan-tree-dump-times "f25 \\\(\\\);" 1 "gimple" { target { { i?86-*-* x86_64-*-* } && { ! ilp32 } } } } }
+                ! { dg-final { scan-tree-dump-times "f24 \\\(\\\);" 1 "gimple" { target { { i?86-*-* x86_64-*-* } && { ilp32 } } } } }
 		! { dg-final { scan-tree-dump-times "f24 \\\(\\\);" 1 "gimple" { target { ! { nvptx*-*-* amdgcn*-*-* i?86-*-* x86_64-*-* } } } } }
 		! { dg-final { scan-tree-dump-times "f27 \\\(\\\);" 1 "gimple" { target { nvptx*-*-* amdgcn*-*-* } } } }
   end subroutine

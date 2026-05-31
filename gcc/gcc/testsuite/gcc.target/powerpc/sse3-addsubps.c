@@ -1,5 +1,6 @@
 /* { dg-do run } */
-/* { dg-options "-O3 -mpower8-vector -Wno-psabi" } */
+/* { dg-options "-O3 -mvsx -Wno-psabi" } */
+/* { dg-additional-options "-mdejagnu-cpu=power8" { target { ! has_arch_pwr8 } } } */
 /* { dg-require-effective-target p8vector_hw } */
 
 #define NO_WARN_X86_INTRINSICS 1
@@ -76,7 +77,7 @@ TEST (void)
   int i;
   int fail = 0;
 
-  for (i = 0; i < sizeof (vals) / sizeof (vals); i += 8)
+  for (i = 0; i < sizeof (vals) / sizeof (vals[0]); i += 8)
     {
       p1[0] = vals[i+0];
       p1[1] = vals[i+1];

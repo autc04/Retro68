@@ -9,7 +9,8 @@
 
 /* unaligned store.  */
 
-int main_1 (int off)
+int __attribute__((noipa))
+main_1 (int off)
 {
   int i;
   char ia[N+OFF];
@@ -20,6 +21,7 @@ int main_1 (int off)
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (ia[i+off] != 5)
@@ -37,7 +39,7 @@ int main (void)
 }
 
 
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target { ! avr-*-* } } } } */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target { ! { avr-*-* pru-*-* } } } } } */
 /* IBM Z does not require special alignment for vectorization.  */
-/* { dg-final { scan-tree-dump-times "Vectorizing an unaligned access" 0 "vect" { target { ! { avr-*-* s390*-*-* } } } } } */
-/* { dg-final { scan-tree-dump-times "Alignment of access forced using peeling" 1 "vect" { target { ! { avr-*-* s390*-*-* } } } } } */
+/* { dg-final { scan-tree-dump-times "Vectorizing an unaligned access" 0 "vect" { target { ! { arm*-*-* avr-*-* pru-*-* s390*-*-* } } } } } */
+/* { dg-final { scan-tree-dump-times "Alignment of access forced using peeling" 1 "vect" { target { ! { arm*-*-* avr-*-* pru-*-* s390*-*-* } } } } } */

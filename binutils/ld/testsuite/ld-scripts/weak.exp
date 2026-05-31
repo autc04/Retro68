@@ -1,6 +1,6 @@
 # Test weak symbols.
 # By Ian Lance Taylor, Cygnus Solutions.
-#   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -23,18 +23,23 @@ set testname "weak symbols"
 
 # This test only works for ELF targets and some PE targets.
 # It ought to work for some a.out targets, but it doesn't.
-if {! [is_elf_format] && ! [is_pecoff_format]} {
+if { [is_elf_format] } {
+    # hppa64 is incredibly broken
+    setup_xfail hppa64-*-*
+    # elf32bfinfd target complains about fixups in read-only sections
+    setup_xfail bfin-*-linux*
+} elseif { [is_pecoff_format] } {
+    # Weak symbols are broken for most PE targets.
+    if { ![istarget aarch64-*-*]
+	 && ![istarget i?86-*-*]
+	 && ![istarget sh-*-*]
+	 && ![istarget x86_64-*-*] } {
+	setup_xfail *-*-*
+    }
+} else {
     unsupported $testname
     return
 }
-
-# Weak symbols are broken for most PE targets.
-if {! [istarget i?86-*-*] && ! [istarget sh-*-*]} {
-    setup_xfail *-*-pe*
-}
-
-# hppa64 is incredibly broken
-setup_xfail hppa64-*-*
 
 if {! [ld_assemble $as $srcdir/$subdir/weak1.s tmpdir/weak1.o]
     || ! [ld_assemble $as $srcdir/$subdir/weak2.s tmpdir/weak2.o]} then {

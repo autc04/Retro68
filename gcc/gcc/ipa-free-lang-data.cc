@@ -1,7 +1,7 @@
 /* Pass to free or clear language-specific data structures from
    the IL before they reach the middle end.
 
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -150,7 +150,12 @@ fld_type_variant (tree first, tree t, class free_lang_data_d *fld,
     return t;
   for (tree v = first; v; v = TYPE_NEXT_VARIANT (v))
     if (fld_type_variant_equal_p (t, v, inner_type))
-      return v;
+      {
+	if (flag_checking)
+	  for (tree v2 = TYPE_NEXT_VARIANT (v); v2; v2 = TYPE_NEXT_VARIANT (v2))
+	    gcc_assert (!fld_type_variant_equal_p (t, v2, inner_type));
+	return v;
+      }
   tree v = build_variant_type_copy (first);
   TYPE_READONLY (v) = TYPE_READONLY (t);
   TYPE_VOLATILE (v) = TYPE_VOLATILE (t);
@@ -234,7 +239,7 @@ fld_decl_context (tree ctx)
   return ctx;
 }
 
-/* For T being aggregate type try to turn it into a incomplete variant.
+/* For T being aggregate type try to turn it into an incomplete variant.
    Return T if no simplification is possible.  */
 
 static tree
@@ -436,9 +441,7 @@ free_lang_data_in_type (tree type, class free_lang_data_d *fld)
 	 different front ends.  */
       for (tree p = TYPE_ARG_TYPES (type); p; p = TREE_CHAIN (p))
 	{
-	  TREE_VALUE (p) = fld_simplified_type (TREE_VALUE (p), fld);
 	  tree arg_type = TREE_VALUE (p);
-
 	  if (TYPE_READONLY (arg_type) || TYPE_VOLATILE (arg_type))
 	    {
 	      int quals = TYPE_QUALS (arg_type)
@@ -448,6 +451,7 @@ free_lang_data_in_type (tree type, class free_lang_data_d *fld)
 	      if (!fld->pset.add (TREE_VALUE (p)))
 		free_lang_data_in_type (TREE_VALUE (p), fld);
 	    }
+	  TREE_VALUE (p) = fld_simplified_type (TREE_VALUE (p), fld);
 	  /* C++ FE uses TREE_PURPOSE to store initial values.  */
 	  TREE_PURPOSE (p) = NULL;
 	}
@@ -575,7 +579,7 @@ free_lang_data_in_decl (tree decl, class free_lang_data_d *fld)
       if (!(node = cgraph_node::get (decl))
 	  || (!node->definition && !node->clones))
 	{
-	  if (node && !node->declare_variant_alt)
+	  if (node)
 	    node->release_body ();
 	  else
 	    {
@@ -726,12 +730,17 @@ find_decls_types_r (tree *tp, int *ws, void *data)
       if (TREE_CODE (t) != TYPE_DECL)
 	fld_worklist_push (DECL_INITIAL (t), fld);
 
+      /* Remove C++ annotations, those aren't needed for LTO and contain
+	 trees we sometimes can't stream.  */
+      DECL_ATTRIBUTES (t)
+	= remove_attribute ("annotation ", DECL_ATTRIBUTES (t));
       fld_worklist_push (DECL_ATTRIBUTES (t), fld);
       fld_worklist_push (DECL_ABSTRACT_ORIGIN (t), fld);
 
       if (TREE_CODE (t) == FUNCTION_DECL)
 	{
-	  fld_worklist_push (DECL_ARGUMENTS (t), fld);
+	  for (tree arg = DECL_ARGUMENTS (t); arg; arg = DECL_CHAIN (arg))
+	    fld_worklist_push (arg, fld);
 	  fld_worklist_push (DECL_RESULT (t), fld);
 	}
       else if (TREE_CODE (t) == FIELD_DECL)
@@ -746,9 +755,6 @@ find_decls_types_r (tree *tp, int *ws, void *data)
 	  && DECL_HAS_VALUE_EXPR_P (t))
 	fld_worklist_push (DECL_VALUE_EXPR (t), fld);
 
-      if (TREE_CODE (t) != FIELD_DECL
-	  && TREE_CODE (t) != TYPE_DECL)
-	fld_worklist_push (TREE_CHAIN (t), fld);
       *ws = 0;
     }
   else if (TYPE_P (t))
@@ -761,6 +767,10 @@ find_decls_types_r (tree *tp, int *ws, void *data)
 	fld_worklist_push (TYPE_CACHED_VALUES (t), fld);
       fld_worklist_push (TYPE_SIZE (t), fld);
       fld_worklist_push (TYPE_SIZE_UNIT (t), fld);
+      /* Remove C++ annotations, those aren't needed for LTO and contain
+	 trees we sometimes can't stream.  */
+      TYPE_ATTRIBUTES (t)
+	= remove_attribute ("annotation ", TYPE_ATTRIBUTES (t));
       fld_worklist_push (TYPE_ATTRIBUTES (t), fld);
       fld_worklist_push (TYPE_POINTER_TO (t), fld);
       fld_worklist_push (TYPE_REFERENCE_TO (t), fld);
@@ -841,6 +851,20 @@ find_decls_types_r (tree *tp, int *ws, void *data)
       for (tree tem = BLOCK_SUBBLOCKS (t); tem; tem = BLOCK_CHAIN (tem))
 	fld_worklist_push (tem, fld);
       fld_worklist_push (BLOCK_ABSTRACT_ORIGIN (t), fld);
+    }
+  /* walk_tree does not visit ce->index which can be a FIELD_DECL, pulling
+     in otherwise unused structure fields so handle CTORs explicitly.  */
+  else if (TREE_CODE (t) == CONSTRUCTOR)
+    {
+      unsigned HOST_WIDE_INT idx;
+      constructor_elt *ce;
+      for (idx = 0; vec_safe_iterate (CONSTRUCTOR_ELTS (t), idx, &ce); idx++)
+	{
+	  if (ce->index)
+	    fld_worklist_push (ce->index, fld);
+	  fld_worklist_push (ce->value, fld);
+	}
+      *ws = 0;
     }
 
   if (TREE_CODE (t) != IDENTIFIER_NODE
@@ -1020,6 +1044,19 @@ find_decls_types_in_var (varpool_node *v, class free_lang_data_d *fld)
   find_decls_types (v->decl, fld);
 }
 
+/* Find decls and types referenced in asm node N and store them in
+   FLD->DECLS and FLD->TYPES.
+   Asm strings are represented as a C/C++/etc. strings. If there is
+   no other string, we would delete/prune/unify the type and cause
+   issues in verify_type(tree).
+   Likely we could just add the string type, but we scan the whole
+   tree to be sure.  */
+static void
+find_decls_types_in_asm (asm_node *v, class free_lang_data_d *fld)
+{
+  find_decls_types (v->asm_str, fld);
+}
+
 /* Free language specific information for every operand and expression
    in every node of the call graph.  This process operates in three stages:
 
@@ -1056,6 +1093,12 @@ free_lang_data_in_cgraph (class free_lang_data_d *fld)
   /* Find decls and types in every varpool symbol.  */
   FOR_EACH_VARIABLE (v)
     find_decls_types_in_var (v, fld);
+
+  /* Find the decls and types in every asm node.
+     Should only be a string type.  */
+  for (asm_node* anode = symtab->first_asm_symbol (); anode;
+       anode = safe_as_a<asm_node*> (anode->next))
+    find_decls_types_in_asm (anode, fld);
 
   /* Set the assembler name on every decl found.  We need to do this
      now because free_lang_data_in_decl will invalidate data needed
@@ -1109,9 +1152,7 @@ free_lang_data (void)
   free_lang_data_in_cgraph (&fld);
 
   /* Create gimple variants for common types.  */
-  for (unsigned i = 0;
-       i < sizeof (builtin_structptr_types) / sizeof (builtin_structptr_type);
-       ++i)
+  for (unsigned i = 0; i < ARRAY_SIZE (builtin_structptr_types); ++i)
     builtin_structptr_types[i].node = builtin_structptr_types[i].base;
 
   /* Reset some langhooks.  Do not reset types_compatible_p, it may
@@ -1175,7 +1216,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *) { return free_lang_data (); }
+  unsigned int execute (function *) final override { return free_lang_data (); }
 
 }; // class pass_ipa_free_lang_data
 

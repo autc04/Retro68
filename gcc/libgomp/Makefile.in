@@ -16,7 +16,7 @@
 
 # Plugins for offload execution, Makefile.am fragment.
 #
-# Copyright (C) 2014-2022 Free Software Foundation, Inc.
+# Copyright (C) 2014-2026 Free Software Foundation, Inc.
 #
 # Contributed by Mentor Embedded.
 #
@@ -125,9 +125,11 @@ subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/../config/acx.m4 \
 	$(top_srcdir)/../config/ax_count_cpus.m4 \
+	$(top_srcdir)/../config/clang-plugin.m4 \
 	$(top_srcdir)/../config/depstand.m4 \
 	$(top_srcdir)/../config/enable.m4 \
 	$(top_srcdir)/../config/futex.m4 \
+	$(top_srcdir)/../config/gcc-plugin.m4 \
 	$(top_srcdir)/../config/lead-dot.m4 \
 	$(top_srcdir)/../config/lthostflags.m4 \
 	$(top_srcdir)/../config/multi.m4 \
@@ -185,7 +187,9 @@ am__DEPENDENCIES_1 =
 @PLUGIN_GCN_TRUE@libgomp_plugin_gcn_la_DEPENDENCIES = libgomp.la \
 @PLUGIN_GCN_TRUE@	$(am__DEPENDENCIES_1)
 @PLUGIN_GCN_TRUE@am_libgomp_plugin_gcn_la_OBJECTS =  \
-@PLUGIN_GCN_TRUE@	libgomp_plugin_gcn_la-plugin-gcn.lo
+@PLUGIN_GCN_TRUE@	libgomp_plugin_gcn_la-plugin-gcn.lo \
+@PLUGIN_GCN_TRUE@	libgomp_plugin_gcn_la-simple-allocator.lo \
+@PLUGIN_GCN_TRUE@	libgomp_plugin_gcn_la-mutex.lo
 libgomp_plugin_gcn_la_OBJECTS = $(am_libgomp_plugin_gcn_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -209,7 +213,6 @@ libgomp_plugin_nvptx_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(libgomp_plugin_nvptx_la_LDFLAGS) $(LDFLAGS) -o $@
 @PLUGIN_NVPTX_TRUE@am_libgomp_plugin_nvptx_la_rpath = -rpath \
 @PLUGIN_NVPTX_TRUE@	$(toolexeclibdir)
-libgomp_la_LIBADD =
 @USE_FORTRAN_TRUE@am__objects_1 = openacc.lo
 am_libgomp_la_OBJECTS = alloc.lo atomic.lo barrier.lo critical.lo \
 	env.lo error.lo icv.lo icv-device.lo iter.lo iter_ull.lo \
@@ -219,8 +222,9 @@ am_libgomp_la_OBJECTS = alloc.lo atomic.lo barrier.lo critical.lo \
 	affinity.lo target.lo splay-tree.lo libgomp-plugin.lo \
 	oacc-parallel.lo oacc-host.lo oacc-init.lo oacc-mem.lo \
 	oacc-async.lo oacc-plugin.lo oacc-cuda.lo priority_queue.lo \
-	affinity-fmt.lo teams.lo allocator.lo oacc-profiling.lo \
-	oacc-target.lo $(am__objects_1)
+	affinity-fmt.lo teams.lo allocator.lo simple-allocator.lo \
+	oacc-profiling.lo oacc-target.lo target-indirect.lo \
+	target-cxa-dso-dtor.lo $(am__objects_1)
 libgomp_la_OBJECTS = $(am_libgomp_la_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -369,11 +373,10 @@ CFLAGS = @CFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CPU_COUNT = @CPU_COUNT@
-CUDA_DRIVER_INCLUDE = @CUDA_DRIVER_INCLUDE@
-CUDA_DRIVER_LIB = @CUDA_DRIVER_LIB@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DL_LIBS = @DL_LIBS@
 DSYMUTIL = @DSYMUTIL@
 DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
@@ -384,9 +387,8 @@ EXEEXT = @EXEEXT@
 FC = @FC@
 FCFLAGS = @FCFLAGS@
 FGREP = @FGREP@
+FLOCK = @FLOCK@
 GREP = @GREP@
-HSA_RUNTIME_INCLUDE = @HSA_RUNTIME_INCLUDE@
-HSA_RUNTIME_LIB = @HSA_RUNTIME_LIB@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -399,6 +401,7 @@ LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
+LLVM_CONFIG = @LLVM_CONFIG@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
@@ -432,21 +435,13 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
-PERL = @PERL@
-PLUGIN_GCN = @PLUGIN_GCN@
-PLUGIN_GCN_CPPFLAGS = @PLUGIN_GCN_CPPFLAGS@
-PLUGIN_GCN_LDFLAGS = @PLUGIN_GCN_LDFLAGS@
-PLUGIN_GCN_LIBS = @PLUGIN_GCN_LIBS@
-PLUGIN_NVPTX = @PLUGIN_NVPTX@
-PLUGIN_NVPTX_CPPFLAGS = @PLUGIN_NVPTX_CPPFLAGS@
-PLUGIN_NVPTX_LDFLAGS = @PLUGIN_NVPTX_LDFLAGS@
-PLUGIN_NVPTX_LIBS = @PLUGIN_NVPTX_LIBS@
 RANLIB = @RANLIB@
 SECTION_LDFLAGS = @SECTION_LDFLAGS@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+SYSROOT_CFLAGS_FOR_TARGET = @SYSROOT_CFLAGS_FOR_TARGET@
 VERSION = @VERSION@
 XCFLAGS = @XCFLAGS@
 XLDFLAGS = @XLDFLAGS@
@@ -546,9 +541,13 @@ nodist_toolexeclib_HEADERS = libgomp.spec
 @LIBGOMP_BUILD_VERSIONED_SHLIB_GNU_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@libgomp_version_dep = libgomp.ver
 @LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@libgomp_version_dep = libgomp.ver-sun
 libgomp_version_info = -version-info $(libtool_VERSION)
+@ENABLE_DARWIN_AT_RPATH_TRUE@libgomp_darwin_rpath =  \
+@ENABLE_DARWIN_AT_RPATH_TRUE@	-Wc,-nodefaultrpaths \
+@ENABLE_DARWIN_AT_RPATH_TRUE@	-Wl,-rpath,@loader_path
 libgomp_la_LDFLAGS = $(libgomp_version_info) $(libgomp_version_script) \
-        $(lt_host_flags)
+        $(lt_host_flags) $(libgomp_darwin_rpath)
 
+libgomp_la_LIBADD = $(DL_LIBS)
 libgomp_la_DEPENDENCIES = $(libgomp_version_dep)
 libgomp_la_LINK = $(LINK) $(libgomp_la_LDFLAGS)
 libgomp_la_SOURCES = alloc.c atomic.c barrier.c critical.c env.c \
@@ -558,29 +557,45 @@ libgomp_la_SOURCES = alloc.c atomic.c barrier.c critical.c env.c \
 	fortran.c affinity.c target.c splay-tree.c libgomp-plugin.c \
 	oacc-parallel.c oacc-host.c oacc-init.c oacc-mem.c \
 	oacc-async.c oacc-plugin.c oacc-cuda.c priority_queue.c \
-	affinity-fmt.c teams.c allocator.c oacc-profiling.c \
-	oacc-target.c $(am__append_3)
+	affinity-fmt.c teams.c allocator.c simple-allocator.c \
+	oacc-profiling.c oacc-target.c target-indirect.c \
+	target-cxa-dso-dtor.c $(am__append_3)
 
 # Nvidia PTX OpenACC plugin.
 @PLUGIN_NVPTX_TRUE@libgomp_plugin_nvptx_version_info = -version-info $(libtool_VERSION)
 @PLUGIN_NVPTX_TRUE@libgomp_plugin_nvptx_la_SOURCES = plugin/plugin-nvptx.c
-@PLUGIN_NVPTX_TRUE@libgomp_plugin_nvptx_la_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_NVPTX_CPPFLAGS)
-@PLUGIN_NVPTX_TRUE@libgomp_plugin_nvptx_la_LDFLAGS =  \
-@PLUGIN_NVPTX_TRUE@	$(libgomp_plugin_nvptx_version_info) \
-@PLUGIN_NVPTX_TRUE@	$(lt_host_flags) $(PLUGIN_NVPTX_LDFLAGS)
-@PLUGIN_NVPTX_TRUE@libgomp_plugin_nvptx_la_LIBADD = libgomp.la $(PLUGIN_NVPTX_LIBS)
+@PLUGIN_NVPTX_TRUE@libgomp_plugin_nvptx_la_CPPFLAGS = $(AM_CPPFLAGS)
+@PLUGIN_NVPTX_TRUE@libgomp_plugin_nvptx_la_LDFLAGS = $(libgomp_plugin_nvptx_version_info) \
+@PLUGIN_NVPTX_TRUE@	$(lt_host_flags)
+
+
+# libgomp nvptx plugin developer's section.
+#
+# Including the GCC-shipped 'include/cuda/cuda.h' (default) vs. system <cuda.h>:
+#libgomp_plugin_nvptx_la_CPPFLAGS += -DPLUGIN_NVPTX_INCLUDE_SYSTEM_CUDA_H
+#libgomp_plugin_nvptx_la_CPPFLAGS += -I[CUDA]/include
+#
+# 'dlopen'ing the CUDA Driver library (default):
+@PLUGIN_NVPTX_TRUE@libgomp_plugin_nvptx_la_LIBADD = libgomp.la \
+@PLUGIN_NVPTX_TRUE@	$(DL_LIBS)
 @PLUGIN_NVPTX_TRUE@libgomp_plugin_nvptx_la_LIBTOOLFLAGS = --tag=disable-static
+# ... vs. linking it:
+#libgomp_plugin_nvptx_la_CPPFLAGS += -DPLUGIN_NVPTX_LINK_LIBCUDA
+#libgomp_plugin_nvptx_la_LDFLAGS += -L[CUDA]/lib64/stubs
+#libgomp_plugin_nvptx_la_LIBADD += -lcuda
 
 # AMD GCN plugin
 @PLUGIN_GCN_TRUE@libgomp_plugin_gcn_version_info = -version-info $(libtool_VERSION)
-@PLUGIN_GCN_TRUE@libgomp_plugin_gcn_la_SOURCES = plugin/plugin-gcn.c
-@PLUGIN_GCN_TRUE@libgomp_plugin_gcn_la_CPPFLAGS = $(AM_CPPFLAGS) $(PLUGIN_GCN_CPPFLAGS) \
+@PLUGIN_GCN_TRUE@libgomp_plugin_gcn_la_SOURCES = plugin/plugin-gcn.c simple-allocator.c \
+@PLUGIN_GCN_TRUE@				plugin/mutex.c
+
+@PLUGIN_GCN_TRUE@libgomp_plugin_gcn_la_CPPFLAGS = $(AM_CPPFLAGS) \
 @PLUGIN_GCN_TRUE@	-D_GNU_SOURCE
 
-@PLUGIN_GCN_TRUE@libgomp_plugin_gcn_la_LDFLAGS =  \
-@PLUGIN_GCN_TRUE@	$(libgomp_plugin_gcn_version_info) \
-@PLUGIN_GCN_TRUE@	$(lt_host_flags) $(PLUGIN_GCN_LDFLAGS)
-@PLUGIN_GCN_TRUE@libgomp_plugin_gcn_la_LIBADD = libgomp.la $(PLUGIN_GCN_LIBS)
+@PLUGIN_GCN_TRUE@libgomp_plugin_gcn_la_LDFLAGS = $(libgomp_plugin_gcn_version_info) \
+@PLUGIN_GCN_TRUE@	$(lt_host_flags)
+
+@PLUGIN_GCN_TRUE@libgomp_plugin_gcn_la_LIBADD = libgomp.la $(DL_LIBS)
 @PLUGIN_GCN_TRUE@libgomp_plugin_gcn_la_LIBTOOLFLAGS = --tag=disable-static
 nodist_noinst_HEADERS = libgomp_f.h
 nodist_libsubinclude_HEADERS = omp.h openacc.h acc_prof.h
@@ -749,7 +764,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/iter.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/iter_ull.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgomp-plugin.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgomp_plugin_gcn_la-mutex.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgomp_plugin_gcn_la-plugin-gcn.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgomp_plugin_gcn_la-simple-allocator.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgomp_plugin_nvptx_la-plugin-nvptx.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lock.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/loop.Plo@am__quote@
@@ -772,8 +789,11 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/scope.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sections.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sem.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/simple-allocator.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/single.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/splay-tree.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/target-cxa-dso-dtor.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/target-indirect.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/target.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/task.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/team.Plo@am__quote@
@@ -808,6 +828,20 @@ libgomp_plugin_gcn_la-plugin-gcn.lo: plugin/plugin-gcn.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='plugin/plugin-gcn.c' object='libgomp_plugin_gcn_la-plugin-gcn.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(libgomp_plugin_gcn_la_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgomp_plugin_gcn_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libgomp_plugin_gcn_la-plugin-gcn.lo `test -f 'plugin/plugin-gcn.c' || echo '$(srcdir)/'`plugin/plugin-gcn.c
+
+libgomp_plugin_gcn_la-simple-allocator.lo: simple-allocator.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(libgomp_plugin_gcn_la_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgomp_plugin_gcn_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libgomp_plugin_gcn_la-simple-allocator.lo -MD -MP -MF $(DEPDIR)/libgomp_plugin_gcn_la-simple-allocator.Tpo -c -o libgomp_plugin_gcn_la-simple-allocator.lo `test -f 'simple-allocator.c' || echo '$(srcdir)/'`simple-allocator.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libgomp_plugin_gcn_la-simple-allocator.Tpo $(DEPDIR)/libgomp_plugin_gcn_la-simple-allocator.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='simple-allocator.c' object='libgomp_plugin_gcn_la-simple-allocator.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(libgomp_plugin_gcn_la_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgomp_plugin_gcn_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libgomp_plugin_gcn_la-simple-allocator.lo `test -f 'simple-allocator.c' || echo '$(srcdir)/'`simple-allocator.c
+
+libgomp_plugin_gcn_la-mutex.lo: plugin/mutex.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(libgomp_plugin_gcn_la_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgomp_plugin_gcn_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libgomp_plugin_gcn_la-mutex.lo -MD -MP -MF $(DEPDIR)/libgomp_plugin_gcn_la-mutex.Tpo -c -o libgomp_plugin_gcn_la-mutex.lo `test -f 'plugin/mutex.c' || echo '$(srcdir)/'`plugin/mutex.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libgomp_plugin_gcn_la-mutex.Tpo $(DEPDIR)/libgomp_plugin_gcn_la-mutex.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='plugin/mutex.c' object='libgomp_plugin_gcn_la-mutex.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(libgomp_plugin_gcn_la_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgomp_plugin_gcn_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libgomp_plugin_gcn_la-mutex.lo `test -f 'plugin/mutex.c' || echo '$(srcdir)/'`plugin/mutex.c
 
 libgomp_plugin_nvptx_la-plugin-nvptx.lo: plugin/plugin-nvptx.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(libgomp_plugin_nvptx_la_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgomp_plugin_nvptx_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libgomp_plugin_nvptx_la-plugin-nvptx.lo -MD -MP -MF $(DEPDIR)/libgomp_plugin_nvptx_la-plugin-nvptx.Tpo -c -o libgomp_plugin_nvptx_la-plugin-nvptx.lo `test -f 'plugin/plugin-nvptx.c' || echo '$(srcdir)/'`plugin/plugin-nvptx.c
@@ -1371,9 +1405,7 @@ vpath % $(strip $(search_path))
 @LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@		$(libgomp_la_OBJECTS) $(libgomp_la_LIBADD)
 @LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@	perl $(top_srcdir)/../contrib/make_sunver.pl \
 @LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@	  libgomp.ver \
-@LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@	  $(libgomp_la_OBJECTS:%.lo=.libs/%.o) \
-@LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@	 `echo $(libgomp_la_LIBADD) | \
-@LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@	    sed 's,/\([^/.]*\)\.la,/.libs/\1.a,g'` \
+@LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@	  $(libgomp_la_OBJECTS) $(libgomp_la_LIBADD) \
 @LIBGOMP_BUILD_VERSIONED_SHLIB_SUN_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@	 > $@ || (rm -f $@ ; exit 1)
 
 omp_lib_kinds.mod: omp_lib.mod
@@ -1383,7 +1415,7 @@ openacc_kinds.mod: openacc.mod
 openacc.mod: openacc.lo
 	:
 %.mod: %.f90
-	$(FC) $(FCFLAGS) -cpp -fopenmp -fsyntax-only $<
+	$(FC) $(FCFLAGS) -cpp -fopenmp -fsyntax-only -Wno-c-binding-type $<
 fortran.lo: libgomp_f.h
 fortran.o: libgomp_f.h
 env.lo: libgomp_f.h

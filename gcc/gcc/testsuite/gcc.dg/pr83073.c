@@ -1,4 +1,4 @@
-/* { dg-do compile} */
+/* { dg-do compile } */
 /* { dg-options "-O2 -fdump-tree-evrp-details -fno-tree-fre -fno-tree-ccp -fno-tree-forwprop" } */
 
 int f(int x)
@@ -7,4 +7,4 @@ int f(int x)
     return x & 1;
 }
 
-/* { dg-final { scan-tree-dump "gimple_simplified to.* = 1" "evrp" } }  */
+/* { dg-final { scan-tree-dump "Folded into: return 1;" "evrp" } }  */

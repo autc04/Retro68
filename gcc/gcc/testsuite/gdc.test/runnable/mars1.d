@@ -9,6 +9,31 @@ template tuple(A...) { alias tuple = A; }
 
 ///////////////////////
 
+void testIntegralPromotions()
+{
+    uint uconv1(int q, ubyte  p) { return p; } assert(uconv1(0,0xFF)        == 0xFF);
+    uint uconv2(int q, ushort p) { return p; } assert(uconv2(0,0xFFFF)      == 0xFFFF);
+    uint uconv3(int q, uint   p) { return p; } assert(uconv3(0,0xFFFF_FFFF) == 0xFFFF_FFFF);
+    //uint uconv4(int q, ulong  p) { return p; }
+
+    ulong uconv5(int q, ubyte  p) { return p; } assert(uconv5(0,0xFF)                  == 0xFF);
+    ulong uconv6(int q, ushort p) { return p; } assert(uconv6(0,0xFFFF)                == 0xFFFF);
+    ulong uconv7(int q, uint   p) { return p; } assert(uconv7(0,0xFFFF_FFFF)           == 0xFFFF_FFFF);
+    ulong uconv8(int q, ulong  p) { return p; } assert(uconv8(0,0xFFFF_FFFF_FFFF_FFFF) == 0xFFFF_FFFF_FFFF_FFFF);
+
+    uint sconv1(int q, byte  p) { return p; } assert(sconv1(0,cast(byte)0xFF)    == 0xFFFF_FFFF);
+    uint sconv2(int q, short p) { return p; } assert(sconv2(0,cast(short)0xFFFF) == 0xFFFF_FFFF);
+    uint sconv3(int q, int   p) { return p; } assert(sconv3(0,0xFFFF_FFFF)       == 0xFFFF_FFFF);
+    //uint sconv4(int q, long  p) { return p; }
+
+    ulong sconv5(int q, byte  p) { return p; } assert(sconv5(0,cast(byte)0xFF)        == 0xFFFF_FFFF_FFFF_FFFF);
+    ulong sconv6(int q, short p) { return p; } assert(sconv6(0,cast(short)0xFFFF)     == 0xFFFF_FFFF_FFFF_FFFF);
+    ulong sconv7(int q, int   p) { return p; } assert(sconv7(0,0xFFFF_FFFF)           == 0xFFFF_FFFF_FFFF_FFFF);
+    ulong sconv8(int q, long  p) { return p; } assert(sconv8(0,0xFFFF_FFFF_FFFF_FFFF) == 0xFFFF_FFFF_FFFF_FFFF);
+}
+
+///////////////////////
+
 // https://github.com/dlang/dmd/pull/11441
 
 long sdiv1(long l)
@@ -615,6 +640,17 @@ size_t cond11565(size_t val)
 void test11565()
 {
     assert(cond11565(true) == size_t.max);
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=23743
+void test23743()
+{
+    ubyte[] a = [1];
+    foreach (x; a)
+    {
+        ubyte v = x >= 1 ? 255 : 0;
+        assert(v == 255);
+    }
 }
 
 ///////////////////////
@@ -2468,9 +2504,95 @@ void test21835()
 }
 
 ////////////////////////////////////////////////////////////////////////
+// https://github.com/dlang/dmd/pull/16187#issuecomment-1946534649
+
+void testDoWhileContinue()
+{
+    int i = 10;
+    do
+    {
+        continue;
+    }
+    while(--i > 0);
+}
+
+////////////////////////////////////////////////////////////////////////
+// https://github.com/dlang/dmd/issues/20574
+
+int test20574x(int i, int y)
+{
+    return i ? y : y;
+}
+
+void test20574()
+{
+    assert(test20574x(1, 2) == 2);
+    assert(test20574x(0, 2) == 2);
+}
+
+////////////////////////////////////////////////////////////////////////
+
+struct S8
+{
+    int x,y,z;
+}
+
+int test8x(S8 s)
+{
+    s = s;
+    return s.y;
+}
+
+void test8()
+{
+    S8 s;
+    s.y = 2;
+    assert(test8x(s) == 2);
+}
+
+////////////////////////////////////////////////////////////////////////
+
+struct S9
+{
+    int a,b;
+    ~this() { }
+}
+
+
+S9 test9x(ref S9 arg)
+{
+    return arg;
+}
+
+void test9()
+{
+    S9 s;
+    s.b = 3;
+    S9 t = test9x(s);
+    assert(t.b == 3);
+}
+
+////////////////////////////////////////////////////////////////////////
+
+void test10()
+{
+    double a,b,c;
+    double* pa,pb;
+
+    a = 5;
+    b = a++;
+    assert(a == 6);
+    pa = &a;
+    pb = &b;
+    *pb = (*pa)++;
+}
+
+////////////////////////////////////////////////////////////////////////
 
 int main()
 {
+    testIntegralPromotions();
+
     // All the various integer divide tests
     testsdiv2();
     testulldiv();
@@ -2498,6 +2620,7 @@ int main()
     testdocond();
     testnegcom();
     test11565();
+    test23743();
     testoror();
     testbt();
     test12095(0);
@@ -2566,6 +2689,11 @@ int main()
     test21256();
     test21816();
     test21835();
+    testDoWhileContinue();
+    test20574();
+    test8();
+    test9();
+    test10();
 
     printf("Success\n");
     return 0;

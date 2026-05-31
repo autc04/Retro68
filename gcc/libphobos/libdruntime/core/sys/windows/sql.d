@@ -1,4 +1,7 @@
 /**
+$(RED Warning:
+      This binding is out-of-date and does not allow use on non-Windows platforms. Use `etc.c.odbc.sql` instead.)
+
  * Windows API header module
  *
  * Translated from MinGW Windows headers
@@ -6,14 +9,16 @@
  * License: $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
  * Source: $(DRUNTIMESRC core/sys/windows/_sql.d)
  */
+
 module core.sys.windows.sql;
+
+enum ODBCVER = 0x0400;
+
+deprecated ("The ODBC 3.5 modules are deprecated. Please use the ODBC4 modules in the `etc.c.odbc` package."):
 version (Windows):
-@system:
 
 public import core.sys.windows.sqltypes;
 import core.sys.windows.windef;
-
-enum ODBCVER = 0x0351;
 
 enum SQL_ACCESSIBLE_PROCEDURES=20;
 enum SQL_ACCESSIBLE_TABLES=19;

@@ -27,23 +27,12 @@ int errno;
 
 #endif
 
-/* Interim cleanup code */
-
-void
-cleanup_glue (struct _reent *ptr,
-     struct _glue *glue)
-{
-  /* Have to reclaim these in reverse order: */
-  if (glue->_next)
-    cleanup_glue (ptr, glue->_next);
-
-  _free_r (ptr, glue);
-}
-
 void
 _reclaim_reent (struct _reent *ptr)
 {
+#ifndef _REENT_THREAD_LOCAL
   if (ptr != _impure_ptr)
+#endif
     {
       /* used by mprec routines. */
 #ifdef _REENT_SMALL
@@ -70,13 +59,24 @@ _reclaim_reent (struct _reent *ptr)
 	}
       if (_REENT_MP_RESULT(ptr))
 	_free_r (ptr, _REENT_MP_RESULT(ptr));
+      if (_REENT_MP_P5S(ptr))
+        {
+          struct _Bigint *thisone, *nextone;
+          nextone = _REENT_MP_P5S(ptr);
+          while (nextone)
+           {
+             thisone = nextone;
+             nextone = nextone->_next;
+             _free_r (ptr, thisone);
+           }
+        }
 #ifdef _REENT_SMALL
       }
 #endif
 
 #ifdef _REENT_SMALL
-      if (ptr->_emergency)
-	_free_r (ptr, ptr->_emergency);
+      if (_REENT_EMERGENCY(ptr))
+	_free_r (ptr, _REENT_EMERGENCY(ptr));
       if (ptr->_mp)
 	_free_r (ptr, ptr->_mp);
       if (ptr->_r48)
@@ -91,41 +91,19 @@ _reclaim_reent (struct _reent *ptr)
 	_free_r (ptr, ptr->_misc);
 #endif
 
-#ifndef _REENT_GLOBAL_ATEXIT
-      /* atexit stuff */
-# ifdef _REENT_SMALL
-      if (ptr->_atexit && ptr->_atexit->_on_exit_args_ptr)
-	_free_r (ptr, ptr->_atexit->_on_exit_args_ptr);
-# else
-      if ((ptr->_atexit) && (ptr->_atexit != &ptr->_atexit0))
-	{
-	  struct _atexit *p, *q;
-	  for (p = ptr->_atexit; p != &ptr->_atexit0;)
-	    {
-	      q = p;
-	      p = p->_next;
-	      _free_r (ptr, q);
-	    }
-	}
-# endif
-#endif
-
-      if (ptr->_cvtbuf)
-	_free_r (ptr, ptr->_cvtbuf);
+      if (_REENT_CVTBUF(ptr))
+	_free_r (ptr, _REENT_CVTBUF(ptr));
     /* We should free _sig_func to avoid a memory leak, but how to
 	   do it safely considering that a signal may be delivered immediately
 	   after the free?
-	  if (ptr->_sig_func)
-	_free_r (ptr, ptr->_sig_func);*/
+	  if (_REENT_SIG_FUNC(ptr))
+	_free_r (ptr, _REENT_SIG_FUNC(ptr));*/
 
-      if (ptr->__sdidinit)
+      if (_REENT_CLEANUP(ptr))
 	{
 	  /* cleanup won't reclaim memory 'coz usually it's run
 	     before the program exits, and who wants to wait for that? */
-	  ptr->__cleanup (ptr);
-
-	  if (ptr->__sglue._next)
-	    cleanup_glue (ptr, ptr->__sglue._next);
+	  _REENT_CLEANUP(ptr) (ptr);
 	}
 
       /* Malloc memory not reclaimed; no good way to return memory anyway. */

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 WAITPKG insns (Intel disassembly)
 #source: waitpkg.s

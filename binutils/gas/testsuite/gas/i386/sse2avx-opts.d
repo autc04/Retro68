@@ -1,4 +1,4 @@
-#as: -msse2avx
+#as: -msse2avx -march=+mpx
 #objdump: -drwMsuffix
 #name: encoding option with -msse2avx
 #source: opts.s

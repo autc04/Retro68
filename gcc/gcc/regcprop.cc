@@ -1,5 +1,5 @@
 /* Copy propagation on hard registers for the GNU compiler.
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -36,6 +36,7 @@
 #include "cfgrtl.h"
 #include "target.h"
 #include "function-abi.h"
+#include "cfgcleanup.h"
 
 /* The following code does forward propagation of hard register copies.
    The object is to eliminate as many dependencies as possible, so that
@@ -59,13 +60,16 @@ struct queued_debug_insn_change
    value.  The OLDEST_REGNO field points to the head of the list, and
    the NEXT_REGNO field runs through the list.  The MODE field indicates
    what mode the data is known to be in; this field is VOIDmode when the
-   register is not known to contain valid data.  */
+   register is not known to contain valid data.  The FRAME_RELATED field
+   indicates if the instruction that updated this register is frame
+   related or not.  */
 
 struct value_data_entry
 {
   machine_mode mode;
   unsigned int oldest_regno;
   unsigned int next_regno;
+  bool frame_related;
   struct queued_debug_insn_change *debug_insn_changes;
 };
 
@@ -88,12 +92,13 @@ static void set_value_regno (unsigned, machine_mode, struct value_data *);
 static void init_value_data (struct value_data *);
 static void kill_clobbered_value (rtx, const_rtx, void *);
 static void kill_set_value (rtx, const_rtx, void *);
-static void copy_value (rtx, rtx, struct value_data *);
+static void copy_value (rtx, rtx, struct value_data *, bool frame_related);
 static bool mode_change_ok (machine_mode, machine_mode,
 			    unsigned int);
 static rtx maybe_mode_change (machine_mode, machine_mode,
 			      machine_mode, unsigned int, unsigned int);
-static rtx find_oldest_value_reg (enum reg_class, rtx, struct value_data *);
+static bool incompatible_frame_status (bool, bool);
+static rtx find_oldest_value_reg (enum reg_class, rtx, struct value_data *, bool frame_related);
 static bool replace_oldest_value_reg (rtx *, enum reg_class, rtx_insn *,
 				      struct value_data *);
 static bool replace_oldest_value_addr (rtx *, enum reg_class,
@@ -147,6 +152,7 @@ kill_value_one_regno (unsigned int regno, struct value_data *vd)
   vd->e[regno].mode = VOIDmode;
   vd->e[regno].oldest_regno = regno;
   vd->e[regno].next_regno = INVALID_REGNUM;
+  vd->e[regno].frame_related = false;
   if (vd->e[regno].debug_insn_changes)
     free_debug_insn_changes (vd, regno);
 
@@ -227,6 +233,7 @@ init_value_data (struct value_data *vd)
       vd->e[i].oldest_regno = i;
       vd->e[i].next_regno = INVALID_REGNUM;
       vd->e[i].debug_insn_changes = NULL;
+      vd->e[i].frame_related = false;
     }
   vd->max_value_regs = 0;
   vd->n_debug_insn_changes = 0;
@@ -248,8 +255,9 @@ struct kill_set_value_data
 {
   struct value_data *vd;
   rtx ignore_set_reg;
+  bool insn_is_frame_related;
 };
-  
+
 /* Called through note_stores.  If X is set, not clobbered, kill its
    current value and install it as the root of its own value list.  */
 
@@ -264,7 +272,10 @@ kill_set_value (rtx x, const_rtx set, void *data)
     {
       kill_value (x, ksvd->vd);
       if (REG_P (x))
-	set_value_regno (REGNO (x), GET_MODE (x), ksvd->vd);
+	{
+	  set_value_regno (REGNO (x), GET_MODE (x), ksvd->vd);
+	  ksvd->vd->e[REGNO(x)].frame_related = ksvd->insn_is_frame_related;
+	}
     }
 }
 
@@ -283,6 +294,7 @@ kill_autoinc_value (rtx_insn *insn, struct value_data *vd)
 	  x = XEXP (x, 0);
 	  kill_value (x, vd);
 	  set_value_regno (REGNO (x), GET_MODE (x), vd);
+	  vd->e[REGNO(x)].frame_related = RTX_FRAME_RELATED_P (insn);
 	  iter.skip_subrtxes ();
 	}
     }
@@ -292,7 +304,7 @@ kill_autoinc_value (rtx_insn *insn, struct value_data *vd)
    to reflect that SRC contains an older copy of the shared value.  */
 
 static void
-copy_value (rtx dest, rtx src, struct value_data *vd)
+copy_value (rtx dest, rtx src, struct value_data *vd, bool frame_related)
 {
   unsigned int dr = REGNO (dest);
   unsigned int sr = REGNO (src);
@@ -331,6 +343,10 @@ copy_value (rtx dest, rtx src, struct value_data *vd)
      or somesuch.  */
   if (vd->e[sr].mode == VOIDmode)
     set_value_regno (sr, vd->e[dr].mode, vd);
+
+  else if (!ordered_p (GET_MODE_PRECISION (vd->e[sr].mode),
+		       GET_MODE_PRECISION (GET_MODE (src))))
+    return;
 
   /* If we are narrowing the input to a smaller number of hard regs,
      and it is in big endian, we are really extracting a high part.
@@ -387,6 +403,8 @@ copy_value (rtx dest, rtx src, struct value_data *vd)
     continue;
   vd->e[i].next_regno = dr;
 
+  vd->e[dr].frame_related = frame_related;
+
   if (flag_checking)
     validate_value_data (vd);
 }
@@ -413,6 +431,14 @@ maybe_mode_change (machine_mode orig_mode, machine_mode copy_mode,
 		   machine_mode new_mode, unsigned int regno,
 		   unsigned int copy_regno ATTRIBUTE_UNUSED)
 {
+  /* All three modes precision have to be ordered to each other,
+     otherwise partial_subreg_p won't work.  */
+  if (!ordered_p (GET_MODE_PRECISION (orig_mode),
+		  GET_MODE_PRECISION (copy_mode))
+      || !ordered_p (GET_MODE_PRECISION (copy_mode),
+		     GET_MODE_PRECISION (new_mode)))
+    return NULL_RTX;
+
   if (partial_subreg_p (copy_mode, orig_mode)
       && partial_subreg_p (copy_mode, new_mode))
     return NULL_RTX;
@@ -422,7 +448,12 @@ maybe_mode_change (machine_mode orig_mode, machine_mode copy_mode,
 
      It's unclear if we need to do the same for other special registers.  */
   if (regno == STACK_POINTER_REGNUM)
-    return NULL_RTX;
+    {
+      if (orig_mode == new_mode && new_mode == GET_MODE (stack_pointer_rtx))
+	return stack_pointer_rtx;
+      else
+	return NULL_RTX;
+    }
 
   if (orig_mode == new_mode)
     return gen_raw_REG (new_mode, regno);
@@ -446,12 +477,28 @@ maybe_mode_change (machine_mode orig_mode, machine_mode copy_mode,
   return NULL_RTX;
 }
 
+/* Copy propagation must not replace a value in a frame-related
+   instruction with one produced by a non–frame-related instruction.
+   Doing so may cause the DCE pass to delete the original frame-related
+   instruction, which would in turn produce incorrect DWARF information
+   (see PR122274).  TO_FRAME_RELATED indicates whether the destination
+   instruction receiving the propagated value is frame-related.
+   FROM_FRAME_RELATED indicates whether the instruction providing that
+   value is frame-related.
+   Return true if copy propagation is not permitted.  */
+
+static bool
+incompatible_frame_status (bool to_frame_related, bool from_frame_related)
+{
+  return to_frame_related && !from_frame_related;
+}
+
 /* Find the oldest copy of the value contained in REGNO that is in
    register class CL and has mode MODE.  If found, return an rtx
    of that oldest register, otherwise return NULL.  */
 
 static rtx
-find_oldest_value_reg (enum reg_class cl, rtx reg, struct value_data *vd)
+find_oldest_value_reg (enum reg_class cl, rtx reg, struct value_data *vd, bool frame_related)
 {
   unsigned int regno = REGNO (reg);
   machine_mode mode = GET_MODE (reg);
@@ -479,12 +526,20 @@ find_oldest_value_reg (enum reg_class cl, rtx reg, struct value_data *vd)
       if (!in_hard_reg_set_p (reg_class_contents[cl], mode, i))
 	continue;
 
+      if (incompatible_frame_status (frame_related, vd->e[i].frame_related))
+	continue;
+
       new_rtx = maybe_mode_change (oldmode, vd->e[regno].mode, mode, i, regno);
       if (new_rtx)
 	{
-	  ORIGINAL_REGNO (new_rtx) = ORIGINAL_REGNO (reg);
-	  REG_ATTRS (new_rtx) = REG_ATTRS (reg);
-	  REG_POINTER (new_rtx) = REG_POINTER (reg);
+	  /* NEW_RTX may be the global stack pointer rtx, in which case we
+	     must not modify it's attributes.  */
+	  if (new_rtx != stack_pointer_rtx)
+	    {
+	      ORIGINAL_REGNO (new_rtx) = ORIGINAL_REGNO (reg);
+	      REG_ATTRS (new_rtx) = REG_ATTRS (reg);
+	      REG_POINTER (new_rtx) = REG_POINTER (reg);
+	    }
 	  return new_rtx;
 	}
     }
@@ -499,7 +554,7 @@ static bool
 replace_oldest_value_reg (rtx *loc, enum reg_class cl, rtx_insn *insn,
 			  struct value_data *vd)
 {
-  rtx new_rtx = find_oldest_value_reg (cl, *loc, vd);
+  rtx new_rtx = find_oldest_value_reg (cl, *loc, vd, RTX_FRAME_RELATED_P (insn));
   if (new_rtx && (!DEBUG_INSN_P (insn) || !skip_debug_insn_p))
     {
       if (DEBUG_INSN_P (insn))
@@ -793,9 +848,9 @@ copyprop_hardreg_forward_1 (basic_block bb, struct value_data *vd)
 	{
 	  unsigned int regno = REGNO (SET_SRC (set));
 	  rtx r1 = find_oldest_value_reg (REGNO_REG_CLASS (regno),
-					  SET_DEST (set), vd);
+					  SET_DEST (set), vd, false);
 	  rtx r2 = find_oldest_value_reg (REGNO_REG_CLASS (regno),
-					  SET_SRC (set), vd);
+					  SET_SRC (set), vd, false);
 	  if (rtx_equal_p (r1 ? r1 : SET_DEST (set), r2 ? r2 : SET_SRC (set)))
 	    {
 	      bool last = insn == BB_END (bb);
@@ -816,12 +871,12 @@ copyprop_hardreg_forward_1 (basic_block bb, struct value_data *vd)
 	  && !side_effects_p (SET_DEST (set)))
 	{
 	  bool last = insn == BB_END (bb);
-	  delete_insn (insn);
+	  delete_insn_and_edges (insn);
 	  if (last)
 	    break;
 	  continue;
 	}
-	 
+
 
       extract_constrain_insn (insn);
       preprocess_constraints (insn);
@@ -919,7 +974,7 @@ copyprop_hardreg_forward_1 (basic_block bb, struct value_data *vd)
 	  if (REG_P (dest))
 	    {
 	      new_rtx = find_oldest_value_reg (REGNO_REG_CLASS (regno),
-					       src, vd);
+					       src, vd, RTX_FRAME_RELATED_P (insn));
 
 	      if (new_rtx && validate_change (insn, &SET_SRC (set), new_rtx, 0))
 		{
@@ -940,6 +995,8 @@ copyprop_hardreg_forward_1 (basic_block bb, struct value_data *vd)
 	  for (i = vd->e[regno].oldest_regno; i != regno;
 	       i = vd->e[i].next_regno)
 	    {
+	      if (incompatible_frame_status (RTX_FRAME_RELATED_P (insn), vd->e[i].frame_related))
+		continue;
 	      new_rtx = maybe_mode_change (vd->e[i].mode, vd->e[regno].mode,
 				       mode, i, regno);
 	      if (new_rtx != NULL_RTX)
@@ -960,9 +1017,14 @@ copyprop_hardreg_forward_1 (basic_block bb, struct value_data *vd)
 
 		  if (validate_change (insn, &SET_SRC (set), new_rtx, 0))
 		    {
-		      ORIGINAL_REGNO (new_rtx) = ORIGINAL_REGNO (src);
-		      REG_ATTRS (new_rtx) = REG_ATTRS (src);
-		      REG_POINTER (new_rtx) = REG_POINTER (src);
+		      /* NEW_RTX may be the global stack pointer rtx, in which
+			 case we must not modify it's attributes.  */
+		      if (new_rtx != stack_pointer_rtx)
+			{
+			  ORIGINAL_REGNO (new_rtx) = ORIGINAL_REGNO (src);
+			  REG_ATTRS (new_rtx) = REG_ATTRS (src);
+			  REG_POINTER (new_rtx) = REG_POINTER (src);
+			}
 		      if (dump_file)
 			fprintf (dump_file,
 				 "insn %u: replaced reg %u with %u\n",
@@ -1063,6 +1125,7 @@ copyprop_hardreg_forward_1 (basic_block bb, struct value_data *vd)
 
       ksvd.vd = vd;
       ksvd.ignore_set_reg = NULL_RTX;
+      ksvd.insn_is_frame_related = false;
 
       /* Clobber call-clobbered registers.  */
       if (CALL_P (insn))
@@ -1080,7 +1143,7 @@ copyprop_hardreg_forward_1 (basic_block bb, struct value_data *vd)
 		  rtx dest = SET_DEST (x);
 		  kill_value (dest, vd);
 		  set_value_regno (REGNO (dest), GET_MODE (dest), vd);
-		  copy_value (dest, SET_SRC (x), vd);
+		  copy_value (dest, SET_SRC (x), vd, false);
 		  ksvd.ignore_set_reg = dest;
 		  set_regno = REGNO (dest);
 		  set_nregs = REG_NREGS (dest);
@@ -1128,6 +1191,8 @@ copyprop_hardreg_forward_1 (basic_block bb, struct value_data *vd)
 
       if (!noop_p)
 	{
+	  ksvd.insn_is_frame_related = RTX_FRAME_RELATED_P (insn);
+
 	  /* Notice stores.  */
 	  note_stores (insn, kill_set_value, &ksvd);
 
@@ -1135,7 +1200,7 @@ copyprop_hardreg_forward_1 (basic_block bb, struct value_data *vd)
 	  if (copy_p)
 	    {
 	      df_insn_rescan (insn);
-	      copy_value (SET_DEST (set), SET_SRC (set), vd);
+	      copy_value (SET_DEST (set), SET_SRC (set), vd, RTX_FRAME_RELATED_P (insn));
 	    }
 	}
 
@@ -1293,12 +1358,12 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *)
+  bool gate (function *) final override
     {
       return (optimize > 0 && (flag_cprop_registers));
     }
 
-  virtual unsigned int execute (function *);
+  unsigned int execute (function *) final override;
 
 }; // class pass_cprop_hardreg
 
@@ -1383,8 +1448,11 @@ pass_cprop_hardreg::execute (function *fun)
   auto_sbitmap visited (last_basic_block_for_fn (fun));
   bitmap_clear (visited);
 
-  auto_vec<int> worklist;
+  auto_vec<int> worklist1, worklist2;
+  auto_vec<int> *curr = &worklist1;
+  auto_vec<int> *next = &worklist2;
   bool any_debug_changes = false;
+  bool any_changes = false;
 
   /* We need accurate notes.  Earlier passes such as if-conversion may
      leave notes in an inconsistent state.  */
@@ -1404,7 +1472,10 @@ pass_cprop_hardreg::execute (function *fun)
   FOR_EACH_BB_FN (bb, fun)
     {
       if (cprop_hardreg_bb (bb, all_vd, visited))
-	worklist.safe_push (bb->index);
+	{
+	  curr->safe_push (bb->index);
+	  any_changes = true;
+	}
       if (all_vd[bb->index].n_debug_insn_changes)
 	any_debug_changes = true;
     }
@@ -1416,16 +1487,25 @@ pass_cprop_hardreg::execute (function *fun)
   if (MAY_HAVE_DEBUG_BIND_INSNS && any_debug_changes)
     cprop_hardreg_debug (fun, all_vd);
 
-  /* Second pass if we've changed anything, only for the bbs where we have
-     changed anything though.  */
-  if (!worklist.is_empty ())
+  /* Repeat pass up to PASSES times, but only processing basic blocks
+     that have changed on the previous iteration.  CURR points to the
+     current worklist, and each iteration populates the NEXT worklist,
+     swapping pointers after each cycle.  */
+
+  unsigned int passes = optimize > 1 ? 3 : 2;
+  for (unsigned int pass = 2; pass <= passes && !curr->is_empty (); pass++)
     {
       any_debug_changes = false;
       bitmap_clear (visited);
-      for (int index : worklist)
+      next->truncate (0);
+      for (int index : *curr)
 	{
 	  bb = BASIC_BLOCK_FOR_FN (fun, index);
-	  cprop_hardreg_bb (bb, all_vd, visited);
+          if (cprop_hardreg_bb (bb, all_vd, visited))
+	    {
+	      next->safe_push (bb->index);
+	      any_changes = true;
+	    }
 	  if (all_vd[bb->index].n_debug_insn_changes)
 	    any_debug_changes = true;
 	}
@@ -1433,9 +1513,19 @@ pass_cprop_hardreg::execute (function *fun)
       df_analyze ();
       if (MAY_HAVE_DEBUG_BIND_INSNS && any_debug_changes)
 	cprop_hardreg_debug (fun, all_vd);
+      std::swap (curr, next);
     }
 
   free (all_vd);
+
+  /* Copy propagation of the sp register into an mem's address
+     can cause what was a trapping instruction into
+     a non-trapping one so cleanup after that in the case of non-call
+     exceptions.  */
+  if (any_changes
+      && cfun->can_throw_non_call_exceptions
+      && purge_all_dead_edges ())
+    cleanup_cfg (0);
   return 0;
 }
 

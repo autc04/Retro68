@@ -82,11 +82,13 @@ main ()
     }
 
   f1 ();
+#pragma GCC novector
   for (i = 0; i < N; i++)
     if (k[i] != ((i % 3) == 0 ? 17 : 0))
       abort ();
 
   f2 ();
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       switch (i % 9)
@@ -118,6 +120,7 @@ main ()
   f3 ();
 
   f4 ();
+#pragma GCC novector
   for (i = 0; i < N; i++)
     if (f[i] != ((i % 3) == 0 ? e[i] : d[i]))
       abort ();
@@ -125,4 +128,4 @@ main ()
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 3 "vect" } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 4 "vect" } } */

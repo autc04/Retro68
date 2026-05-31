@@ -3,5 +3,6 @@
 #objdump: -s -j .rodata
 
 #...
- [0-9a-f]+ 00000203 00414243 4400 +.....ABCD. +
+Contents of section \.rodata:
+ [0-9a-f]+ 02030041 42434400 +...ABCD. +
 #pass

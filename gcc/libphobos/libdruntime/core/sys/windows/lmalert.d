@@ -8,7 +8,6 @@
  */
 module core.sys.windows.lmalert;
 version (Windows):
-@system:
 pragma(lib, "netapi32");
 
 import core.sys.windows.lmcons, core.sys.windows.windef;
@@ -43,20 +42,20 @@ struct ADMIN_OTHER_INFO{
     DWORD alrtad_errcode;
     DWORD alrtad_numstrings;
 }
-alias ADMIN_OTHER_INFO* PADMIN_OTHER_INFO, LPADMIN_OTHER_INFO;
+alias PADMIN_OTHER_INFO = ADMIN_OTHER_INFO*, LPADMIN_OTHER_INFO = ADMIN_OTHER_INFO*;
 
 struct STD_ALERT{
     DWORD alrt_timestamp;
     TCHAR[EVLEN+1] alrt_eventname = 0;
     TCHAR[SNLEN+1] alrt_servicename = 0;
 }
-alias STD_ALERT* PSTD_ALERT, LPSTD_ALERT;
+alias PSTD_ALERT = STD_ALERT*, LPSTD_ALERT = STD_ALERT*;
 
 struct ERRLOG_OTHER_INFO{
     DWORD alrter_errcode;
     DWORD alrter_offset;
 }
-alias ERRLOG_OTHER_INFO* PERRLOG_OTHER_INFO, LPERRLOG_OTHER_INFO;
+alias PERRLOG_OTHER_INFO = ERRLOG_OTHER_INFO*, LPERRLOG_OTHER_INFO = ERRLOG_OTHER_INFO*;
 
 struct PRINT_OTHER_INFO{
     DWORD alrtpr_jobid;
@@ -64,15 +63,15 @@ struct PRINT_OTHER_INFO{
     DWORD alrtpr_submitted;
     DWORD alrtpr_size;
 }
-alias PRINT_OTHER_INFO* PPRINT_OTHER_INFO, LPPRINT_OTHER_INFO;
+alias PPRINT_OTHER_INFO = PRINT_OTHER_INFO*, LPPRINT_OTHER_INFO = PRINT_OTHER_INFO*;
 
 struct USER_OTHER_INFO{
     DWORD alrtus_errcode;
     DWORD alrtus_numstrings;
 }
-alias USER_OTHER_INFO* PUSER_OTHER_INFO, LPUSER_OTHER_INFO;
+alias PUSER_OTHER_INFO = USER_OTHER_INFO*, LPUSER_OTHER_INFO = USER_OTHER_INFO*;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
 NET_API_STATUS NetAlertRaise(LPCWSTR,PVOID,DWORD);
 NET_API_STATUS NetAlertRaiseEx(LPCWSTR,PVOID,DWORD,LPCWSTR);
 }

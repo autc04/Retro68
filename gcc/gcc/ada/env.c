@@ -6,7 +6,7 @@
  *                                                                          *
  *                          C Implementation File                           *
  *                                                                          *
- *            Copyright (C) 2005-2022, Free Software Foundation, Inc.       *
+ *            Copyright (C) 2005-2026, Free Software Foundation, Inc.       *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -229,7 +229,8 @@ void __gnat_clearenv (void)
    || defined (__CYGWIN__) \
    || defined (__NetBSD__) || defined (__OpenBSD__) || defined (__rtems__) \
    || defined (__DragonFly__) || defined (__DJGPP__)
-  /* On Windows, FreeBSD and MacOS there is no function to clean all the
+  /* On several platforms (e.g. Windows, FreeBSD, MacOS...)
+     there is no function to clean all the
      environment but there is a "clean" way to unset a variable. So go
      through the environ table and call __gnat_unsetenv on all entries */
   char **env = __gnat_environ ();

@@ -1,7 +1,13 @@
+/* { dg-additional-options "-std=gnu17" } */
+
+void abort (void);
+void exit (int);
+
 double f (double a) {}
 double (* const a[]) (double) = {&f};
 
-main ()
+int
+main (void)
 {
   double (*p) ();
   p = &f;

@@ -220,6 +220,7 @@ SEL2 (struct, pst_arr5)
 /*
 ** test_pst_arr5:
 **	sub	sp, sp, #128
+** (
 **	str	z0, \[sp\]
 **	str	z1, \[sp, #1, mul vl\]
 **	str	z2, \[sp, #2, mul vl\]
@@ -228,6 +229,12 @@ SEL2 (struct, pst_arr5)
 **	str	z5, \[sp, #5, mul vl\]
 **	str	z6, \[sp, #6, mul vl\]
 **	str	z7, \[sp, #7, mul vl\]
+** |
+**	stp	q0, q1, \[sp\]
+**	stp	q2, q3, \[sp, 32\]
+**	stp	q4, q5, \[sp, 64\]
+**	stp	q6, q7, \[sp, 96\]
+** )
 **	mov	(x7, sp|w7, wsp)
 **	add	sp, sp, #?128
 **	ret
@@ -374,8 +381,12 @@ SEL2 (struct, pst_uniform1)
 /*
 ** test_pst_uniform1:
 **	sub	sp, sp, #32
+** (
 **	str	z0, \[sp\]
 **	str	z1, \[sp, #1, mul vl\]
+** |
+**	stp	q0, q1, \[sp\]
+** )
 **	mov	(x7, sp|w7, wsp)
 **	add	sp, sp, #?32
 **	ret
@@ -398,8 +409,12 @@ SEL2 (struct, pst_uniform2)
 /*
 ** test_pst_uniform2:
 **	sub	sp, sp, #48
+** (
 **	str	z0, \[sp\]
 **	str	z1, \[sp, #1, mul vl\]
+** |
+**	stp	q0, q1, \[sp\]
+** )
 **	str	z2, \[sp, #2, mul vl\]
 **	mov	(x7, sp|w7, wsp)
 **	add	sp, sp, #?48
@@ -424,10 +439,15 @@ SEL2 (struct, pst_uniform3)
 /*
 ** test_pst_uniform3:
 **	sub	sp, sp, #64
+** (
 **	str	z0, \[sp\]
 **	str	z1, \[sp, #1, mul vl\]
 **	str	z2, \[sp, #2, mul vl\]
 **	str	z3, \[sp, #3, mul vl\]
+** |
+**	stp	q0, q1, \[sp\]
+**	stp	q2, q3, \[sp, 32\]
+** )
 **	mov	(x7, sp|w7, wsp)
 **	add	sp, sp, #?64
 **	ret
@@ -453,13 +473,16 @@ SEL2 (struct, pst_uniform4)
 **	sub	sp, sp, #144
 **	add	(x[0-9]+), sp, #?31
 **	and	x7, \1, #?(?:-32|4294967264)
-**	ptrue	(p[0-7])\.b, vl16
-**	st1w	z0\.s, \2, \[x7\]
-**	add	(x[0-9]+), x7, #?32
-**	str	z1, \[\3\]
-**	str	z2, \[\3, #1, mul vl\]
-**	str	z3, \[\3, #2, mul vl\]
-**	st1w	z4\.s, \2, \[x7, #6, mul vl\]
+**	mov	(x[0-9]+), x7
+**	str	q0, \[\2\], 32
+** (
+**	str	z1, \[\2\]
+**	str	z2, \[\2, #1, mul vl\]
+** |
+**	stp	q1, q2, \[\2\]
+** )
+**	str	z3, \[\2, #2, mul vl\]
+**	str	q4, \[x7, 96\]
 **	add	sp, sp, #?144
 **	ret
 */
@@ -492,20 +515,12 @@ SEL2 (struct, pst_mixed1)
 ** test_pst_mixed1:
 **	sub	sp, sp, #176
 **	str	p0, \[sp\]
-**	ptrue	p0\.b, vl16
-**	st1h	z0\.h, p0, \[sp, #1, mul vl\]
-**	st1h	z1\.h, p0, \[sp, #2, mul vl\]
-**	st1w	z2\.s, p0, \[sp, #3, mul vl\]
-**	st1d	z3\.d, p0, \[sp, #4, mul vl\]
+**	stp	q0, q1, \[sp, 16\]
+**	stp	q2, q3, \[sp, 48\]
 **	str	p1, \[sp, #40, mul vl\]
 **	str	p2, \[sp, #41, mul vl\]
-**	st1b	z4\.b, p0, \[sp, #6, mul vl\]
-**	st1h	z5\.h, p0, \[sp, #7, mul vl\]
-**	...
-**	st1w	z6\.s, p0, [^\n]*
-**	...
-**	st1d	z7\.d, p0, [^\n]*
-**	...
+**	stp	q4, q5, \[sp, 96\]
+**	stp	q6, q7, \[sp, 128\]
 **	str	p3, \[sp, #80, mul vl\]
 **	mov	(x7, sp|w7, wsp)
 **	add	sp, sp, #?176
@@ -533,19 +548,20 @@ SEL2 (struct, pst_mixed2)
 ** test_pst_mixed2:
 **	sub	sp, sp, #128
 **	str	p0, \[sp\]
-**	ptrue	(p[03])\.b, vl16
-**	add	(x[0-9]+), sp, #?2
-**	st1b	z0\.b, \1, \[\2\]
+**	str	q0, \[sp, 2\]
 **	str	p1, \[sp, #9, mul vl\]
-**	add	(x[0-9]+), sp, #?20
-**	st1b	z1\.b, \1, \[\3\]
+**	str	q1, \[sp, 20\]
 **	str	p2, \[sp, #18, mul vl\]
-**	add	(x[0-9]+), sp, #?38
-**	st1b	z2\.b, \1, \[\4\]
+**	str	q2, \[sp, 38\]
+** (
 **	str	z3, \[sp, #4, mul vl\]
 **	str	z4, \[sp, #5, mul vl\]
 **	str	z5, \[sp, #6, mul vl\]
 **	str	z6, \[sp, #7, mul vl\]
+** |
+**	stp	q3, q4, \[sp, 64\]
+**	stp	q5, q6, \[sp, 96\]
+** )
 **	mov	(x7, sp|w7, wsp)
 **	add	sp, sp, #?128
 **	ret
@@ -566,8 +582,7 @@ SEL2 (struct, pst_big1)
 
 /*
 ** test_pst_big1_a: { target lp64 }
-**	ptrue	(p[0-7])\.b, vl16
-**	ld1b	z0\.b, \1/z, \[x0\]
+**	ldr	q0, \[x0\]
 **	ret
 */
 /*
@@ -731,8 +746,7 @@ test_pst_big3_d (struct pst_big3 x)
 
 /*
 ** test_pst_big3_e: { target lp64 }
-**	ptrue	(p[0-7])\.b, vl16
-**	ld1b	z0\.b, \1/z, \[x0, #1, mul vl\]
+**	ldr	q0, \[x0, 16\]
 **	ret
 */
 /*
@@ -751,8 +765,7 @@ test_pst_big3_e (struct pst_big3 x)
 
 /*
 ** test_pst_big3_f: { target lp64 }
-**	ptrue	(p[0-7])\.b, vl16
-**	ld1b	z0\.b, \1/z, \[x0, #5, mul vl\]
+**	ldr	q0, \[x0, 80\]
 **	ret
 */
 /*
@@ -908,8 +921,8 @@ SEL2 (union, nonpst3)
 /*
 ** test_nonpst3:
 **	sub	sp, sp, #16
-**	strh	w0, \[sp, #?6\]
-**	ldr	p0, \[sp, #3, mul vl\]
+**	str	w0, \[sp, #?12\]
+**	ldr	p0, \[sp, #6, mul vl\]
 **	add	sp, sp, #?16
 **	ret
 */
@@ -921,7 +934,7 @@ test_nonpst3 (union nonpst3 x)
 }
 
 /*
-** ret_nonpst3: { xfail *-*-* }
+** ret_nonpst3:
 **	mov	w0, #?(?:0xffff|65535)
 **	ret
 */
@@ -1006,8 +1019,7 @@ SEL2 (struct, nonpst6)
 
 /*
 ** test_nonpst6: { target lp64 }
-**	ptrue	(p[0-3])\.b, vl16
-**	ld1d	z0\.d, \1/z, \[x0\]
+**	ldr	q0, \[x0\]
 **	ret
 */
 /*
@@ -1034,8 +1046,7 @@ SEL2 (struct, nonpst7)
 
 /*
 ** test_nonpst7: { target lp64 }
-**	ptrue	(p[0-3])\.b, vl16
-**	ld1d	z0\.d, \1/z, \[x0\]
+**	ldr	q0, \[x0\]
 **	ret
 */
 /*

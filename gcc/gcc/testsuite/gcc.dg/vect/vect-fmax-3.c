@@ -1,3 +1,5 @@
+/* { dg-require-effective-target vect_double } */
+
 #include "tree-vect.h"
 
 void __attribute__((noipa))

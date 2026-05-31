@@ -1,5 +1,5 @@
 # Expect script for various ARM ELF tests.
-#   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2002-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -319,7 +319,7 @@ append armelftests_common $tmp
 
 run_ld_link_tests $armelftests_common
 
-set armelftests_nonacl {
+set armelftests {
     {"Thumb-1 BL" "-Ttext 0x1000 --section-start .foo=0x401000" "" "" {thumb1-bl.s}
      {{objdump -dr thumb1-bl.d}}
      "thumb1-bl"}
@@ -338,7 +338,7 @@ set tmp {
      "-shared -T arm-dyn.ld --hash-style=sysv" "" "" {gc-thumb-lib.s}
      {}
      "gc-thumb-lib.so"}
-    {"Thumb and -gc-sections" "-pie -T arm.ld -gc-sections tmpdir/gc-thumb-lib.so" "" "" {gc-thumb.s}
+    {"Thumb and -gc-sections (pie)" "-pie -T arm.ld -gc-sections tmpdir/gc-thumb-lib.so" "" "" {gc-thumb.s}
      {{readelf --relocs gc-thumb.d}}
      "gc-thumb"}
     {"Simple non-PIC shared library" "-shared" "" "" {arm-lib.s}
@@ -351,14 +351,14 @@ set tmp {
      {{objdump -fdw arm-app.d} {objdump -Rw arm-app.r}}
      "arm-app"}
 }
-if [check_shared_lib_support] { append armelftests_nonacl $tmp }
+if [check_shared_lib_support] { append armelftests $tmp }
 set tmp {
     {"Simple static application without .rel.plt in linker script"
 	"-T arm-no-rel-plt.ld" "" "" {arm-static-app.s}
      {{objdump -fdw arm-static-app.d} {objdump -rw arm-static-app.r}}
      "arm-static-app-no-rel-plt"}
 }
-append armelftests_nonacl $tmp
+append armelftests $tmp
 set tmp {
     {"Simple dynamic application without .rel.plt in linker script"
 	"tmpdir/arm-lib.so -T arm-no-rel-plt.ld" "" "" {arm-app.s}
@@ -406,11 +406,9 @@ set tmp {
      {{objdump -fdw tls-lib-loc.d} {objdump -Rw tls-lib-loc.r}}
      "tls-lib-loc.so"}
 }
-if [check_shared_lib_support] { append armelftests_nonacl $tmp }
+if [check_shared_lib_support] { append armelftests $tmp }
 
-if { ![istarget "arm*-*-nacl*"] } {
-    run_ld_link_tests $armelftests_nonacl
-}
+run_ld_link_tests $armelftests
 
 run_dump_test "group-relocs-alu-bad"
 run_dump_test "group-relocs-alu-bad-2"
@@ -437,7 +435,7 @@ if { [istarget "arm*-*-netbsd*"] } {
     return
 }
 
-if { ![istarget "arm*-*-*eabi*"] && ![istarget "arm*-*-nacl*"] } {
+if { ![istarget "arm*-*-*eabi*"] } {
     # Special variants of these tests, as a different farcall stub is
     # generated for a non-ARM-EABI target: indeed in such a case,
     # there are no attributes to indicate that blx can be used.
@@ -446,7 +444,7 @@ if { ![istarget "arm*-*-*eabi*"] && ![istarget "arm*-*-nacl*"] } {
 	{"Thumb-2-as-Thumb-1 BL" "-Ttext 0x1000 --section-start .foo=0x100100c" "" "" {thumb2-bl-as-thumb1-bad.s}
 	    {{objdump -d thumb2-bl-as-thumb1-bad-noeabi.d}}
 	    "thumb2-bl-as-thumb1-bad"}
-	{"Thumb-2 BL bad" "-Ttext 0x1000 --section-start .foo=0x100100c" "" "" {thumb2-bl-bad.s}
+	{"Thumb-2 BL bad noeabi" "-Ttext 0x1000 --section-start .foo=0x100100c" "" "" {thumb2-bl-bad.s}
 	    {{objdump -d thumb2-bl-bad-noeabi.d}}
 	    "thumb2-bl-bad"}
     }
@@ -457,11 +455,7 @@ if { ![istarget "arm*-*-*eabi*"] && ![istarget "arm*-*-nacl*"] } {
 
 # Farcalls stubs are fully supported for ARM-EABI only.
 # This list is massaged below into run_ld_link_tests standard format.
-# The source list is almost that same format.  The one difference is
-# that each "action" (elements of element 5) might have four elements
-# instead of three; in that case, the fourth element is the name of
-# the dump file to use for arm*-*nacl* targets instead of the canonical
-# dump file (the third element).
+# The source list is almost that same format.
 set armeabitests_common {
      {"EABI attribute merging" "-r" "" "" {attr-merge.s attr-merge.s}
       {{readelf -A attr-merge.attr}}
@@ -520,25 +514,22 @@ set armeabitests_common {
     {"MOVW/MOVT and merged sections" "-T arm.ld" "" "" {movw-merge.s}
      {{objdump -dw movw-merge.d}}
      "movw-merge"}
-    {"MOVW/MOVT against shared libraries" "tmpdir/arm-lib.so" "" "" {arm-app-movw.s}
-     {{objdump -Rw arm-app.r}}
-     "arm-app-movw"}
 
     {"ARM-ARM farcall" "-Ttext 0x1000 --section-start .foo=0x2001020" "" "" {farcall-arm-arm.s}
-     {{objdump -d farcall-arm-arm.d farcall-arm-nacl.d}}
+     {{objdump -d farcall-arm-arm.d}}
      "farcall-arm-arm"}
     {"ARM-ARM farcall (PIC veneer)" "-Ttext 0x1000 --section-start .foo=0x2001020 --pic-veneer" "" "" {farcall-arm-arm.s}
-     {{objdump -d farcall-arm-arm-pic-veneer.d farcall-arm-nacl-pic.d}}
+     {{objdump -d farcall-arm-arm-pic-veneer.d}}
      "farcall-arm-arm-pic-veneer"}
     {"ARM-ARM farcall (BE8)" "-Ttext 0x1000 --section-start .foo=0x2001020 -EB --be8" "" "-EB" {farcall-arm-arm.s}
-     {{objdump -d farcall-arm-arm.d farcall-arm-nacl.d}}
+     {{objdump -d farcall-arm-arm.d}}
      "farcall-arm-arm-be8"}
     {"ARM-ARM farcall (BE)" "-Ttext 0x1000 --section-start .foo=0x2001020 -EB" "" "-EB" {farcall-arm-arm.s}
-     {{objdump -d farcall-arm-arm.d farcall-arm-nacl.d}}
+     {{objdump -d farcall-arm-arm.d}}
      "farcall-arm-arm-be"}
 
     {"Long branch with mixed text and data" "-T arm.ld" "" "" {farcall-data.s}
-     {{objdump -dr farcall-data.d farcall-data-nacl.d}}
+     {{objdump -dr farcall-data.d}}
      "farcall-data"}
     {"callweak-2" "-static -T arm.ld" "" "" {callweak-2.s}
      {{objdump -dr callweak-2.d}}
@@ -548,7 +539,15 @@ set armeabitests_common {
      "abs-call-1"}
 }
 
-set armeabitests_nonacl {
+set armeabitests_common_shared {
+    {"MOVW/MOVT against shared libraries" "tmpdir/arm-lib.so" "" "" {arm-app-movw.s}
+	{{objdump -Rw arm-app.r}}
+	"arm-app-movw"}
+}
+if [check_shared_lib_support] { append armeabitests_common $armeabitests_common_shared}
+
+
+set armeabitests {
     {"ARM-Thumb farcall" "-Ttext 0x1000 --section-start .foo=0x2001014" "" "" {farcall-arm-thumb.s}
      {{objdump -d farcall-arm-thumb.d}}
      "farcall-arm-thumb"}
@@ -599,6 +598,9 @@ set armeabitests_nonacl {
     {"Thumb2 purecode farcall" "-Ttext 0x1000 --section-start .foo=0x2001020" "" "" {farcall-thumb2-purecode.s}
      {{objdump -d farcall-thumb2-purecode.d}}
      "farcall-thumb2-purecode"}
+     {"Thumb2 purecode farcall consecutive veneer" "-Ttext 0x1000 --section-start .foo=0x2001020" "" "" {farcall-thumb2-purecode-consecutive-veneer.s}
+     {{objdump -d farcall-thumb2-purecode-consecutive-veneer.d}}
+     "farcall-thumb2-purecode-consecutive-veneer"}
 
     {"Thumb-ARM farcall" "-Ttext 0x1c01010 --section-start .foo=0x2001014" "" "-W" {farcall-thumb-arm.s}
      {{objdump -d farcall-thumb-arm.d}}
@@ -635,53 +637,23 @@ set armeabitests_nonacl {
     {"Multiple farcalls" "-Ttext 0x1000 --section-start .foo=0x2002020" "" "" {farcall-mix.s}
      {{objdump -d farcall-mix.d}}
      "farcall-mix"}
-    {"Multiple farcalls from several sections" "-Ttext 0x1000 --section-start .mytext=0x2000 --section-start .foo=0x2003020" "" "" {farcall-mix2.s}
+    {"Multiple farcalls from several sections"
+     "-Ttext 0x1000 --section-start .mytext=0x2000 --section-start .foo=0x2003020 -z max-page-size=0x10000"
+     "" "" {farcall-mix2.s}
      {{objdump -d farcall-mix2.d}}
      "farcall-mix2"}
-
-    {"Mixed ARM/Thumb dynamic application with farcalls"
-     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" ""
-     "" {farcall-mixed-app.s}
-     {{objdump -fdw farcall-mixed-app.d} {objdump -Rw farcall-mixed-app.r}
-      {readelf -Ds farcall-mixed-app.sym}}
-     "farcall-mixed-app"}
-    {"Mixed ARM/Thumb arch5 dynamic application with farcalls"
-     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --use-blx --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" ""
-     "" {farcall-mixed-app.s}
-     {{objdump -fdw farcall-mixed-app-v5.d} {objdump -Rw farcall-mixed-app.r}
-      {readelf -Ds farcall-mixed-app.sym}}
-     "farcall-mixed-app-v5"}
-
-    {"Mixed ARM/Thumb2 dynamic application with farcalls"
-     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --section-start .mid_thumb=0x10081c0 --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" ""
-     "" {farcall-mixed-app2.s}
-     {{objdump -fdw farcall-mixed-app2.d} {objdump -Rw farcall-mixed-app2.r}
-      {readelf -Ds farcall-mixed-app2.sym}}
-     "farcall-mixed-app2"}
-
-    {"Mixed ARM/Thumb shared library with long branches (v4t)"
-     "-shared -T arm-lib.ld --hash-style=sysv" ""
-     "-march=armv4t" {farcall-mixed-lib1.s farcall-mixed-lib2.s}
-     {{objdump -fdw farcall-mixed-lib-v4t.d}}
-     "farcall-mixed-lib.so"}
-
-    {"Mixed ARM/Thumb shared library with long branches (v5t)"
-     "--no-fix-arm1176 -shared -T arm-lib.ld --hash-style=sysv" ""
-     "-march=armv5t" {farcall-mixed-lib1.s farcall-mixed-lib2.s}
-     {{objdump -fdw farcall-mixed-lib.d}}
-     "farcall-mixed-lib.so"}
 
     {"Thumb-2-as-Thumb-1 BL" "--no-fix-arm1176 -Ttext 0x1000 --section-start .foo=0x100100c" "" "" {thumb2-bl-as-thumb1-bad.s}
      {{objdump -d thumb2-bl-as-thumb1-bad.d}}
      "thumb2-bl-as-thumb1-bad"}
-    {"Thumb-2 BL" "-Ttext 0x1000 --section-start .foo=0x100100c" "" "" {thumb2-bl-bad.s}
+    {"Thumb-2 BL bad" "-Ttext 0x1000 --section-start .foo=0x100100c" "" "" {thumb2-bl-bad.s}
      {{objdump -d thumb2-bl-bad.d}}
      "thumb2-bl-bad"}
     {"Branch to linker script symbol with BL for thumb-only target" "-T branch-lks-sym.ld" "" "" {thumb-bl-lks-sym.s}
-     {{objdump -d thumb-bl-lks-sym.d}}
+     {{ld thumb-bl-lks-sym.output} {objdump -d thumb-bl-lks-sym.d}}
      "thumb-bl-lks-sym"}
     {"Branch to linker script symbol with B for thumb-only target" "-T branch-lks-sym.ld" "" "" {thumb-b-lks-sym.s}
-     {{objdump -d thumb-b-lks-sym.d}}
+     {{ld thumb-b-lks-sym.output} {objdump -d thumb-b-lks-sym.d}}
      "thumb-b-lks-sym"}
 
     {"erratum 760522 fix (default for v6z)" "--section-start=.foo=0x2001014" ""
@@ -709,7 +681,7 @@ set armeabitests_nonacl {
      {{objdump -d fix-arm1176-off.d}}
      "fix-arm1176-6"}
 
-     {"Thumb-2 BL" "-Ttext 0x1000 --section-start .foo=0x1001000" "" "-march=armv7" {thumb2-bl.s}
+     {"Thumb-2 BL on armv7" "-Ttext 0x1000 --section-start .foo=0x1001000" "" "-march=armv7" {thumb2-bl.s}
       {{objdump -dr thumb2-bl.d}}
       "thumb2-bl"}
      {"Thumb-2 BL on ARMv6-M" "-Ttext 0x1000 --section-start .foo=0x1001000" "" "-march=armv6-m" {thumb2-bl.s}
@@ -765,7 +737,7 @@ set armeabitests_nonacl {
      {{ld cmse-veneers-wrong-entryfct.out}}
      "cmse-veneers-wrong-entryfct"}
     {"Secure gateway veneers (ARMv8-M Baseline)"
-     "-Ttext=0x8000 --section-start .gnu.sgstubs=0x20000 --gc-sections" ""
+     "-Ttext=0x8000 --section-start .gnu.sgstubs=0x20000 --gc-sections -z max-page-size=0x10000" ""
      "-march=armv8-m.base -mthumb"
      {cmse-veneers.s}
      {{objdump {-d -j .gnu.sgstubs} cmse-veneers.d}
@@ -773,7 +745,7 @@ set armeabitests_nonacl {
       {nm {} cmse-veneers.rd}}
      "cmse-veneers-baseline"}
     {"Secure gateway veneers (ARMv8-M Mainline)"
-     "-Ttext=0x8000 --section-start .gnu.sgstubs=0x20000 --gc-sections" ""
+     "-Ttext=0x8000 --section-start .gnu.sgstubs=0x20000 --gc-sections -z max-page-size=0x10000" ""
      "-march=armv8-m.main -mthumb"
      {cmse-veneers.s}
      {{objdump {-d -j .gnu.sgstubs} cmse-veneers.d}
@@ -878,36 +850,6 @@ set armeabitests_nonacl {
      {{objdump -d farcall-group-limit.d}}
      "farcall-group-limit"}
 
-    {"TLS gnu shared library"
-     "--no-fix-arm1176 -shared -T arm-dyn.ld --hash-style=sysv" ""
-     "" {tls-gdesc.s}
-     {{objdump -fdw tls-gdesc.d} {objdump -Rw tls-gdesc.r}}
-     "tls-lib2.so"}
-    {"TLS gnu shared library non-lazy"
-     "-z now -shared -T arm-dyn.ld --hash-style=sysv" ""
-     "" {tls-gdesc.s}
-     {{readelf "-x .got" tls-gdesc-nlazy.g}}
-     "tls-lib2-nlazy.so"}
-    {"TLS gnu shared library negative addend"
-     "--no-fix-arm1176 -shared -T arm-dyn.ld --hash-style=sysv" ""
-     "" {tls-gdesc-neg.s}
-     {{objdump -fdw tls-gdesc-neg.d}}
-     "tls-lib2-neg.so"}
-    {"TLS long plt library"
-     "-shared -T arm-dyn.ld --hash-style=sysv --section-start .foo=0x4001000" ""
-     "" {tls-longplt-lib.s}
-     {{objdump -fdw tls-longplt-lib.d}}
-     "tls-longplt-lib.so"}
-    {"TLS long plt"
-     "-T arm-dyn.ld --hash-style=sysv --section-start .foo=0x4001000 tmpdir/tls-longplt-lib.so" ""
-     "" {tls-longplt.s}
-     {{objdump -fdw tls-longplt.d}}
-     "tls-longplt"}
-    {"TLS thumb1"
-     "-shared -T arm-dyn.ld --hash-style=sysv --section-start .foo=0x4001000" ""
-     "" {tls-thumb1.s}
-     {{objdump -fdw tls-thumb1.d}}
-     "tls-thumb1"}
     {"Cortex-A8 erratum fix, b.w"
      "-EL -Ttext=0x8f00 --fix-cortex-a8" "" "-EL" {cortex-a8-fix-b.s}
      {{objdump -dr cortex-a8-fix-b.d}}
@@ -966,8 +908,105 @@ set armeabitests_nonacl {
      "-EL -Ttext=0x8f00 --fix-cortex-a8" "" "-EL" {cortex-a8-fix-blx-bcond.s}
      {{objdump -dr cortex-a8-fix-blx-bcond.d}}
      "cortex-a8-fix-blx-bcond"}
+    {"IFUNC test 1" "-T ifunc-static.ld -z max-page-size=0x10000" "" "" {ifunc-1.s}
+     {{objdump -d ifunc-1.dd}
+      {objdump {-s -j.data -j.got} ifunc-1.gd}
+      {readelf -dr ifunc-1.rd}}
+     "ifunc-1"}
+    {"IFUNC test 2" "-T ifunc-static.ld -z max-page-size=0x10000" "" "" {ifunc-2.s}
+     {{objdump -d ifunc-2.dd}
+      {objdump {-s -j.data -j.got} ifunc-2.gd}
+      {readelf -dr ifunc-2.rd}}
+     "ifunc-2"}
+    {"IFUNC test 5" "-T ifunc-static.ld -z max-page-size=0x10000" "" "" {ifunc-5.s}
+     {{objdump -d ifunc-5.dd}
+      {objdump {-s -j.data -j.got} ifunc-5.gd}
+      {readelf -dr ifunc-5.rd}}
+     "ifunc-5"}
+    {"IFUNC test 6" "-T ifunc-static.ld -z max-page-size=0x10000" "" "" {ifunc-6.s}
+     {{objdump -d ifunc-6.dd}
+      {objdump {-s -j.data -j.got} ifunc-6.gd}
+      {readelf -dr ifunc-6.rd}}
+     "ifunc-6"}
+    {"IFUNC test 11" "-T ifunc-static.ld -z max-page-size=0x10000" "" "" {ifunc-11.s}
+     {{objdump -d ifunc-11.dd}
+      {objdump {-s -j.data -j.got} ifunc-11.gd}
+      {readelf -dr ifunc-11.rd}}
+     "ifunc-11"}
+    {"IFUNC test 17" "-T ifunc-static.ld -z max-page-size=0x10000" "" "" {ifunc-17.s}
+     {{objdump -d ifunc-17.dd}
+      {objdump {-s -j.data -j.got} ifunc-17.gd}
+      {readelf -r ifunc-17.rd}}
+     "ifunc-17"}
+    {"arm-pic-veneer" "-static -T arm.ld --pic-veneer" "" "" {arm-pic-veneer.s}
+     {{objdump -d arm-pic-veneer.d}}
+     "arm-pic-veneer"}
+}
+
+set armeabitests_shared {
+    {"TLS gnu shared library"
+	"--no-fix-arm1176 -shared -T arm-dyn.ld --hash-style=sysv" ""
+	"" {tls-gdesc.s}
+	{{objdump -fdw tls-gdesc.d} {objdump -Rw tls-gdesc.r}}
+	"tls-lib2.so"}
+    {"TLS gnu shared library non-lazy"
+	"-z now -shared -T arm-dyn.ld --hash-style=sysv" ""
+	"" {tls-gdesc.s}
+	{{readelf "-x .got" tls-gdesc-nlazy.g}}
+	"tls-lib2-nlazy.so"}
+    {"TLS gnu shared library negative addend"
+	"--no-fix-arm1176 -shared -T arm-dyn.ld --hash-style=sysv" ""
+	"" {tls-gdesc-neg.s}
+	{{objdump -fdw tls-gdesc-neg.d}}
+	"tls-lib2-neg.so"}
+    {"TLS long plt library"
+	"-shared -T arm-dyn.ld --hash-style=sysv --section-start .foo=0x4001000" ""
+	"" {tls-longplt-lib.s}
+	{{objdump -fdw tls-longplt-lib.d}}
+	"tls-longplt-lib.so"}
+    {"TLS long plt"
+	"-T arm-dyn.ld --hash-style=sysv --section-start .foo=0x4001000 tmpdir/tls-longplt-lib.so" ""
+	"" {tls-longplt.s}
+	{{objdump -fdw tls-longplt.d}}
+	"tls-longplt"}
+    {"TLS thumb1"
+	"-shared -T arm-dyn.ld --hash-style=sysv --section-start .foo=0x4001000" ""
+	"" {tls-thumb1.s}
+	{{objdump -fdw tls-thumb1.d}}
+	"tls-thumb1"}
+
+    {"Mixed ARM/Thumb dynamic application with farcalls"
+     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" ""
+     "" {farcall-mixed-app.s}
+     {{objdump -fdw farcall-mixed-app.d} {objdump -Rw farcall-mixed-app.r}
+      {readelf -Ds farcall-mixed-app.sym}}
+     "farcall-mixed-app"}
+    {"Mixed ARM/Thumb arch5 dynamic application with farcalls"
+     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --use-blx --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" ""
+     "" {farcall-mixed-app.s}
+     {{objdump -fdw farcall-mixed-app-v5.d} {objdump -Rw farcall-mixed-app.r}
+      {readelf -Ds farcall-mixed-app.sym}}
+     "farcall-mixed-app-v5"}
+    {"Mixed ARM/Thumb2 dynamic application with farcalls"
+     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --section-start .mid_thumb=0x10081c0 --section-start .far_arm=0x2100000 --section-start .far_thumb=0x2200000" ""
+     "" {farcall-mixed-app2.s}
+     {{objdump -fdw farcall-mixed-app2.d} {objdump -Rw farcall-mixed-app2.r}
+      {readelf -Ds farcall-mixed-app2.sym}}
+     "farcall-mixed-app2"}
+    {"Mixed ARM/Thumb shared library with long branches (v4t)"
+     "-shared -T arm-lib.ld --hash-style=sysv" ""
+     "-march=armv4t" {farcall-mixed-lib1.s farcall-mixed-lib2.s}
+     {{objdump -fdw farcall-mixed-lib-v4t.d}}
+     "farcall-mixed-lib.so"}
+
+    {"Mixed ARM/Thumb shared library with long branches (v5t)"
+     "--no-fix-arm1176 -shared -T arm-lib.ld --hash-style=sysv" ""
+     "-march=armv5t" {farcall-mixed-lib1.s farcall-mixed-lib2.s}
+     {{objdump -fdw farcall-mixed-lib.d}}
+     "farcall-mixed-lib.so"}
+
     {"Cortex-A8 erratum fix, b.w to PLT"
-     "-EL -Tcortex-a8-fix-plt.ld --fix-cortex-a8 -shared" "" "-EL"
+     "-EL -Tcortex-a8-fix-plt.ld --fix-cortex-a8 -shared -z max-page-size=0x10000" "" "-EL"
      {cortex-a8-fix-b-plt.s}
      {{objdump -dr cortex-a8-fix-b-plt.d}}
      "cortex-a8-fix-b-plt"}
@@ -987,115 +1026,83 @@ set armeabitests_nonacl {
      {{objdump -dr cortex-a8-fix-blx-plt.d}}
      "cortex-a8-fix-blx-plt"}
     {"Cortex-A8 erratum fix, relocate bl.w to PLT"
-     "-EL --section-start=.plt=0x8e00 -Ttext=0x8f00 --fix-cortex-a8 -shared --hash-style=sysv" ""
+     "-EL --section-start=.plt=0x8e00 -Ttext=0x8f00 --fix-cortex-a8 -shared --hash-style=sysv -z max-page-size=0x10000"
+     ""
      "-EL" {cortex-a8-thumb-target.s cortex-a8-fix-bl-rel.s}
      {{objdump -dr cortex-a8-fix-bl-rel-plt.d}}
      "cortex-a8-fix-bl-rel-thumb"}
-    {"IFUNC test 1" "-T ifunc-static.ld" "" "" {ifunc-1.s}
-     {{objdump -d ifunc-1.dd}
-      {objdump {-s -j.data -j.got} ifunc-1.gd}
-      {readelf -dr ifunc-1.rd}}
-     "ifunc-1"}
-    {"IFUNC test 2" "-T ifunc-static.ld" "" "" {ifunc-2.s}
-     {{objdump -d ifunc-2.dd}
-      {objdump {-s -j.data -j.got} ifunc-2.gd}
-      {readelf -dr ifunc-2.rd}}
-     "ifunc-2"}
-    {"IFUNC test 3" "-T ifunc-dynamic.ld -shared" "" "" {ifunc-3.s}
-     {{objdump -d ifunc-3.dd}
-      {objdump {-s -j.data -j.got} ifunc-3.gd}
-      {readelf -r ifunc-3.rd}}
-     "ifunc-3.so"}
-    {"IFUNC test 4" "-T ifunc-dynamic.ld -shared" "" "" {ifunc-4.s}
-     {{objdump -d ifunc-4.dd}
-      {objdump {-s -j.data -j.got} ifunc-4.gd}
-      {readelf -r ifunc-4.rd}}
-     "ifunc-4.so"}
-    {"IFUNC test 5" "-T ifunc-static.ld" "" "" {ifunc-5.s}
-     {{objdump -d ifunc-5.dd}
-      {objdump {-s -j.data -j.got} ifunc-5.gd}
-      {readelf -dr ifunc-5.rd}}
-     "ifunc-5"}
-    {"IFUNC test 6" "-T ifunc-static.ld" "" "" {ifunc-6.s}
-     {{objdump -d ifunc-6.dd}
-      {objdump {-s -j.data -j.got} ifunc-6.gd}
-      {readelf -dr ifunc-6.rd}}
-     "ifunc-6"}
-    {"IFUNC test 7" "-T ifunc-dynamic.ld tmpdir/ifunc-3.so -shared" ""
-     "" {ifunc-7.s}
-     {{objdump -d ifunc-7.dd}
-      {objdump {-s -j.data -j.got} ifunc-7.gd}
-      {readelf -r ifunc-7.rd}}
-     "ifunc-7.so"}
-    {"IFUNC test 8" "-T ifunc-dynamic.ld tmpdir/ifunc-4.so -shared" ""
-     "" {ifunc-8.s}
-     {{objdump -d ifunc-8.dd}
-      {objdump {-s -j.data -j.got} ifunc-8.gd}
-      {readelf -r ifunc-8.rd}}
-     "ifunc-8.so"}
-    {"IFUNC test 9" "-T ifunc-dynamic.ld tmpdir/ifunc-3.so" "" "" {ifunc-9.s}
-     {{objdump -d ifunc-9.dd}
-      {objdump {-s -j.data -j.got} ifunc-9.gd}
-      {readelf -r ifunc-9.rd}}
-     "ifunc-9"}
-    {"IFUNC test 10" "-T ifunc-dynamic.ld tmpdir/ifunc-4.so" "" "" {ifunc-10.s}
-     {{objdump -d ifunc-10.dd}
-      {objdump {-s -j.data -j.got} ifunc-10.gd}
-      {readelf -r ifunc-10.rd}}
-     "ifunc-10"}
-    {"IFUNC test 11" "-T ifunc-static.ld" "" "" {ifunc-11.s}
-     {{objdump -d ifunc-11.dd}
-      {objdump {-s -j.data -j.got} ifunc-11.gd}
-      {readelf -dr ifunc-11.rd}}
-     "ifunc-11"}
-    {"IFUNC test 12" "-T ifunc-dynamic.ld -shared" "" "" {ifunc-12.s}
-     {{objdump -d ifunc-12.dd}
-      {objdump {-s -j.data -j.got} ifunc-12.gd}
-      {readelf -r ifunc-12.rd}}
-     "ifunc-12.so"}
-    {"IFUNC test 13" "-T ifunc-dynamic.ld tmpdir/ifunc-12.so" "" "" {ifunc-13.s}
-     {{objdump -d ifunc-13.dd}
-      {objdump {-s -j.data -j.got} ifunc-13.gd}
-      {readelf -r ifunc-13.rd}}
-     "ifunc-13"}
-    {"IFUNC test 14" "-T ifunc-dynamic.ld tmpdir/ifunc-12.so" "" "" {ifunc-14.s}
-     {{objdump -d ifunc-14.dd}
-      {objdump {-s -j.data -j.got} ifunc-14.gd}
-      {readelf -r ifunc-14.rd}}
-     "ifunc-14"}
-    {"IFUNC test 15" "-T ifunc-dynamic.ld tmpdir/ifunc-12.so" "" "" {ifunc-15.s}
-     {{objdump -d ifunc-15.dd}
-      {objdump {-s -j.data -j.got} ifunc-15.gd}
-      {readelf -r ifunc-15.rd}}
-     "ifunc-15"}
-    {"IFUNC test 16" "-T ifunc-dynamic.ld tmpdir/ifunc-12.so" "" "" {ifunc-16.s}
-     {{objdump -d ifunc-16.dd}
-      {objdump {-s -j.data -j.got} ifunc-16.gd}
-      {readelf -r ifunc-16.rd}}
-     "ifunc-16"}
-    {"IFUNC test 17" "-T ifunc-static.ld" "" "" {ifunc-17.s}
-     {{objdump -d ifunc-17.dd}
-      {objdump {-s -j.data -j.got} ifunc-17.gd}
-      {readelf -r ifunc-17.rd}}
-     "ifunc-17"}
-    {"Long PLT entries in executables" "--long-plt -shared --section-start=.plt=0x1000 --section-start=.got=0xf0001100" ""
-     "" {long-plt-format.s}
-     {{objdump "-d -j .plt" long-plt-format.d}}
-     "long-plt-format"}
+
+    {"IFUNC test 3" "-T ifunc-dynamic.ld -shared -z max-page-size=0x10000" "" "" {ifunc-3.s}
+	{{objdump -d ifunc-3.dd}
+	    {objdump {-s -j.data -j.got} ifunc-3.gd}
+	    {readelf -r ifunc-3.rd}}
+	"ifunc-3.so"}
+    {"IFUNC test 4" "-T ifunc-dynamic.ld -shared -z max-page-size=0x10000" "" "" {ifunc-4.s}
+	{{objdump -d ifunc-4.dd}
+	    {objdump {-s -j.data -j.got} ifunc-4.gd}
+	    {readelf -r ifunc-4.rd}}
+	"ifunc-4.so"}
+    {"IFUNC test 7" "-T ifunc-dynamic.ld tmpdir/ifunc-3.so -shared -z max-page-size=0x10000" ""
+	"" {ifunc-7.s}
+	{{objdump -d ifunc-7.dd}
+	    {objdump {-s -j.data -j.got} ifunc-7.gd}
+	    {readelf -r ifunc-7.rd}}
+	"ifunc-7.so"}
+    {"IFUNC test 12" "-T ifunc-dynamic.ld -shared -z max-page-size=0x10000" "" "" {ifunc-12.s}
+	{{objdump -d ifunc-12.dd}
+	    {objdump {-s -j.data -j.got} ifunc-12.gd}
+	    {readelf -r ifunc-12.rd}}
+	"ifunc-12.so"}
+    {"IFUNC test 9" "-T ifunc-dynamic.ld tmpdir/ifunc-3.so -z max-page-size=0x10000" "" "" {ifunc-9.s}
+	{{objdump -d ifunc-9.dd}
+	    {objdump {-s -j.data -j.got} ifunc-9.gd}
+	    {readelf -r ifunc-9.rd}}
+	"ifunc-9"}
+    {"IFUNC test 10" "-T ifunc-dynamic.ld tmpdir/ifunc-4.so -z max-page-size=0x10000" "" "" {ifunc-10.s}
+	{{objdump -d ifunc-10.dd}
+	    {objdump {-s -j.data -j.got} ifunc-10.gd}
+	    {readelf -r ifunc-10.rd}}
+	"ifunc-10"}
+    {"IFUNC test 13" "-T ifunc-dynamic.ld tmpdir/ifunc-12.so -z max-page-size=0x10000" "" "" {ifunc-13.s}
+	{{objdump -d ifunc-13.dd}
+	    {objdump {-s -j.data -j.got} ifunc-13.gd}
+	    {readelf -r ifunc-13.rd}}
+	"ifunc-13"}
+    {"IFUNC test 14" "-T ifunc-dynamic.ld tmpdir/ifunc-12.so -z max-page-size=0x10000" "" "" {ifunc-14.s}
+	{{objdump -d ifunc-14.dd}
+	    {objdump {-s -j.data -j.got} ifunc-14.gd}
+	    {readelf -r ifunc-14.rd}}
+	"ifunc-14"}
+    {"IFUNC test 15" "-T ifunc-dynamic.ld tmpdir/ifunc-12.so -z max-page-size=0x10000" "" "" {ifunc-15.s}
+	{{objdump -d ifunc-15.dd}
+	    {objdump {-s -j.data -j.got} ifunc-15.gd}
+	    {readelf -r ifunc-15.rd}}
+	"ifunc-15"}
+    {"IFUNC test 16" "-T ifunc-dynamic.ld tmpdir/ifunc-12.so -z max-page-size=0x10000" "" "" {ifunc-16.s}
+	{{objdump -d ifunc-16.dd}
+	    {objdump {-s -j.data -j.got} ifunc-16.gd}
+	    {readelf -r ifunc-16.rd}}
+	"ifunc-16"}
+
+    {"Long PLT entries in executables"
+     "--long-plt -shared --section-start=.plt=0x1000 --section-start=.got=0xf0001100" "" "" {long-plt-format.s}
+	{{objdump "-d -j .plt" long-plt-format.d}}
+	"long-plt-format"}
+
     {"IFUNC and TLS descriptor shared library"
-     "-shared -T arm-lib.ld --hash-style=sysv --version-script=ifunc-gdesc.ver" ""
-     "" {ifunc-gdesc.s}
-     {{objdump "-Rw" ifunc-gdesc.r}}
-     "ifunc-gdesc.so"}
-    {"arm-pic-veneer" "-static -T arm.ld --pic-veneer" "" "" {arm-pic-veneer.s}
-     {{objdump -d arm-pic-veneer.d}}
-     "arm-pic-veneer"}
+	"-shared -T arm-lib.ld --hash-style=sysv --version-script=ifunc-gdesc.ver" ""
+	"" {ifunc-gdesc.s}
+	{{objdump "-Rw" ifunc-gdesc.r}}
+	"ifunc-gdesc.so"}
+
     {"Preempt Thumb symbol"
-     "tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --use-blx" ""
-     "" {preempt-app.s}
-     {{readelf -Ds preempt-app.sym}}
-     "preempt-app"}
+	"tmpdir/mixed-lib.so -T arm-dyn.ld --hash-style=sysv --use-blx" ""
+	"" {preempt-app.s}
+	{{readelf -Ds preempt-app.sym}}
+	"preempt-app"}
 }
+if [check_shared_lib_support] { append armeabitests $armeabitests_shared}
+
 
 set armfdpiceabitests {
     {"FDPIC ARM shared library little endian"
@@ -1139,10 +1146,6 @@ set armfdpiceabitests {
 # Massage the $armeabitests_common list into run_ld_link_tests standard form.
 # See the comment before 'set armeabitests_common', above.
 set elide_action_elt 3
-set is_nacl [istarget "arm*-*-nacl*"]
-if {$is_nacl} {
-    set elide_action_elt 2
-}
 set neabi_common [llength $armeabitests_common]
 for {set i 0} {$i < $neabi_common} {incr i} {
     set case [lindex $armeabitests_common $i]
@@ -1158,9 +1161,7 @@ for {set i 0} {$i < $neabi_common} {incr i} {
 }
 
 run_ld_link_tests $armeabitests_common
-if { !$is_nacl } {
-    run_ld_link_tests $armeabitests_nonacl
-}
+run_ld_link_tests $armeabitests
 
 if { [istarget "arm*-*-uclinuxfdpiceabi"] } {
     run_ld_link_tests $armfdpiceabitests
@@ -1197,6 +1198,8 @@ run_dump_test "attr-merge-wchar-40-nowarn"
 run_dump_test "attr-merge-wchar-42-nowarn"
 run_dump_test "attr-merge-wchar-44-nowarn"
 run_dump_test "farcall-section"
+run_dump_test "farcall-missing-type"
+run_dump_test "farcall-missing-type-undefweak"
 run_dump_test "attr-merge-unknown-1"
 run_dump_test "attr-merge-unknown-2"
 run_dump_test "attr-merge-unknown-2r"
@@ -1240,7 +1243,7 @@ run_dump_test "attr-merge-nosection-1"
 run_dump_test "attr-merge-hardfp-use-1"
 run_dump_test "attr-merge-hardfp-use-2"
 run_dump_test "unresolved-1"
-if { ![istarget "arm*-*-nacl*"] } {
+if { [check_shared_lib_support] } {
     run_dump_test "unresolved-1-dyn"
 }
 run_dump_test "unresolved-2"
@@ -1264,8 +1267,9 @@ run_dump_test "non-contiguous-arm3"
 run_dump_test "non-contiguous-arm4"
 run_dump_test "non-contiguous-arm5"
 run_dump_test "non-contiguous-arm6"
+run_dump_test "non-contiguous-arm7"
 
-if { ![istarget "arm*-*-nacl*"] } {
+if { [check_shared_lib_support] } {
     run_dump_test "thumb-plt"
     run_dump_test "thumb-plt-got"
 }

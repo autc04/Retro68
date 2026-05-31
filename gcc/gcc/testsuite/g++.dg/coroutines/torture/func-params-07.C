@@ -1,4 +1,5 @@
 // { dg-do run }
+// { dg-skip-if "requires hosted libstdc++ for cstdlib abort" { ! hostedlib } }
 
 // Test that we copy simple parms correctly by value, reference or
 // rvalue reference.
@@ -20,7 +21,8 @@ int main ()
   PRINT ("main: create coro1");
   int lv = 1;
   int lvr = 2;
-  coro1 x = my_coro (lv, lvr, lvr+2);
+  int &&rvr = lvr+2;
+  coro1 x = my_coro (lv, lvr, std::forward<int>(rvr));
 
   if (x.handle.done())
     abort();

@@ -1,6 +1,6 @@
 // <expected> -*- C++ -*-
 
-// Copyright The GNU Toolchain Authors
+// Copyright The GNU Toolchain Authors.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,12 +29,20 @@
 #ifndef _GLIBCXX_EXPECTED
 #define _GLIBCXX_EXPECTED
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
-#if __cplusplus > 202002L && __cpp_concepts >= 202002L
+#define __glibcxx_want_expected
+#define __glibcxx_want_freestanding_expected
+#define __glibcxx_want_constrained_equality
+#define __glibcxx_want_constexpr_exceptions
+#include <bits/version.h>
 
+#ifdef __cpp_lib_expected // C++ >= 23 && __cpp_concepts >= 202002L
 #include <initializer_list>
 #include <bits/exception.h>	// exception
+#include <bits/invoke.h>	// __invoke
 #include <bits/stl_construct.h>	// construct_at
 #include <bits/utility.h>	// in_place_t
 
@@ -48,8 +56,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    * @since C++23
    * @{
    */
-
-#define __cpp_lib_expected 202202L
 
   /// Discriminated union that holds an expected value or an error value.
   /**
@@ -72,21 +78,32 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Er>
     class bad_expected_access;
 
+#if __cpp_lib_constexpr_exceptions >= 202502L
+#define _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS constexpr
+#else
+#define _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS
+#endif
+
   template<>
     class bad_expected_access<void> : public exception
     {
     protected:
-      bad_expected_access() noexcept { }
-      bad_expected_access(const bad_expected_access&) = default;
-      bad_expected_access(bad_expected_access&&) = default;
-      bad_expected_access& operator=(const bad_expected_access&) = default;
-      bad_expected_access& operator=(bad_expected_access&&) = default;
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS bad_expected_access() noexcept { }
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS
+      bad_expected_access(const bad_expected_access&) noexcept = default;
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS
+      bad_expected_access(bad_expected_access&&) noexcept = default;
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS
+      bad_expected_access& operator=(const bad_expected_access&) noexcept = default;
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS
+      bad_expected_access& operator=(bad_expected_access&&) noexcept = default;
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS
       ~bad_expected_access() = default;
 
     public:
 
       [[nodiscard]]
-      const char*
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS const char*
       what() const noexcept override
       { return "bad access to std::expected without expected value"; }
     };
@@ -94,28 +111,28 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
   template<typename _Er>
     class bad_expected_access : public bad_expected_access<void> {
     public:
-      explicit
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS explicit
       bad_expected_access(_Er __e) : _M_unex(std::move(__e)) { }
 
       // XXX const char* what() const noexcept override;
 
       [[nodiscard]]
-      _Er&
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS _Er&
       error() & noexcept
       { return _M_unex; }
 
       [[nodiscard]]
-      const _Er&
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS const _Er&
       error() const & noexcept
       { return _M_unex; }
 
       [[nodiscard]]
-      _Er&&
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS _Er&&
       error() && noexcept
       { return std::move(_M_unex); }
 
       [[nodiscard]]
-      const _Er&&
+      _GLIBCXX_CONSTEXPR_BAD_EXPECTED_ACCESS const _Er&&
       error() const && noexcept
       { return std::move(_M_unex); }
 
@@ -138,7 +155,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    */
   inline constexpr unexpect_t unexpect{};
 
-/// @cond undoc
+/// @cond undocumented
 namespace __expected
 {
   template<typename _Tp>
@@ -151,11 +168,24 @@ namespace __expected
   template<typename _Tp>
     constexpr bool __is_unexpected<unexpected<_Tp>> = true;
 
+  template<typename _Fn, typename _Tp>
+    using __result = remove_cvref_t<invoke_result_t<_Fn&&, _Tp&&>>;
+  template<typename _Fn, typename _Tp>
+    using __result_xform = remove_cv_t<invoke_result_t<_Fn&&, _Tp&&>>;
+  template<typename _Fn>
+    using __result0 = remove_cvref_t<invoke_result_t<_Fn&&>>;
+  template<typename _Fn>
+    using __result0_xform = remove_cv_t<invoke_result_t<_Fn&&>>;
+
   template<typename _Er>
     concept __can_be_unexpected
       = is_object_v<_Er> && (!is_array_v<_Er>)
 	  && (!__expected::__is_unexpected<_Er>)
 	  && (!is_const_v<_Er>) && (!is_volatile_v<_Er>);
+
+  // Tag types for in-place construction from an invocation result.
+  struct __in_place_inv { };
+  struct __unexpect_inv { };
 }
 /// @endcond
 
@@ -217,8 +247,8 @@ namespace __expected
 
       constexpr void
       swap(unexpected& __other) noexcept(is_nothrow_swappable_v<_Er>)
+      requires is_swappable_v<_Er>
       {
-	static_assert( is_swappable_v<_Er> );
 	using std::swap;
 	swap(_M_unex, __other._M_unex);
       }
@@ -230,9 +260,8 @@ namespace __expected
 	{ return __x._M_unex == __y.error(); }
 
       friend constexpr void
-      swap(unexpected& __x, unexpected& __y)
-      noexcept(noexcept(__x.swap(__y)))
-      requires requires {__x.swap(__y);}
+      swap(unexpected& __x, unexpected& __y) noexcept(noexcept(__x.swap(__y)))
+      requires is_swappable_v<_Er>
       { __x.swap(__y); }
 
     private:
@@ -241,7 +270,7 @@ namespace __expected
 
   template<typename _Er> unexpected(_Er) -> unexpected<_Er>;
 
-/// @cond undoc
+/// @cond undocumented
 namespace __expected
 {
   template<typename _Tp>
@@ -300,11 +329,45 @@ namespace __expected
 	  __guard.release();
 	}
     }
+
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 3836. std::expected<bool, E1> conversion constructor
+  // expected(const expected<U, G>&) should take precedence over
+  // expected(U&&) with operator bool
+
+  // If T is cv bool, remove_cvref_t<U> is not a specialization of expected.
+  template<typename _Tp, typename _Up>
+    concept __not_constructing_bool_from_expected
+      = ! is_same_v<remove_cv_t<_Tp>, bool>
+	  || ! __is_expected<remove_cvref_t<_Up>>;
+
+  template<typename _Tp, typename _Up = remove_cvref_t<_Tp>>
+    concept __trivially_replaceable
+      = is_trivially_constructible_v<_Up, _Tp>
+	  && is_trivially_assignable_v<_Up&, _Tp>
+	  && is_trivially_destructible_v<_Up>;
+
+  template<typename _Tp, typename _Up = remove_cvref_t<_Tp>>
+    concept __usable_for_assign
+      = is_constructible_v<_Up, _Tp> && is_assignable_v<_Up&, _Tp>;
+
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 4026. Assignment operators of std::expected should propagate triviality
+  template<typename _Tp>
+    concept __usable_for_trivial_assign
+      = __trivially_replaceable<_Tp> && __usable_for_assign<_Tp>;
+
+  // For copy/move assignment to replace T with E (or vice versa)
+  // we require at least one of them to be nothrow move constructible.
+  template<typename _Tp, typename _Er>
+    concept __can_reassign_type
+      = is_nothrow_move_constructible_v<_Tp>
+	  || is_nothrow_move_constructible_v<_Er>;
 }
 /// @endcond
 
   template<typename _Tp, typename _Er>
-    class expected
+    class [[nodiscard]] expected
     {
       static_assert( ! is_reference_v<_Tp> );
       static_assert( ! is_function_v<_Tp> );
@@ -313,27 +376,50 @@ namespace __expected
       static_assert( ! __expected::__is_unexpected<remove_cv_t<_Tp>> );
       static_assert( __expected::__can_be_unexpected<_Er> );
 
-      template<typename _Up, typename _Err, typename _Unex = unexpected<_Er>>
+      // If T is not cv bool, converts-from-any-cvref<T, expected<U, G>> and
+      // is_constructible<unexpected<E>, cv expected<U, G> ref-qual> are false.
+      template<typename _Up, typename _Gr, typename _Unex = unexpected<_Er>,
+	       typename = remove_cv_t<_Tp>>
 	static constexpr bool __cons_from_expected
-	  = __or_v<is_constructible<_Tp, expected<_Up, _Err>&>,
-		   is_constructible<_Tp, expected<_Up, _Err>>,
-		   is_constructible<_Tp, const expected<_Up, _Err>&>,
-		   is_constructible<_Tp, const expected<_Up, _Err>>,
-		   is_convertible<expected<_Up, _Err>&, _Tp>,
-		   is_convertible<expected<_Up, _Err>, _Tp>,
-		   is_convertible<const expected<_Up, _Err>&, _Tp>,
-		   is_convertible<const expected<_Up, _Err>, _Tp>,
-		   is_constructible<_Unex, expected<_Up, _Err>&>,
-		   is_constructible<_Unex, expected<_Up, _Err>>,
-		   is_constructible<_Unex, const expected<_Up, _Err>&>,
-		   is_constructible<_Unex, const expected<_Up, _Err>>
+	  = __or_v<is_constructible<_Tp, expected<_Up, _Gr>&>,
+		   is_constructible<_Tp, expected<_Up, _Gr>>,
+		   is_constructible<_Tp, const expected<_Up, _Gr>&>,
+		   is_constructible<_Tp, const expected<_Up, _Gr>>,
+		   is_convertible<expected<_Up, _Gr>&, _Tp>,
+		   is_convertible<expected<_Up, _Gr>, _Tp>,
+		   is_convertible<const expected<_Up, _Gr>&, _Tp>,
+		   is_convertible<const expected<_Up, _Gr>, _Tp>,
+		   is_constructible<_Unex, expected<_Up, _Gr>&>,
+		   is_constructible<_Unex, expected<_Up, _Gr>>,
+		   is_constructible<_Unex, const expected<_Up, _Gr>&>,
+		   is_constructible<_Unex, const expected<_Up, _Gr>>
 		  >;
 
-      template<typename _Up, typename _Err>
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // If t is cv bool, we know it can be constructed from expected<U, G>,
+      // but we don't want to cause the expected(U&&) constructor to be used,
+      // so we only check the is_constructible<unexpected<E>, ...> cases.
+      template<typename _Up, typename _Gr, typename _Unex>
+	static constexpr bool __cons_from_expected<_Up, _Gr, _Unex, bool>
+	  = __or_v<is_constructible<_Unex, expected<_Up, _Gr>&>,
+		   is_constructible<_Unex, expected<_Up, _Gr>>,
+		   is_constructible<_Unex, const expected<_Up, _Gr>&>,
+		   is_constructible<_Unex, const expected<_Up, _Gr>>
+		  >;
+
+      template<typename _Up, typename _Gr>
 	constexpr static bool __explicit_conv
 	  = __or_v<__not_<is_convertible<_Up, _Tp>>,
-		   __not_<is_convertible<_Err, _Er>>
+		   __not_<is_convertible<_Gr, _Er>>
 		  >;
+
+      template<typename _Up>
+	static constexpr bool __same_val
+	  = is_same_v<typename _Up::value_type, _Tp>;
+
+      template<typename _Up>
+	static constexpr bool __same_err
+	  = is_same_v<typename _Up::error_type, _Er>;
 
     public:
       using value_type = _Tp;
@@ -359,7 +445,7 @@ namespace __expected
       requires is_copy_constructible_v<_Tp> && is_copy_constructible_v<_Er>
       && (!is_trivially_copy_constructible_v<_Tp>
 	  || !is_trivially_copy_constructible_v<_Er>)
-      : _M_invalid(), _M_has_value(__x._M_has_value)
+      : _M_has_value(__x._M_has_value)
       {
 	if (_M_has_value)
 	  std::construct_at(__builtin_addressof(_M_val), __x._M_val);
@@ -376,7 +462,7 @@ namespace __expected
       requires is_move_constructible_v<_Tp> && is_move_constructible_v<_Er>
       && (!is_trivially_move_constructible_v<_Tp>
 	  || !is_trivially_move_constructible_v<_Er>)
-      : _M_invalid(), _M_has_value(__x._M_has_value)
+      : _M_has_value(__x._M_has_value)
       {
 	if (_M_has_value)
 	  std::construct_at(__builtin_addressof(_M_val),
@@ -394,7 +480,7 @@ namespace __expected
 	expected(const expected<_Up, _Gr>& __x)
 	noexcept(__and_v<is_nothrow_constructible<_Tp, const _Up&>,
 			 is_nothrow_constructible<_Er, const _Gr&>>)
-	: _M_invalid(), _M_has_value(__x._M_has_value)
+	: _M_has_value(__x._M_has_value)
 	{
 	  if (_M_has_value)
 	    std::construct_at(__builtin_addressof(_M_val), __x._M_val);
@@ -410,7 +496,7 @@ namespace __expected
 	expected(expected<_Up, _Gr>&& __x)
 	noexcept(__and_v<is_nothrow_constructible<_Tp, _Up>,
 			 is_nothrow_constructible<_Er, _Gr>>)
-	: _M_invalid(), _M_has_value(__x._M_has_value)
+	: _M_has_value(__x._M_has_value)
 	{
 	  if (_M_has_value)
 	    std::construct_at(__builtin_addressof(_M_val),
@@ -420,11 +506,13 @@ namespace __expected
 			      std::move(__x)._M_unex);
 	}
 
-      template<typename _Up = _Tp>
+      template<typename _Up = remove_cv_t<_Tp>>
 	requires (!is_same_v<remove_cvref_t<_Up>, expected>)
 	  && (!is_same_v<remove_cvref_t<_Up>, in_place_t>)
-	  && (!__expected::__is_unexpected<remove_cvref_t<_Up>>)
+	  && (!is_same_v<remove_cvref_t<_Up>, unexpect_t>)
 	  && is_constructible_v<_Tp, _Up>
+	  && (!__expected::__is_unexpected<remove_cvref_t<_Up>>)
+	  && __expected::__not_constructing_bool_from_expected<_Tp, _Up>
 	constexpr explicit(!is_convertible_v<_Up, _Tp>)
 	expected(_Up&& __v)
 	noexcept(is_nothrow_constructible_v<_Tp, _Up>)
@@ -495,18 +583,31 @@ namespace __expected
 
       // assignment
 
+      // Deleted copy assignment, when constraints not met for other overloads
       expected& operator=(const expected&) = delete;
 
+      // Trivial copy assignment
+      expected&
+      operator=(const expected&)
+      noexcept(__and_v<is_nothrow_copy_constructible<_Tp>,
+		       is_nothrow_copy_constructible<_Er>,
+		       is_nothrow_copy_assignable<_Tp>,
+		       is_nothrow_copy_assignable<_Er>>)
+      requires __expected::__usable_for_trivial_assign<const _Tp&>
+	    && __expected::__usable_for_trivial_assign<const _Er&>
+	    && __expected::__can_reassign_type<_Tp, _Er>
+	= default;
+
+      // Non-trivial copy assignment
       constexpr expected&
       operator=(const expected& __x)
       noexcept(__and_v<is_nothrow_copy_constructible<_Tp>,
 		       is_nothrow_copy_constructible<_Er>,
 		       is_nothrow_copy_assignable<_Tp>,
 		       is_nothrow_copy_assignable<_Er>>)
-      requires is_copy_assignable_v<_Tp> && is_copy_constructible_v<_Tp>
-	    && is_copy_assignable_v<_Er> && is_copy_constructible_v<_Er>
-	    && (is_nothrow_move_constructible_v<_Tp>
-		|| is_nothrow_move_constructible_v<_Er>)
+      requires __expected::__usable_for_assign<const _Tp&>
+	    && __expected::__usable_for_assign<const _Er&>
+	    && __expected::__can_reassign_type<_Tp, _Er>
       {
 	if (__x._M_has_value)
 	  this->_M_assign_val(__x._M_val);
@@ -515,16 +616,28 @@ namespace __expected
 	return *this;
       }
 
+      // Trivial move assignment
+      expected&
+      operator=(expected&&)
+      noexcept(__and_v<is_nothrow_move_constructible<_Tp>,
+		       is_nothrow_move_constructible<_Er>,
+		       is_nothrow_move_assignable<_Tp>,
+		       is_nothrow_move_assignable<_Er>>)
+      requires __expected::__usable_for_trivial_assign<_Tp&&>
+	    && __expected::__usable_for_trivial_assign<_Er&&>
+	    && __expected::__can_reassign_type<_Tp, _Er>
+	= default;
+
+      // Non-trivial move assignment
       constexpr expected&
       operator=(expected&& __x)
       noexcept(__and_v<is_nothrow_move_constructible<_Tp>,
 		       is_nothrow_move_constructible<_Er>,
 		       is_nothrow_move_assignable<_Tp>,
 		       is_nothrow_move_assignable<_Er>>)
-      requires is_move_assignable_v<_Tp> && is_move_constructible_v<_Tp>
-	    && is_move_assignable_v<_Er> && is_move_constructible_v<_Er>
-	    && (is_nothrow_move_constructible_v<_Tp>
-		|| is_nothrow_move_constructible_v<_Er>)
+      requires __expected::__usable_for_assign<_Tp&&>
+	    && __expected::__usable_for_assign<_Er&&>
+	    && __expected::__can_reassign_type<_Tp, _Er>
       {
 	if (__x._M_has_value)
 	  _M_assign_val(std::move(__x._M_val));
@@ -533,7 +646,7 @@ namespace __expected
 	return *this;
       }
 
-      template<typename _Up = _Tp>
+      template<typename _Up = remove_cv_t<_Tp>>
 	requires (!is_same_v<expected, remove_cvref_t<_Up>>)
 	      && (!__expected::__is_unexpected<remove_cvref_t<_Up>>)
 	      && is_constructible_v<_Tp, _Up> && is_assignable_v<_Tp&, _Up>
@@ -705,6 +818,7 @@ namespace __expected
       constexpr const _Tp&
       value() const &
       {
+	static_assert( is_copy_constructible_v<_Er> );
 	if (_M_has_value) [[likely]]
 	  return _M_val;
 	_GLIBCXX_THROW_OR_ABORT(bad_expected_access<_Er>(_M_unex));
@@ -713,27 +827,31 @@ namespace __expected
       constexpr _Tp&
       value() &
       {
+	static_assert( is_copy_constructible_v<_Er> );
 	if (_M_has_value) [[likely]]
 	  return _M_val;
-	_GLIBCXX_THROW_OR_ABORT(bad_expected_access<_Er>(_M_unex));
+	const auto& __unex = _M_unex;
+	_GLIBCXX_THROW_OR_ABORT(bad_expected_access<_Er>(__unex));
       }
 
       constexpr const _Tp&&
       value() const &&
       {
+	static_assert( is_copy_constructible_v<_Er> );
+	static_assert( is_constructible_v<_Er, const _Er&&> );
 	if (_M_has_value) [[likely]]
 	  return std::move(_M_val);
-	_GLIBCXX_THROW_OR_ABORT(bad_expected_access<_Er>(
-				  std::move(_M_unex)));
+	_GLIBCXX_THROW_OR_ABORT(bad_expected_access<_Er>(std::move(_M_unex)));
       }
 
       constexpr _Tp&&
       value() &&
       {
+	static_assert( is_copy_constructible_v<_Er> );
+	static_assert( is_constructible_v<_Er, _Er&&> );
 	if (_M_has_value) [[likely]]
 	  return std::move(_M_val);
-	_GLIBCXX_THROW_OR_ABORT(bad_expected_access<_Er>(
-				  std::move(_M_unex)));
+	_GLIBCXX_THROW_OR_ABORT(bad_expected_access<_Er>(std::move(_M_unex)));
       }
 
       constexpr const _Er&
@@ -764,60 +882,388 @@ namespace __expected
 	return std::move(_M_unex);
       }
 
-      template<typename _Up>
-	constexpr _Tp
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 4406. value_or return statement is inconsistent with Mandates
+      template<typename _Up = remove_cv_t<_Tp>>
+	constexpr remove_cv_t<_Tp>
 	value_or(_Up&& __v) const &
 	noexcept(__and_v<is_nothrow_copy_constructible<_Tp>,
 			 is_nothrow_convertible<_Up, _Tp>>)
 	{
-	  static_assert( is_copy_constructible_v<_Tp> );
+	  using _Xp = remove_cv_t<_Tp>;
+	  static_assert( is_convertible_v<const _Tp&, _Xp> );
 	  static_assert( is_convertible_v<_Up, _Tp> );
 
 	  if (_M_has_value)
 	    return _M_val;
-	  return static_cast<_Tp>(std::forward<_Up>(__v));
+	  return std::forward<_Up>(__v);
 	}
 
-      template<typename _Up>
-	constexpr _Tp
+      template<typename _Up = remove_cv_t<_Tp>>
+	constexpr remove_cv_t<_Tp>
 	value_or(_Up&& __v) &&
 	noexcept(__and_v<is_nothrow_move_constructible<_Tp>,
 			 is_nothrow_convertible<_Up, _Tp>>)
 	{
-	  static_assert( is_move_constructible_v<_Tp> );
-	  static_assert( is_convertible_v<_Up, _Tp> );
+	  using _Xp = remove_cv_t<_Tp>;
+	  static_assert( is_convertible_v<_Tp, _Xp> );
+	  static_assert( is_convertible_v<_Up, _Xp> );
 
 	  if (_M_has_value)
 	    return std::move(_M_val);
-	  return static_cast<_Tp>(std::forward<_Up>(__v));
+	  return std::forward<_Up>(__v);
+	}
+
+      template<typename _Gr = _Er>
+	constexpr _Er
+	error_or(_Gr&& __e) const&
+	{
+	  static_assert( is_copy_constructible_v<_Er> );
+	  static_assert( is_convertible_v<_Gr, _Er> );
+
+	  if (_M_has_value)
+	    return std::forward<_Gr>(__e);
+	  return _M_unex;
+	}
+
+      template<typename _Gr = _Er>
+	constexpr _Er
+	error_or(_Gr&& __e) &&
+	{
+	  static_assert( is_move_constructible_v<_Er> );
+	  static_assert( is_convertible_v<_Gr, _Er> );
+
+	  if (_M_has_value)
+	    return std::forward<_Gr>(__e);
+	  return std::move(_M_unex);
+	}
+
+      // monadic operations
+
+      template<typename _Fn> requires is_constructible_v<_Er, _Er&>
+	constexpr auto
+	and_then(_Fn&& __f) &
+	{
+	  using _Up = __expected::__result<_Fn, _Tp&>;
+	  static_assert(__expected::__is_expected<_Up>,
+			"the function passed to std::expected<T, E>::and_then "
+			"must return a std::expected");
+	  static_assert(is_same_v<typename _Up::error_type, _Er>,
+			"the function passed to std::expected<T, E>::and_then "
+			"must return a std::expected with the same error_type");
+
+	  if (has_value())
+	    return std::__invoke(std::forward<_Fn>(__f), _M_val);
+	  else
+	    return _Up(unexpect, _M_unex);
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, const _Er&>
+	constexpr auto
+	and_then(_Fn&& __f) const &
+	{
+	  using _Up = __expected::__result<_Fn, const _Tp&>;
+	  static_assert(__expected::__is_expected<_Up>,
+			"the function passed to std::expected<T, E>::and_then "
+			"must return a std::expected");
+	  static_assert(is_same_v<typename _Up::error_type, _Er>,
+			"the function passed to std::expected<T, E>::and_then "
+			"must return a std::expected with the same error_type");
+
+	  if (has_value())
+	    return std::__invoke(std::forward<_Fn>(__f), _M_val);
+	  else
+	    return _Up(unexpect, _M_unex);
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, _Er>
+	constexpr auto
+	and_then(_Fn&& __f) &&
+	{
+	  using _Up = __expected::__result<_Fn, _Tp&&>;
+	  static_assert(__expected::__is_expected<_Up>,
+			"the function passed to std::expected<T, E>::and_then "
+			"must return a std::expected");
+	  static_assert(is_same_v<typename _Up::error_type, _Er>,
+			"the function passed to std::expected<T, E>::and_then "
+			"must return a std::expected with the same error_type");
+
+	  if (has_value())
+	    return std::__invoke(std::forward<_Fn>(__f), std::move(_M_val));
+	  else
+	    return _Up(unexpect, std::move(_M_unex));
+	}
+
+
+      template<typename _Fn> requires is_constructible_v<_Er, const _Er>
+	constexpr auto
+	and_then(_Fn&& __f) const &&
+	{
+	  using _Up = __expected::__result<_Fn, const _Tp&&>;
+	  static_assert(__expected::__is_expected<_Up>,
+			"the function passed to std::expected<T, E>::and_then "
+			"must return a std::expected");
+	  static_assert(is_same_v<typename _Up::error_type, _Er>,
+			"the function passed to std::expected<T, E>::and_then "
+			"must return a std::expected with the same error_type");
+
+	  if (has_value())
+	    return std::__invoke(std::forward<_Fn>(__f), std::move(_M_val));
+	  else
+	    return _Up(unexpect, std::move(_M_unex));
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Tp, _Tp&>
+	constexpr auto
+	or_else(_Fn&& __f) &
+	{
+	  using _Gr = __expected::__result<_Fn, _Er&>;
+	  static_assert(__expected::__is_expected<_Gr>,
+			"the function passed to std::expected<T, E>::or_else "
+			"must return a std::expected");
+	  static_assert(is_same_v<typename _Gr::value_type, _Tp>,
+			"the function passed to std::expected<T, E>::or_else "
+			"must return a std::expected with the same value_type");
+
+	  if (has_value())
+	    return _Gr(in_place, _M_val);
+	  else
+	    return std::__invoke(std::forward<_Fn>(__f), _M_unex);
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Tp, const _Tp&>
+	constexpr auto
+	or_else(_Fn&& __f) const &
+	{
+	  using _Gr = __expected::__result<_Fn, const _Er&>;
+	  static_assert(__expected::__is_expected<_Gr>,
+			"the function passed to std::expected<T, E>::or_else "
+			"must return a std::expected");
+	  static_assert(is_same_v<typename _Gr::value_type, _Tp>,
+			"the function passed to std::expected<T, E>::or_else "
+			"must return a std::expected with the same value_type");
+
+	  if (has_value())
+	    return _Gr(in_place, _M_val);
+	  else
+	    return std::__invoke(std::forward<_Fn>(__f), _M_unex);
+	}
+
+
+      template<typename _Fn> requires is_constructible_v<_Tp, _Tp>
+	constexpr auto
+	or_else(_Fn&& __f) &&
+	{
+	  using _Gr = __expected::__result<_Fn, _Er&&>;
+	  static_assert(__expected::__is_expected<_Gr>,
+			"the function passed to std::expected<T, E>::or_else "
+			"must return a std::expected");
+	  static_assert(is_same_v<typename _Gr::value_type, _Tp>,
+			"the function passed to std::expected<T, E>::or_else "
+			"must return a std::expected with the same value_type");
+
+	  if (has_value())
+	    return _Gr(in_place, std::move(_M_val));
+	  else
+	    return std::__invoke(std::forward<_Fn>(__f), std::move(_M_unex));
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Tp, const _Tp>
+	constexpr auto
+	or_else(_Fn&& __f) const &&
+	{
+	  using _Gr = __expected::__result<_Fn, const _Er&&>;
+	  static_assert(__expected::__is_expected<_Gr>,
+			"the function passed to std::expected<T, E>::or_else "
+			"must return a std::expected");
+	  static_assert(is_same_v<typename _Gr::value_type, _Tp>,
+			"the function passed to std::expected<T, E>::or_else "
+			"must return a std::expected with the same value_type");
+
+	  if (has_value())
+	    return _Gr(in_place, std::move(_M_val));
+	  else
+	    return std::__invoke(std::forward<_Fn>(__f), std::move(_M_unex));
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, _Er&>
+	constexpr auto
+	transform(_Fn&& __f) &
+	{
+	  using _Up = __expected::__result_xform<_Fn, _Tp&>;
+	  using _Res = expected<_Up, _Er>;
+
+	  if (has_value())
+	    return _Res(__in_place_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       _M_val);
+			});
+	  else
+	    return _Res(unexpect, _M_unex);
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, const _Er&>
+	constexpr auto
+	transform(_Fn&& __f) const &
+	{
+	  using _Up = __expected::__result_xform<_Fn, const _Tp&>;
+	  using _Res = expected<_Up, _Er>;
+
+	  if (has_value())
+	    return _Res(__in_place_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       _M_val);
+			});
+	  else
+	    return _Res(unexpect, _M_unex);
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, _Er>
+	constexpr auto
+	transform(_Fn&& __f) &&
+	{
+	  using _Up = __expected::__result_xform<_Fn, _Tp>;
+	  using _Res = expected<_Up, _Er>;
+
+	  if (has_value())
+	    return _Res(__in_place_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       std::move(_M_val));
+			});
+	  else
+	    return _Res(unexpect, std::move(_M_unex));
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, const _Er>
+	constexpr auto
+	transform(_Fn&& __f) const &&
+	{
+	  using _Up = __expected::__result_xform<_Fn, const _Tp>;
+	  using _Res = expected<_Up, _Er>;
+
+	  if (has_value())
+	    return _Res(__in_place_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       std::move(_M_val));
+			});
+	  else
+	    return _Res(unexpect, std::move(_M_unex));
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Tp, _Tp&>
+	constexpr auto
+	transform_error(_Fn&& __f) &
+	{
+	  using _Gr = __expected::__result_xform<_Fn, _Er&>;
+	  using _Res = expected<_Tp, _Gr>;
+
+	  if (has_value())
+	    return _Res(in_place, _M_val);
+	  else
+	    return _Res(__unexpect_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       _M_unex);
+			});
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Tp, const _Tp&>
+	constexpr auto
+	transform_error(_Fn&& __f) const &
+	{
+	  using _Gr = __expected::__result_xform<_Fn, const _Er&>;
+	  using _Res = expected<_Tp, _Gr>;
+
+	  if (has_value())
+	    return _Res(in_place, _M_val);
+	  else
+	    return _Res(__unexpect_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       _M_unex);
+			});
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Tp, _Tp>
+	constexpr auto
+	transform_error(_Fn&& __f) &&
+	{
+	  using _Gr = __expected::__result_xform<_Fn, _Er&&>;
+	  using _Res = expected<_Tp, _Gr>;
+
+	  if (has_value())
+	    return _Res(in_place, std::move(_M_val));
+	  else
+	    return _Res(__unexpect_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       std::move(_M_unex));
+			});
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Tp, const _Tp>
+	constexpr auto
+	transform_error(_Fn&& __f) const &&
+	{
+	  using _Gr = __expected::__result_xform<_Fn, const _Er&&>;
+	  using _Res = expected<_Tp, _Gr>;
+
+	  if (has_value())
+	    return _Res(in_place, std::move(_M_val));
+	  else
+	    return _Res(__unexpect_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       std::move(_M_unex));
+			});
 	}
 
       // equality operators
 
       template<typename _Up, typename _Er2>
 	requires (!is_void_v<_Up>)
+	  && requires (const _Tp& __t, const _Up& __u,
+		       const _Er& __e, const _Er2& __e2) {
+	    { __t == __u } -> convertible_to<bool>;
+	    { __e == __e2 } -> convertible_to<bool>;
+	  }
+	[[nodiscard]]
 	friend constexpr bool
 	operator==(const expected& __x, const expected<_Up, _Er2>& __y)
 	noexcept(noexcept(bool(*__x == *__y))
 		  && noexcept(bool(__x.error() == __y.error())))
 	{
+	  if (__x.has_value() != __y.has_value())
+	    return false;
 	  if (__x.has_value())
-	    return __y.has_value() && bool(*__x == *__y);
-	  else
-	    return !__y.has_value() && bool(__x.error() == __y.error());
+	    return *__x == *__y;
+	  return __x.error() == __y.error();
 	}
 
-      template<typename _Up>
+      template<typename _Up, same_as<_Tp> _Vp>
+	requires (!__expected::__is_expected<_Up>)
+	  && requires (const _Tp& __t, const _Up& __u) {
+	    { __t == __u } -> convertible_to<bool>;
+	  }
+	[[nodiscard]]
 	friend constexpr bool
-	operator==(const expected& __x, const _Up& __v)
+	operator==(const expected<_Vp, _Er>& __x, const _Up& __v)
 	noexcept(noexcept(bool(*__x == __v)))
-	{ return __x.has_value() && bool(*__x == __v); }
+	{
+	  if (__x.has_value())
+	    return *__x == __v;
+	  return false;
+	}
 
       template<typename _Er2>
+	requires requires (const _Er& __e, const _Er2& __e2) {
+	  { __e == __e2 } -> convertible_to<bool>;
+	}
+	[[nodiscard]]
 	friend constexpr bool
 	operator==(const expected& __x, const unexpected<_Er2>& __e)
 	noexcept(noexcept(bool(__x.error() == __e.error())))
-	{ return !__x.has_value() && bool(__x.error() == __e.error()); }
+	{
+	  if (!__x.has_value())
+	    return __x.error() == __e.error();
+	  return false;
+	}
 
       friend constexpr void
       swap(expected& __x, expected& __y)
@@ -878,7 +1324,7 @@ namespace __expected
 	  }
 	else
 	  {
-	    __expected::_Guard<_Tp> __guard(__rhs._M_val);
+	    __expected::_Guard<_Tp> __guard(_M_val);
 	    std::construct_at(__builtin_addressof(_M_unex),
 			      std::move(__rhs._M_unex)); // might throw
 	    _M_has_value = false;
@@ -889,9 +1335,23 @@ namespace __expected
 	  }
       }
 
+      using __in_place_inv = __expected::__in_place_inv;
+      using __unexpect_inv = __expected::__unexpect_inv;
+
+      template<typename _Fn>
+	explicit constexpr
+	expected(__in_place_inv, _Fn&& __fn)
+	: _M_val(std::forward<_Fn>(__fn)()), _M_has_value(true)
+	{ }
+
+      template<typename _Fn>
+	explicit constexpr
+	expected(__unexpect_inv, _Fn&& __fn)
+	: _M_unex(std::forward<_Fn>(__fn)()), _M_has_value(false)
+	{ }
+
       union {
-	struct { } _M_invalid;
-	_Tp _M_val;
+	remove_cv_t<_Tp> _M_val;
 	_Er _M_unex;
       };
 
@@ -900,7 +1360,7 @@ namespace __expected
 
   // Partial specialization for std::expected<cv void, E>
   template<typename _Tp, typename _Er> requires is_void_v<_Tp>
-    class expected<_Tp, _Er>
+    class [[nodiscard]] expected<_Tp, _Er>
     {
       static_assert( __expected::__can_be_unexpected<_Er> );
 
@@ -911,6 +1371,14 @@ namespace __expected
 		   is_constructible<_Unex, const expected<_Up, _Err>&>,
 		   is_constructible<_Unex, const expected<_Up, _Err>>
 		  >;
+
+      template<typename _Up>
+	static constexpr bool __same_val
+	  = is_same_v<typename _Up::value_type, _Tp>;
+
+      template<typename _Up>
+	static constexpr bool __same_err
+	  = is_same_v<typename _Up::error_type, _Er>;
 
     public:
       using value_type = _Tp;
@@ -995,11 +1463,10 @@ namespace __expected
 	: _M_unex(std::move(__u).error()), _M_has_value(false)
 	{ }
 
-      template<typename... _Args>
-	constexpr explicit
-	expected(in_place_t) noexcept
-	: expected()
-	{ }
+      constexpr explicit
+      expected(in_place_t) noexcept
+      : expected()
+      { }
 
       template<typename... _Args>
 	requires is_constructible_v<_Er, _Args...>
@@ -1028,14 +1495,23 @@ namespace __expected
 
       // assignment
 
+      // Deleted copy assignment, when constraints not met for other overloads
       expected& operator=(const expected&) = delete;
 
+      // Trivial copy assignment
+      expected&
+      operator=(const expected&)
+      noexcept(__and_v<is_nothrow_copy_constructible<_Er>,
+		       is_nothrow_copy_assignable<_Er>>)
+      requires __expected::__usable_for_trivial_assign<const _Er&>
+	= default;
+
+      // Non-trivial copy assignment
       constexpr expected&
       operator=(const expected& __x)
       noexcept(__and_v<is_nothrow_copy_constructible<_Er>,
 		       is_nothrow_copy_assignable<_Er>>)
-      requires is_copy_constructible_v<_Er>
-	    && is_copy_assignable_v<_Er>
+      requires __expected::__usable_for_assign<const _Er&>
       {
 	if (__x._M_has_value)
 	  emplace();
@@ -1044,12 +1520,20 @@ namespace __expected
 	return *this;
       }
 
+      // Trivial move assignment
+      expected&
+      operator=(expected&&)
+      noexcept(__and_v<is_nothrow_move_constructible<_Er>,
+		       is_nothrow_move_assignable<_Er>>)
+      requires __expected::__usable_for_trivial_assign<_Er&&>
+	= default;
+
+      // Non-trivial move assignment
       constexpr expected&
       operator=(expected&& __x)
       noexcept(__and_v<is_nothrow_move_constructible<_Er>,
 		       is_nothrow_move_assignable<_Er>>)
-      requires is_move_constructible_v<_Er>
-	    && is_move_assignable_v<_Er>
+      requires __expected::__usable_for_assign<_Er&&>
       {
 	if (__x._M_has_value)
 	  emplace();
@@ -1141,6 +1625,7 @@ namespace __expected
       constexpr void
       value() const&
       {
+	static_assert( is_copy_constructible_v<_Er> );
 	if (_M_has_value) [[likely]]
 	  return;
 	_GLIBCXX_THROW_OR_ABORT(bad_expected_access<_Er>(_M_unex));
@@ -1149,6 +1634,8 @@ namespace __expected
       constexpr void
       value() &&
       {
+	static_assert( is_copy_constructible_v<_Er> );
+	static_assert( is_move_constructible_v<_Er> );
 	if (_M_has_value) [[likely]]
 	  return;
 	_GLIBCXX_THROW_OR_ABORT(bad_expected_access<_Er>(std::move(_M_unex)));
@@ -1182,25 +1669,292 @@ namespace __expected
 	return std::move(_M_unex);
       }
 
+      template<typename _Gr = _Er>
+	constexpr _Er
+	error_or(_Gr&& __e) const&
+	{
+	  static_assert( is_copy_constructible_v<_Er> );
+	  static_assert( is_convertible_v<_Gr, _Er> );
+
+	  if (_M_has_value)
+	    return std::forward<_Gr>(__e);
+	  return _M_unex;
+	}
+
+      template<typename _Gr = _Er>
+	constexpr _Er
+	error_or(_Gr&& __e) &&
+	{
+	  static_assert( is_move_constructible_v<_Er> );
+	  static_assert( is_convertible_v<_Gr, _Er> );
+
+	  if (_M_has_value)
+	    return std::forward<_Gr>(__e);
+	  return std::move(_M_unex);
+	}
+
+      // monadic operations
+
+      template<typename _Fn> requires is_constructible_v<_Er, _Er&>
+	constexpr auto
+	and_then(_Fn&& __f) &
+	{
+	  using _Up = __expected::__result0<_Fn>;
+	  static_assert(__expected::__is_expected<_Up>);
+	  static_assert(is_same_v<typename _Up::error_type, _Er>);
+
+	  if (has_value())
+	    return std::__invoke(std::forward<_Fn>(__f));
+	  else
+	    return _Up(unexpect, _M_unex);
+	}
+
+     template<typename _Fn> requires is_constructible_v<_Er, const _Er&>
+	constexpr auto
+	and_then(_Fn&& __f) const &
+	{
+	  using _Up = __expected::__result0<_Fn>;
+	  static_assert(__expected::__is_expected<_Up>);
+	  static_assert(is_same_v<typename _Up::error_type, _Er>);
+
+	  if (has_value())
+	    return std::__invoke(std::forward<_Fn>(__f));
+	  else
+	    return _Up(unexpect, _M_unex);
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, _Er>
+	constexpr auto
+	and_then(_Fn&& __f) &&
+	{
+	  using _Up = __expected::__result0<_Fn>;
+	  static_assert(__expected::__is_expected<_Up>);
+	  static_assert(is_same_v<typename _Up::error_type, _Er>);
+
+	  if (has_value())
+	    return std::__invoke(std::forward<_Fn>(__f));
+	  else
+	    return _Up(unexpect, std::move(_M_unex));
+	}
+
+       template<typename _Fn> requires is_constructible_v<_Er, const _Er>
+	constexpr auto
+	and_then(_Fn&& __f) const &&
+	{
+	  using _Up = __expected::__result0<_Fn>;
+	  static_assert(__expected::__is_expected<_Up>);
+	  static_assert(is_same_v<typename _Up::error_type, _Er>);
+
+	  if (has_value())
+	    return std::__invoke(std::forward<_Fn>(__f));
+	  else
+	    return _Up(unexpect, std::move(_M_unex));
+	}
+
+      template<typename _Fn>
+	constexpr auto
+	or_else(_Fn&& __f) &
+	{
+	  using _Gr = __expected::__result<_Fn, _Er&>;
+	  static_assert(__expected::__is_expected<_Gr>);
+	  static_assert(is_same_v<typename _Gr::value_type, _Tp>);
+
+	  if (has_value())
+	    return _Gr();
+	  else
+	    return std::__invoke(std::forward<_Fn>(__f), _M_unex);
+	}
+
+      template<typename _Fn>
+	constexpr auto
+	or_else(_Fn&& __f) const &
+	{
+	  using _Gr = __expected::__result<_Fn, const _Er&>;
+	  static_assert(__expected::__is_expected<_Gr>);
+	  static_assert(is_same_v<typename _Gr::value_type, _Tp>);
+
+	  if (has_value())
+	    return _Gr();
+	  else
+	    return std::__invoke(std::forward<_Fn>(__f), _M_unex);
+	}
+
+      template<typename _Fn>
+	constexpr auto
+	or_else(_Fn&& __f) &&
+	{
+	  using _Gr = __expected::__result<_Fn, _Er&&>;
+	  static_assert(__expected::__is_expected<_Gr>);
+	  static_assert(is_same_v<typename _Gr::value_type, _Tp>);
+
+	  if (has_value())
+	    return _Gr();
+	  else
+	    return std::__invoke(std::forward<_Fn>(__f), std::move(_M_unex));
+	}
+
+      template<typename _Fn>
+	constexpr auto
+	or_else(_Fn&& __f) const &&
+	{
+	  using _Gr = __expected::__result<_Fn, const _Er&&>;
+	  static_assert(__expected::__is_expected<_Gr>);
+	  static_assert(is_same_v<typename _Gr::value_type, _Tp>);
+
+	  if (has_value())
+	    return _Gr();
+	  else
+	    return std::__invoke(std::forward<_Fn>(__f), std::move(_M_unex));
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, _Er&>
+	constexpr auto
+	transform(_Fn&& __f) &
+	{
+	  using _Up = __expected::__result0_xform<_Fn>;
+	  using _Res = expected<_Up, _Er>;
+
+	  if (has_value())
+	    return _Res(__in_place_inv{}, std::forward<_Fn>(__f));
+	  else
+	    return _Res(unexpect, _M_unex);
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, const _Er&>
+	constexpr auto
+	transform(_Fn&& __f) const &
+	{
+	  using _Up = __expected::__result0_xform<_Fn>;
+	  using _Res = expected<_Up, _Er>;
+
+	  if (has_value())
+	    return _Res(__in_place_inv{}, std::forward<_Fn>(__f));
+	  else
+	    return _Res(unexpect, _M_unex);
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, _Er>
+	constexpr auto
+	transform(_Fn&& __f) &&
+	{
+	  using _Up = __expected::__result0_xform<_Fn>;
+	  using _Res = expected<_Up, _Er>;
+
+	  if (has_value())
+	    return _Res(__in_place_inv{}, std::forward<_Fn>(__f));
+	  else
+	    return _Res(unexpect, std::move(_M_unex));
+	}
+
+      template<typename _Fn> requires is_constructible_v<_Er, const _Er>
+	constexpr auto
+	transform(_Fn&& __f) const &&
+	{
+	  using _Up = __expected::__result0_xform<_Fn>;
+	  using _Res = expected<_Up, _Er>;
+
+	  if (has_value())
+	    return _Res(__in_place_inv{}, std::forward<_Fn>(__f));
+	  else
+	    return _Res(unexpect, std::move(_M_unex));
+	}
+
+      template<typename _Fn>
+	constexpr auto
+	transform_error(_Fn&& __f) &
+	{
+	  using _Gr = __expected::__result_xform<_Fn, _Er&>;
+	  using _Res = expected<_Tp, _Gr>;
+
+	  if (has_value())
+	    return _Res();
+	  else
+	    return _Res(__unexpect_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       _M_unex);
+			});
+	}
+
+      template<typename _Fn>
+	constexpr auto
+	transform_error(_Fn&& __f) const &
+	{
+	  using _Gr = __expected::__result_xform<_Fn, const _Er&>;
+	  using _Res = expected<_Tp, _Gr>;
+
+	  if (has_value())
+	    return _Res();
+	  else
+	    return _Res(__unexpect_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       _M_unex);
+			});
+	}
+
+      template<typename _Fn>
+	constexpr auto
+	transform_error(_Fn&& __f) &&
+	{
+	  using _Gr = __expected::__result_xform<_Fn, _Er&&>;
+	  using _Res = expected<_Tp, _Gr>;
+
+	  if (has_value())
+	    return _Res();
+	  else
+	    return _Res(__unexpect_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       std::move(_M_unex));
+			});
+	}
+
+      template<typename _Fn>
+	constexpr auto
+	transform_error(_Fn&& __f) const &&
+	{
+	  using _Gr = __expected::__result_xform<_Fn, const _Er&&>;
+	  using _Res = expected<_Tp, _Gr>;
+
+	  if (has_value())
+	    return _Res();
+	  else
+	    return _Res(__unexpect_inv{}, [&]() {
+			  return std::__invoke(std::forward<_Fn>(__f),
+					       std::move(_M_unex));
+			});
+	}
+
       // equality operators
 
       template<typename _Up, typename _Er2>
 	requires is_void_v<_Up>
+	  && requires (const _Er& __e, const _Er2& __e2) {
+	    { __e == __e2 } -> convertible_to<bool>;
+	  }
+	[[nodiscard]]
 	friend constexpr bool
 	operator==(const expected& __x, const expected<_Up, _Er2>& __y)
 	noexcept(noexcept(bool(__x.error() == __y.error())))
 	{
+	  if (__x.has_value() != __y.has_value())
+	    return false;
 	  if (__x.has_value())
-	    return __y.has_value();
-	  else
-	    return !__y.has_value() && bool(__x.error() == __y.error());
+	    return true;
+	  return __x.error() == __y.error();
 	}
 
       template<typename _Er2>
+	requires requires (const _Er& __e, const _Er2& __e2) {
+	  { __e == __e2 } -> convertible_to<bool>;
+	}
+	[[nodiscard]]
 	friend constexpr bool
 	operator==(const expected& __x, const unexpected<_Er2>& __e)
 	noexcept(noexcept(bool(__x.error() == __e.error())))
-	{ return !__x.has_value() && bool(__x.error() == __e.error()); }
+	{
+	  if (!__x.has_value())
+	    return __x.error() == __e.error();
+	  return false;
+	}
 
       friend constexpr void
       swap(expected& __x, expected& __y)
@@ -1225,6 +1979,20 @@ namespace __expected
 	    _M_unex = std::forward<_Vp>(__v);
 	}
 
+      using __in_place_inv = __expected::__in_place_inv;
+      using __unexpect_inv = __expected::__unexpect_inv;
+
+      template<typename _Fn>
+	explicit constexpr
+	expected(__in_place_inv, _Fn&& __fn)
+	: _M_void(), _M_has_value(true)
+	{ std::forward<_Fn>(__fn)(); }
+
+      template<typename _Fn>
+	explicit constexpr
+	expected(__unexpect_inv, _Fn&& __fn)
+	: _M_unex(std::forward<_Fn>(__fn)()), _M_has_value(false)
+	{ }
 
       union {
 	struct { } _M_void;
@@ -1238,5 +2006,5 @@ namespace __expected
 _GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 
-#endif // C++23
+#endif // __cpp_lib_expected
 #endif // _GLIBCXX_EXPECTED

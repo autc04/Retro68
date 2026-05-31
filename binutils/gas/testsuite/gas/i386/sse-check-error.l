@@ -10,6 +10,9 @@
 .*:33: Error: .*
 .*:36: Error: .*
 .*:39: Error: .*
+.*:44: Error: .*
+.*:45: Error: .*
+.*:48: Error: .*
 GAS LISTING .*
 
 
@@ -78,4 +81,17 @@ GAS LISTING .*
 [ 	]*[0-9]+[ 	]+CFC0
 [ 	]*[0-9]+[ 	]+\?\?\?\? 62F27D48 		vgf2p8mulb %zmm0, %zmm0, %zmm0
 [ 	]*[0-9]+[ 	]+CFC0
-
+[ 	]*[0-9]+[ 	]+
+[ 	]*[0-9]+[ 	]+\# KeyLocker instructions
+[ 	]*[0-9]+[ 	]+\?\?\?\? F30F38DD 		aesdec128kl \(%eax\), %xmm0
+.*  Error: SSE instruction `aesdec128kl' is used
+[ 	]*[0-9]+[ 	]+00
+[ 	]*[0-9]+[ 	]+\?\?\?\? F30F38FA 		encodekey128 %eax, %edi
+.*  Error: SSE instruction `encodekey128' is used
+[ 	]*[0-9]+[ 	]+F8
+[ 	]*[0-9]+[ 	]+
+[ 	]*[0-9]+[ 	]+\# WideKL instructions
+[ 	]*[0-9]+[ 	]+\?\?\?\? F30F38D8 		aesencwide256kl \(%eax\)
+.*  Error: SSE instruction `aesencwide256kl' is used
+[ 	]*[0-9]+[ 	]+10
+#pass

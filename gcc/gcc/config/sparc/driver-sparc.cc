@@ -1,5 +1,5 @@
 /* Subroutines for the gcc driver.
-   Copyright (C) 2011-2022 Free Software Foundation, Inc.
+   Copyright (C) 2011-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -127,13 +127,12 @@ host_detect_local_cpu (int argc, const char **argv)
   kc = kstat_open ();
   if (kc != NULL)
     {
-      ksp = kstat_lookup (kc, CONST_CAST2 (char *, const char *, "cpu_info"),
-			  -1, NULL);
+      ksp = kstat_lookup (kc, const_cast<char *> ("cpu_info"), -1, NULL);
       if (ksp != NULL
 	  && kstat_read (kc, ksp, NULL) != -1
 	  && ksp->ks_type == KSTAT_TYPE_NAMED)
 	brand = (kstat_named_t *)
-	  kstat_data_lookup (ksp, CONST_CAST2 (char *, const char *, "brand"));
+	  kstat_data_lookup (ksp, const_cast<char *> ("brand"));
       if (brand != NULL && brand->data_type == KSTAT_DATA_STRING)
 	buf = KSTAT_NAMED_STR_PTR (brand);
     }

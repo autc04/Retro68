@@ -1,5 +1,5 @@
 /* Output Go language descriptions of types.
-   Copyright (C) 2008-2022 Free Software Foundation, Inc.
+   Copyright (C) 2008-2026 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <iant@google.com>.
 
 This file is part of GCC.
@@ -465,7 +465,7 @@ go_undef (unsigned int lineno, const char *buffer)
 
   real_debug_hooks->undef (lineno, buffer);
 
-  mhval.name = CONST_CAST (char *, buffer);
+  mhval.name = const_cast<char *> (buffer);
   mhval.value = NULL;
   slot = htab_find_slot (macro_hash, &mhval, NO_INSERT);
   if (slot != NULL)
@@ -757,6 +757,25 @@ go_format_type (class godump_container *container, tree type,
 	    ret = false;
 	  }
 	obstack_grow (ob, s, strlen (s));
+      }
+      break;
+
+    case BITINT_TYPE:
+      {
+	const char *s;
+	char buf[100];
+
+	s = go_get_uinttype_for_precision (TYPE_PRECISION (type),
+					   TYPE_UNSIGNED (type));
+	if (s == NULL)
+	  {
+	    snprintf (buf, sizeof buf, "INVALID-bitint-%u%s",
+		      TYPE_PRECISION (type),
+		      TYPE_UNSIGNED (type) ? "u" : "");
+	    s = buf;
+	    ret = false;
+	  }
+	obstack_grow (ob, s, strlen(s));
       }
       break;
 
@@ -1099,10 +1118,8 @@ go_output_typedef (class godump_container *container, tree decl)
      separately.  */
   if (TREE_CODE (TREE_TYPE (decl)) == ENUMERAL_TYPE
       && TYPE_SIZE (TREE_TYPE (decl)) != 0
-      && !container->decls_seen.contains (TREE_TYPE (decl))
-      && (TYPE_CANONICAL (TREE_TYPE (decl)) == NULL_TREE
-	  || !container->decls_seen.contains
-				    (TYPE_CANONICAL (TREE_TYPE (decl)))))
+      && !container->decls_seen.contains
+	    (TYPE_MAIN_VARIANT (TREE_TYPE (decl))))
     {
       tree element;
 
@@ -1114,6 +1131,7 @@ go_output_typedef (class godump_container *container, tree decl)
 	  struct macro_hash_value *mhval;
 	  void **slot;
 	  char buf[WIDE_INT_PRINT_BUFFER_SIZE];
+	  tree value = DECL_INITIAL (TREE_VALUE (element));
 
 	  name = IDENTIFIER_POINTER (TREE_PURPOSE (element));
 
@@ -1127,21 +1145,23 @@ go_output_typedef (class godump_container *container, tree decl)
 	  if (*slot != NULL)
 	    macro_hash_del (*slot);
 
-	  if (tree_fits_shwi_p (TREE_VALUE (element)))
+	  if (tree_fits_shwi_p (value))
 	    snprintf (buf, sizeof buf, HOST_WIDE_INT_PRINT_DEC,
-		     tree_to_shwi (TREE_VALUE (element)));
-	  else if (tree_fits_uhwi_p (TREE_VALUE (element)))
+		     tree_to_shwi (value));
+	  else if (tree_fits_uhwi_p (value))
 	    snprintf (buf, sizeof buf, HOST_WIDE_INT_PRINT_UNSIGNED,
-		      tree_to_uhwi (TREE_VALUE (element)));
+		      tree_to_uhwi (value));
 	  else
-	    print_hex (wi::to_wide (element), buf);
+	    {
+	      wide_int w = wi::to_wide (element);
+	      gcc_assert (w.get_len () <= WIDE_INT_MAX_INL_ELTS);
+	      print_hex (w, buf);
+	    }
 
 	  mhval->value = xstrdup (buf);
 	  *slot = mhval;
 	}
-      container->decls_seen.add (TREE_TYPE (decl));
-      if (TYPE_CANONICAL (TREE_TYPE (decl)) != NULL_TREE)
-	container->decls_seen.add (TYPE_CANONICAL (TREE_TYPE (decl)));
+      container->decls_seen.add (TYPE_MAIN_VARIANT (TREE_TYPE (decl)));
     }
 
   if (DECL_NAME (decl) != NULL_TREE)
@@ -1166,14 +1186,14 @@ go_output_typedef (class godump_container *container, tree decl)
       slot = htab_find_slot (container->type_hash, type, INSERT);
       if (*slot != NULL)
 	return;
-      *slot = CONST_CAST (void *, (const void *) type);
+      *slot = const_cast<void *> ((const void *) type);
 
       if (!go_format_type (container, original_type, true, false,
 			   NULL, false))
 	{
 	  fprintf (go_dump_file, "// ");
 	  slot = htab_find_slot (container->invalid_hash, type, INSERT);
-	  *slot = CONST_CAST (void *, (const void *) type);
+	  *slot = const_cast<void *> ((const void *) type);
 	}
       fprintf (go_dump_file, "type _%s ",
 	       IDENTIFIER_POINTER (DECL_NAME (decl)));
@@ -1205,14 +1225,14 @@ go_output_typedef (class godump_container *container, tree decl)
        slot = htab_find_slot (container->type_hash, type, INSERT);
        if (*slot != NULL)
          return;
-       *slot = CONST_CAST (void *, (const void *) type);
+       *slot = const_cast<void *> ((const void *) type);
 
        if (!go_format_type (container, TREE_TYPE (decl), false, false, NULL,
 			    false))
 	 {
 	   fprintf (go_dump_file, "// ");
 	   slot = htab_find_slot (container->invalid_hash, type, INSERT);
-	   *slot = CONST_CAST (void *, (const void *) type);
+	   *slot = const_cast<void *> ((const void *) type);
 	 }
        fprintf (go_dump_file, "type _%s ",
 	       IDENTIFIER_POINTER (TYPE_NAME (TREE_TYPE (decl))));
@@ -1326,13 +1346,13 @@ static void
 keyword_hash_init (class godump_container *container)
 {
   size_t i;
-  size_t count = sizeof (keywords) / sizeof (keywords[0]);
+  size_t count = ARRAY_SIZE (keywords);
   void **slot;
 
   for (i = 0; i < count; i++)
     {
       slot = htab_find_slot (container->keyword_hash, keywords[i], INSERT);
-      *slot = CONST_CAST (void *, (const void *) keywords[i]);
+      *slot = const_cast<void *> ((const void *) keywords[i]);
     }
 }
 

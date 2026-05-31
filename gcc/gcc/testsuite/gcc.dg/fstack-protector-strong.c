@@ -43,6 +43,8 @@ foo2 ()
 {
   struct AA aa;
   int i;
+#pragma GCC novector
+#pragma GCC unroll 0
   for (i = 0; i < 10; ++i)
     {
       aa.as.array[i] = i * (i-1) + i / 2;

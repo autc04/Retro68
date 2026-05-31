@@ -1,5 +1,5 @@
 /* Definitions for PA_RISC with ELF format on 64-bit Linux
-   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -16,6 +16,16 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
+
+/* 64-bit ELF target.  */
+#undef TARGET_ELF64
+#define TARGET_ELF64 1
+
+/* Define this for shared library support because it isn't in the main
+   linux.h file.  */
+
+#undef GLIBC_DYNAMIC_LINKER
+#define GLIBC_DYNAMIC_LINKER "/lib64/ld64.so.1"
 
 #if 0 /* needs some work :-( */
 /* If defined, this macro specifies a table of register pairs used to

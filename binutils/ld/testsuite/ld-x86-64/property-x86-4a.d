@@ -9,4 +9,4 @@ Displaying notes found in: .note.gnu.property
   GNU                  0x00000028	NT_GNU_PROPERTY_TYPE_0
       Properties: no copy on protected 
 	x86 feature used: x86
-	x86 ISA used: 
+	x86 ISA used: x86-64-baseline

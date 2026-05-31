@@ -1,8 +1,8 @@
 /* { dg-do compile { target lp64 } } */
 /* { dg-skip-if "" { powerpc*-*-darwin* } } */
+/* { dg-options "-mdejagnu-cpu=power9 -mvsx -O2" } */
 /* { dg-require-effective-target int128 } */
-/* { dg-require-effective-target powerpc_p9vector_ok } */
-/* { dg-options "-mdejagnu-cpu=power9 -O2" } */
+/* { dg-require-effective-target powerpc_vsx } */
 
 #include <altivec.h>
 
@@ -105,3 +105,4 @@ parity_ti_4u (__uint128_t a)
 /* { dg-final { scan-assembler "vprtybd" } } */
 /* { dg-final { scan-assembler "vprtybq" } } */
 /* { dg-final { scan-assembler "vprtybw" } } */
+/* { dg-final { scan-assembler-not "vpopcntb" } } */

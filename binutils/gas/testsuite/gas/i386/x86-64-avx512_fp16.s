@@ -1,6 +1,5 @@
 # Check 64bit AVX512-FP16 instructions
 
-	.allow_index_reg
 	.text
 _start:
 	vaddph	%zmm28, %zmm29, %zmm30	 #AVX512-FP16

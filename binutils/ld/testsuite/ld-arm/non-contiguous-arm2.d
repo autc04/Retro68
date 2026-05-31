@@ -1,6 +1,6 @@
 #name: non-contiguous-arm2
 #source: non-contiguous-arm.s
-#ld: --enable-non-contiguous-regions -T non-contiguous-arm2.ld
+#ld: --enable-non-contiguous-regions -T non-contiguous-arm2.ld -z max-page-size=0x10000
 #objdump: -rdth
 #xfail: [is_generic]
 
@@ -37,19 +37,19 @@ SYMBOL TABLE:
 Disassembly of section .raml:
 
 1fff0000 \<code1\>:
-1fff0000:	e1a00000 	nop			; \(mov r0, r0\)
-1fff0004:	e1a00000 	nop			; \(mov r0, r0\)
+1fff0000:	e1a00000 	nop			@ \(mov r0, r0\)
+1fff0004:	e1a00000 	nop			@ \(mov r0, r0\)
 1fff0008:	ebffffff 	bl	1fff000c \<code2\>
 
 1fff000c \<code2\>:
-1fff000c:	e1a00000 	nop			; \(mov r0, r0\)
-1fff0010:	e1a00000 	nop			; \(mov r0, r0\)
+1fff000c:	e1a00000 	nop			@ \(mov r0, r0\)
+1fff0010:	e1a00000 	nop			@ \(mov r0, r0\)
 1fff0014:	eb003ff9 	bl	20000000 \<code3\>
 
 Disassembly of section .ramu:
 
 20000000 \<code3\>:
-20000000:	e1a00000 	nop			; \(mov r0, r0\)
+20000000:	e1a00000 	nop			@ \(mov r0, r0\)
 20000004:	eb00fffd 	bl	20040000 \<code4\>
 
 Disassembly of section .ramz:

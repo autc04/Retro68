@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-require-effective-target vect_extract_even_odd } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -47,6 +48,7 @@ main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N/2; i++)
     {
       if (out[i*12] !=  in[i*12]
@@ -79,6 +81,7 @@ main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N/2; i++)
     {
       if (out[i*6] !=  in[i*6]
@@ -103,5 +106,9 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 1 "vect" } } */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target { ! vect64 } } } } */
+/* The unsupported interleaving works fine with V2SImode vectors given we
+   can always combine that from two vectors.  */
+/* { dg-final { scan-tree-dump-times "vectorized 2 loops" 1 "vect" { target vect64 } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 2 "vect" { target { ! vect64 } } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 4 "vect" { target vect64 } } } */

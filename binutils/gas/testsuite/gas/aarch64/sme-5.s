@@ -95,7 +95,3 @@ ld1q {za15v.q[bar, #0]}, p7/z, [x17]
 /* Optional LSL operator.  */
 ld1b {za0v.b[w15, 15]}, p7/z, [sp, x0, lsl #0]
 ld1b {za0h.b[w12, 0]}, p0/z, [x0, x1]
-ld1h {za0h.h[w12, 0]}, p0/z, [x0, x1]
-ld1w {za3v.s[w12, 3]}, p7/z, [x0, x1]
-ld1d {za0h.d[w12, 0]}, p0/z, [x0, x1]
-ld1q {za0v.q[w12, 0]}, p0/z, [x0, x1]

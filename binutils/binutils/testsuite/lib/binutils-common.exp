@@ -1,4 +1,4 @@
-# Copyright (C) 1993-2022 Free Software Foundation, Inc.
+# Copyright (C) 1993-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -32,7 +32,6 @@ proc is_elf_format {} {
 #	 && ![istarget *-*-windiss*]
 
     if {    ![istarget *-*-chorus*]
-	 && ![istarget *-*-cloudabi*]
 	 && ![istarget *-*-eabi*]
 	 && ![istarget *-*-*elf*]
 	 && ![istarget *-*-*freebsd*]
@@ -41,16 +40,15 @@ proc is_elf_format {} {
 	 && ![istarget *-*-irix5*]
 	 && ![istarget *-*-irix6*]
 	 && ![istarget *-*-kaos*]
+	 && ![istarget kvx-*-*]
 	 && ![istarget *-*-*linux*]
 	 && ![istarget *-*-lynxos*]
-	 && ![istarget *-*-nacl*]
 	 && ![istarget *-*-netbsd*]
 	 && ![istarget *-*-nto*]
 	 && ![istarget *-*-openbsd*]
 	 && ![istarget *-*-rtems*]
 	 && ![istarget *-*-solaris2*]
 	 && ![istarget *-*-sysv4*]
-	 && ![istarget *-*-unixware*]
 	 && ![istarget *-*-wasm32*]
 	 && ![istarget avr-*-*]
 	 && ![istarget hppa*64*-*-hpux*]
@@ -63,8 +61,7 @@ proc is_elf_format {} {
 	return 0
     }
 
-    if { [istarget *-*-linux*ecoff*]
-	 || [istarget *-*-rtemscoff*] } {
+    if { [istarget *-*-linux*ecoff*] } {
 	return 0
     }
 
@@ -109,6 +106,21 @@ proc is_pecoff_format args {
 	 || [istarget $m_os-mingw*]
 	 || [istarget $m_os-pe*]
 	 || [istarget $m_os-winnt*] } {
+	return 1
+    }
+    return 0
+}
+
+# True if the object format is known to COFF or PE (but not ECOFF or XCOFF)
+#
+proc is_coff_format {} {
+    if { [is_pecoff_format]
+	 || [istarget *-*-coff*]
+	 || [istarget *-*-go32*]
+	 || [istarget *-*-msdosdjgpp*]
+	 || [istarget tic4x-*-*]
+	 || [istarget tic54x-*-*]
+	 || [istarget z8k-*-*] } {
 	return 1
     }
     return 0
@@ -224,7 +236,6 @@ proc match_target { target } {
 proc supports_gnu_osabi {} {
     if { [istarget *-*-gnu*]
 	 || [istarget *-*-linux*]
-	 || [istarget *-*-nacl*]
 	 || ( [istarget *-*-*bsd*] && ![istarget arm*-*-netbsd*] )
 	 || [istarget *-*-lynxos]
 	 || ( [istarget *-*-nto*] && ![istarget arm*-*-*] )
@@ -242,6 +253,7 @@ proc supports_gnu_osabi {} {
     if { [istarget "arm*-*-*"]
 	 || [istarget "msp430-*-*"]
 	 || [istarget "hppa-unknown-elf"]
+	 || [istarget "kvx*-*-*"]
 	 || [istarget "visium-*-*"] } {
 	return 0
     }
@@ -358,6 +370,11 @@ proc check_pie_support { } {
     global pie_available_saved
     global ld
 
+    ## kvx-*-* does support -shared but not PIE.
+    if { [istarget "kvx*-*-*"] && ![istarget "kvx*-linux-*"] } {
+        set pie_available_saved 0
+    }
+
     if {![info exists pie_available_saved]} {
 	set ld_output [remote_exec host $ld "-pie"]
 	if { [ string first "not supported" $ld_output ] >= 0 } {
@@ -388,6 +405,25 @@ proc check_relro_support { } {
     return $relro_available_saved
 }
 
+proc check_memory_seal_support { } {
+    global memory_seal_available_saved
+    global ld
+
+    if {![info exists memory_seal_available_saved]} {
+	remote_file host delete nomemory_seal
+	set ld_output [remote_exec host $ld "-z nomemory-seal"]
+	if { [string first "not supported" $ld_output] >= 0
+	     || [string first "unrecognized option" $ld_output] >= 0
+	     || [string first "-z nomemory-seal ignored" $ld_output] >= 0
+	     || [string first "cannot find nomemory-seal" $ld_output] >= 0 } {
+	    set memory_seal_available_saved 0
+	} else {
+	    set memory_seal_available_saved 1
+	}
+    }
+    return $memory_seal_available_saved
+}
+
 # Check for support of the .noinit section, used for data that is not
 # initialized at load, or during the application's initialization sequence.
 proc supports_noinit_section {} {
@@ -401,7 +437,7 @@ proc supports_noinit_section {} {
     #
     # arc-*-* is not included here, since it only supports .noinit with the
     # non-default arcv2elf emulation.
-    if {[istarget "arm-*-*"]
+    if { ([istarget "arm-*-*"] && ![istarget "arm*-linux-*"])
 	  || [istarget "avr-*-*"]
 	  || [istarget "msp430-*-*"]
 	  || [istarget "pru-*-*"] } {
@@ -420,7 +456,7 @@ proc supports_persistent_section {} {
 
     # Targets that set HAVE_PERSISTENT=yes in their emulparams script utilizing
     # elf.sc, or explicitly define a .persistent section in their linker script.
-    if { [istarget "arm-*-*"]
+    if { ([istarget "arm-*-*"] && ![istarget "arm*-linux-*"])
 	  || [istarget "msp430-*-*"] } {
 	return 1;
     }
@@ -431,12 +467,111 @@ proc supports_persistent_section {} {
 proc supports_dt_relr {} {
     if { ([istarget x86_64-*-*]
 	  || [istarget i?86-*-*]
-	  || [istarget powerpc64*-*-*])
+	  || [istarget powerpc64*-*-*]
+	  || [istarget aarch64*-*-*]
+	  || [istarget loongarch64*-*-*])
 	 && ([istarget *-*-linux*]
 	     || [istarget *-*-gnu*]) } {
 	return 1
     }
     return 0
+}
+
+# Whether a target assembler supports --gsframe.
+proc gas_sframe_check {} {
+    global check_as_sframe_result
+    global AS
+    global ASFLAGS
+    if [info exists check_as_sframe_result] {
+	return $check_as_sframe_result
+    }
+
+    set as_file "tmpdir/check_as_sframe.s"
+    set as_fh [open $as_file w 0666]
+    puts $as_fh "# Generated file. DO NOT EDIT"
+    puts $as_fh "\t.cfi_startproc"
+    puts $as_fh "\t.cfi_endproc"
+    close $as_fh
+    remote_download host $as_file
+    verbose -log "Checking SFrame support in AS:"
+
+    set status [remote_exec host "$AS $ASFLAGS --gsframe $as_file"]
+
+    if { [lindex $status 0] != 0 } then {
+	verbose -log "SFrame not supported in AS"
+	set check_as_sframe_result 0
+    } else {
+	verbose -log "SFrame supported in AS"
+	set check_as_sframe_result 1
+    }
+    return $check_as_sframe_result
+}
+
+# Whether a target supports Object Attributes v1
+proc supports_oa_v1 {} {
+    if { ![is_elf_format]
+	 && ![istarget *-*-vxworks*] && ![istarget *-*-windiss*] } {
+	return 0
+    }
+    if { [istarget arc-*-*]
+	 || [istarget arm*-*-*]
+	 || [istarget csky*-*-*]
+	 || [istarget loongarch*-*-*]
+	 || [istarget m68*-*-*]
+	 || [istarget mips*-*-*]
+	 || [istarget msp*-*-*]
+	 || [istarget powerpc*-*-*]
+	 || [istarget riscv*-*-*]
+	 || [istarget s390*-*-*]
+	 || [istarget sparc*-*-*]
+	 || [istarget tic6x*-*-*] } {
+	return 1
+    }
+    return 0
+}
+
+# Whether a target supports Object Attributes v2
+proc supports_oa_v2 {} {
+    if { ![is_elf_format]
+	 && ![istarget *-*-vxworks*] && ![istarget *-*-windiss*] } {
+	return 0
+    }
+    if { [istarget aarch64*-*-*] } {
+	return 1
+    }
+    return 0
+}
+
+# get_relative_path FROM TO
+#
+# Return a relative path to TO starting from FROM, which is usually
+# supposed to be a directory.  The result is optimised in that both
+# paths are normalized and any leading part shared between the two
+# discarded, and then a suitable number of "../" elements prepended
+# to the remaining part of TO to get to the point of divergence from
+# FROM.
+
+proc get_relative_path { from to } {
+    set split_from [file split [file normalize $from]]
+    set split_to [file split [file normalize [file dirname $to]]]
+    set from_len [llength $split_from]
+    set to_len [llength $split_to]
+    set len [expr { $to_len < $from_len } ? $to_len : $from_len]
+    set relative_path {}
+
+    for { set i 0 } { $i < $len } { incr i } {
+	if { ![string equal [lindex $split_from $i] [lindex $split_to $i]] } {
+	    break
+	}
+    }
+    for { set j $i } { $j < $from_len } { incr j } {
+	lappend relative_path ".."
+    }
+    for { set j $i } { $j < $to_len } { incr j } {
+	lappend relative_path [lindex $split_to $j]
+    }
+
+    return [eval file join $relative_path [file tail $to]]
 }
 
 # Compare two files line-by-line.  FILE_1 is the actual output and FILE_2
@@ -627,51 +762,62 @@ proc regexp_diff { file_1 file_2 args } {
 # ld: warning: /lib64/ld-linux-x86-64.so.2: unsupported GNU_PROPERTY_TYPE (5) type : 0xc0010001
 proc prune_warnings_extra { text } {
     global experimental
-    # Warnings are only pruned from non-experimental code (ie code not
-    # on a release branch).  For experimental code we want the warnings
+
+    # Property warnings are only pruned from non-experimental code (ie code
+    # not on a release branch).  For experimental code we want the warnings
     # as they indicate that the sources need to be updated to recognise
     # the new properties.
     if { "$experimental" == "false" } {
 	# The "\\1" is to try to preserve a "\n" but only if necessary.
 	regsub -all "(^|\n)(\[^\n\]*: warning:\[^\n\]*unsupported GNU_PROPERTY_TYPE\[^\n\]*\n?)+" $text "\\1" text
     }
+
     # PR binutils/23898: It is OK to have gaps in build notes.
     regsub -all "(^|\n)(\[^\n\]*: Warning: Gap in build notes detected from\[^\n\]*\n?)+" $text "\\1" text
+
+    # Many tests use assembler source files without a .note.GNU-stack section.
+    # So ignore warnings about it being missing.
     regsub -all "(^|\n)(\[^\n\]*: warning:\[^\n\]*missing \\.note\\.GNU-stack section\[^\n\]*\n?)+" $text "\\1" text
     regsub -all "(^|\n)(\[^\n\]*: NOTE: This behaviour is deprecated\[^\n\]*\n?)+" $text "\\1" text
+
+    # Ignore warnings about RWX segments.
     regsub -all "(^|\n)(\[^\n\]*: warning:\[^\n\]*has a LOAD segment with RWX permissions\[^\n\]*\n?)+" $text "\\1" text
     regsub -all "(^|\n)(\[^\n\]*: warning:\[^\n\]*has a TLS segment with execute permission\[^\n\]*\n?)+" $text "\\1" text
+
+    # Configuring with --enable-warn-execstack=yes will generate warnings if
+    # -z execstack is used.
+    regsub -all "(^|\n)(\[^\n\]*: warning: enabling an executable stack because of -z execstack command line option\[^\n\]*\n?)+" $text "\\1" text
+
+    # Ignore LTO warnings triggered by configuring with --enable-pgo-build=lto.
+    regsub -all "(^|\n)(\[^\n\]*lto-wrapper: warning: using serial compilation of \[0-9\]+ LTRANS jobs\[^\n\]*\n?)+" $text "\\1" text
+    regsub -all "(^|\n)(\[^\n\]*lto-wrapper: note: \[^\n\]*\n?)+" $text "\\1" text
+
     return $text
 }
 
-# This definition is taken from an unreleased version of DejaGnu.  Once
-# that version gets released, and has been out in the world for a few
-# months at least, it may be safe to delete this copy.
-if ![string length [info proc prune_warnings]] {
-    #
-    # prune_warnings -- delete various system verbosities from TEXT
-    #
-    # An example is:
-    # ld.so: warning: /usr/lib/libc.so.1.8.1 has older revision than expected 9
-    #
-    # Sites with particular verbose os's may wish to override this in site.exp.
-    #
-    proc prune_warnings { text } {
-	# This is from sun4's.  Do it for all machines for now.
-	# The "\\1" is to try to preserve a "\n" but only if necessary.
-	regsub -all "(^|\n)(ld.so: warning:\[^\n\]*\n?)+" $text "\\1" text
-	# It might be tempting to get carried away and delete blank lines, etc.
-	# Just delete *exactly* what we're ask to, and that's it.
-	set text [prune_warnings_extra $text]
-	return $text
-    }
-} elseif { [info procs saved-prune_warnings] == [list] } {
+if { [info procs saved-prune_warnings] == [list] } {
     rename prune_warnings saved-prune_warnings
     proc prune_warnings { text } {
 	set text [saved-prune_warnings $text]
 	set text [prune_warnings_extra $text]
 	return $text
     }
+}
+
+# prune_dump_output OUTPUT
+#
+# Clean up the output from system specific or unwanted characters.
+# This allows to simplify the regexp inside dump tests.
+proc prune_dump_output { output } {
+    if [ishost "*-*-mingw*"] {
+	# Prune DOS drive letter from an absolute path if it appears
+	# at the beginning of a line.
+	regsub -all {(^|\n)[[:alpha:]]:(/|\\)} $output "\\1\\2" output
+    }
+
+    # Prune last end of line.
+    regsub "\n$" $output "" output
+    return $output
 }
 
 # run_dump_test FILE (optional:) EXTRA_OPTIONS
@@ -728,6 +874,9 @@ if ![string length [info proc prune_warnings]] {
 #       used.  That means that the "source" specific options are appended to
 #       the "as" flags for their corresponding files, and any extra processing
 #       (e.g. with "ld" and "objcopy") is repeated for each test.
+#
+#   dlltool: FLAGS
+#       Before linking, run dlltool with FLAGS.
 #
 #   ld: FLAGS
 #	Link assembled files using FLAGS, in the order of the "source"
@@ -830,6 +979,9 @@ if ![string length [info proc prune_warnings]] {
 #	Run this test and it is is expected to fail on a specified list
 #	of targets.
 #
+#   noxfail: GLOB|PROC ...
+#	Of targets that match the xfail list, this list won't fail.
+#
 #   error: REGEX
 #	An error with message matching REGEX must be emitted for the test
 #	to pass.  The DUMPPROG, addr2line, nm, objdump, readelf and size
@@ -871,7 +1023,7 @@ proc run_dump_test { name {extra_options {}} } {
     global ELFEDIT ELFEDITFLAGS LD LDFLAGS NM NMFLAGS OBJCOPY OBJCOPYFLAGS
     global OBJDUMP OBJDUMPFLAGS READELF READELFFLAGS STRIP STRIPFLAGS
     global SIZE SIZEFLAGS
-    global copyfile env runtests srcdir subdir verbose
+    global copyfile env runtests srcdir subdir verbose base_dir
     global DT_RELR_LDFLAGS NO_DT_RELR_LDFLAGS
 
     if [string match "*/*" $name] {
@@ -905,6 +1057,7 @@ proc run_dump_test { name {extra_options {}} } {
     set as_final_flags {}
     set as_additional_flags {}
     set opts(cc) {}
+    set opts(dlltool) {}
     set opts(dump) {}
     set opts(elfedit) {}
     set opts(error) {}
@@ -933,6 +1086,7 @@ proc run_dump_test { name {extra_options {}} } {
     set opts(warning) {}
     set opts(warning_output) {}
     set opts(xfail) {}
+    set opts(noxfail) {}
 
     set in_extra 0
     foreach i [concat $opt_array {{} {}} $extra_options] {
@@ -951,16 +1105,19 @@ proc run_dump_test { name {extra_options {}} } {
 	# Allow more substitutions, including tcl functions, for as, ld,
 	# and cc.  Not done in general because extra quoting is needed for glob
 	# args used for example in binutils-all/remove-relocs-04.d.
-	if { $opt_name == "as" || $opt_name == "ld" || $opt_name == "cc" } {
+	if { $opt_name == "as" || $opt_name == "ld" || $opt_name == "ld_after_inputfiles" || $opt_name == "cc" } {
 	    set opt_val [subst $opt_val]
 	} else {
 	    # Just substitute $srcdir and $subdir
 	    regsub -all {\$srcdir} "$opt_val" "$srcdir" opt_val
 	    regsub -all {\$subdir} "$opt_val" "$subdir" opt_val
+	    regsub -all {\$\{srcdir\}} "$opt_val" "$srcdir" opt_val
+	    regsub -all {\$\{subdir\}} "$opt_val" "$subdir" opt_val
 	}
 
 	switch -- $opt_name {
 	    xfail {}
+	    noxfail {}
 	    target {}
 	    alltargets {}
 	    notarget {}
@@ -1053,17 +1210,17 @@ proc run_dump_test { name {extra_options {}} } {
 	[big_or_little_endian] opts(ld)
 
     if { $opts(name) == "" } {
-	set testname "$subdir/$name"
+	set base_testname "$subdir/$name"
     } else {
-	set testname $opts(name)
+	set base_testname $opts(name)
     }
 
     set err_warn 0
     foreach opt { warning error warning_output error_output } {
 	if { $opts($opt) != "" } {
 	    if { $err_warn } {
-		perror "$testname: bad mix of warning and error test directives"
-		unresolved $testname
+		perror "$base_testname: bad mix of warning and error test directives"
+		unresolved $base_testname
 		return
 	    }
 	    set err_warn 1
@@ -1102,19 +1259,19 @@ proc run_dump_test { name {extra_options {}} } {
 	    }
 	}
 	if { $targmatch == 0 } {
-	    unsupported $testname
+	    unsupported $base_testname
 	    return
 	}
     }
     foreach targ $opts(alltargets) {
 	if ![match_target $targ] {
-	    unsupported $testname
+	    unsupported $base_testname
 	    return
 	}
     }
     foreach targ $opts(notarget) {
 	if [match_target $targ] {
-	    unsupported $testname
+	    unsupported $base_testname
 	    return
 	}
     }
@@ -1132,7 +1289,7 @@ proc run_dump_test { name {extra_options {}} } {
 		size		{ set dumpprogram size }
 		default		{
 		    perror "unrecognized DUMPPROG option $opts(DUMPPROG) in $file.d"
-		    unresolved $testname
+		    unresolved $base_testname
 		    return
 		}
 	    }
@@ -1142,7 +1299,7 @@ proc run_dump_test { name {extra_options {}} } {
 		if {$opts($p) != ""} {
 		    if {$dumpprogram != ""} {
 			perror "ambiguous dump program in $file.d"
-			unresolved $testname
+			unresolved $base_testname
 			return
 		    } else {
 			set dumpprogram $p
@@ -1152,7 +1309,7 @@ proc run_dump_test { name {extra_options {}} } {
 	}
 	if { $dumpprogram == "" && $opts(map) == "" && !$err_warn } {
 	    perror "dump program unspecified in $file.d"
-	    unresolved $testname
+	    unresolved $base_testname
 	    return
 	}
     }
@@ -1191,7 +1348,7 @@ proc run_dump_test { name {extra_options {}} } {
 	    if { $cmdret != 0} {
 		send_log "compilation of $cfile failed, exit status $cmdret with <$comp_output>"
 		# Should this be 'unresolved', or is that too silent?
-		fail $testname
+		fail $base_testname
 		return 0
 	    }
 	}
@@ -1226,8 +1383,19 @@ proc run_dump_test { name {extra_options {}} } {
 	    break
 	}
     }
+    foreach targ $opts(noxfail) {
+	if [match_target $targ] {
+	    clear_xfail "*-*-*"
+	    break
+	}
+    }
 
     foreach as_flags $as_final_flags {
+	if { [llength $as_final_flags] > 1 } {
+	    set testname [concat $base_testname $as_flags]
+	} else {
+	    set testname $base_testname
+	}
 	# Assemble each file.
 	set objfiles {}
 	for { set i 0 } { $i < [llength $sourcefiles] } { incr i } {
@@ -1296,6 +1464,19 @@ proc run_dump_test { name {extra_options {}} } {
 	    }
 	}
 
+	# Run dlltool.
+	if { $cmdret == 0 && $opts(dlltool) != "" } {
+	    set dlltool [findfile $base_dir/../binutils/dlltool]
+	    set cmd "$dlltool -S $AS $opts(dlltool)"
+	    send_log "$cmd\n"
+	    set cmdret [remote_exec host [concat sh -c [list "$cmd 2>&1"]] "" "/dev/null" "dump.tmp"]
+	    remote_upload host "dump.tmp"
+	    append comp_output [prune_warnings [file_contents "dump.tmp"]]
+	    remote_file host delete "dump.tmp"
+	    remote_file build delete "dump.tmp"
+	    set cmdret [lindex $cmdret 0]
+	}
+
 	# Perhaps link the file(s).
 	if { $cmdret == 0 && $run_ld } {
 	    set objfile "tmpdir/dump"
@@ -1306,6 +1487,9 @@ proc run_dump_test { name {extra_options {}} } {
 	    set ld "$LD"
 	    if [check_relro_support] {
 		set ld_extra_opt "-z norelro"
+	    }
+	    if [check_memory_seal_support] {
+		append ld_extra_opt " -z nomemory-seal"
 	    }
 
 	    # Add -L$srcdir/$subdir so that the linker command can use
@@ -1437,7 +1621,7 @@ proc run_dump_test { name {extra_options {}} } {
 	    }
 	}
 
-	regsub "\n$" $comp_output "" comp_output
+	set comp_output [prune_dump_output $comp_output]
 	if { $cmdret != 0 || $comp_output != "" || $want_out(source) != "" } {
 	    set exitstat "succeeded"
 	    if { $cmdret != 0 } { set exitstat "failed" }
@@ -1451,12 +1635,16 @@ proc run_dump_test { name {extra_options {}} } {
 		verbose -log "$exitstat with: <$comp_output>, no expected output"
 	    }
 
-	    if { (($want_out(source) == "") == ($comp_output == "")) \
-		     && (($cmdret == 0) == ($want_out(terminal) == 0)) \
-		     && ((($want_out(source) == "regex") \
-			      && [regexp -- $want_out(regex) $comp_output]) \
-			     || (($want_out(source) == "file") \
-				     && (![regexp_diff "tmpdir/ld.messages" "$srcdir/$subdir/$want_out(file)"]))) } {
+	    set ok 0
+	    if { ($cmdret == 0) == ($want_out(terminal) == 0) } {
+		switch $want_out(source) {
+		    regex { set ok [regexp -- $want_out(regex) $comp_output] }
+		    file  { set ok [expr ![regexp_diff tmpdir/ld.messages \
+					   $srcdir/$subdir/$want_out(file)]] }
+		    ""    { set ok [string equal $comp_output ""] }
+		}
+	    }
+	    if { $ok } {
 		# We have the expected output.
 		if { $want_out(terminal) || $dumpprogram == "" } {
 		    pass $testname
@@ -1662,4 +1850,30 @@ proc get_standard_section_names {} {
 	return { {\$CODE\$} {\$DATA\$} {\$BSS\$} }
     }
     return
+}
+
+set llvm_plug_opt ""
+if { [isnative] } then {
+    if ![info exists CLANG_FOR_TARGET] then {
+	catch "exec clang -v" got
+	if [regexp "clang version" $got] then {
+	    set CLANG_FOR_TARGET clang
+	}
+    }
+}
+if [info exists CLANG_FOR_TARGET] then {
+    set llvm_plug_so [string trim [exec $CLANG_FOR_TARGET -print-file-name=LLVMgold.so]]
+    if { $llvm_plug_so ne "LLVMgold.so" } then {
+	set llvm_plug_opt "--plugin $llvm_plug_so"
+    }
+    if { $llvm_plug_opt eq "" && [isnative] } then {
+	# If it is still blank, try llvm-config --libdir.  Clang
+	# searches CLANG_INSTALL_LIBDIR_BASENAME which corresponds
+	# to this.
+	catch "exec llvm-config --libdir" got
+	if {[file isdirectory $got] \
+	    && [file isfile $got/LLVMgold.so]} then {
+	    set llvm_plug_opt "--plugin $got/LLVMgold.so"
+	}
+    }
 }

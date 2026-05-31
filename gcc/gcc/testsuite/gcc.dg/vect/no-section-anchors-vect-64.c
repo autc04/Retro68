@@ -1,5 +1,6 @@
 /* Disabling epilogues until we find a better way to deal with scans.  */
 /* { dg-additional-options "--param vect-epilogues-nomask=0" } */
+/* { dg-additional-options "-fno-section-anchors" } */
 /* { dg-require-effective-target vect_int } */
 /* { dg-add-options bind_pic_locally } */
 
@@ -54,6 +55,7 @@ int main1 ()
   /* check results: */  
   for (i = 0; i < N; i++)
     {
+#pragma GCC novector
       for (j = 0; j < N; j++)
         {
            if (ia[i][1][j] != ib[i])
@@ -64,6 +66,7 @@ int main1 ()
   /* check results: */  
   for (i = 0; i < N; i++)
     {
+#pragma GCC novector
       for (j = 0; j < N; j++)
         {
            if (ic[i][1][1][j] != ib[i])
@@ -74,6 +77,7 @@ int main1 ()
   /* check results: */  
   for (i = 0; i < N; i++)
     {
+#pragma GCC novector
       for (j = 0; j < N; j++)
         {
            if (id[i][1][j+1] != ib[i])

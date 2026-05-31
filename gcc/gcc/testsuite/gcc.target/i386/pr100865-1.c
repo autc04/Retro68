@@ -1,5 +1,6 @@
 /* { dg-do compile } */
 /* { dg-options "-O2 -march=x86-64" } */
+/* { dg-additional-options "-fno-PIE" { target ia32 } } */
 
 extern char *dst;
 
@@ -9,5 +10,6 @@ foo (void)
   __builtin_memset (dst, 3, 16);
 }
 
-/* { dg-final { scan-assembler-times "movdqa\[ \\t\]+\[^\n\]*%xmm" 1 } } */
+/* { dg-final { scan-assembler-times "movd\[ \\t\]+\[^\n\]*%xmm" 1 } } */
+/* { dg-final { scan-assembler-times "pshufd" 1 } } */
 /* { dg-final { scan-assembler-times "movups\[\\t \]%xmm\[0-9\]+, \\(%\[\^,\]+\\)" 1 } } */

@@ -36,6 +36,8 @@ typedef struct node {
 } node_t;
 #endif
 
+typedef void posix_tnode;
+
 struct hsearch_data
 {
   struct internal_head *htable;
@@ -54,11 +56,11 @@ ENTRY	*hsearch(ENTRY, ACTION);
 int	 hcreate_r(size_t, struct hsearch_data *);
 void	 hdestroy_r(struct hsearch_data *);
 int	hsearch_r(ENTRY, ACTION, ENTRY **, struct hsearch_data *);
-void	*tdelete(const void *__restrict, void **__restrict, __compar_fn_t);
+void	*tdelete(const void *__restrict, posix_tnode **__restrict, __compar_fn_t);
 void	tdestroy (void *, void (*)(void *));
-void	*tfind(const void *, void **, __compar_fn_t);
-void	*tsearch(const void *, void **, __compar_fn_t);
-void      twalk(const void *, void (*)(const void *, VISIT, int));
+posix_tnode *tfind(const void *, posix_tnode *const *, __compar_fn_t);
+posix_tnode *tsearch(const void *, posix_tnode **, __compar_fn_t);
+void      twalk(const posix_tnode *, void (*)(const posix_tnode *, VISIT, int));
 __END_DECLS
 
 #endif /* !_SEARCH_H_ */

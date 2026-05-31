@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2003-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2003-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -248,7 +248,7 @@ package body Clean is
                      for J in ALIs.Table (The_ALI).First_Sdep ..
                        ALIs.Table (The_ALI).Last_Sdep
                      loop
-                        if Sdep.Table (J).Subunit_Name /= No_Name then
+                        if Sdep.Table (J).Subunit_Name /= No_Unit_Name then
                            Sources.Increment_Last;
                            Sources.Table (Sources.Last) :=
                              Sdep.Table (J).Sfile;
@@ -319,7 +319,9 @@ package body Clean is
                   Delete ("", Executable);
                end if;
 
-               Delete_Binder_Generated_Files (Get_Current_Dir, Source);
+               Delete_Binder_Generated_Files
+                 (GNAT.Directory_Operations.Get_Current_Dir,
+                  Source);
             end;
          end if;
       end loop;
@@ -405,7 +407,8 @@ package body Clean is
       Source : File_Name_Type)
    is
       Source_Name : constant String   := Get_Name_String (Source);
-      Current     : constant String   := Get_Current_Dir;
+      Current : constant String :=
+        GNAT.Directory_Operations.Get_Current_Dir;
       Last        : constant Positive := B_Start'Length + Source_Name'Length;
       File_Name   : String (1 .. Last + 4);
 
@@ -554,7 +557,7 @@ package body Clean is
       --  In verbose mode, if Delete has not been called, indicate that no file
       --  needs to be deleted.
 
-      if Verbose_Mode and (not File_Deleted) then
+      if Verbose_Mode and not File_Deleted then
          New_Line;
 
          if Do_Nothing then

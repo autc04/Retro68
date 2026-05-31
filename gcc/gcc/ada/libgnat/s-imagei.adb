@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -51,9 +51,10 @@ package body System.Image_I is
       P : out Natural)
    is
       pragma Assert (S'First = 1);
-
    begin
       if V >= 0 then
+         pragma Annotate (CodePeer, False_Positive, "test always false",
+                          "V can be positive");
          S (1) := ' ';
          P := 1;
          pragma Assert (P < S'Last);
@@ -88,6 +89,7 @@ package body System.Image_I is
       loop
          Value := Value / 10;
          Nb_Digits := Nb_Digits + 1;
+
          exit when Value = 0;
       end loop;
 
@@ -109,12 +111,10 @@ package body System.Image_I is
    procedure Set_Image_Integer
      (V : Int;
       S : in out String;
-      P : in out Natural)
-   is
+      P : in out Natural) is
    begin
       if V >= 0 then
          Set_Digits (-V, S, P);
-
       else
          pragma Assert (P >= S'First - 1 and P < S'Last);
          --  No check is done since, as documented in the specification,

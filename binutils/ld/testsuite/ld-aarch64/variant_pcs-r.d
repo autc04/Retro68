@@ -3,7 +3,7 @@
 #ld: -r
 #readelf: -rsW
 
-Relocation section '\.rela\.text' at offset .* contains 24 entries:
+Relocation section '\.rela\.text' at offset 0x[[:xdigit:]]+ contains 24 entries:
     Offset             Info             Type               Symbol's Value  Symbol's Name \+ Addend
 0000000000000000  000000180000011b R_AARCH64_CALL26       0000000000000000 f_spec_global_default_def \+ 0
 0000000000000004  000000110000011b R_AARCH64_CALL26       0000000000000000 f_spec_global_default_undef \+ 0
@@ -32,10 +32,10 @@ Relocation section '\.rela\.text' at offset .* contains 24 entries:
 
 Symbol table '\.symtab' contains 26 entries:
    Num:    Value          Size Type    Bind   Vis      Ndx Name
-     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 0000000000000000     0 SECTION LOCAL  DEFAULT    1.*
-     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    3.*
-     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    4.*
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND\s
+     1: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 \.text
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    3 \.data
+     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    4 \.bss
      4: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS .*variant_pcs-1\.o
      5: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT \[VARIANT_PCS\]     1 f_spec_local
      6: 0000000000000000     0 IFUNC   LOCAL  DEFAULT \[VARIANT_PCS\]     1 f_spec_local_ifunc

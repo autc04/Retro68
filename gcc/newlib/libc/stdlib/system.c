@@ -52,6 +52,8 @@ Supporting OS subroutines required: <<_exit>>, <<_execve>>, <<_fork_r>>,
 #include <_syslist.h>
 #include <reent.h>
 
+int _system(const char *s);
+
 #if defined (unix) || defined (__CYGWIN__)
 static int do_system (struct _reent *ptr, const char *s);
 #endif

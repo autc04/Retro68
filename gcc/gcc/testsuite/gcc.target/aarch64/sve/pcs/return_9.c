@@ -22,7 +22,7 @@ callee_s8 (void)
 ** caller_s8:
 **	...
 **	bl	callee_s8
-**	add	(z[2-7]\.b), z2\.b, z3\.b
+**	add	(z(?:[2-7]|2[4-9]|3[01])\.b), z2\.b, z3\.b
 **	ptrue	(p[0-7])\.b, all
 **	mla	z0\.b, \2/m, (z1\.b, \1|\1, z1\.b)
 **	ldp	x29, x30, \[sp\], 16
@@ -57,7 +57,7 @@ callee_u8 (void)
 ** caller_u8:
 **	...
 **	bl	callee_u8
-**	sub	(z[2-7]\.b), z2\.b, z3\.b
+**	sub	(z(?:[2-7]|2[4-9]|3[01])\.b), z2\.b, z3\.b
 **	ptrue	(p[0-7])\.b, all
 **	mla	z0\.b, \2/m, (z1\.b, \1|\1, z1\.b)
 **	ldp	x29, x30, \[sp\], 16
@@ -72,6 +72,39 @@ caller_u8 (void)
 		  svsub_x (svptrue_b8 (),
 			   svget4 (res, 2),
 			   svget4 (res, 3)));
+}
+
+/*
+** callee_mf8:
+**	mov	z0\.b, b4
+**	mov	z1\.b, b5
+**	mov	z2\.b, b6
+**	mov	z3\.b, b7
+**	ret
+*/
+svmfloat8x4_t __attribute__((noipa))
+callee_mf8 (mfloat8_t h0, mfloat8_t h1, mfloat8_t h2, mfloat8_t h3,
+	     mfloat8_t h4, mfloat8_t h5, mfloat8_t h6, mfloat8_t h7)
+{
+  return svcreate4 (svdup_mf8 (h4), svdup_mf8 (h5),
+		    svdup_mf8 (h6), svdup_mf8 (h7));
+}
+
+/*
+** caller_mf8:
+**	...
+**	bl	callee_mf8
+**	trn2	z0\.b, z0\.b, z3\.b
+**	ldp	x29, x30, \[sp\], 16
+**	ret
+*/
+svmfloat8_t __attribute__((noipa))
+caller_mf8 (mfloat8_t h0, mfloat8_t h1, mfloat8_t h2, mfloat8_t h3,
+	     mfloat8_t h4, mfloat8_t h5, mfloat8_t h6, mfloat8_t h7)
+{
+  svmfloat8x4_t res;
+  res = callee_mf8 (h0, h1, h2, h3, h4, h5, h6, h7);
+  return svtrn2 (svget4 (res, 0), svget4 (res, 3));
 }
 
 /*
@@ -93,7 +126,7 @@ callee_s16 (void)
 ** caller_s16:
 **	...
 **	bl	callee_s16
-**	add	(z[2-7]\.h), z2\.h, z3\.h
+**	add	(z(?:[2-7]|2[4-9]|3[01])\.h), z2\.h, z3\.h
 **	ptrue	(p[0-7])\.b, all
 **	mad	z0\.h, \2/m, (z1\.h, \1|\1, z1\.h)
 **	ldp	x29, x30, \[sp\], 16
@@ -129,7 +162,7 @@ callee_u16 (void)
 ** caller_u16:
 **	...
 **	bl	callee_u16
-**	sub	(z[2-7]\.h), z2\.h, z3\.h
+**	sub	(z(?:[2-7]|2[4-9]|3[01])\.h), z2\.h, z3\.h
 **	ptrue	(p[0-7])\.b, all
 **	mad	z0\.h, \2/m, (z1\.h, \1|\1, z1\.h)
 **	ldp	x29, x30, \[sp\], 16
@@ -236,7 +269,7 @@ callee_s32 (void)
 ** caller_s32:
 **	...
 **	bl	callee_s32
-**	add	(z[2-7]\.s), z2\.s, z3\.s
+**	add	(z(?:[2-7]|2[4-9]|3[01])\.s), z2\.s, z3\.s
 **	ptrue	(p[0-7])\.b, all
 **	msb	z0\.s, \2/m, (z1\.s, \1|\1, z1\.s)
 **	ldp	x29, x30, \[sp\], 16
@@ -272,7 +305,7 @@ callee_u32 (void)
 ** caller_u32:
 **	...
 **	bl	callee_u32
-**	sub	(z[2-7]\.s), z2\.s, z3\.s
+**	sub	(z(?:[2-7]|2[4-9]|3[01])\.s), z2\.s, z3\.s
 **	ptrue	(p[0-7])\.b, all
 **	msb	z0\.s, \2/m, (z1\.s, \1|\1, z1\.s)
 **	ldp	x29, x30, \[sp\], 16
@@ -346,7 +379,7 @@ callee_s64 (void)
 ** caller_s64:
 **	...
 **	bl	callee_s64
-**	add	(z[2-7]\.d), z2\.d, z3\.d
+**	add	(z(?:[2-7]|2[4-9]|3[01])\.d), z2\.d, z3\.d
 **	ptrue	(p[0-7])\.b, all
 **	mls	z0\.d, \2/m, (z1\.d, \1|\1, z1\.d)
 **	ldp	x29, x30, \[sp\], 16
@@ -382,7 +415,7 @@ callee_u64 (void)
 ** caller_u64:
 **	...
 **	bl	callee_u64
-**	sub	(z[2-7]\.d), z2\.d, z3\.d
+**	sub	(z(?:[2-7]|2[4-9]|3[01])\.d), z2\.d, z3\.d
 **	ptrue	(p[0-7])\.b, all
 **	mls	z0\.d, \2/m, (z1\.d, \1|\1, z1\.d)
 **	ldp	x29, x30, \[sp\], 16

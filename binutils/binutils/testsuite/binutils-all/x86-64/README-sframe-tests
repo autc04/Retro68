@@ -1,0 +1,96 @@
+The tests in sframe.exp use binary data files:
+  - test-v2-ET_EXEC.sframe.bz2
+  - test-v2-ET_REL.sframe.bz2
+These files are generated using a as/ld supporting SFrame V2 sections (Binutils
+<= 2.45).  The purpose of those tests is to make sure readelf/objdump support
+works for SFrame V2.
+
+The binary files are generated using the following steps.
+
+$ cat sort.s
+	.text
+	.p2align 4
+	.globl	swapit
+	.type	swapit, @function
+swapit:
+	.cfi_startproc
+	movl	(%rsi), %eax
+	.cfi_def_cfa_register 6
+	.cfi_offset 6, 16
+	movl	%eax, (%rdi)
+	.cfi_def_cfa_register 7
+	ret
+	.cfi_endproc
+	.size	swapit, .-swapit
+
+	.p2align 4
+	.globl	fake_sort
+	.type	fake_sort, @function
+fake_sort:
+	.cfi_startproc
+	testl	%esi, %esi
+	jg	.L5
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L5:
+	movslq	%esi, %rsi
+	leaq	-4(%rdi,%rsi,4), %rsi
+	jmp	swapit
+	.cfi_endproc
+	.size	fake_sort, .-fake_sort
+
+	.text
+	.p2align 4
+	.globl	sort_array
+	.type	sort_array, @function
+sort_array:
+	.cfi_startproc
+	subq	$520, %rsp
+	.cfi_def_cfa_offset 528
+	movl	$128, %esi
+	movq	%rsp, %rdi
+	call	fake_sort
+	addq	$520, %rsp
+	.cfi_def_cfa_offset 8
+	ret
+	.cfi_endproc
+	.size	sort_array, .-sort_array
+
+	.section	.rodata.str1.1,"aMS",@progbits,1
+.LC0:
+	.string	"done"
+
+	.section	.text.startup,"ax",@progbits
+	.p2align 4
+	.globl	main
+	.type	main, @function
+main:
+	.cfi_startproc
+	subq	$8, %rsp
+	.cfi_def_cfa_offset 16
+	call	sort_array
+	movl	$.LC0, %edi
+	xorl	%eax, %eax
+	call	printf
+	xorl	%eax, %eax
+	addq	$8, %rsp
+	.cfi_def_cfa_offset 8
+	ret
+	.cfi_endproc
+
+        .globl	_start
+        .type	_start,@function
+_start:
+        call main
+	.size	main, .-main
+
+$ as --gsframe -o sort.o sort.s
+$ ld -lc sort.o -o sort
+
+$ cp sort test-v2-ET_EXEC.sframe
+$ chmod -x test-v2-ET_EXEC.sframe
+$ bzip2 test-v2-ET_EXEC.sframe
+
+$ cp sort.o test-v2-ET_REL.sframe
+$ bzip2 test-v2-ET_REL.sframe

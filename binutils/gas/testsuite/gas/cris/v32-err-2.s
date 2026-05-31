@@ -1,5 +1,5 @@
 ; { dg-do assemble }
-; { dg-options " --underscore --march=common_v10_v32 --em=criself" }
+; { dg-options " --underscore --march=common_v10_v32 --emulation=criself" }
 ; { dg-error ".word offset handling is not implemented" "err for broken .word" { target cris-*-* } 0 }
 
 ; Tests that broken words don't crash, just give a message when

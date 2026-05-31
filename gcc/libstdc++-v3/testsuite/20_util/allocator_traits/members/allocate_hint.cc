@@ -1,6 +1,6 @@
 // { dg-do run { target c++11 } }
 
-// Copyright (C) 2011-2022 Free Software Foundation, Inc.
+// Copyright (C) 2011-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -74,7 +74,7 @@ void test02()
 {
   typedef std::allocator_traits<unhintable_allocator<X>> traits_type;
   traits_type::allocator_type a;
-  traits_type::const_void_pointer v;
+  traits_type::const_void_pointer v = nullptr;
   X* p __attribute__((unused)) = traits_type::allocate(a, 1, v);
   VERIFY( a.called );
 }

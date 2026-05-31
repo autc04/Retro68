@@ -1,4 +1,3 @@
-#as:
 #objdump: -dwMintel -Msuffix
 #name: x86_64 AVX512F opts insns (Intel disassembly)
 #source: x86-64-avx512f-opts.s

@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2009-2022 Free Software Foundation, Inc.
+// Copyright (C) 2009-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -24,6 +24,7 @@
 #include <ext/throw_allocator.h>
 #include <cstdlib> // getenv, atoi
 #include <cstdio>  // printf, fflush
+#include <cassert> // assert
 
 // Container requirement testing.
 namespace __gnu_test
@@ -1459,7 +1460,11 @@ namespace __gnu_test
 	  while (!exit);
 
 	  // Log count info.
+#if __cpp_rtti
 	  std::cout << __f.target_type().name() << std::endl;
+#else
+	  std::cout << "[no type info - rtti disabled]\n";
+#endif
 	  std::cout << "end count " << __step << std::endl;
 	  return __step;
 	}
@@ -1627,7 +1632,11 @@ namespace __gnu_test
 	  while (!exit);
 
 	  // Log count info.
+#if __cpp_rtti
 	  std::cout << __f.target_type().name() << std::endl;
+#else
+	  std::cout << "[no type info - rtti disabled]\n";
+#endif
 	  std::cout << "end count " << i << std::endl;
 	}
     };

@@ -3,12 +3,12 @@
  *
  * Specification: $(LINK2 https://dlang.org/spec/class.html, Classes)
  *
- * Copyright:   Copyright (C) 1999-2022 by The D Language Foundation, All Rights Reserved
+ * Copyright:   Copyright (C) 1999-2026 by The D Language Foundation, All Rights Reserved
  * Authors:     $(LINK2 https://www.digitalmars.com, Walter Bright)
  * License:     $(LINK2 https://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
- * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/src/dmd/dclass.d, _dclass.d)
+ * Source:      $(LINK2 https://github.com/dlang/dmd/blob/master/compiler/src/dmd/dclass.d, _dclass.d)
  * Documentation:  https://dlang.org/phobos/dmd_dclass.html
- * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/src/dmd/dclass.d
+ * Coverage:    https://codecov.io/gh/dlang/dmd/src/master/compiler/src/dmd/dclass.d
  */
 
 module dmd.dclass;
@@ -17,23 +17,18 @@ import core.stdc.stdio;
 import core.stdc.string;
 
 import dmd.aggregate;
-import dmd.apply;
 import dmd.arraytypes;
 import dmd.astenums;
-import dmd.attrib;
-import dmd.gluelayer;
 import dmd.declaration;
-import dmd.dscope;
 import dmd.dsymbol;
-import dmd.dsymbolsem;
+import dmd.errors;
 import dmd.func;
-import dmd.globals;
 import dmd.id;
 import dmd.identifier;
+import dmd.location;
 import dmd.mtype;
 import dmd.objc;
 import dmd.root.rmem;
-import dmd.target;
 import dmd.visitor;
 
 /***********************************************************
@@ -58,48 +53,6 @@ extern (C++) struct BaseClass
         this.type = type;
     }
 
-    /****************************************
-     * Fill in vtbl[] for base class based on member functions of class cd.
-     * Input:
-     *      vtbl            if !=NULL, fill it in
-     *      newinstance     !=0 means all entries must be filled in by members
-     *                      of cd, not members of any base classes of cd.
-     * Returns:
-     *      true if any entries were filled in by members of cd (not exclusively
-     *      by base classes)
-     */
-    extern (C++) bool fillVtbl(ClassDeclaration cd, FuncDeclarations* vtbl, int newinstance)
-    {
-        bool result = false;
-
-        //printf("BaseClass.fillVtbl(this='%s', cd='%s')\n", sym.toChars(), cd.toChars());
-        if (vtbl)
-            vtbl.setDim(sym.vtbl.dim);
-
-        // first entry is ClassInfo reference
-        for (size_t j = sym.vtblOffset(); j < sym.vtbl.dim; j++)
-        {
-            FuncDeclaration ifd = sym.vtbl[j].isFuncDeclaration();
-
-            //printf("        vtbl[%d] is '%s'\n", j, ifd ? ifd.toChars() : "null");
-            assert(ifd);
-
-            // Find corresponding function in this class
-            auto tf = ifd.type.toTypeFunction();
-            auto fd = cd.findFunc(ifd.ident, tf);
-            if (fd && !fd.isAbstract())
-            {
-                if (fd.toParent() == cd)
-                    result = true;
-            }
-            else
-                fd = null;
-            if (vtbl)
-                (*vtbl)[j] = fd;
-        }
-        return result;
-    }
-
     extern (D) void copyBaseInterfaces(BaseClasses* vtblInterfaces)
     {
         //printf("+copyBaseInterfaces(), %s\n", sym.toChars());
@@ -113,7 +66,7 @@ extern (C++) struct BaseClass
             BaseClass* b = &baseInterfaces[i];
             BaseClass* b2 = sym.interfaces[i];
 
-            assert(b2.vtbl.dim == 0); // should not be filled yet
+            assert(b2.vtbl.length == 0); // should not be filled yet
             memcpy(b, b2, BaseClass.sizeof);
 
             if (i) // single inheritance is i==0
@@ -124,6 +77,7 @@ extern (C++) struct BaseClass
     }
 }
 
+// These must match the values in druntime/src/object.d
 enum ClassFlags : uint
 {
     none          = 0x0,
@@ -136,6 +90,7 @@ enum ClassFlags : uint
     isAbstract    = 0x40,
     isCPPclass    = 0x80,
     hasDtor       = 0x100,
+    hasNameSig    = 0x200,
 }
 
 /***********************************************************
@@ -181,7 +136,7 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
     int cppDtorVtblIndex = -1;
 
     /// to prevent recursive attempts
-    private bool inuse;
+    bool inuse;
 
     ThreeState isabstract;
 
@@ -194,9 +149,7 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
      */
     ObjcClassDeclaration objc;
 
-    Symbol* cpp_type_info_ptr_sym;      // cached instance of class Id.cpp_type_info_ptr
-
-    final extern (D) this(const ref Loc loc, Identifier id, BaseClasses* baseclasses, Dsymbols* members, bool inObject)
+    final extern (D) this(Loc loc, Identifier id, BaseClasses* baseclasses, Dsymbols* members, bool inObject)
     {
         objc = ObjcClassDeclaration(this);
 
@@ -204,6 +157,7 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
             id = Identifier.generateAnonymousId("class");
 
         super(loc, id);
+        this.dsym = DSYM.classDeclaration;
 
         static immutable msg = "only object.d can define this reserved class name";
 
@@ -217,158 +171,61 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
 
         this.members = members;
 
-        //printf("ClassDeclaration(%s), dim = %d\n", ident.toChars(), this.baseclasses.dim);
+        //printf("ClassDeclaration(%s), dim = %d\n", ident.toChars(), this.baseclasses.length);
 
         // For forward references
         type = new TypeClass(this);
 
         // Look for special class names
         if (id == Id.__sizeof || id == Id.__xalignof || id == Id._mangleof)
-            error("illegal class name");
+            classError("%s `%s` illegal class name", null);
 
+        final /* final to work around dscanner bug*/
+        void check(Identifier _id, ref ClassDeclaration cd)
+        {
+            if (id == _id)
+            {
+                if (!inObject)
+                    classError("%s `%s` %s", msg.ptr);
+                cd = this;
+            }
+        }
         // BUG: What if this is the wrong TypeInfo, i.e. it is nested?
         if (id.toChars()[0] == 'T')
         {
-            if (id == Id.TypeInfo)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.dtypeinfo = this;
-            }
-            if (id == Id.TypeInfo_Class)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfoclass = this;
-            }
-            if (id == Id.TypeInfo_Interface)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfointerface = this;
-            }
-            if (id == Id.TypeInfo_Struct)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfostruct = this;
-            }
-            if (id == Id.TypeInfo_Pointer)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfopointer = this;
-            }
-            if (id == Id.TypeInfo_Array)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfoarray = this;
-            }
-            if (id == Id.TypeInfo_StaticArray)
-            {
-                //if (!inObject)
-                //    Type.typeinfostaticarray.error("%s", msg);
-                Type.typeinfostaticarray = this;
-            }
-            if (id == Id.TypeInfo_AssociativeArray)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfoassociativearray = this;
-            }
-            if (id == Id.TypeInfo_Enum)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfoenum = this;
-            }
-            if (id == Id.TypeInfo_Function)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfofunction = this;
-            }
-            if (id == Id.TypeInfo_Delegate)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfodelegate = this;
-            }
-            if (id == Id.TypeInfo_Tuple)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfotypelist = this;
-            }
-            if (id == Id.TypeInfo_Const)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfoconst = this;
-            }
-            if (id == Id.TypeInfo_Invariant)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfoinvariant = this;
-            }
-            if (id == Id.TypeInfo_Shared)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfoshared = this;
-            }
-            if (id == Id.TypeInfo_Wild)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfowild = this;
-            }
-            if (id == Id.TypeInfo_Vector)
-            {
-                if (!inObject)
-                    error("%s", msg.ptr);
-                Type.typeinfovector = this;
-            }
+            check(Id.TypeInfo,           Type.dtypeinfo);
+            check(Id.TypeInfo_Class,     Type.typeinfoclass);
+            check(Id.TypeInfo_Interface, Type.typeinfointerface);
+            check(Id.TypeInfo_Struct,    Type.typeinfostruct);
+            check(Id.TypeInfo_Pointer,   Type.typeinfopointer);
+            check(Id.TypeInfo_Array,     Type.typeinfoarray);
+            check(Id.TypeInfo_StaticArray, Type.typeinfostaticarray);
+            check(Id.TypeInfo_AssociativeArray, Type.typeinfoassociativearray);
+            check(Id.TypeInfo_Enum,      Type.typeinfoenum);
+            check(Id.TypeInfo_Function,  Type.typeinfofunction);
+            check(Id.TypeInfo_Delegate,  Type.typeinfodelegate);
+            check(Id.TypeInfo_Tuple,     Type.typeinfotypelist);
+            check(Id.TypeInfo_Const,     Type.typeinfoconst);
+            check(Id.TypeInfo_Invariant, Type.typeinfoinvariant);
+            check(Id.TypeInfo_Shared,    Type.typeinfoshared);
+            check(Id.TypeInfo_Wild,      Type.typeinfowild);
+            check(Id.TypeInfo_Vector,    Type.typeinfovector);
         }
-
-        if (id == Id.Object)
-        {
-            if (!inObject)
-                error("%s", msg.ptr);
-            object = this;
-        }
-
-        if (id == Id.Throwable)
-        {
-            if (!inObject)
-                error("%s", msg.ptr);
-            throwable = this;
-        }
-        if (id == Id.Exception)
-        {
-            if (!inObject)
-                error("%s", msg.ptr);
-            exception = this;
-        }
-        if (id == Id.Error)
-        {
-            if (!inObject)
-                error("%s", msg.ptr);
-            errorException = this;
-        }
-        if (id == Id.cpp_type_info_ptr)
-        {
-            if (!inObject)
-                error("%s", msg.ptr);
-            cpp_type_info_ptr = this;
-        }
+        check(Id.Object, object);
+        check(Id.Throwable, throwable);
+        check(Id.Exception, exception);
+        check(Id.Error, errorException);
+        check(Id.cpp_type_info_ptr, cpp_type_info_ptr);
 
         baseok = Baseok.none;
     }
 
-    static ClassDeclaration create(const ref Loc loc, Identifier id, BaseClasses* baseclasses, Dsymbols* members, bool inObject)
+    extern (D) final void classError(const(char)* fmt, const(char)* arg)
+    {
+        .error(loc, fmt, kind, toPrettyChars, arg);
+    }
+
+    static ClassDeclaration create(Loc loc, Identifier id, BaseClasses* baseclasses, Dsymbols* members, bool inObject)
     {
         return new ClassDeclaration(loc, id, baseclasses, members, inObject);
     }
@@ -390,8 +247,8 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
 
         cd.storage_class |= storage_class;
 
-        cd.baseclasses.setDim(this.baseclasses.dim);
-        for (size_t i = 0; i < cd.baseclasses.dim; i++)
+        cd.baseclasses.setDim(this.baseclasses.length);
+        for (size_t i = 0; i < cd.baseclasses.length; i++)
         {
             BaseClass* b = (*this.baseclasses)[i];
             auto b2 = new BaseClass(b.type.syntaxCopy());
@@ -402,29 +259,16 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
         return cd;
     }
 
-    override Scope* newScope(Scope* sc)
-    {
-        auto sc2 = super.newScope(sc);
-        if (isCOMclass())
-        {
-            /* This enables us to use COM objects under Linux and
-             * work with things like XPCOM
-             */
-            sc2.linkage = target.systemLinkage();
-        }
-        return sc2;
-    }
-
     /*********************************************
      * Determine if 'this' is a base class of cd.
      * This is used to detect circular inheritance only.
      */
-    final bool isBaseOf2(ClassDeclaration cd) pure nothrow @nogc
+    extern (D) final bool isBaseOf2(ClassDeclaration cd) pure nothrow @nogc
     {
         if (!cd)
             return false;
         //printf("ClassDeclaration.isBaseOf2(this = '%s', cd = '%s')\n", toChars(), cd.toChars());
-        for (size_t i = 0; i < cd.baseclasses.dim; i++)
+        for (size_t i = 0; i < cd.baseclasses.length; i++)
         {
             BaseClass* b = (*cd.baseclasses)[i];
             if (b.sym == this || isBaseOf2(b.sym))
@@ -464,67 +308,6 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
         return baseok >= Baseok.done;
     }
 
-    override final Dsymbol search(const ref Loc loc, Identifier ident, int flags = SearchLocalsOnly)
-    {
-        //printf("%s.ClassDeclaration.search('%s', flags=x%x)\n", toChars(), ident.toChars(), flags);
-        //if (_scope) printf("%s baseok = %d\n", toChars(), baseok);
-        if (_scope && baseok < Baseok.done)
-        {
-            if (!inuse)
-            {
-                // must semantic on base class/interfaces
-                inuse = true;
-                dsymbolSemantic(this, null);
-                inuse = false;
-            }
-        }
-
-        if (!members || !symtab) // opaque or addMember is not yet done
-        {
-            // .stringof is always defined (but may be hidden by some other symbol)
-            if (ident != Id.stringof && !(flags & IgnoreErrors) && semanticRun < PASS.semanticdone)
-                error("is forward referenced when looking for `%s`", ident.toChars());
-            //*(char*)0=0;
-            return null;
-        }
-
-        auto s = ScopeDsymbol.search(loc, ident, flags);
-
-        // don't search imports of base classes
-        if (flags & SearchImportsOnly)
-            return s;
-
-        if (s)
-            return s;
-
-        // Search bases classes in depth-first, left to right order
-        foreach (b; (*baseclasses)[])
-        {
-            if (!b.sym)
-                continue;
-
-            if (!b.sym.symtab)
-            {
-                error("base `%s` is forward referenced", b.sym.ident.toChars());
-                continue;
-            }
-
-            import dmd.access : symbolIsVisible;
-
-            s = b.sym.search(loc, ident, flags);
-            if (!s)
-                continue;
-            else if (s == this) // happens if s is nested in this and derives from this
-                s = null;
-            else if (!(flags & IgnoreSymbolVisibility) && !(s.visible().kind == Visibility.Kind.protected_) && !symbolIsVisible(this, s))
-                s = null;
-            else
-                break;
-        }
-
-        return s;
-    }
-
     /************************************
      * Search base classes in depth-first, left-to-right order for
      * a class or interface named 'ident'.
@@ -534,7 +317,7 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
      * Returns:
      *  ClassDeclaration if found, null if not
      */
-    final ClassDeclaration searchBase(Identifier ident)
+    extern (D) final ClassDeclaration searchBase(Identifier ident)
     {
         foreach (b; *baseclasses)
         {
@@ -543,121 +326,10 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
                 return null;
             if (cdb.ident.equals(ident))
                 return cdb;
-            auto result = cdb.searchBase(ident);
-            if (result)
+            if (auto result = cdb.searchBase(ident))
                 return result;
         }
         return null;
-    }
-
-    final override void finalizeSize()
-    {
-        assert(sizeok != Sizeok.done);
-
-        // Set the offsets of the fields and determine the size of the class
-        if (baseClass)
-        {
-            assert(baseClass.sizeok == Sizeok.done);
-
-            alignsize = baseClass.alignsize;
-            if (classKind == ClassKind.cpp)
-                structsize = target.cpp.derivedClassOffset(baseClass);
-            else
-                structsize = baseClass.structsize;
-        }
-        else if (classKind == ClassKind.objc)
-            structsize = 0; // no hidden member for an Objective-C class
-        else if (isInterfaceDeclaration())
-        {
-            if (interfaces.length == 0)
-            {
-                alignsize = target.ptrsize;
-                structsize = target.ptrsize;      // allow room for __vptr
-            }
-        }
-        else
-        {
-            alignsize = target.ptrsize;
-            structsize = target.ptrsize;      // allow room for __vptr
-            if (hasMonitor())
-                structsize += target.ptrsize; // allow room for __monitor
-        }
-
-        //printf("finalizeSize() %s, sizeok = %d\n", toChars(), sizeok);
-        size_t bi = 0;                  // index into vtblInterfaces[]
-
-        /****
-         * Runs through the inheritance graph to set the BaseClass.offset fields.
-         * Recursive in order to account for the size of the interface classes, if they are
-         * more than just interfaces.
-         * Params:
-         *      cd = interface to look at
-         *      baseOffset = offset of where cd will be placed
-         * Returns:
-         *      subset of instantiated size used by cd for interfaces
-         */
-        uint membersPlace(ClassDeclaration cd, uint baseOffset)
-        {
-            //printf("    membersPlace(%s, %d)\n", cd.toChars(), baseOffset);
-            uint offset = baseOffset;
-
-            foreach (BaseClass* b; cd.interfaces)
-            {
-                if (b.sym.sizeok != Sizeok.done)
-                    b.sym.finalizeSize();
-                assert(b.sym.sizeok == Sizeok.done);
-
-                if (!b.sym.alignsize)
-                    b.sym.alignsize = target.ptrsize;
-                alignmember(structalign_t(cast(ushort)b.sym.alignsize), b.sym.alignsize, &offset);
-                assert(bi < vtblInterfaces.dim);
-
-                BaseClass* bv = (*vtblInterfaces)[bi];
-                if (b.sym.interfaces.length == 0)
-                {
-                    //printf("\tvtblInterfaces[%d] b=%p b.sym = %s, offset = %d\n", bi, bv, bv.sym.toChars(), offset);
-                    bv.offset = offset;
-                    ++bi;
-                    // All the base interfaces down the left side share the same offset
-                    for (BaseClass* b2 = bv; b2.baseInterfaces.length; )
-                    {
-                        b2 = &b2.baseInterfaces[0];
-                        b2.offset = offset;
-                        //printf("\tvtblInterfaces[%d] b=%p   sym = %s, offset = %d\n", bi, b2, b2.sym.toChars(), b2.offset);
-                    }
-                }
-                membersPlace(b.sym, offset);
-                //printf(" %s size = %d\n", b.sym.toChars(), b.sym.structsize);
-                offset += b.sym.structsize;
-                if (alignsize < b.sym.alignsize)
-                    alignsize = b.sym.alignsize;
-            }
-            return offset - baseOffset;
-        }
-
-        structsize += membersPlace(this, structsize);
-
-        if (isInterfaceDeclaration())
-        {
-            sizeok = Sizeok.done;
-            return;
-        }
-
-        // FIXME: Currently setFieldOffset functions need to increase fields
-        // to calculate each variable offsets. It can be improved later.
-        fields.setDim(0);
-
-        FieldState fieldState;
-        fieldState.offset = structsize;
-        foreach (s; *members)
-        {
-            s.setFieldOffset(this, fieldState, false);
-        }
-
-        sizeok = Sizeok.done;
-
-        // Calculate fields[i].overlapped
-        checkOverlappedFields();
     }
 
     /**************
@@ -666,159 +338,6 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
     final bool hasMonitor()
     {
         return classKind == ClassKind.d;
-    }
-
-    final bool isFuncHidden(FuncDeclaration fd)
-    {
-        //printf("ClassDeclaration.isFuncHidden(class = %s, fd = %s)\n", toChars(), fd.toPrettyChars());
-        Dsymbol s = search(Loc.initial, fd.ident, IgnoreAmbiguous | IgnoreErrors);
-        if (!s)
-        {
-            //printf("not found\n");
-            /* Because, due to a hack, if there are multiple definitions
-             * of fd.ident, NULL is returned.
-             */
-            return false;
-        }
-        s = s.toAlias();
-        if (auto os = s.isOverloadSet())
-        {
-            foreach (sm; os.a)
-            {
-                auto fm = sm.isFuncDeclaration();
-                if (overloadApply(fm, s => fd == s.isFuncDeclaration()))
-                    return false;
-            }
-            return true;
-        }
-        else
-        {
-            auto f = s.isFuncDeclaration();
-            //printf("%s fdstart = %p\n", s.kind(), fdstart);
-            if (overloadApply(f, s => fd == s.isFuncDeclaration()))
-                return false;
-            return !fd.parent.isTemplateMixin();
-        }
-    }
-
-    /****************
-     * Find virtual function matching identifier and type.
-     * Used to build virtual function tables for interface implementations.
-     * Params:
-     *  ident = function's identifier
-     *  tf = function's type
-     * Returns:
-     *  function symbol if found, null if not
-     * Errors:
-     *  prints error message if more than one match
-     */
-    final FuncDeclaration findFunc(Identifier ident, TypeFunction tf)
-    {
-        //printf("ClassDeclaration.findFunc(%s, %s) %s\n", ident.toChars(), tf.toChars(), toChars());
-        FuncDeclaration fdmatch = null;
-        FuncDeclaration fdambig = null;
-
-        void updateBestMatch(FuncDeclaration fd)
-        {
-            fdmatch = fd;
-            fdambig = null;
-            //printf("Lfd fdmatch = %s %s [%s]\n", fdmatch.toChars(), fdmatch.type.toChars(), fdmatch.loc.toChars());
-        }
-
-        void searchVtbl(ref Dsymbols vtbl)
-        {
-            bool seenInterfaceVirtual;
-            foreach (s; vtbl)
-            {
-                auto fd = s.isFuncDeclaration();
-                if (!fd)
-                    continue;
-
-                // the first entry might be a ClassInfo
-                //printf("\t[%d] = %s\n", i, fd.toChars());
-                if (ident != fd.ident || fd.type.covariant(tf) != Covariant.yes)
-                {
-                    //printf("\t\t%d\n", fd.type.covariant(tf));
-                    continue;
-                }
-
-                //printf("fd.parent.isClassDeclaration() = %p\n", fd.parent.isClassDeclaration());
-                if (!fdmatch)
-                {
-                    updateBestMatch(fd);
-                    continue;
-                }
-                if (fd == fdmatch)
-                    continue;
-
-                /* Functions overriding interface functions for extern(C++) with VC++
-                 * are not in the normal vtbl, but in vtblFinal. If the implementation
-                 * is again overridden in a child class, both would be found here.
-                 * The function in the child class should override the function
-                 * in the base class, which is done here, because searchVtbl is first
-                 * called for the child class. Checking seenInterfaceVirtual makes
-                 * sure, that the compared functions are not in the same vtbl.
-                 */
-                if (fd.interfaceVirtual &&
-                    fd.interfaceVirtual is fdmatch.interfaceVirtual &&
-                    !seenInterfaceVirtual &&
-                    fdmatch.type.covariant(fd.type) == Covariant.yes)
-                {
-                    seenInterfaceVirtual = true;
-                    continue;
-                }
-
-                {
-                // Function type matching: exact > covariant
-                MATCH m1 = tf.equals(fd.type) ? MATCH.exact : MATCH.nomatch;
-                MATCH m2 = tf.equals(fdmatch.type) ? MATCH.exact : MATCH.nomatch;
-                if (m1 > m2)
-                {
-                    updateBestMatch(fd);
-                    continue;
-                }
-                else if (m1 < m2)
-                    continue;
-                }
-                {
-                MATCH m1 = (tf.mod == fd.type.mod) ? MATCH.exact : MATCH.nomatch;
-                MATCH m2 = (tf.mod == fdmatch.type.mod) ? MATCH.exact : MATCH.nomatch;
-                if (m1 > m2)
-                {
-                    updateBestMatch(fd);
-                    continue;
-                }
-                else if (m1 < m2)
-                    continue;
-                }
-                {
-                // The way of definition: non-mixin > mixin
-                MATCH m1 = fd.parent.isClassDeclaration() ? MATCH.exact : MATCH.nomatch;
-                MATCH m2 = fdmatch.parent.isClassDeclaration() ? MATCH.exact : MATCH.nomatch;
-                if (m1 > m2)
-                {
-                    updateBestMatch(fd);
-                    continue;
-                }
-                else if (m1 < m2)
-                    continue;
-                }
-
-                fdambig = fd;
-                //printf("Lambig fdambig = %s %s [%s]\n", fdambig.toChars(), fdambig.type.toChars(), fdambig.loc.toChars());
-            }
-        }
-
-        searchVtbl(vtbl);
-        for (auto cd = this; cd; cd = cd.baseClass)
-        {
-            searchVtbl(cd.vtblFinal);
-        }
-
-        if (fdambig)
-            error("ambiguous virtual function `%s`", fdambig.toChars());
-
-        return fdmatch;
     }
 
     /****************************************
@@ -844,102 +363,6 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
     }
 
     /****************************************
-     */
-    final bool isAbstract()
-    {
-        enum log = false;
-        if (isabstract != ThreeState.none)
-            return isabstract == ThreeState.yes;
-
-        if (log) printf("isAbstract(%s)\n", toChars());
-
-        bool no()  { if (log) printf("no\n");  isabstract = ThreeState.no;  return false; }
-        bool yes() { if (log) printf("yes\n"); isabstract = ThreeState.yes; return true;  }
-
-        if (storage_class & STC.abstract_ || _scope && _scope.stc & STC.abstract_)
-            return yes();
-
-        if (errors)
-            return no();
-
-        /* https://issues.dlang.org/show_bug.cgi?id=11169
-         * Resolve forward references to all class member functions,
-         * and determine whether this class is abstract.
-         */
-        static int func(Dsymbol s)
-        {
-            auto fd = s.isFuncDeclaration();
-            if (!fd)
-                return 0;
-            if (fd.storage_class & STC.static_)
-                return 0;
-
-            if (fd.isAbstract())
-                return 1;
-            return 0;
-        }
-
-        for (size_t i = 0; i < members.dim; i++)
-        {
-            auto s = (*members)[i];
-            if (s.apply(&func))
-            {
-                return yes();
-            }
-        }
-
-        /* If the base class is not abstract, then this class cannot
-         * be abstract.
-         */
-        if (!isInterfaceDeclaration() && (!baseClass || !baseClass.isAbstract()))
-            return no();
-
-        /* If any abstract functions are inherited, but not overridden,
-         * then the class is abstract. Do this by checking the vtbl[].
-         * Need to do semantic() on class to fill the vtbl[].
-         */
-        this.dsymbolSemantic(null);
-
-        /* The next line should work, but does not because when ClassDeclaration.dsymbolSemantic()
-         * is called recursively it can set PASS.semanticdone without finishing it.
-         */
-        //if (semanticRun < PASS.semanticdone)
-        {
-            /* Could not complete semantic(). Try running semantic() on
-             * each of the virtual functions,
-             * which will fill in the vtbl[] overrides.
-             */
-            static int virtualSemantic(Dsymbol s)
-            {
-                auto fd = s.isFuncDeclaration();
-                if (fd && !(fd.storage_class & STC.static_) && !fd.isUnitTestDeclaration())
-                    fd.dsymbolSemantic(null);
-                return 0;
-            }
-
-            for (size_t i = 0; i < members.dim; i++)
-            {
-                auto s = (*members)[i];
-                s.apply(&virtualSemantic);
-            }
-        }
-
-        /* Finally, check the vtbl[]
-         */
-        foreach (i; 1 .. vtbl.dim)
-        {
-            auto fd = vtbl[i].isFuncDeclaration();
-            //if (fd) printf("\tvtbl[%d] = [%s] %s\n", i, fd.loc.toChars(), fd.toPrettyChars());
-            if (!fd || fd.isAbstract())
-            {
-                return yes();
-            }
-        }
-
-        return no();
-    }
-
-    /****************************************
      * Determine if slot 0 of the vtbl[] is reserved for something else.
      * For class objects, yes, this is where the classinfo ptr goes.
      * For COM interfaces, no.
@@ -960,40 +383,12 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
         return "class";
     }
 
-    /****************************************
-     */
-    override final void addLocalClass(ClassDeclarations* aclasses)
-    {
-        if (classKind != ClassKind.objc)
-            aclasses.push(this);
-    }
-
-    override final void addObjcSymbols(ClassDeclarations* classes, ClassDeclarations* categories)
-    {
-        .objc.addSymbols(this, classes, categories);
-    }
-
     // Back end
     Dsymbol vtblsym;
 
-    final Dsymbol vtblSymbol()
+    extern (D) final bool isErrorException()
     {
-        if (!vtblsym)
-        {
-            auto vtype = Type.tvoidptr.immutableOf().sarrayOf(vtbl.dim);
-            auto var = new VarDeclaration(loc, vtype, Identifier.idPool("__vtbl"), null, STC.immutable_ | STC.static_);
-            var.addMember(null, this);
-            var.isdataseg = 1;
-            var._linkage = LINK.d;
-            var.semanticRun = PASS.semanticdone; // no more semantic wanted
-            vtblsym = var;
-        }
-        return vtblsym;
-    }
-
-    override final inout(ClassDeclaration) isClassDeclaration() inout @nogc nothrow pure @safe
-    {
-        return this;
+        return errorException && (this == errorException || errorException.isBaseOf(this, null));
     }
 
     override void accept(Visitor v)
@@ -1006,9 +401,10 @@ extern (C++) class ClassDeclaration : AggregateDeclaration
  */
 extern (C++) final class InterfaceDeclaration : ClassDeclaration
 {
-    extern (D) this(const ref Loc loc, Identifier id, BaseClasses* baseclasses)
+    extern (D) this(Loc loc, Identifier id, BaseClasses* baseclasses)
     {
         super(loc, id, baseclasses, null, false);
+        this.dsym = DSYM.interfaceDeclaration;
         if (id == Id.IUnknown) // IUnknown is the root of all COM interfaces
         {
             com = true;
@@ -1023,19 +419,6 @@ extern (C++) final class InterfaceDeclaration : ClassDeclaration
               : new InterfaceDeclaration(loc, ident, null);
         ClassDeclaration.syntaxCopy(id);
         return id;
-    }
-
-
-    override Scope* newScope(Scope* sc)
-    {
-        auto sc2 = super.newScope(sc);
-        if (com)
-            sc2.linkage = LINK.windows;
-        else if (classKind == ClassKind.cpp)
-            sc2.linkage = LINK.cpp;
-        else if (classKind == ClassKind.objc)
-            sc2.linkage = LINK.objc;
-        return sc2;
     }
 
     /*******************************************
@@ -1108,11 +491,6 @@ extern (C++) final class InterfaceDeclaration : ClassDeclaration
         return com;
     }
 
-    override inout(InterfaceDeclaration) isInterfaceDeclaration() inout
-    {
-        return this;
-    }
-
     override void accept(Visitor v)
     {
         v.visit(this);
@@ -1131,7 +509,7 @@ extern (C++) final class InterfaceDeclaration : ClassDeclaration
  * Returns:
  *    true if the `bc` implements `id`, false otherwise
  **/
-private bool baseClassImplementsInterface(InterfaceDeclaration id, BaseClass* bc, int* poffset) pure nothrow @nogc
+private bool baseClassImplementsInterface(InterfaceDeclaration id, BaseClass* bc, int* poffset) pure nothrow @nogc @safe
 {
     //printf("%s.InterfaceDeclaration.isBaseOf(bc = '%s')\n", id.toChars(), bc.sym.toChars());
     for (size_t j = 0; j < bc.baseInterfaces.length; j++)

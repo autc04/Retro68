@@ -107,7 +107,7 @@ ivln2_l  =  1.92596299112661746887e-08; /* 0x3E54AE0B, 0xF85DDF44 =1/ln2 tail*/
 #endif
 {
 	double z,ax,z_h,z_l,p_h,p_l;
-	double y1,t1,t2,r,s,t,u,v,w;
+	double y1,t1,t2,r,s,sign,t,u,v,w;
 	__int32_t i,j,k,yisint,n;
 	__int32_t hx,hy,ix,iy;
 	__uint32_t lx,ly;
@@ -141,7 +141,7 @@ ivln2_l  =  1.92596299112661746887e-08; /* 0x3E54AE0B, 0xF85DDF44 =1/ln2 tail*/
 		k = (iy>>20)-0x3ff;	   /* exponent */
 		if(k>20) {
 		    j = ly>>(52-k);
-		    if((j<<(52-k))==ly) yisint = 2-(j&1);
+		    if(((uint32_t)j<<(52-k))==ly) yisint = 2-(j&1);
 		} else if(ly==0) {
 		    j = iy>>(20-k);
 		    if((j<<(20-k))==iy) yisint = 2-(j&1);
@@ -184,23 +184,29 @@ ivln2_l  =  1.92596299112661746887e-08; /* 0x3E54AE0B, 0xF85DDF44 =1/ln2 tail*/
 		return z;
 	    }
 	}
-    
+
     /* (x<0)**(non-int) is NaN */
-    /* REDHAT LOCAL: This used to be
-	if((((hx>>31)+1)|yisint)==0) return (x-x)/(x-x);
-       but ANSI C says a right shift of a signed negative quantity is
-       implementation defined.  */
-	if(((((__uint32_t)hx>>31)-1)|yisint)==0) return (x-x)/(x-x);
+
+	n = ((uint32_t)hx >> 31U) - 1U;
+	if ((n | yisint) == 0) return (x-x)/(x-x);
+
+	sign = one; /* (sign of result -ve**odd) = -1 else = 1 */
+	if ((n | (yisint - 1)) == 0) {
+	    sign = -one;    /* (-ve)**(odd int) */
+        }
 
     /* |y| is huge */
-	if(iy>0x41e00000) { /* if |y| > 2**31 */
-	    if(iy>0x43f00000){	/* if |y| > 2**64, must o/uflow */
-		if(ix<=0x3fefffff) return (hy<0)? __math_oflow(0):__math_uflow(0);
-		if(ix>=0x3ff00000) return (hy>0)? __math_oflow(0):__math_uflow(0);
+	if(iy>0x42000000) { /* if |y| > ~2**33 (does not regard mantissa) */
+	    if(iy>0x43f00000){	/* if |y| > ~2**64, must o/uflow and y is an even integer */
+		if(ix<=0x3fefffff) { /* |x| < 1 */
+		    return (hy<0)? __math_oflow(0):__math_uflow(0);
+		} else {             /* |x| >= 1 */
+		    return (hy>0)? __math_oflow(0):__math_uflow(0);
+		}
 	    }
 	/* over/underflow if x is not close to one */
-	    if(ix<0x3fefffff) return (hy<0)? __math_oflow(0):__math_uflow(0);
-	    if(ix>0x3ff00000) return (hy>0)? __math_oflow(0):__math_uflow(0);
+	    if(ix<0x3fefffff) return (hy<0)? __math_oflow(sign<0):__math_uflow(sign<0);
+	    if(ix>0x3ff00000) return (hy>0)? __math_oflow(sign<0):__math_uflow(sign<0);
 	/* now |1-x| is tiny <= 2**-20, suffice to compute 
 	   log(x) by x-x^2/2+x^3/3-x^4/4 */
 	    t = ax-1;		/* t has 20 trailing zeros */
@@ -260,10 +266,6 @@ ivln2_l  =  1.92596299112661746887e-08; /* 0x3E54AE0B, 0xF85DDF44 =1/ln2 tail*/
 	    t2 = z_l-(((t1-t)-dp_h[k])-z_h);
 	}
 
-	s = one; /* s (sign of result -ve**odd) = -1 else = 1 */
-	if(((((__uint32_t)hx>>31)-1)|(yisint-1))==0)
-	    s = -one;/* (-ve)**(odd int) */
-
     /* split up y into y1+y2 and compute (y1+y2)*(t1+t2) */
 	y1  = y;
 	SET_LOW_WORD(y1,0);
@@ -273,15 +275,15 @@ ivln2_l  =  1.92596299112661746887e-08; /* 0x3E54AE0B, 0xF85DDF44 =1/ln2 tail*/
 	EXTRACT_WORDS(j,i,z);
 	if (j>=0x40900000) {				/* z >= 1024 */
 	    if(((j-0x40900000)|i)!=0)			/* if z > 1024 */
-		return __math_oflow(s<0);			/* overflow */
+		return __math_oflow(sign<0);			/* overflow */
 	    else {
-		if(p_l+ovt>z-p_h) return __math_oflow(s<0);	/* overflow */
+		if(p_l+ovt>z-p_h) return __math_oflow(sign<0);	/* overflow */
 	    }
 	} else if((j&0x7fffffff)>=0x4090cc00 ) {	/* z <= -1075 */
 	    if(((j-0xc090cc00)|i)!=0) 		/* z < -1075 */
-		return __math_uflow(s<0);		/* underflow */
+		return __math_uflow(sign<0);		/* underflow */
 	    else {
-		if(p_l<=z-p_h) return __math_uflow(s<0);	/* underflow */
+		if(p_l<=z-p_h) return __math_uflow(sign<0);	/* underflow */
 	    }
 	}
     /*
@@ -313,7 +315,7 @@ ivln2_l  =  1.92596299112661746887e-08; /* 0x3E54AE0B, 0xF85DDF44 =1/ln2 tail*/
 	j += (n<<20);
 	if((j>>20)<=0) z = scalbn(z,(int)n);	/* subnormal output */
 	else SET_HIGH_WORD(z,j);
-	return s*z;
+	return sign*z;
 }
 
 #endif /* defined(_DOUBLE_IS_32BITS) */

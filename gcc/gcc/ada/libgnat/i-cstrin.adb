@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,13 +34,16 @@ with System.Storage_Elements; use System.Storage_Elements;
 
 with Ada.Unchecked_Conversion;
 
-package body Interfaces.C.Strings is
+package body Interfaces.C.Strings with
+  SPARK_Mode => Off
+is
 
    --  Note that the type chars_ptr has a pragma No_Strict_Aliasing in the
    --  spec, to prevent any assumptions about aliasing for values of this type,
    --  since arbitrary addresses can be converted, and it is quite likely that
    --  this type will in fact be used for aliasing values of other types.
 
+   --  Convert between chars_ptr and a C pointer
    function To_chars_ptr is
       new Ada.Unchecked_Conversion (System.Parameters.C_Address, chars_ptr);
 
@@ -63,17 +66,23 @@ package body Interfaces.C.Strings is
    pragma Inline ("+");
    --  Address arithmetic on chars_ptr value
 
-   function Position_Of_Nul (Into : char_array) return size_t;
-   --  Returns position of the first Nul in Into or Into'Last + 1 if none
+   procedure Position_Of_Nul
+     (Into : char_array; Found : out Boolean; Index : out size_t);
+   --  If into contains a Nul character, Found is set to True and Index
+   --  contains the position of the first Nul character in Into. Otherwise
+   --  Found is set to False and the value of Index is not meaningful.
 
    --  We can't use directly System.Memory because the categorization is not
    --  compatible, so we directly import here the malloc and free routines.
 
    function Memory_Alloc (Size : size_t) return chars_ptr;
    pragma Import (C, Memory_Alloc, System.Parameters.C_Malloc_Linkname);
+   --  Allocate a chunk of memory on the heap
 
    procedure Memory_Free (Address : chars_ptr);
    pragma Import (C, Memory_Free, "__gnat_free");
+   --  Deallocate a previously allocated chunk of memory from the heap. On
+   --  runtimes that do not allow deallocation this is a no-op.
 
    ---------
    -- "+" --
@@ -90,12 +99,10 @@ package body Interfaces.C.Strings is
 
    procedure Free (Item : in out chars_ptr) is
    begin
-      if Item = Null_Ptr then
-         return;
+      if Item /= Null_Ptr then
+         Memory_Free (Item);
+         Item := Null_Ptr;
       end if;
-
-      Memory_Free (Item);
-      Item := Null_Ptr;
    end Free;
 
    --------------------
@@ -103,6 +110,7 @@ package body Interfaces.C.Strings is
    --------------------
 
    function New_Char_Array (Chars : char_array) return chars_ptr is
+      Found   : Boolean;
       Index   : size_t;
       Pointer : chars_ptr;
 
@@ -110,24 +118,25 @@ package body Interfaces.C.Strings is
       --  Get index of position of null. If Index > Chars'Last,
       --  nul is absent and must be added explicitly.
 
-      Index := Position_Of_Nul (Into => Chars);
-      Pointer := Memory_Alloc ((Index - Chars'First + 1));
+      Position_Of_Nul (Into => Chars, Found => Found, Index => Index);
 
       --  If nul is present, transfer string up to and including nul
 
-      if Index <= Chars'Last then
-         Update (Item   => Pointer,
-                 Offset => 0,
-                 Chars  => Chars (Chars'First .. Index),
-                 Check  => False);
+      if Found then
+         Pointer := Memory_Alloc (Index - Chars'First + 1);
+
+         Update
+           (Item   => Pointer,
+            Offset => 0,
+            Chars  => Chars (Chars'First .. Index),
+            Check  => False);
       else
          --  If original string has no nul, transfer whole string and add
          --  terminator explicitly.
 
-         Update (Item   => Pointer,
-                 Offset => 0,
-                 Chars  => Chars,
-                 Check  => False);
+         Pointer := Memory_Alloc (Chars'Length + 1);
+
+         Update (Item => Pointer, Offset => 0, Chars => Chars, Check => False);
          Poke (nul, Into => Pointer + size_t'(Chars'Length));
       end if;
 
@@ -144,20 +153,33 @@ package body Interfaces.C.Strings is
       --  the result, and doesn't copy the string on the stack, otherwise its
       --  use is limited when used from tasks on large strings.
 
-      Result : constant chars_ptr := Memory_Alloc (Str'Length + 1);
+      Len : Natural := 0;
+      --  Length of the longest prefix of Str that doesn't contain NUL
 
-      Result_Array : char_array  (1 .. Str'Length + 1);
-      for Result_Array'Address use To_Address (Result);
-      pragma Import (Ada, Result_Array);
-
-      Count : size_t;
-
+      Result : chars_ptr;
    begin
-      To_C
-        (Item       => Str,
-         Target     => Result_Array,
-         Count      => Count,
-         Append_Nul => True);
+      for C of Str loop
+         if C = ASCII.NUL then
+            exit;
+         end if;
+         Len := Len + 1;
+      end loop;
+
+      Result := Memory_Alloc (size_t (Len) + 1);
+
+      declare
+         Result_Array : char_array (1 .. size_t (Len) + 1)
+         with Address => To_Address (Result), Import, Convention => Ada;
+
+         Count : size_t;
+      begin
+         To_C
+           (Item       => Str (Str'First .. Str'First + Len - 1),
+            Target     => Result_Array,
+            Count      => Count,
+            Append_Nul => True);
+      end;
+
       return Result;
    end New_String;
 
@@ -183,15 +205,19 @@ package body Interfaces.C.Strings is
    -- Position_Of_Nul --
    ---------------------
 
-   function Position_Of_Nul (Into : char_array) return size_t is
+   procedure Position_Of_Nul
+     (Into : char_array; Found : out Boolean; Index : out size_t) is
    begin
+      Found := False;
+      Index := 0;
+
       for J in Into'Range loop
          if Into (J) = nul then
-            return J;
+            Found := True;
+            Index := J;
+            return;
          end if;
       end loop;
-
-      return Into'Last + 1;
    end Position_Of_Nul;
 
    ------------
@@ -223,16 +249,23 @@ package body Interfaces.C.Strings is
      (Item      : char_array_access;
       Nul_Check : Boolean := False) return chars_ptr
    is
+      Found : Boolean;
+      Index : size_t;
    begin
+      pragma Annotate (Gnatcheck, Exempt_On, "Improper_Returns",
+                       "early returns for performance");
       if Item = null then
          return Null_Ptr;
-      elsif Nul_Check
-        and then Position_Of_Nul (Into => Item.all) > Item'Last
-      then
-         raise Terminator_Error;
-      else
-         return To_chars_ptr (Item (Item'First)'Address);
+      elsif Nul_Check then
+         Position_Of_Nul (Item.all, Found, Index);
+         if not Found then
+            raise Terminator_Error;
+         end if;
       end if;
+
+      return To_chars_ptr (Item (Item'First)'Address);
+
+      pragma Annotate (Gnatcheck, Exempt_Off, "Improper_Returns");
    end To_Chars_Ptr;
 
    ------------
@@ -248,6 +281,11 @@ package body Interfaces.C.Strings is
       Index : chars_ptr := Item + Offset;
 
    begin
+      --  Check for null pointer as mandated by the RM.
+      if Item = Null_Ptr then
+         raise Dereference_Error;
+      end if;
+
       if Check and then Offset + Chars'Length  > Strlen (Item) then
          raise Update_Error;
       end if;
@@ -300,6 +338,8 @@ package body Interfaces.C.Strings is
       Length : size_t) return char_array
    is
    begin
+      pragma Annotate (Gnatcheck, Exempt_On, "Improper_Returns",
+                       "early returns for performance");
       if Item = Null_Ptr then
          raise Dereference_Error;
       end if;
@@ -326,6 +366,8 @@ package body Interfaces.C.Strings is
 
          return Result;
       end;
+
+      pragma Annotate (Gnatcheck, Exempt_Off, "Improper_Returns");
    end Value;
 
    function Value (Item : chars_ptr) return String is
@@ -334,9 +376,13 @@ package body Interfaces.C.Strings is
    end Value;
 
    function Value (Item : chars_ptr; Length : size_t) return String is
-      Result : char_array (0 .. Length);
+      Result : String (1 .. Natural (Length));
+      C : char;
 
    begin
+      pragma Annotate (Gnatcheck, Exempt_On, "Improper_Returns",
+                       "early returns for performance");
+
       --  As per AI-00177, this is equivalent to:
 
       --    To_Ada (Value (Item, Length) & nul);
@@ -345,16 +391,19 @@ package body Interfaces.C.Strings is
          raise Dereference_Error;
       end if;
 
-      for J in 0 .. Length - 1 loop
-         Result (J) := Peek (Item + J);
+      for J in Result'Range loop
+         C := Peek (Item + size_t (J - 1));
 
-         if Result (J) = nul then
-            return To_Ada (Result (0 .. J));
+         if C = nul then
+            return Result (1 .. J - 1);
+         else
+            Result (J) := To_Ada (C);
          end if;
       end loop;
 
-      Result (Length) := nul;
-      return To_Ada (Result);
+      return Result;
+
+      pragma Annotate (Gnatcheck, Exempt_Off, "Improper_Returns");
    end Value;
 
 end Interfaces.C.Strings;

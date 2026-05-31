@@ -1,5 +1,5 @@
-// -*- C++ -*- 
-// Copyright (C) 2000-2022 Free Software Foundation, Inc.
+// -*- C++ -*-
+// Copyright (C) 2000-2026 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //

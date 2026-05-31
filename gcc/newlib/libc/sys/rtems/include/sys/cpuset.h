@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: head/sys/sys/cpuset.h 317756 2017-05-03 18:41:08Z cem $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_CPUSET_H_
@@ -50,32 +50,32 @@
 
 #define	CPUSETBUFSIZ	((2 + sizeof(long) * 2) * _NCPUWORDS)
 
-#define	CPU_SETOF(n, p)			BIT_SETOF(CPU_SETSIZE, n, p)
-#define	CPU_ISFULLSET(p)		BIT_ISFULLSET(CPU_SETSIZE, p)
-#define	CPU_SUBSET(p, c)		BIT_SUBSET(CPU_SETSIZE, p, c)
-#define	CPU_OVERLAP(p, c)		BIT_OVERLAP(CPU_SETSIZE, p, c)
-#define	CPU_CLR_ATOMIC(n, p)		BIT_CLR_ATOMIC(CPU_SETSIZE, n, p)
-#define	CPU_SET_ATOMIC(n, p)		BIT_SET_ATOMIC(CPU_SETSIZE, n, p)
-#define	CPU_SET_ATOMIC_ACQ(n, p)	BIT_SET_ATOMIC_ACQ(CPU_SETSIZE, n, p)
-#define	CPU_AND_ATOMIC(n, p)		BIT_AND_ATOMIC(CPU_SETSIZE, n, p)
-#define	CPU_OR_ATOMIC(d, s)		BIT_OR_ATOMIC(CPU_SETSIZE, d, s)
-#define	CPU_COPY_STORE_REL(f, t)	BIT_COPY_STORE_REL(CPU_SETSIZE, f, t)
-#define	CPU_FFS(p)			BIT_FFS(CPU_SETSIZE, p)
-#define	CPUSET_FSET			BITSET_FSET(_NCPUWORDS)
-#define	CPUSET_T_INITIALIZER		BITSET_T_INITIALIZER
+#define	CPU_SETOF(n, p)			__BIT_SETOF(CPU_SETSIZE, n, p)
+#define	CPU_ISFULLSET(p)		__BIT_ISFULLSET(CPU_SETSIZE, p)
+#define	CPU_SUBSET(p, c)		__BIT_SUBSET(CPU_SETSIZE, p, c)
+#define	CPU_OVERLAP(p, c)		__BIT_OVERLAP(CPU_SETSIZE, p, c)
+#define	CPU_CLR_ATOMIC(n, p)		__BIT_CLR_ATOMIC(CPU_SETSIZE, n, p)
+#define	CPU_SET_ATOMIC(n, p)		__BIT_SET_ATOMIC(CPU_SETSIZE, n, p)
+#define	CPU_SET_ATOMIC_ACQ(n, p)	__BIT_SET_ATOMIC_ACQ(CPU_SETSIZE, n, p)
+#define	CPU_AND_ATOMIC(n, p)		__BIT_AND_ATOMIC(CPU_SETSIZE, n, p)
+#define	CPU_OR_ATOMIC(d, s)		__BIT_OR_ATOMIC(CPU_SETSIZE, d, s)
+#define	CPU_COPY_STORE_REL(f, t)	__BIT_COPY_STORE_REL(CPU_SETSIZE, f, t)
+#define	CPU_FFS(p)			__BIT_FFS(CPU_SETSIZE, p)
+#define	CPU_FLS(p)			__BIT_FLS(CPU_SETSIZE, p)
+#define	CPU_FOREACH_ISSET(i, p)		__BIT_FOREACH_ISSET(CPU_SETSIZE, i, p)
+#define	CPU_FOREACH_ISCLR(i, p)		__BIT_FOREACH_ISCLR(CPU_SETSIZE, i, p)
+#define	CPUSET_FSET			__BITSET_FSET(_NCPUWORDS)
+#define	CPUSET_T_INITIALIZER		__BITSET_T_INITIALIZER
 
 typedef cpuset_t cpu_set_t;
 
 #define	_cpu_set_bits(_setsize) (8 * (_setsize))
 
-#define	CPU_ALLOC_SIZE(_num_cpus) (sizeof(long) * __bitset_words(_num_cpus))
+#define CPU_ALLOC_SIZE(_s)		__BITSET_SIZE(_s)
 
 __BEGIN_DECLS
 
-cpu_set_t *__cpuset_alloc(int num_cpus);
-
-void __cpuset_free(cpu_set_t *set);
-
+#ifndef _KERNEL
 static __inline cpu_set_t *CPU_ALLOC(int num_cpus)
 {
   return __cpuset_alloc(num_cpus);
@@ -85,10 +85,11 @@ static __inline void CPU_FREE(cpu_set_t *set)
 {
   __cpuset_free(set);
 }
+#endif
 
 static __inline void CPU_ZERO_S(size_t setsize, cpu_set_t *set)
 {
-  BIT_ZERO(_cpu_set_bits(setsize), set);
+  __BIT_ZERO(_cpu_set_bits(setsize), set);
 }
 
 static __inline void CPU_ZERO(cpu_set_t *set)
@@ -98,7 +99,7 @@ static __inline void CPU_ZERO(cpu_set_t *set)
 
 static __inline void CPU_FILL_S(size_t setsize, cpu_set_t *set)
 {
-  BIT_FILL(_cpu_set_bits(setsize), set);
+  __BIT_FILL(_cpu_set_bits(setsize), set);
 }
 
 static __inline void CPU_FILL(cpu_set_t *set)
@@ -108,7 +109,7 @@ static __inline void CPU_FILL(cpu_set_t *set)
 
 static __inline void CPU_SET_S(int cpu, size_t setsize, cpu_set_t *set)
 {
-  BIT_SET(_cpu_set_bits(setsize), cpu, set);
+  __BIT_SET(_cpu_set_bits(setsize), cpu, set);
 }
 
 static __inline void CPU_SET(int cpu, cpu_set_t *set)
@@ -118,7 +119,7 @@ static __inline void CPU_SET(int cpu, cpu_set_t *set)
 
 static __inline void CPU_CLR_S(int cpu, size_t setsize, cpu_set_t *set)
 {
-  BIT_CLR(_cpu_set_bits(setsize), cpu, set);
+  __BIT_CLR(_cpu_set_bits(setsize), cpu, set);
 }
 
 static __inline void CPU_CLR(int cpu, cpu_set_t *set)
@@ -128,7 +129,7 @@ static __inline void CPU_CLR(int cpu, cpu_set_t *set)
 
 static __inline int CPU_ISSET_S(int cpu, size_t setsize, const cpu_set_t *set)
 {
-  return BIT_ISSET(_cpu_set_bits(setsize), cpu, set);
+  return __BIT_ISSET(_cpu_set_bits(setsize), cpu, set);
 }
 
 static __inline int CPU_ISSET(int cpu, const cpu_set_t *set)
@@ -138,13 +139,13 @@ static __inline int CPU_ISSET(int cpu, const cpu_set_t *set)
 
 static __inline void CPU_COPY(const cpu_set_t *src, cpu_set_t *dest)
 {
-  BIT_COPY(_cpu_set_bits(setsize), src, dest);
+  __BIT_COPY(_cpu_set_bits(setsize), src, dest);
 }
 
 static __inline void CPU_AND_S(size_t setsize, cpu_set_t *destset,
   const cpu_set_t *srcset1, const cpu_set_t *srcset2)
 {
-  BIT_AND2(_cpu_set_bits(setsize), destset, srcset1, srcset2);
+  __BIT_AND2(_cpu_set_bits(setsize), destset, srcset1, srcset2);
 }
 
 static __inline void CPU_AND(cpu_set_t *destset, const cpu_set_t *srcset1,
@@ -156,7 +157,7 @@ static __inline void CPU_AND(cpu_set_t *destset, const cpu_set_t *srcset1,
 static __inline void CPU_OR_S(size_t setsize, cpu_set_t *destset,
   const cpu_set_t *srcset1, const cpu_set_t *srcset2)
 {
-  BIT_OR2(_cpu_set_bits(setsize), destset, srcset1, srcset2);
+  __BIT_OR2(_cpu_set_bits(setsize), destset, srcset1, srcset2);
 }
 
 static __inline void CPU_OR(cpu_set_t *destset, const cpu_set_t *srcset1,
@@ -168,7 +169,7 @@ static __inline void CPU_OR(cpu_set_t *destset, const cpu_set_t *srcset1,
 static __inline void CPU_XOR_S(size_t setsize, cpu_set_t *destset,
   const cpu_set_t *srcset1, const cpu_set_t *srcset2)
 {
-  BIT_XOR2(_cpu_set_bits(setsize), destset, srcset1, srcset2);
+  __BIT_XOR2(_cpu_set_bits(setsize), destset, srcset1, srcset2);
 }
 
 static __inline void CPU_XOR(cpu_set_t *destset, const cpu_set_t *srcset1,
@@ -177,21 +178,21 @@ static __inline void CPU_XOR(cpu_set_t *destset, const cpu_set_t *srcset1,
   CPU_XOR_S(sizeof(*destset), destset, srcset1, srcset2);
 }
 
-static __inline void CPU_NAND_S(size_t setsize, cpu_set_t *destset,
+static __inline void CPU_ANDNOT_S(size_t setsize, cpu_set_t *destset,
   const cpu_set_t *srcset1, const cpu_set_t *srcset2)
 {
-  BIT_NAND2(_cpu_set_bits(setsize), destset, srcset1, srcset2);
+  __BIT_ANDNOT2(_cpu_set_bits(setsize), destset, srcset1, srcset2);
 }
 
-static __inline void CPU_NAND(cpu_set_t *destset, const cpu_set_t *srcset1,
+static __inline void CPU_ANDNOT(cpu_set_t *destset, const cpu_set_t *srcset1,
   const cpu_set_t *srcset2)
 {
-  CPU_NAND_S(sizeof(*destset), destset, srcset1, srcset2);
+  CPU_ANDNOT_S(sizeof(*destset), destset, srcset1, srcset2);
 }
 
 static __inline int CPU_COUNT_S(size_t setsize, const cpu_set_t *set)
 {
-  return BIT_COUNT(_cpu_set_bits(setsize), set);
+  return (int)__BIT_COUNT(_cpu_set_bits(setsize), set);
 }
 
 static __inline int CPU_COUNT(const cpu_set_t *set)
@@ -202,7 +203,7 @@ static __inline int CPU_COUNT(const cpu_set_t *set)
 static __inline int CPU_EQUAL_S(size_t setsize, const cpu_set_t *set1,
   const cpu_set_t *set2)
 {
-  return !BIT_CMP(_cpu_set_bits(setsize), set1, set2);
+  return __BIT_CMP(_cpu_set_bits(setsize), set1, set2) == 0;
 }
 
 static __inline int CPU_EQUAL(const cpu_set_t *set1, const cpu_set_t *set2)
@@ -212,12 +213,12 @@ static __inline int CPU_EQUAL(const cpu_set_t *set1, const cpu_set_t *set2)
 
 static __inline int CPU_CMP(const cpu_set_t *set1, const cpu_set_t *set2)
 {
-  return BIT_CMP(CPU_SETSIZE, set1, set2);
+  return __BIT_CMP(CPU_SETSIZE, set1, set2);
 }
 
 static __inline int CPU_EMPTY(const cpu_set_t *set)
 {
-  return BIT_EMPTY(_cpu_set_bits(sizeof(*set)), set);
+  return __BIT_EMPTY(_cpu_set_bits(sizeof(*set)), set);
 }
 
 __END_DECLS

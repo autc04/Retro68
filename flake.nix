@@ -45,6 +45,9 @@
               inputsFrom = [ pkgs.retro68.monolithic ];
               nativeBuildInputs = [ pkgs.nixpkgs-fmt ];
               hardeningDisable = [ "format" ];
+              shellHook = ''
+                export PATH="$PWD/build/toolchain/bin:$PATH"
+              '';
             };
           } // lib.mapAttrs
             (name: cross:

@@ -1,5 +1,5 @@
 /* Tree SCC value numbering
-   Copyright (C) 2007-2022 Free Software Foundation, Inc.
+   Copyright (C) 2007-2026 Free Software Foundation, Inc.
    Contributed by Daniel Berlin <dberlin@dberlin.org>
 
    This file is part of GCC.
@@ -68,7 +68,7 @@ typedef const struct vn_nary_op_s *const_vn_nary_op_t;
 
 /* Return the size of a vn_nary_op_t with LENGTH operands.  */
 
-static inline size_t
+inline size_t
 sizeof_vn_nary_op (unsigned int length)
 {
   return sizeof (struct vn_nary_op_s) + sizeof (tree) * length - sizeof (tree);
@@ -114,7 +114,7 @@ typedef struct vn_reference_op_struct
   /* For storing TYPE_ALIGN for array ref element size computation.  */
   unsigned align : 6;
   /* Constant offset this op adds or -1 if it is variable.  */
-  poly_int64_pod off;
+  poly_int64 off;
   tree type;
   tree op0;
   tree op1;
@@ -145,6 +145,8 @@ typedef struct vn_reference_s
   tree vuse;
   alias_set_type set;
   alias_set_type base_set;
+  poly_int64 offset;
+  poly_int64 max_size;
   tree type;
   unsigned punned : 1;
   vec<vn_reference_op_s> operands;
@@ -166,7 +168,7 @@ enum vn_kind vn_get_stmt_kind (gimple *);
 /* Hash the type TYPE using bits that distinguishes it in the
    types_compatible_p sense.  */
 
-static inline hashval_t
+inline hashval_t
 vn_hash_type (tree type)
 {
   return (INTEGRAL_TYPE_P (type)
@@ -177,7 +179,7 @@ vn_hash_type (tree type)
 /* Hash the constant CONSTANT with distinguishing type incompatible
    constants in the types_compatible_p sense.  */
 
-static inline hashval_t
+inline hashval_t
 vn_hash_constant_with_type (tree constant)
 {
   inchash::hash hstate;
@@ -189,7 +191,7 @@ vn_hash_constant_with_type (tree constant)
 /* Compare the constants C1 and C2 with distinguishing type incompatible
    constants in the types_compatible_p sense.  */
 
-static inline bool
+inline bool
 vn_constant_eq_with_type (tree c1, tree c2)
 {
   return (expressions_equal_p (c1, c2)
@@ -253,6 +255,7 @@ vn_nary_op_t alloc_vn_nary_op_noinit (unsigned int, struct obstack *);
 unsigned int vn_nary_length_from_stmt (gimple *);
 void init_vn_nary_op_from_stmt (vn_nary_op_t, gassign *);
 hashval_t vn_nary_op_compute_hash (const vn_nary_op_t);
+bool vn_pp_nary_for_addr (const vec<vn_reference_op_s>&, tree[2]);
 tree vn_nary_op_lookup_stmt (gimple *, vn_nary_op_t *);
 tree vn_nary_op_lookup_pieces (unsigned int, enum tree_code,
 			       tree, tree *, vn_nary_op_t *);
@@ -268,15 +271,20 @@ tree vn_reference_lookup (tree, tree, vn_lookup_kind, vn_reference_t *, bool,
 			  tree * = NULL, tree = NULL_TREE, bool = false);
 void vn_reference_lookup_call (gcall *, vn_reference_t *, vn_reference_t);
 vn_reference_t vn_reference_insert_pieces (tree, alias_set_type, alias_set_type,
+					   poly_int64, poly_int64,
 					   tree, vec<vn_reference_op_s>,
 					   tree, unsigned int);
+void copy_reference_ops_from_ref (tree, vec<vn_reference_op_s> *);
+hashval_t vn_reference_compute_hash (const vn_reference_t vr1);
+
 void print_vn_reference_ops (FILE *, const vec<vn_reference_op_s>);
 
 bool vn_nary_op_eq (const_vn_nary_op_t const vno1,
 		    const_vn_nary_op_t const vno2);
 bool vn_nary_may_trap (vn_nary_op_t);
 bool vn_reference_may_trap (vn_reference_t);
-bool vn_reference_eq (const_vn_reference_t const, const_vn_reference_t const);
+bool vn_reference_eq (const_vn_reference_t const, const_vn_reference_t const,
+		      bool = false);
 
 unsigned int get_max_value_id (void);
 unsigned int get_max_constant_value_id (void);
@@ -286,7 +294,7 @@ unsigned int get_constant_value_id (tree);
 unsigned int get_or_alloc_constant_value_id (tree);
 
 /* Return true if V is a value id for a constant.  */
-static inline bool
+inline bool
 value_id_constant_p (unsigned int v)
 {
   return (int)v < 0;
@@ -295,8 +303,13 @@ value_id_constant_p (unsigned int v)
 tree fully_constant_vn_reference_p (vn_reference_t);
 tree vn_nary_simplify (vn_nary_op_t);
 
-unsigned do_rpo_vn (function *, edge, bitmap, bool, bool, vn_lookup_kind);
-unsigned do_rpo_vn (function *, edge, bitmap);
+unsigned do_rpo_vn (function *, edge, bitmap,
+		    /* iterate */ bool = false,
+		    /* eliminate */ bool = true,
+		    /* skip_entry_phis */ bool = false,
+		    vn_lookup_kind = VN_WALKREWRITE);
+
+/* Private interface for PRE.  */
 void run_rpo_vn (vn_lookup_kind);
 unsigned eliminate_with_rpo_vn (bitmap);
 void free_rpo_vn (void);

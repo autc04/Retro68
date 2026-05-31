@@ -13,6 +13,6 @@ Disassembly of section \.text:
 [ 	]*[0-9a-f]+: R_MIPS_LO16	bar
 [0-9a-f]+ <[^>]*> 8f820000 	lw	v0,0\(gp\)
 [ 	]*[0-9a-f]+: R_MIPS_GOT16	bar
-[0-9a-f]+ <[^>]*> 03e00008 	jr	ra
+[0-9a-f]+ <[^>]*> 03e0000[89] 	jr	ra
 [0-9a-f]+ <[^>]*> 00000000 	nop
 	\.\.\.

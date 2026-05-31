@@ -1,5 +1,5 @@
 ;; Unspec defintions.
-;; Copyright (C) 2012-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2026 Free Software Foundation, Inc.
 ;; Contributed by ARM Ltd.
 
 ;; This file is part of GCC.
@@ -21,7 +21,6 @@
 ;; UNSPEC Usage:
 ;; Note: sin and cos are no-longer used.
 ;; Unspec enumerators for Neon are defined in neon.md.
-;; Unspec enumerators for iwmmxt2 are defined in iwmmxt2.md
 
 (define_c_enum "unspec" [
   UNSPEC_PUSH_MULT      ; `push multiple' operation:
@@ -42,17 +41,6 @@
                         ; and stack frame generation.  Operand 0 is the
                         ; register to "use".
   UNSPEC_CHECK_ARCH     ; Set CCs to indicate 26-bit or 32-bit mode.
-  UNSPEC_WSHUFH         ; Used by the intrinsic form of the iWMMXt WSHUFH instruction.
-  UNSPEC_WACC           ; Used by the intrinsic form of the iWMMXt WACC instruction.
-  UNSPEC_TMOVMSK        ; Used by the intrinsic form of the iWMMXt TMOVMSK instruction.
-  UNSPEC_WSAD           ; Used by the intrinsic form of the iWMMXt WSAD instruction.
-  UNSPEC_WSADZ          ; Used by the intrinsic form of the iWMMXt WSADZ instruction.
-  UNSPEC_WMACS          ; Used by the intrinsic form of the iWMMXt WMACS instruction.
-  UNSPEC_WMACU          ; Used by the intrinsic form of the iWMMXt WMACU instruction.
-  UNSPEC_WMACSZ         ; Used by the intrinsic form of the iWMMXt WMACSZ instruction.
-  UNSPEC_WMACUZ         ; Used by the intrinsic form of the iWMMXt WMACUZ instruction.
-  UNSPEC_CLRDI          ; Used by the intrinsic form of the iWMMXt CLRDI instruction.
-  UNSPEC_WALIGNI        ; Used by the intrinsic form of the iWMMXt WALIGN instruction.
   UNSPEC_TLS            ; A symbol that has been treated properly for TLS usage.
   UNSPEC_PIC_LABEL      ; A label used for PIC access that does not appear in the
                         ; instruction stream.
@@ -159,22 +147,11 @@
   UNSPEC_VCDE		; Custom Datapath Extension instruction.
   UNSPEC_VCDEA		; Custom Datapath Extension instruction.
   UNSPEC_DLS		; Used for DLS (Do Loop Start), Armv8.1-M Mainline instruction
+  UNSPEC_PAC_NOP	; Represents PAC signing LR
 ])
 
 
 (define_c_enum "unspec" [
-  UNSPEC_WADDC		; Used by the intrinsic form of the iWMMXt WADDC instruction.
-  UNSPEC_WABS		; Used by the intrinsic form of the iWMMXt WABS instruction.
-  UNSPEC_WQMULWMR	; Used by the intrinsic form of the iWMMXt WQMULWMR instruction.
-  UNSPEC_WQMULMR	; Used by the intrinsic form of the iWMMXt WQMULMR instruction.
-  UNSPEC_WQMULWM	; Used by the intrinsic form of the iWMMXt WQMULWM instruction.
-  UNSPEC_WQMULM		; Used by the intrinsic form of the iWMMXt WQMULM instruction.
-  UNSPEC_WQMIAxyn	; Used by the intrinsic form of the iWMMXt WMIAxyn instruction.
-  UNSPEC_WQMIAxy	; Used by the intrinsic form of the iWMMXt WMIAxy instruction.
-  UNSPEC_TANDC		; Used by the intrinsic form of the iWMMXt TANDC instruction.
-  UNSPEC_TORC		; Used by the intrinsic form of the iWMMXt TORC instruction.
-  UNSPEC_TORVSC		; Used by the intrinsic form of the iWMMXt TORVSC instruction.
-  UNSPEC_TEXTRC		; Used by the intrinsic form of the iWMMXt TEXTRC instruction.
   UNSPEC_GET_FPSCR_NZCVQC	; Represent fetch of FPSCR_nzcvqc content.
 ])
 
@@ -204,12 +181,7 @@
                         ;   a 64-bit object.
   VUNSPEC_POOL_16       ; `pool-entry(16)'.  An entry in the constant pool for
                         ;   a 128-bit object.
-  VUNSPEC_TMRC          ; Used by the iWMMXt TMRC instruction.
-  VUNSPEC_TMCR          ; Used by the iWMMXt TMCR instruction.
   VUNSPEC_ALIGN8        ; 8-byte alignment version of VUNSPEC_ALIGN
-  VUNSPEC_WCMP_EQ       ; Used by the iWMMXt WCMPEQ instructions
-  VUNSPEC_WCMP_GTU      ; Used by the iWMMXt WCMPGTU instructions
-  VUNSPEC_WCMP_GT       ; Used by the iwMMXT WCMPGT instructions
   VUNSPEC_EH_RETURN     ; Use to override the return address for exception
                         ; handling.
   VUNSPEC_ATOMIC_CAS	; Represent an atomic compare swap.
@@ -220,8 +192,10 @@
   VUNSPEC_SC		; Represent a store-register-exclusive.
   VUNSPEC_LAX		; Represent a load-register-acquire-exclusive.
   VUNSPEC_SLX		; Represent a store-register-release-exclusive.
-  VUNSPEC_LDA		; Represent a store-register-acquire.
+  VUNSPEC_LDA		; Represent a load-register-acquire.
+  VUNSPEC_LDR		; Represent a load-register-relaxed.
   VUNSPEC_STL		; Represent a store-register-release.
+  VUNSPEC_STR		; Represent a store-register-relaxed.
   VUNSPEC_GET_FPSCR	; Represent fetch of FPSCR content.
   VUNSPEC_SET_FPSCR	; Represent assign of FPSCR content.
   VUNSPEC_SET_FPSCR_NZCVQC	; Represent assign of FPSCR_nzcvqc content.
@@ -254,6 +228,9 @@
 			; instruction.
   VUNSPEC_VLLDM		; Represent the lazy load multiple with vlldm
 			; instruction.
+  VUNSPEC_PACBTI_NOP	; Represents PAC signing LR + valid landing pad
+  VUNSPEC_AUT_NOP	; Represents PAC verifying LR
+  VUNSPEC_BTI_NOP	; Represent BTI
 ])
 
 ;; Enumerators for NEON unspecs.
@@ -336,6 +313,10 @@
   UNSPEC_VHSUB_S
   UNSPEC_VHSUB_U
   UNSPEC_VLD1
+  UNSPEC_VLD1X3A
+  UNSPEC_VLD1X3B
+  UNSPEC_VLD1X4A
+  UNSPEC_VLD1X4B
   UNSPEC_VLD1_LANE
   UNSPEC_VLD2
   UNSPEC_VLD2_DUP
@@ -453,6 +434,10 @@
   UNSPEC_VRSRA_U_N
   UNSPEC_VSRI
   UNSPEC_VST1
+  UNSPEC_VST1X3A
+  UNSPEC_VST1X3B
+  UNSPEC_VST1X4A
+  UNSPEC_VST1X4B
   UNSPEC_VST1_LANE
   UNSPEC_VST2
   UNSPEC_VST2_LANE
@@ -575,10 +560,12 @@
   VCVTMQ_S
   VCVTMQ_U
   VADDLVQ_U
-  VCTP8Q
-  VCTP16Q
-  VCTP32Q
-  VCTP64Q
+  VCTP
+  VCTP_M
+  LETP8
+  LETP16
+  LETP32
+  LETP64
   VPNOT
   VCREATEQ_F
   VCVTQ_N_TO_F_S
@@ -702,14 +689,9 @@
   VADDLVAQ_S
   VBICQ_N_U
   VBICQ_N_S
-  VCTP8Q_M
-  VCTP16Q_M
-  VCTP32Q_M
-  VCTP64Q_M
   VCVTBQ_F16_F32
   VCVTTQ_F16_F32
   VMLALDAVQ_U
-  VMLALDAVXQ_U
   VMLALDAVXQ_S
   VMLALDAVQ_S
   VMLSLDAVQ_S
@@ -926,7 +908,6 @@
   VSHRNBQ_N_S
   VRSHRNBQ_N_S
   VRSHRNBQ_N_U
-  VMLALDAVXQ_P_U
   VMLALDAVXQ_P_S
   VQMOVNTQ_M_U
   VQMOVNTQ_M_S
@@ -935,7 +916,6 @@
   VQSHRNTQ_N_U
   VQSHRNTQ_N_S
   VMLALDAVAXQ_S
-  VMLALDAVAXQ_U
   VSHRNTQ_N_S
   VSHRNTQ_N_U
   VCVTBQ_M_F16_F32
@@ -997,8 +977,7 @@
   VMAXQ_M_U
   VQRDMLAHQ_M_N_U
   VCADDQ_ROT270_M_F
-  VCADDQ_ROT270_M_U
-  VCADDQ_ROT270_M_S
+  VCADDQ_ROT270_M
   VQRSHLQ_M_S
   VMULQ_M_F
   VRHADDQ_M_U
@@ -1052,8 +1031,7 @@
   VSLIQ_M_N_S
   VQSHLQ_M_U
   VQSHLQ_M_S
-  VCADDQ_ROT90_M_U
-  VCADDQ_ROT90_M_S
+  VCADDQ_ROT90_M
   VORNQ_M_U
   VORNQ_M_S
   VQSHLQ_M_N_S
@@ -1139,70 +1117,36 @@
   VMAXNMQ_M_F
   VMINNMQ_M_F
   VSUBQ_M_F
-  VSTRWQSB_S
-  VSTRWQSB_U
-  VSTRBQSO_S
-  VSTRBQSO_U
-  VSTRBQ_S
-  VSTRBQ_U
-  VLDRBQGO_S
-  VLDRBQGO_U
-  VLDRBQ_S
-  VLDRBQ_U
-  VLDRWQGB_S
-  VLDRWQGB_U
-  VLD1Q_F
-  VLD1Q_S
-  VLD1Q_U
-  VLDRHQ_F
-  VLDRHQGO_S
-  VLDRHQGO_U
-  VLDRHQGSO_S
-  VLDRHQGSO_U
-  VLDRHQ_S
-  VLDRHQ_U
-  VLDRWQ_F
-  VLDRWQ_S
-  VLDRWQ_U
-  VLDRDQGB_S
-  VLDRDQGB_U
-  VLDRDQGO_S
-  VLDRDQGO_U
-  VLDRDQGSO_S
-  VLDRDQGSO_U
-  VLDRHQGO_F
-  VLDRHQGSO_F
-  VLDRWQGB_F
-  VLDRWQGO_F
-  VLDRWQGO_S
-  VLDRWQGO_U
-  VLDRWQGSO_F
-  VLDRWQGSO_S
-  VLDRWQGSO_U
-  VSTRHQ_F
-  VST1Q_S
-  VST1Q_U
-  VSTRHQSO_S
-  VSTRHQ_U
-  VSTRWQ_S
-  VSTRWQ_U
-  VSTRWQ_F
-  VST1Q_F
+  VSTRSBQ
+  VSTRSBQ_P
+  VSTRQSO
+  VSTRQSO_P
+  VSTRQSO_TRUNC
+  VSTRQSO_TRUNC_P
+  VLDRQ
+  VLDRQ_Z
+  VLDRQ_EXT
+  VLDRQ_EXT_Z
+  VLDRGOQ
+  VLDRGOQ_Z
+  VLDRGOQ_EXT
+  VLDRGOQ_EXT_Z
+  VLDRGBQ
+  VLDRGBQ_Z
+  VLDRGSOQ
+  VLDRGSOQ_Z
+  VLDRGSOQ_EXT
+  VLDRGSOQ_EXT_Z
+  VSTRQ
+  VSTRQ_P
+  VSTRQ_TRUNC
+  VSTRQ_TRUNC_P
   VSTRDQSB_S
   VSTRDQSB_U
-  VSTRDQSO_S
-  VSTRDQSO_U
-  VSTRDQSSO_S
-  VSTRDQSSO_U
-  VSTRWQSO_S
-  VSTRWQSO_U
-  VSTRWQSSO_S
-  VSTRWQSSO_U
-  VSTRHQSO_F
-  VSTRHQSSO_F
-  VSTRWQSB_F
-  VSTRWQSO_F
-  VSTRWQSSO_F
+  VSTRSSOQ
+  VSTRSSOQ_P
+  VSTRSSOQ_TRUNC
+  VSTRSSOQ_TRUNC_P
   VDDUPQ
   VDDUPQ_M
   VDWDUPQ
@@ -1211,40 +1155,47 @@
   VIDUPQ_M
   VIWDUPQ
   VIWDUPQ_M
-  VSTRWQSBWB_S
-  VSTRWQSBWB_U
-  VLDRWQGBWB_S
-  VLDRWQGBWB_U
-  VSTRWQSBWB_F
-  VLDRWQGBWB_F
-  VSTRDQSBWB_S
-  VSTRDQSBWB_U
-  VLDRDQGBWB_S
-  VLDRDQGBWB_U
+  VSTRSBWBQ
+  VSTRSBWBQ_P
+  VLDRGBWBQ
+  VLDRGBWBQ_Z
   VADCQ_U
+  VADCQ_U_carry
   VADCQ_M_U
+  VADCQ_M_U_carry
   VADCQ_S
+  VADCQ_S_carry
   VADCQ_M_S
+  VADCQ_M_S_carry
   VSBCIQ_U
+  VSBCIQ_U_carry
   VSBCIQ_S
+  VSBCIQ_S_carry
   VSBCIQ_M_U
+  VSBCIQ_M_U_carry
   VSBCIQ_M_S
+  VSBCIQ_M_S_carry
   VSBCQ_U
+  VSBCQ_U_carry
   VSBCQ_S
+  VSBCQ_S_carry
   VSBCQ_M_U
+  VSBCQ_M_U_carry
   VSBCQ_M_S
+  VSBCQ_M_S_carry
   VADCIQ_U
+  VADCIQ_U_carry
   VADCIQ_M_U
+  VADCIQ_M_U_carry
   VADCIQ_S
+  VADCIQ_S_carry
   VADCIQ_M_S
+  VADCIQ_M_S_carry
   VLD2Q
   VLD4Q
   VST2Q
   VSHLCQ_M_U
   VSHLCQ_M_S
-  VSTRHQSO_U
-  VSTRHQSSO_S
-  VSTRHQSSO_U
   VSTRHQ_S
   SRSHRL
   SRSHR
@@ -1256,5 +1207,14 @@
   UQRSHLL_48
   SQRSHRL_64
   SQRSHRL_48
-  VSHLCQ_M_
+  REINTERPRET
+])
+
+; DLSTP unspecs must be volatile to guarantee the scheduler does not reschedule
+; these instructions within the loop preheader.
+(define_c_enum "unspecv" [
+  DLSTP8
+  DLSTP16
+  DLSTP32
+  DLSTP64
 ])

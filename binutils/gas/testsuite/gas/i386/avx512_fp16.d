@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: i386 AVX512-FP16 insns
 #source: avx512_fp16.s
@@ -546,6 +545,7 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 58 66 29 7b[ 	]*vfpclassph \$0x7b,\(%ecx\)\{1to32\},%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 48 66 69 7f 7b[ 	]*vfpclassphz \$0x7b,0x1fc0\(%ecx\),%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 5f 66 6a 80 7b[ 	]*vfpclassph \$0x7b,-0x100\(%edx\)\{1to32\},%k5\{%k7\}
+[ 	]*[a-f0-9]+:[ 	]*62 f3 7c 58 66 69 01 7b[ 	]*vfpclassph \$0x7b,0x2\(%ecx\)\{1to32\},%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 08 67 ee 7b[ 	]*vfpclasssh \$0x7b,%xmm6,%k5
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 0f 67 ee 7b[ 	]*vfpclasssh \$0x7b,%xmm6,%k5\{%k7\}
 [ 	]*[a-f0-9]+:[ 	]*62 f3 7c 0f 67 ac f4 00 00 00 10 7b[ 	]*vfpclasssh \$0x7b,0x10000000\(%esp,%esi,8\),%k5\{%k7\}

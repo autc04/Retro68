@@ -9,17 +9,16 @@
  */
 module core.sys.windows.ddeml;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "user32");
 
 import core.sys.windows.basetsd, core.sys.windows.windef, core.sys.windows.winnt;
 
-mixin DECLARE_HANDLE!("HCONVLIST");
-mixin DECLARE_HANDLE!("HCONV");
-mixin DECLARE_HANDLE!("HSZ");
-mixin DECLARE_HANDLE!("HDDEDATA");
+alias HCONVLIST = HANDLE;
+alias HCONV = HANDLE;
+alias HSZ = HANDLE;
+alias HDDEDATA = HANDLE;
 
 enum : int {
     CP_WINANSI    = 1004,
@@ -207,14 +206,14 @@ enum : int {
     MH_CLEANUP = 4
 }
 
-extern (Windows) alias HDDEDATA
-  function(UINT, UINT, HCONV, HSZ, HSZ, HDDEDATA, ULONG_PTR, ULONG_PTR) PFNCALLBACK;
+extern (Windows) alias PFNCALLBACK = HDDEDATA
+  function(UINT, UINT, HCONV, HSZ, HSZ, HDDEDATA, ULONG_PTR, ULONG_PTR);
 
 struct HSZPAIR {
     HSZ hszSvc;
     HSZ hszTopic;
 }
-alias HSZPAIR* PHSZPAIR;
+alias PHSZPAIR = HSZPAIR*;
 
 struct CONVCONTEXT {
     UINT                        cb = CONVCONTEXT.sizeof;
@@ -225,7 +224,7 @@ struct CONVCONTEXT {
     DWORD                       dwSecurity;
     SECURITY_QUALITY_OF_SERVICE qos;
 }
-alias CONVCONTEXT* PCONVCONTEXT;
+alias PCONVCONTEXT = CONVCONTEXT*;
 
 struct CONVINFO {
     DWORD       cb = CONVINFO.sizeof;
@@ -245,7 +244,7 @@ struct CONVINFO {
     HWND        hwnd;
     HWND        hwndPartner;
 }
-alias CONVINFO* PCONVINFO;
+alias PCONVINFO = CONVINFO*;
 
 struct DDEML_MSG_HOOK_DATA {
     UINT_PTR uiLo;
@@ -264,7 +263,7 @@ struct MONHSZSTRUCT {
 
     TCHAR* str() return { return _str.ptr; }
 }
-alias MONHSZSTRUCT* PMONHSZSTRUCT;
+alias PMONHSZSTRUCT = MONHSZSTRUCT*;
 
 struct MONLINKSTRUCT {
     UINT   cb = MONLINKSTRUCT.sizeof;
@@ -280,7 +279,7 @@ struct MONLINKSTRUCT {
     HCONV  hConvServer;
     HCONV  hConvClient;
 }
-alias MONLINKSTRUCT* PMONLINKSTRUCT;
+alias PMONLINKSTRUCT = MONLINKSTRUCT*;
 
 struct MONCONVSTRUCT {
     UINT   cb = MONCONVSTRUCT.sizeof;
@@ -292,7 +291,7 @@ struct MONCONVSTRUCT {
     HCONV  hConvClient;
     HCONV  hConvServer;
 }
-alias MONCONVSTRUCT* PMONCONVSTRUCT;
+alias PMONCONVSTRUCT = MONCONVSTRUCT*;
 
 struct MONCBSTRUCT {
     UINT        cb = MONCBSTRUCT.sizeof;
@@ -311,7 +310,7 @@ struct MONCBSTRUCT {
     DWORD       cbData;
     DWORD[8]    Data;
 }
-alias MONCBSTRUCT* PMONCBSTRUCT;
+alias PMONCBSTRUCT = MONCBSTRUCT*;
 
 struct MONERRSTRUCT {
     UINT   cb = MONERRSTRUCT.sizeof;
@@ -319,7 +318,7 @@ struct MONERRSTRUCT {
     DWORD  dwTime;
     HANDLE hTask;
 }
-alias MONERRSTRUCT* PMONERRSTRUCT;
+alias PMONERRSTRUCT = MONERRSTRUCT*;
 
 struct MONMSGSTRUCT {
     UINT   cb = MONMSGSTRUCT.sizeof;
@@ -331,9 +330,9 @@ struct MONMSGSTRUCT {
     LPARAM lParam;
     DDEML_MSG_HOOK_DATA dmhd;
 }
-alias MONMSGSTRUCT* PMONMSGSTRUCT;
+alias PMONMSGSTRUCT = MONMSGSTRUCT*;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     BOOL DdeAbandonTransaction(DWORD, HCONV, DWORD);
     PBYTE DdeAccessData(HDDEDATA, PDWORD);
     HDDEDATA DdeAddData(HDDEDATA, PBYTE, DWORD, DWORD);
@@ -380,11 +379,11 @@ const TCHAR[]
     SZDDE_ITEM_ITEMLIST    = "TopicItemList";
 
 version (Unicode) {
-    alias DdeCreateStringHandleW DdeCreateStringHandle;
-    alias DdeInitializeW DdeInitialize;
-    alias DdeQueryStringW DdeQueryString;
+    alias DdeCreateStringHandle = DdeCreateStringHandleW;
+    alias DdeInitialize = DdeInitializeW;
+    alias DdeQueryString = DdeQueryStringW;
 } else {
-    alias DdeCreateStringHandleA DdeCreateStringHandle;
-    alias DdeInitializeA DdeInitialize;
-    alias DdeQueryStringA DdeQueryString;
+    alias DdeCreateStringHandle = DdeCreateStringHandleA;
+    alias DdeInitialize = DdeInitializeA;
+    alias DdeQueryString = DdeQueryStringA;
 }

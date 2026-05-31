@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,9 +23,9 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Aspects;        use Aspects;
 with Atree;          use Atree;
 with Checks;         use Checks;
-with Einfo;          use Einfo;
 with Einfo.Entities; use Einfo.Entities;
 with Einfo.Utils;    use Einfo.Utils;
 with Exp_Attr;
@@ -43,13 +43,14 @@ with Restrict;       use Restrict;
 with Rident;         use Rident;
 with Rtsfind;        use Rtsfind;
 with Sem;            use Sem;
+with Sem_Aggr;       use Sem_Aggr;
 with Sem_Aux;        use Sem_Aux;
 with Sem_Ch7;        use Sem_Ch7;
 with Sem_Ch8;        use Sem_Ch8;
+with Sem_Ch13;       use Sem_Ch13;
 with Sem_Prag;       use Sem_Prag;
 with Sem_Res;        use Sem_Res;
 with Sem_Util;       use Sem_Util;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Snames;         use Snames;
@@ -63,8 +64,16 @@ package body Exp_SPARK is
    -- Local Subprograms --
    -----------------------
 
+   procedure Expand_SPARK_N_Aggregate (N : Node_Id);
+   --  Perform specific expansion of container aggregates, to ensure suitable
+   --  checking of expressions.
+
    procedure Expand_SPARK_N_Attribute_Reference (N : Node_Id);
    --  Perform attribute-reference-specific expansion
+
+   procedure Expand_SPARK_N_Continue_Statement (N : Node_Id);
+   --  Expand continue statements which are resolved as procedure calls, into
+   --  said procedure calls. Real continue statements are left as-is.
 
    procedure Expand_SPARK_N_Delta_Aggregate (N : Node_Id);
    --  Perform delta-aggregate-specific expansion
@@ -101,7 +110,7 @@ package body Exp_SPARK is
    --  expanded body would compare the _parent component, which is
    --  intentionally not generated in the GNATprove mode.
    --
-   --  We build the DIC procedure body here as well.
+   --  We build the DIC and Type_Invariant procedure bodies here as well.
 
    ------------------
    -- Expand_SPARK --
@@ -138,6 +147,9 @@ package body Exp_SPARK is
          when N_Delta_Aggregate =>
             Expand_SPARK_N_Delta_Aggregate (N);
 
+         when N_Aggregate =>
+            Expand_SPARK_N_Aggregate (N);
+
          when N_Expanded_Name
             | N_Identifier
          =>
@@ -162,6 +174,14 @@ package body Exp_SPARK is
          when N_Op_Ne =>
             Expand_SPARK_N_Op_Ne (N);
 
+         --  Resolution of type conversion relies on minimal expansion of
+         --  fixedpoint operations to insert the range check on their result.
+
+         when N_Op_Multiply | N_Op_Divide =>
+            if Etype (N) = Universal_Fixed then
+               Exp_Ch4.Fixup_Universal_Fixed_Operation (N);
+            end if;
+
          when N_Freeze_Entity =>
             --  Currently we only expand type freeze entities, so ignore other
             --  freeze entites, because it is expensive to create a suitable
@@ -172,6 +192,9 @@ package body Exp_SPARK is
             end if;
 
          --  In SPARK mode, no other constructs require expansion
+
+         when N_Continue_Statement =>
+            Expand_SPARK_N_Continue_Statement (N);
 
          when others =>
             null;
@@ -186,14 +209,46 @@ package body Exp_SPARK is
      (Typ  : Entity_Id;
       Aggr : Node_Id)
    is
+      procedure Apply_Range_Checks (Choice : Node_Id);
+      --  Apply range checks on indexes from a deep choice
+
+      ------------------------
+      -- Apply_Range_Checks --
+      ------------------------
+
+      procedure Apply_Range_Checks (Choice : Node_Id) is
+         Pref  : Node_Id := Choice;
+         Index : N_Subexpr_Id;
+      begin
+         loop
+            if Nkind (Pref) = N_Indexed_Component then
+               Index := First (Expressions (Pref));
+               Apply_Scalar_Range_Check (Index, Etype (Index));
+
+            elsif Is_Array_Type (Typ)
+              and then Is_Root_Prefix_Of_Deep_Choice (Pref)
+            then
+               Index := Pref;
+               Apply_Scalar_Range_Check (Index, Etype (Index));
+            end if;
+
+            exit when Is_Root_Prefix_Of_Deep_Choice (Pref);
+
+            Pref := Prefix (Pref);
+         end loop;
+      end Apply_Range_Checks;
+
+      --  Local variables
+
       Assoc     : Node_Id;
       Comp      : Node_Id;
-      Comp_Id   : Entity_Id;
       Comp_Type : Entity_Id;
       Expr      : Node_Id;
       Index     : Node_Id;
       Index_Typ : Entity_Id;
       New_Assoc : Node_Id;
+
+   --  Start of processing for Expand_SPARK_Delta_Or_Update
 
    begin
       --  Apply scalar range checks on the updated components, if needed
@@ -277,6 +332,9 @@ package body Exp_SPARK is
                   if Nkind (Index) in N_Range | N_Subtype_Indication then
                      null;
 
+                  elsif Is_Deep_Choice (Index, Typ) then
+                     Apply_Range_Checks (Index);
+
                   --  Otherwise the index denotes a single expression where
                   --  range checks need to be applied or a subtype name
                   --  (without range constraints) where applying checks is
@@ -346,15 +404,16 @@ package body Exp_SPARK is
             Comp := First (Choices (Assoc));
 
             while Present (Comp) loop
-               Comp_Id   := Entity (Comp);
-               Comp_Type := Etype (Comp_Id);
+               if Is_Deep_Choice (Comp, Typ) then
+                  Comp_Type := Etype (Comp);
+               else
+                  Comp_Type := Etype (Entity (Comp));
+               end if;
 
                New_Assoc :=
                  Make_Component_Association
                    (Sloc       => Sloc (Assoc),
-                    Choices    =>
-                      New_List
-                        (New_Occurrence_Of (Comp_Id, Sloc (Comp))),
+                    Choices    => New_List (New_Copy_Tree (Comp)),
                     Expression => New_Copy_Tree (Expr));
 
                --  New association must be attached to the aggregate before we
@@ -363,6 +422,10 @@ package body Exp_SPARK is
                Append (New_Assoc, Component_Associations (Aggr));
 
                Analyze_And_Resolve (Expression (New_Assoc), Comp_Type);
+
+               if Is_Deep_Choice (Comp, Typ) then
+                  Apply_Range_Checks (First (Choices (New_Assoc)));
+               end if;
 
                if Is_Scalar_Type (Comp_Type) then
                   Apply_Scalar_Range_Check
@@ -376,6 +439,160 @@ package body Exp_SPARK is
          end loop;
       end if;
    end Expand_SPARK_Delta_Or_Update;
+
+   ---------------------------------------
+   -- Expand_SPARK_N_Continue_Statement --
+   ---------------------------------------
+
+   procedure Expand_SPARK_N_Continue_Statement (N : Node_Id) is
+      X : constant Node_Id := Call_Or_Target_Loop (N);
+   begin
+      if No (X) then
+         return;
+      end if;
+
+      if Nkind (X) = N_Procedure_Call_Statement then
+         Replace (N, X);
+         Analyze (N);
+      end if;
+   end Expand_SPARK_N_Continue_Statement;
+
+   ------------------------------
+   -- Expand_SPARK_N_Aggregate --
+   ------------------------------
+
+   procedure Expand_SPARK_N_Aggregate (N : Node_Id) is
+
+      --  Local subprograms
+
+      procedure Parse_Named_Subp
+        (Subp         : Subprogram_Kind_Id;
+         Key_Type     : out Type_Kind_Id;
+         Element_Type : out Type_Kind_Id);
+      --  Retrieve key and element types from subprogram for named addition
+
+      procedure Parse_Unnamed_Subp
+        (Subp         : Subprogram_Kind_Id;
+         Element_Type : out Type_Kind_Id);
+      --  Retrieve element types from subprogram for unnamed addition
+
+      procedure Wrap_For_Checks (Expr : N_Subexpr_Id; Typ : Type_Kind_Id);
+      --  If Expr might require a range check for conversion to type Typ, set
+      --  Do_Range_Check on Expr. In all cases, wrap Expr in a type conversion
+      --  if Typ is not the type of Expr already, for GNATprove to correctly
+      --  identity the target type for the range check and insert any other
+      --  checks.
+
+      ----------------------
+      -- Parse_Named_Subp --
+      ----------------------
+
+      procedure Parse_Named_Subp
+        (Subp         : Subprogram_Kind_Id;
+         Key_Type     : out Type_Kind_Id;
+         Element_Type : out Type_Kind_Id)
+      is
+         Formal : Entity_Id := First_Formal (Subp);
+      begin
+         Next_Formal (Formal);
+         Key_Type := Etype (Formal);
+         Next_Formal (Formal);
+         Element_Type := Etype (Formal);
+      end Parse_Named_Subp;
+
+      ------------------------
+      -- Parse_Unnamed_Subp --
+      ------------------------
+
+      procedure Parse_Unnamed_Subp
+        (Subp         : Subprogram_Kind_Id;
+         Element_Type : out Type_Kind_Id)
+      is
+         Formal : Entity_Id := First_Formal (Subp);
+      begin
+         Next_Formal (Formal);
+         Element_Type := Etype (Formal);
+      end Parse_Unnamed_Subp;
+
+      ---------------------
+      -- Wrap_For_Checks --
+      ---------------------
+
+      procedure Wrap_For_Checks (Expr : N_Subexpr_Id; Typ : Type_Kind_Id) is
+      begin
+         if Is_Scalar_Type (Typ) then
+            Apply_Scalar_Range_Check (Expr, Typ);
+         end if;
+
+         Convert_To_And_Rewrite (Typ, Expr);
+      end Wrap_For_Checks;
+
+      --  Local variables
+
+      Typ : constant Entity_Id := Etype (N);
+      Asp : constant Node_Id := Find_Value_Of_Aspect (Typ, Aspect_Aggregate);
+
+      Empty_Subp          : Node_Id := Empty;
+      Add_Named_Subp      : Node_Id := Empty;
+      Add_Unnamed_Subp    : Node_Id := Empty;
+      New_Indexed_Subp    : Node_Id := Empty;
+      Assign_Indexed_Subp : Node_Id := Empty;
+      Key_Type            : Entity_Id;
+      Element_Type        : Entity_Id;
+
+      Assocs : constant List_Id := Component_Associations (N);
+      Exprs  : constant List_Id := Expressions (N);
+      Choice : Node_Id;
+      Assoc  : Node_Id;
+      Expr   : Node_Id;
+
+   --  Start of processing for Expand_SPARK_N_Aggregate
+
+   begin
+      if Is_Container_Aggregate (N) then
+
+         Parse_Aspect_Aggregate (Asp,
+           Empty_Subp, Add_Named_Subp, Add_Unnamed_Subp,
+           New_Indexed_Subp, Assign_Indexed_Subp);
+
+         Assoc := First (Assocs);
+         Expr := First (Exprs);
+
+         --  Both lists could be empty as in [] but they can't be both
+         --  non-empty.
+         pragma Assert (not (Present (Assoc) and then Present (Expr)));
+
+         --  Deal with cases supported in GNATprove:
+         --  - named container aggregate which is not an indexed aggregate
+         --  - positional container aggregate
+
+         if Present (Assoc)
+           and then Present (Add_Named_Subp)
+         then
+            Parse_Named_Subp (Entity (Add_Named_Subp), Key_Type, Element_Type);
+
+            while Present (Assoc) loop
+               Choice := First (Choice_List (Assoc));
+
+               while Present (Choice) loop
+                  Wrap_For_Checks (Choice, Key_Type);
+                  Next (Choice);
+               end loop;
+
+               Wrap_For_Checks (Expression (Assoc), Element_Type);
+               Next (Assoc);
+            end loop;
+
+         elsif Present (Expr) then
+            Parse_Unnamed_Subp (Entity (Add_Unnamed_Subp), Element_Type);
+
+            while Present (Expr) loop
+               Wrap_For_Checks (Expr, Element_Type);
+               Next (Expr);
+            end loop;
+         end if;
+      end if;
+   end Expand_SPARK_N_Aggregate;
 
    ----------------------------------
    -- Expand_SPARK_N_Freeze_Entity --
@@ -850,9 +1067,12 @@ package body Exp_SPARK is
    --  Start of processing for Expand_SPARK_Potential_Renaming
 
    begin
-      --  Replace a reference to a renaming with the actual renamed object
+      --  Replace a reference to a renaming with the actual renamed object.
+      --  Protect against previous errors leaving no entity in N.
 
-      if Is_Object (Obj_Id) then
+      if Present (Obj_Id)
+        and then Is_Object (Obj_Id)
+      then
          Ren := Renamed_Object (Obj_Id);
 
          if Present (Ren) then
@@ -892,7 +1112,7 @@ package body Exp_SPARK is
    procedure SPARK_Freeze_Type (N : Entity_Id) is
       Typ : constant Entity_Id := Entity (N);
 
-      Renamed_Eq : Node_Id;
+      Renamed_Eq : Entity_Id;
       --  Defining unit name for the predefined equality function in the case
       --  where the type has a primitive operation that is a renaming of
       --  predefined equality (but only if there is also an overriding
@@ -906,8 +1126,7 @@ package body Exp_SPARK is
       Wrapper_Decl_List : List_Id;
       Wrapper_Body_List : List_Id := No_List;
 
-      Saved_GM  : constant Ghost_Mode_Type := Ghost_Mode;
-      Saved_IGR : constant Node_Id         := Ignored_Ghost_Region;
+      Saved_Ghost_Config : constant Ghost_Config_Type := Ghost_Config;
       --  Save the Ghost-related attributes to restore on exit
 
    begin
@@ -917,15 +1136,53 @@ package body Exp_SPARK is
 
       Set_Ghost_Mode (Typ);
 
-      --  When a DIC is inherited by a tagged type, it may need to be
-      --  specialized to the descendant type, hence build a separate DIC
-      --  procedure for it as done during regular expansion for compilation.
+      --  Generate the [spec and] body of the invariant procedure tasked with
+      --  the runtime verification of all invariants that pertain to the type.
+      --  This includes invariants on the partial and full view, inherited
+      --  class-wide invariants from parent types or interfaces, and invariants
+      --  on array elements or record components. But skip internal types.
 
-      if Has_DIC (Typ) and then Is_Tagged_Type (Typ) then
-         --  Why is this needed for DIC, but not for other aspects (such as
-         --  Type_Invariant)???
+      if Is_Itype (Typ) then
+         null;
 
-         Build_DIC_Procedure_Body (Typ);
+      elsif Is_Interface (Typ) then
+
+         --  Interfaces are treated as the partial view of a private type in
+         --  order to achieve uniformity with the general case. As a result, an
+         --  interface receives only a "partial" invariant procedure which is
+         --  never called.
+
+         if Has_Own_Invariants (Typ) then
+            Build_Invariant_Procedure_Body
+              (Typ               => Typ,
+               Partial_Invariant => Is_Interface (Typ));
+         end if;
+
+      --  Non-interface types
+
+      --  Do not generate invariant procedure within other assertion
+      --  subprograms, which may involve local declarations of local
+      --  subtypes to which these checks do not apply.
+
+      else
+         if Has_Invariants (Typ) then
+            if not Predicate_Check_In_Scope (Typ)
+              or else (Ekind (Current_Scope) = E_Function
+                        and then Is_Predicate_Function (Current_Scope))
+            then
+               null;
+            else
+               Build_Invariant_Procedure_Body (Typ);
+            end if;
+         end if;
+
+         --  Generate the [spec and] body of the procedure tasked with the
+         --  run-time verification of pragma Default_Initial_Condition's
+         --  expression.
+
+         if Has_DIC (Typ) then
+            Build_DIC_Procedure_Body (Typ);
+         end if;
       end if;
 
       if Ekind (Typ) = E_Record_Type
@@ -993,7 +1250,7 @@ package body Exp_SPARK is
          end if;
       end if;
 
-      Restore_Ghost_Region (Saved_GM, Saved_IGR);
+      Restore_Ghost_Region (Saved_Ghost_Config);
    end SPARK_Freeze_Type;
 
 end Exp_SPARK;

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---             Copyright (C) 2020-2022, Free Software Foundation, Inc.      --
+--             Copyright (C) 2020-2026, Free Software Foundation, Inc.      --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,13 +24,10 @@
 ------------------------------------------------------------------------------
 
 --  This package is the entry point for VAST: Verifier for the Ada Semantic
---  Tree.
-
-with Types; use Types;
+--  Tree. It walks the expanded trees, and verifies their validity.
 
 package VAST is
 
-   procedure Check_Tree (GNAT_Root : Node_Id);
-   --  Check the validity of the given Root tree
+   procedure VAST_If_Enabled;
 
 end VAST;

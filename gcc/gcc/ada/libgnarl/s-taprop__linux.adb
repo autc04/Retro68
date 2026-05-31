@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1992-2022, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2026, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,32 +34,30 @@
 --  This package contains all the GNULL primitives that interface directly with
 --  the underlying OS.
 
-with Interfaces.C; use Interfaces; use type Interfaces.C.int;
+with Interfaces.C;
 
-with System.Task_Info;
-with System.Tasking.Debug;
 with System.Interrupt_Management;
+with System.Multiprocessors;
 with System.OS_Constants;
 with System.OS_Primitives;
-with System.Multiprocessors;
-
-with System.Soft_Links;
---  We use System.Soft_Links instead of System.Tasking.Initialization
---  because the later is a higher level package that we shouldn't depend on.
---  For example when using the restricted run time, it is replaced by
---  System.Tasking.Restricted.Stages.
+with System.Task_Info;
+with System.Tasking.Debug;
 
 package body System.Task_Primitives.Operations is
 
    package OSC renames System.OS_Constants;
-   package SSL renames System.Soft_Links;
 
-   use System.Tasking.Debug;
-   use System.Tasking;
-   use System.OS_Interface;
+   use Interfaces;
+
    use System.Parameters;
+   use System.OS_Interface;
+   use System.OS_Locks;
    use System.OS_Primitives;
    use System.Task_Info;
+   use System.Tasking.Debug;
+   use System.Tasking;
+
+   use type Interfaces.C.int;
 
    ----------------
    -- Local Data --
@@ -96,7 +94,7 @@ package body System.Task_Primitives.Operations is
    Foreign_Task_Elaborated : aliased Boolean := True;
    --  Used to identified fake tasks (i.e., non-Ada Threads)
 
-   Use_Alternate_Stack : constant Boolean := Alternate_Stack_Size /= 0;
+   Use_Alternate_Stack : Boolean := Alternate_Stack_Size /= 0;
    --  Whether to use an alternate signal stack for stack overflows
 
    Abort_Handler_Installed : Boolean := False;
@@ -248,11 +246,16 @@ package body System.Task_Primitives.Operations is
    --  as in "sudo /sbin/setcap cap_sys_nice=ep exe_file". If it doesn't have
    --  permission, then a request for Ceiling_Locking is ignored.
 
-   type RTS_Lock_Ptr is not null access all RTS_Lock;
-
-   function Init_Mutex (L : RTS_Lock_Ptr; Prio : Any_Priority) return C.int;
-   --  Initialize the mutex L. If Ceiling_Support is True, then set the ceiling
+   function Initialize_Lock
+     (L    : not null access RTS_Lock;
+      Prio : Any_Priority) return C.int;
+   --  Initialize the lock L. If Ceiling_Support is True, then set the ceiling
    --  to Prio. Returns 0 for success, or ENOMEM for out-of-memory.
+
+   function Requires_Affinity_Change
+     (Domain : Dispatching_Domain_Access) return Boolean;
+   --  Returns whether a call to pthread_setaffinity_np is required to assign a
+   --  task to Domain.
 
    -------------------
    -- Abort_Handler --
@@ -340,11 +343,20 @@ package body System.Task_Primitives.Operations is
 
    function Self return Task_Id renames Specific.Self;
 
-   ----------------
-   -- Init_Mutex --
-   ----------------
+   ---------------------
+   -- Initialize_Lock --
+   ---------------------
 
-   function Init_Mutex (L : RTS_Lock_Ptr; Prio : Any_Priority) return C.int is
+   --  Note: mutexes and cond_variables needed per-task basis are initialized
+   --  in Initialize_TCB and the Storage_Error is handled. Other mutexes (such
+   --  as RTS_Lock, Memory_Lock...) used in RTS is initialized before any
+   --  status change of RTS. Therefore raising Storage_Error in the following
+   --  routines should be able to be handled safely.
+
+   function Initialize_Lock
+     (L    : not null access RTS_Lock;
+      Prio : Any_Priority) return C.int
+   is
       Mutex_Attr : aliased pthread_mutexattr_t;
       Result, Result_2 : C.int;
 
@@ -377,17 +389,7 @@ package body System.Task_Primitives.Operations is
       Result_2 := pthread_mutexattr_destroy (Mutex_Attr'Access);
       pragma Assert (Result_2 = 0);
       return Result; -- of pthread_mutex_init, not pthread_mutexattr_destroy
-   end Init_Mutex;
-
-   ---------------------
-   -- Initialize_Lock --
-   ---------------------
-
-   --  Note: mutexes and cond_variables needed per-task basis are initialized
-   --  in Initialize_TCB and the Storage_Error is handled. Other mutexes (such
-   --  as RTS_Lock, Memory_Lock...) used in RTS is initialized before any
-   --  status change of RTS. Therefore raising Storage_Error in the following
-   --  routines should be able to be handled safely.
+   end Initialize_Lock;
 
    procedure Initialize_Lock
      (Prio : Any_Priority;
@@ -420,18 +422,19 @@ package body System.Task_Primitives.Operations is
          end;
 
       else
-         if Init_Mutex (L.WO'Access, Prio) = ENOMEM then
+         if Initialize_Lock (L.WO'Access, Prio) = ENOMEM then
             raise Storage_Error with "Failed to allocate a lock";
          end if;
       end if;
    end Initialize_Lock;
 
    procedure Initialize_Lock
-     (L : not null access RTS_Lock; Level : Lock_Level)
+     (L     : not null access RTS_Lock;
+      Level : Lock_Level)
    is
       pragma Unreferenced (Level);
    begin
-      if Init_Mutex (L.all'Access, Any_Priority'Last) = ENOMEM then
+      if Initialize_Lock (L, Any_Priority'Last) = ENOMEM then
          raise Storage_Error with "Failed to allocate a lock";
       end if;
    end Initialize_Lock;
@@ -515,6 +518,20 @@ package body System.Task_Primitives.Operations is
       pragma Assert (Result in 0 | EINVAL);
       Ceiling_Violation := Result = EINVAL;
    end Read_Lock;
+
+   ------------------------------
+   -- Requires_Affinity_Change --
+   ------------------------------
+
+   function Requires_Affinity_Change
+     (Domain : Dispatching_Domain_Access) return Boolean is
+   begin
+      return
+        Domain /= System_Domain
+        or else Domain.all
+                /= [Multiprocessors.CPU'First
+                    .. Multiprocessors.Number_Of_CPUs => True];
+   end Requires_Affinity_Change;
 
    ------------
    -- Unlock --
@@ -725,7 +742,6 @@ package body System.Task_Primitives.Operations is
          raise Invalid_CPU_Number;
       end if;
 
-      Self_ID.Common.LL.Thread := pthread_self;
       Self_ID.Common.LL.LWP := lwp_self;
 
       --  Set thread name to ease debugging. If the name of the task is
@@ -840,7 +856,8 @@ package body System.Task_Primitives.Operations is
 
       Self_ID.Common.LL.Thread := Null_Thread_Id;
 
-      if Init_Mutex (Self_ID.Common.LL.L'Access, Any_Priority'Last) /= 0 then
+      if Initialize_Lock (Self_ID.Common.LL.L'Access, Any_Priority'Last) /= 0
+      then
          Succeeded := False;
          return;
       end if;
@@ -936,7 +953,9 @@ package body System.Task_Primitives.Operations is
 
       --  Support is available
 
-      elsif T.Common.Base_CPU /= Multiprocessors.Not_A_Specific_CPU then
+      elsif T.Common.CPU_Is_Explicit
+        and then T.Common.Base_CPU /= Multiprocessors.Not_A_Specific_CPU
+      then
          declare
             CPUs    : constant size_t :=
                         C.size_t (Multiprocessors.Number_Of_CPUs);
@@ -966,16 +985,7 @@ package body System.Task_Primitives.Operations is
 
       --  Handle dispatching domains
 
-      --  To avoid changing CPU affinities when not needed, we set the
-      --  affinity only when assigning to a domain other than the default
-      --  one, or when the default one has been modified.
-
-      elsif T.Common.Domain /= null and then
-        (T.Common.Domain /= ST.System_Domain
-          or else T.Common.Domain.all /=
-                    [Multiprocessors.CPU'First ..
-                     Multiprocessors.Number_Of_CPUs => True])
-      then
+      elsif Requires_Affinity_Change (T.Common.Domain) then
          declare
             CPUs    : constant size_t :=
                         C.size_t (Multiprocessors.Number_Of_CPUs);
@@ -1007,14 +1017,14 @@ package body System.Task_Primitives.Operations is
       --  do not need to manipulate caller's signal mask at this point.
       --  All tasks in RTS will have All_Tasks_Mask initially.
 
-      --  Note: the use of Unrestricted_Access in the following call is needed
-      --  because otherwise we have an error of getting a access-to-volatile
-      --  value which points to a non-volatile object. But in this case it is
-      --  safe to do this, since we know we have no problems with aliasing and
-      --  Unrestricted_Access bypasses this check.
+      --  The write to T.Common.LL.Thread is not racy with regard to the
+      --  created thread because the created thread will not access it until
+      --  we release the RTS lock (or the current task's lock when
+      --  Restricted.Stages is used). One can verify that by inspecting the
+      --  Task_Wrapper procedures.
 
       Result := pthread_create
-        (T.Common.LL.Thread'Unrestricted_Access,
+        (T.Common.LL.Thread'Access,
          Thread_Attr'Access,
          Thread_Body_Access (Wrapper),
          To_Address (T));
@@ -1086,188 +1096,6 @@ package body System.Task_Primitives.Operations is
          pragma Assert (Result in 0 | ESRCH);
       end if;
    end Abort_Task;
-
-   ----------------
-   -- Initialize --
-   ----------------
-
-   procedure Initialize (S : in out Suspension_Object) is
-      Result : C.int;
-
-   begin
-      --  Initialize internal state (always to False (RM D.10(6)))
-
-      S.State := False;
-      S.Waiting := False;
-
-      --  Initialize internal mutex
-
-      Result := pthread_mutex_init (S.L'Access, null);
-
-      pragma Assert (Result in 0 | ENOMEM);
-
-      if Result = ENOMEM then
-         raise Storage_Error;
-      end if;
-
-      --  Initialize internal condition variable
-
-      Result := pthread_cond_init (S.CV'Access, null);
-
-      pragma Assert (Result in 0 | ENOMEM);
-
-      if Result /= 0 then
-         Result := pthread_mutex_destroy (S.L'Access);
-         pragma Assert (Result = 0);
-
-         if Result = ENOMEM then
-            raise Storage_Error;
-         end if;
-      end if;
-   end Initialize;
-
-   --------------
-   -- Finalize --
-   --------------
-
-   procedure Finalize (S : in out Suspension_Object) is
-      Result : C.int;
-
-   begin
-      --  Destroy internal mutex
-
-      Result := pthread_mutex_destroy (S.L'Access);
-      pragma Assert (Result = 0);
-
-      --  Destroy internal condition variable
-
-      Result := pthread_cond_destroy (S.CV'Access);
-      pragma Assert (Result = 0);
-   end Finalize;
-
-   -------------------
-   -- Current_State --
-   -------------------
-
-   function Current_State (S : Suspension_Object) return Boolean is
-   begin
-      --  We do not want to use lock on this read operation. State is marked
-      --  as Atomic so that we ensure that the value retrieved is correct.
-
-      return S.State;
-   end Current_State;
-
-   ---------------
-   -- Set_False --
-   ---------------
-
-   procedure Set_False (S : in out Suspension_Object) is
-      Result : C.int;
-
-   begin
-      SSL.Abort_Defer.all;
-
-      Result := pthread_mutex_lock (S.L'Access);
-      pragma Assert (Result = 0);
-
-      S.State := False;
-
-      Result := pthread_mutex_unlock (S.L'Access);
-      pragma Assert (Result = 0);
-
-      SSL.Abort_Undefer.all;
-   end Set_False;
-
-   --------------
-   -- Set_True --
-   --------------
-
-   procedure Set_True (S : in out Suspension_Object) is
-      Result : C.int;
-
-   begin
-      SSL.Abort_Defer.all;
-
-      Result := pthread_mutex_lock (S.L'Access);
-      pragma Assert (Result = 0);
-
-      --  If there is already a task waiting on this suspension object then
-      --  we resume it, leaving the state of the suspension object to False,
-      --  as it is specified in ARM D.10 par. 9. Otherwise, it just leaves
-      --  the state to True.
-
-      if S.Waiting then
-         S.Waiting := False;
-         S.State := False;
-
-         Result := pthread_cond_signal (S.CV'Access);
-         pragma Assert (Result = 0);
-
-      else
-         S.State := True;
-      end if;
-
-      Result := pthread_mutex_unlock (S.L'Access);
-      pragma Assert (Result = 0);
-
-      SSL.Abort_Undefer.all;
-   end Set_True;
-
-   ------------------------
-   -- Suspend_Until_True --
-   ------------------------
-
-   procedure Suspend_Until_True (S : in out Suspension_Object) is
-      Result : C.int;
-
-   begin
-      SSL.Abort_Defer.all;
-
-      Result := pthread_mutex_lock (S.L'Access);
-      pragma Assert (Result = 0);
-
-      if S.Waiting then
-
-         --  Program_Error must be raised upon calling Suspend_Until_True
-         --  if another task is already waiting on that suspension object
-         --  (RM D.10(10)).
-
-         Result := pthread_mutex_unlock (S.L'Access);
-         pragma Assert (Result = 0);
-
-         SSL.Abort_Undefer.all;
-
-         raise Program_Error;
-
-      else
-         --  Suspend the task if the state is False. Otherwise, the task
-         --  continues its execution, and the state of the suspension object
-         --  is set to False (ARM D.10 par. 9).
-
-         if S.State then
-            S.State := False;
-         else
-            S.Waiting := True;
-
-            loop
-               --  Loop in case pthread_cond_wait returns earlier than expected
-               --  (e.g. in case of EINTR caused by a signal). This should not
-               --  happen with the current Linux implementation of pthread, but
-               --  POSIX does not guarantee it so this may change in future.
-
-               Result := pthread_cond_wait (S.CV'Access, S.L'Access);
-               pragma Assert (Result in 0 | EINTR);
-
-               exit when not S.Waiting;
-            end loop;
-         end if;
-
-         Result := pthread_mutex_unlock (S.L'Access);
-         pragma Assert (Result = 0);
-
-         SSL.Abort_Undefer.all;
-      end if;
-   end Suspend_Until_True;
 
    ----------------
    -- Check_Exit --
@@ -1375,9 +1203,9 @@ package body System.Task_Primitives.Operations is
       function State
         (Int : System.Interrupt_Management.Interrupt_ID) return Character;
       pragma Import (C, State, "__gnat_get_interrupt_state");
-      --  Get interrupt state.  Defined in a-init.c
-      --  The input argument is the interrupt number,
-      --  and the result is one of the following:
+      --  Get interrupt state. Defined in init.c.
+      --  The input argument is the interrupt number, and the result is one of
+      --  the following:
 
       Default : constant Character := 's';
       --    'n'   this interrupt not set by any Interrupt_State pragma
@@ -1388,6 +1216,7 @@ package body System.Task_Primitives.Operations is
 
    begin
       Environment_Task_Id := Environment_Task;
+      Environment_Task.Common.LL.Thread := pthread_self;
 
       Interrupt_Management.Initialize;
 
@@ -1408,6 +1237,12 @@ package body System.Task_Primitives.Operations is
       --  Initialize the global RTS lock
 
       Specific.Initialize (Environment_Task);
+
+      --  Do not use an alternate stack if no handler for SEGV is installed
+
+      if State (SIGSEGV) = Default then
+         Use_Alternate_Stack := False;
+      end if;
 
       if Use_Alternate_Stack then
          Environment_Task.Common.Task_Alternate_Stack :=
@@ -1461,14 +1296,17 @@ package body System.Task_Primitives.Operations is
 
       if pthread_setaffinity_np'Address /= Null_Address
         and then T.Common.LL.Thread /= Null_Thread_Id
+        and then (T.Common.CPU_Is_Explicit
+                  or else Requires_Affinity_Change (T.Common.Domain))
       then
          declare
-            CPUs    : constant size_t :=
-                        C.size_t (Multiprocessors.Number_Of_CPUs);
-            CPU_Set : cpu_set_t_ptr := null;
-            Size    : constant size_t := CPU_ALLOC_SIZE (CPUs);
+            CPUs         : constant size_t :=
+              C.size_t (Multiprocessors.Number_Of_CPUs);
+            CPU_Set      : cpu_set_t_ptr := null;
+            Is_Set_Owned : Boolean := False;
+            Size         : constant size_t := CPU_ALLOC_SIZE (CPUs);
 
-            Result  : C.int;
+            Result       : C.int;
 
          begin
             --  We look at the specific CPU (Base_CPU) first, then at the
@@ -1480,6 +1318,7 @@ package body System.Task_Primitives.Operations is
                --  Set the affinity to an unique CPU
 
                CPU_Set := CPU_ALLOC (CPUs);
+               Is_Set_Owned := True;
                System.OS_Interface.CPU_ZERO (Size, CPU_Set);
                System.OS_Interface.CPU_SET
                  (int (T.Common.Base_CPU), Size, CPU_Set);
@@ -1491,19 +1330,12 @@ package body System.Task_Primitives.Operations is
 
             --  Handle dispatching domains
 
-            elsif T.Common.Domain /= null and then
-              (T.Common.Domain /= ST.System_Domain
-                or else T.Common.Domain.all /=
-                          [Multiprocessors.CPU'First ..
-                           Multiprocessors.Number_Of_CPUs => True])
-            then
+            else
                --  Set the affinity to all the processors belonging to the
-               --  dispatching domain. To avoid changing CPU affinities when
-               --  not needed, we set the affinity only when assigning to a
-               --  domain other than the default one, or when the default one
-               --  has been modified.
+               --  dispatching domain.
 
                CPU_Set := CPU_ALLOC (CPUs);
+               Is_Set_Owned := True;
                System.OS_Interface.CPU_ZERO (Size, CPU_Set);
 
                for Proc in T.Common.Domain'Range loop
@@ -1513,20 +1345,23 @@ package body System.Task_Primitives.Operations is
                end loop;
             end if;
 
-            --  We set the new affinity if needed. Otherwise, the new task
-            --  will inherit its creator's CPU affinity mask (according to
-            --  the documentation of pthread_setaffinity_np), which is
-            --  consistent with Ada's required semantics.
+            Result :=
+              pthread_setaffinity_np (T.Common.LL.Thread, Size, CPU_Set);
+            pragma Assert (Result = 0);
 
-            if CPU_Set /= null then
-               Result :=
-                 pthread_setaffinity_np (T.Common.LL.Thread, Size, CPU_Set);
-               pragma Assert (Result = 0);
-
+            if Is_Set_Owned then
                CPU_FREE (CPU_Set);
             end if;
          end;
       end if;
    end Set_Task_Affinity;
 
+   ---------------------
+   -- Is_Task_Context --
+   ---------------------
+
+   function Is_Task_Context return Boolean is
+   begin
+      return True;
+   end Is_Task_Context;
 end System.Task_Primitives.Operations;

@@ -1,4 +1,4 @@
-@c Copyright (C) 1988-2022 Free Software Foundation, Inc.
+@c Copyright (C) 1988-2026 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -198,8 +198,8 @@ with GCC does not produce the same floating-point formats that the
 assembler accepts.  If you have this problem, set the @env{LANG}
 environment variable to @samp{C} or @samp{En_US}.
 
-@item
 @opindex fdollars-in-identifiers
+@item
 Even if you specify @option{-fdollars-in-identifiers},
 you cannot successfully use @samp{$} in identifiers on the RS/6000 due
 to a restriction in the IBM assembler.  GAS supports these
@@ -494,10 +494,12 @@ as to use the proper set, but you'll have to do this by hand.
 @section Standard Libraries
 
 @opindex Wall
-GCC by itself attempts to be a conforming freestanding implementation.
+GCC by itself attempts to provide the compiler part of a conforming
+implementation, but only a limited subset of the library part of such
+an implementation.
 @xref{Standards,,Language Standards Supported by GCC}, for details of
-what this means.  Beyond the library facilities required of such an
-implementation, the rest of the C library is supplied by the vendor of
+what this means.  Beyond the limited library facilities described
+there, the rest of the C library is supplied by the vendor of
 the operating system.  If that C library doesn't conform to the C
 standards, then your programs might get warnings (especially when using
 @option{-Wall}) that you don't expect.
@@ -588,8 +590,8 @@ to update the corrected header files.  They can be updated using the
 @command{mkheaders} script installed in
 @file{@var{libexecdir}/gcc/@var{target}/@var{version}/install-tools/}.
 
-@item
 @cindex floating point precision
+@item
 On 68000 and x86 systems, for instance, you can get paradoxical results
 if you test the precise values of floating point numbers.  For example,
 you can find that a floating point value which is not a NaN is not equal
@@ -950,11 +952,10 @@ required so frequently that they become visual noise.  Writing those
 casts becomes so automatic that they no longer convey useful
 information about the intentions of the programmer.  For functions
 where the return value should never be ignored, use the
-@code{warn_unused_result} function attribute (@pxref{Function
-Attributes}).
+@code{warn_unused_result} function attribute (@pxref{Attributes}).
 
-@item
 @opindex fshort-enums
+@item
 Making @option{-fshort-enums} the default.
 
 This would cause storage layout to be incompatible with most other C
@@ -1021,9 +1022,9 @@ to be considered in the future.
 explicitly in each bit-field whether it is signed or not.  In this way,
 they write programs which have the same meaning in both C dialects.)
 
-@item
 @opindex ansi
 @opindex std
+@item
 Undefining @code{__STDC__} when @option{-ansi} is not used.
 
 Currently, GCC defines @code{__STDC__} unconditionally.  This provides

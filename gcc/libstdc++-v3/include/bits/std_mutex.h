@@ -1,6 +1,6 @@
 // std::mutex implementation -*- C++ -*-
 
-// Copyright (C) 2003-2022 Free Software Foundation, Inc.
+// Copyright (C) 2003-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,13 +30,16 @@
 #ifndef _GLIBCXX_MUTEX_H
 #define _GLIBCXX_MUTEX_H 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
 
 #if __cplusplus < 201103L
 # include <bits/c++0x_warning.h>
 #else
 
-#include <system_error>
+#include <errno.h> // EBUSY
+#include <bits/chrono.h>
 #include <bits/functexcept.h>
 #include <bits/gthr.h>
 
@@ -53,6 +56,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    */
 
 #ifdef _GLIBCXX_HAS_GTHREADS
+  /// @cond undocumented
+
   // Common base class for std::mutex and std::timed_mutex
   class __mutex_base
   {
@@ -78,8 +83,19 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     __mutex_base(const __mutex_base&) = delete;
     __mutex_base& operator=(const __mutex_base&) = delete;
   };
+  /// @endcond
 
-  /// The standard mutex type.
+  /** The standard mutex type.
+   *
+   * A simple, non-recursive, non-timed mutex.
+   *
+   * Do not call `lock()` and `unlock()` directly, use a scoped lock type
+   * such as `std::unique_lock`, `std::lock_guard`, or (since C++17)
+   * `std::scoped_lock`.
+   *
+   * @headerfile mutex
+   * @since C++11
+   */
   class mutex : private __mutex_base
   {
   public:
@@ -104,6 +120,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	__throw_system_error(__e);
     }
 
+    _GLIBCXX_NODISCARD
     bool
     try_lock() noexcept
     {
@@ -122,6 +139,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     native_handle() noexcept
     { return &_M_mutex; }
   };
+
+  /// @cond undocumented
 
   // Implementation details for std::condition_variable
   class __condvar
@@ -193,6 +212,30 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 #endif
   };
 
+namespace chrono
+{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions"
+  // Convert a time_point to an absolute time represented as __gthread_time_t
+  // (which is typically just a typedef for struct timespec).
+  template<typename _Clock, typename _Dur>
+    [[__nodiscard__]] _GLIBCXX14_CONSTEXPR inline
+    __gthread_time_t
+    __to_timeout_gthread_time_t(const time_point<_Clock, _Dur>& __t)
+    {
+      auto __ts = chrono::__to_timeout_timespec(__t.time_since_epoch());
+      if constexpr (is_same<::timespec, __gthread_time_t>::value)
+	return __ts;
+      else if constexpr (is_convertible<::timespec, __gthread_time_t>::value)
+	return __ts;
+      else if constexpr (is_scalar<__gthread_time_t>::value) // Assume seconds:
+	return static_cast<__gthread_time_t>(__ts.tv_sec);
+      else // Assume this works and the members are in the correct order:
+	return __gthread_time_t{ __ts.tv_sec, __ts.tv_nsec };
+    }
+#pragma GCC diagnostic pop
+}
+  /// @endcond
 #endif // _GLIBCXX_HAS_GTHREADS
 
   /// Do not acquire ownership of the mutex.
@@ -218,6 +261,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
    *
    * A lock_guard controls mutex ownership within a scope, releasing
    * ownership in the destructor.
+   *
+   * @headerfile mutex
+   * @since C++11
    */
   template<typename _Mutex>
     class lock_guard
@@ -225,9 +271,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     public:
       typedef _Mutex mutex_type;
 
+      [[__nodiscard__]]
       explicit lock_guard(mutex_type& __m) : _M_device(__m)
       { _M_device.lock(); }
 
+      [[__nodiscard__]]
       lock_guard(mutex_type& __m, adopt_lock_t) noexcept : _M_device(__m)
       { } // calling thread owns mutex
 

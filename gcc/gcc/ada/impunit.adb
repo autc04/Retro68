@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---           Copyright (C) 2000-2022, Free Software Foundation, Inc.        --
+--           Copyright (C) 2000-2026, Free Software Foundation, Inc.        --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -24,7 +24,6 @@
 ------------------------------------------------------------------------------
 
 with Errout;      use Errout;
-with Sinfo;       use Sinfo;
 with Sinfo.Nodes; use Sinfo.Nodes;
 with Fname.UF;    use Fname.UF;
 with Lib;         use Lib;
@@ -241,6 +240,7 @@ package body Impunit is
     ("g-arrspl", F),  -- GNAT.Array_Split
     ("g-awk   ", F),  -- GNAT.AWK
     ("g-binenv", F),  -- GNAT.Bind_Environment
+    ("g-binsea", F),  -- GNAT.Binary_Search
     ("g-boubuf", F),  -- GNAT.Bounded_Buffers
     ("g-boumai", F),  -- GNAT.Bounded_Mailboxes
     ("g-brapre", F),  -- GNAT.Branch_Prediction
@@ -249,6 +249,7 @@ package body Impunit is
     ("g-busorg", F),  -- GNAT.Bubble_Sort_G
     ("g-byorma", F),  -- GNAT.Byte_Order_Mark
     ("g-bytswa", F),  -- GNAT.Byte_Swapping
+    ("g-c_time", F),  -- GNAT.C_Time
     ("g-calend", F),  -- GNAT.Calendar
     ("g-catiio", F),  -- GNAT.Calendar.Time_IO
     ("g-casuti", F),  -- GNAT.Case_Util
@@ -278,6 +279,7 @@ package body Impunit is
     ("g-exptty", F),  -- GNAT.Expect.TTY
     ("g-flocon", F),  -- GNAT.Float_Control
     ("g-forstr", F),  -- GNAT.Formatted_String
+    ("g-gfmafu", F),  -- GNAT.Generic_Fast_Math_Functions
     ("g-graphs", F),  -- GNAT.Graphs
     ("g-heasor", F),  -- GNAT.Heap_Sort
     ("g-hesora", F),  -- GNAT.Heap_Sort_A
@@ -358,7 +360,6 @@ package body Impunit is
     ("i-java  ", F),  -- Interfaces.Java
     ("i-javjni", F),  -- Interfaces.Java.JNI
     ("i-pacdec", F),  -- Interfaces.Packed_Decimal
-    ("i-vxinco", F),  -- Interfaces.VxWorks.Int_Connection
     ("i-vxwoio", F),  -- Interfaces.VxWorks.IO
     ("i-vxwork", F),  -- Interfaces.VxWorks
 
@@ -583,6 +584,7 @@ package body Impunit is
     ("a-cborma", T),  -- Ada.Containers.Bounded_Ordered_Maps
     ("a-cbhase", T),  -- Ada.Containers.Bounded_Hashed_Sets
     ("a-cbhama", T),  -- Ada.Containers.Bounded_Hashed_Maps
+    ("a-cbinho", T),  -- Ada.Containers.Bounded_Indefinite_Holders
     ("a-coinho", T),  -- Ada.Containers.Indefinite_Holders
     ("a-comutr", T),  -- Ada.Containers.Multiway_Trees
     ("a-cimutr", T),  -- Ada.Containers.Indefinite_Multiway_Trees
@@ -603,17 +605,7 @@ package body Impunit is
    -- GNAT Defined Additions to Ada 2012 --
    ----------------------------------------
 
-    ("a-cfinve", F),  -- Ada.Containers.Formal_Indefinite_Vectors
     ("a-coboho", F),  -- Ada.Containers.Bounded_Holders
-    ("a-cofove", F),  -- Ada.Containers.Formal_Vectors
-    ("a-cofuma", F),  -- Ada.Containers.Functional_Maps
-    ("a-cofuse", F),  -- Ada.Containers.Functional_Sets
-    ("a-cofuve", F),  -- Ada.Containers.Functional_Vectors
-    ("a-cfdlli", F),  -- Ada.Containers.Formal_Doubly_Linked_Lists
-    ("a-cforse", F),  -- Ada.Containers.Formal_Ordered_Sets
-    ("a-cforma", F),  -- Ada.Containers.Formal_Ordered_Maps
-    ("a-cfhase", F),  -- Ada.Containers.Formal_Hashed_Sets
-    ("a-cfhama", F),  -- Ada.Containers.Formal_Hashed_Maps
     ("a-cvgpso", F)   -- Ada.Containers.Vectors.Generic_Parallel_Sorting from
    );                 -- GNATCOLL.OMP
 
@@ -658,7 +650,7 @@ package body Impunit is
 
    type Aunit_Record is record
       Fname : String (1 .. 6);
-      Aname : String_Ptr_Const;
+      Aname : not null String_Ptr_Const;
    end record;
 
    --  Array of alternative unit names

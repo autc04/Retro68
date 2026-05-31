@@ -241,6 +241,46 @@ movsx:
 	movswq	%eax, %rcx
 	movswq	%rax, %rcx
 
+	movsl	%al, %cl
+	movsl	%ax, %cl
+	movsl	%eax, %cl
+	movsl	%rax, %cl
+
+	movsl	%al, %cx
+	movsl	%ax, %cx
+	movsl	%eax, %cx
+	movsl	%rax, %cx
+
+	movsl	%al, %ecx
+	movsl	%ax, %ecx
+	movsl	%eax, %ecx
+	movsl	%rax, %ecx
+
+	movsl	%al, %rcx
+	movsl	%ax, %rcx
+	movsl	%eax, %rcx
+	movsl	%rax, %rcx
+
+	movslq	%al, %cl
+	movslq	%ax, %cl
+	movslq	%eax, %cl
+	movslq	%rax, %cl
+
+	movslq	%al, %cx
+	movslq	%ax, %cx
+	movslq	%eax, %cx
+	movslq	%rax, %cx
+
+	movslq	%al, %ecx
+	movslq	%ax, %ecx
+	movslq	%eax, %ecx
+	movslq	%rax, %ecx
+
+	movslq	%al, %rcx
+	movslq	%ax, %rcx
+	movslq	%eax, %rcx
+	movslq	%rax, %rcx
+
 movzx:
 	movzx	%al, %cl
 	movzx	%ax, %cl

@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2022 Free Software Foundation, Inc.
+// Copyright (C) 2017-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,6 +22,7 @@
 #include <testsuite_hooks.h>
 #include <testsuite_allocator.h>
 
+#include <cstring>
 #include <ext/aligned_buffer.h>
 
 using T = bool;
@@ -34,7 +35,7 @@ void test01()
   typedef std::vector<T, alloc_type> test_type;
 
   __gnu_cxx::__aligned_buffer<test_type> buf;
-  __builtin_memset(buf._M_addr(), ~0, sizeof(test_type));
+  std::memset(buf._M_addr(), ~0, sizeof(test_type));
 
   test_type *tmp = ::new(buf._M_addr()) test_type;
 
@@ -49,7 +50,7 @@ void test02()
   typedef std::vector<T, alloc_type> test_type;
 
   __gnu_cxx::__aligned_buffer<test_type> buf;
-  __builtin_memset(buf._M_addr(), ~0, sizeof(test_type));
+  std::memset(buf._M_addr(), ~0, sizeof(test_type));
 
   test_type *tmp = ::new(buf._M_addr()) test_type();
 
@@ -57,6 +58,17 @@ void test02()
 
   tmp->~test_type();
 }
+
+#ifdef __cpp_lib_constexpr_vector
+constexpr bool
+test03()
+{
+  using alloc_type = default_init_allocator<T>;
+  std::vector<T, alloc_type> v;
+  return v.get_allocator().state == 0;
+}
+static_assert( test03() );
+#endif
 
 int main()
 {

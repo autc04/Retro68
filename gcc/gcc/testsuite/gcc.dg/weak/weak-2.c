@@ -4,12 +4,13 @@
 /* { dg-skip-if "" { x86_64-*-mingw* } } */
 /* NVPTX's definition of weak looks different to normal.  */
 /* { dg-skip-if "" { nvptx-*-* } } */
+/* { dg-skip-if PR119369 { amdgcn-*-* } } */
 
-/* { dg-final { scan-assembler "weak\[^ \t\]*\[ \t\]_?ffoo1a" } } */
-/* { dg-final { scan-assembler "weak\[^ \t\]*\[ \t\]_?ffoo1b" } } */
-/* { dg-final { scan-assembler "weak\[^ \t\]*\[ \t\]_?ffoo1c" } } */
-/* { dg-final { scan-assembler-not "weak\[^ \t\]*\[ \t\]_?ffoo1d" } } */
-/* { dg-final { scan-assembler "weak\[^ \t\]*\[ \t\]_?ffoo1e" } } */
+/* { dg-final { scan-weak "ffoo1a" } } */
+/* { dg-final { scan-weak "ffoo1b" } } */
+/* { dg-final { scan-weak "ffoo1c" } } */
+/* { dg-final { scan-not-weak "ffoo1d" } } */
+/* { dg-final { scan-weak "ffoo1e" } } */
 
 /* test function addresses with #pragma weak */
 

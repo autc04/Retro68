@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_float } */
+/* { dg-additional-options "--param vect-max-version-for-alias-checks=0" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -23,6 +24,7 @@ main1 (float *pa, float *pb, float *pc)
       pa[i] = q[i] * pc[i];
     }
 
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (pa[i] != q[i] * pc[i])

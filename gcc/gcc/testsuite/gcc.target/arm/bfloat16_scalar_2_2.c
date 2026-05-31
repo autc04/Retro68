@@ -1,7 +1,6 @@
 /* { dg-do assemble { target { arm*-*-* } } } */
-/* { dg-require-effective-target arm_v8_neon_ok } */
-/* { dg-require-effective-target arm_v8_2a_bf16_neon_ok } */
-/* { dg-additional-options "-march=armv8.2-a -mfloat-abi=softfp -mfpu=neon-fp-armv8" } */
+/* { dg-require-effective-target arm_arch_v8_2a_bf16_ok } */
+/* { dg-add-options arm_arch_v8_2a_bf16 } */
 /* { dg-additional-options "-O3 --save-temps -std=gnu90" } */
 /* { dg-final { check-function-bodies "**" "" } } */
 
@@ -13,8 +12,8 @@
 /*
 **stacktest1:
 **	...
-**	strh	r[0-9]+, \[r[0-9]+\]	@ __bf16
-**	ldrh	r[0-9]+, \[sp, #[0-9]+\]	@ __bf16
+**	strh	r[0-9]+, (\[sp, #[0-9]+\])	@ __bf16
+**	ldrh	r[0-9]+, \1	@ __bf16
 **	...
 **	bx	lr
 */

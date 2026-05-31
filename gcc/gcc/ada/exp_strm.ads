@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -26,7 +26,9 @@
 --  Routines to build stream subprograms for composite types
 
 with Exp_Tss; use Exp_Tss;
+with Rtsfind; use Rtsfind;
 with Types;   use Types;
+with Uintp;          use Uintp;
 
 package Exp_Strm is
 
@@ -57,38 +59,31 @@ package Exp_Strm is
    --  results are the declaration and name (entity) of the subprogram.
 
    procedure Build_Array_Input_Function
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Fnam : out Entity_Id);
    --  Build function for Input attribute for array type
 
    procedure Build_Array_Output_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id);
    --  Build procedure for Output attribute for array type
 
    procedure Build_Array_Read_Procedure
-     (Nod  : Node_Id;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id);
-   --  Build procedure for Read attribute for array type. Nod provides the
-   --  Sloc value for generated code.
+   --  Build procedure for Read attribute for array type.
 
    procedure Build_Array_Write_Procedure
-     (Nod  : Node_Id;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id);
-   --  Build procedure for Write attribute for array type. Nod provides the
-   --  Sloc value for generated code.
+   --  Build procedure for Write attribute for array type.
 
    procedure Build_Mutable_Record_Read_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id);
    --  Build procedure to Read a record with default discriminants.
@@ -96,8 +91,7 @@ package Exp_Strm is
    --  same manner as is done for 'Input.
 
    procedure Build_Mutable_Record_Write_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id);
    --  Build procedure to write a record with default discriminants.
@@ -105,8 +99,7 @@ package Exp_Strm is
    --  the same manner as is done for 'Output.
 
    procedure Build_Record_Or_Elementary_Input_Function
-     (Loc            : Source_Ptr;
-      Typ            : Entity_Id;
+     (Typ            : Entity_Id;
       Decl           : out Node_Id;
       Fnam           : out Entity_Id);
    --  Build function for Input attribute for record type or for an elementary
@@ -115,8 +108,7 @@ package Exp_Strm is
    --  runtime library routine directly).
 
    procedure Build_Record_Or_Elementary_Output_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id);
    --  Build procedure for Output attribute for record type or for an
@@ -125,22 +117,19 @@ package Exp_Strm is
    --  Output calls the appropriate runtime library routine directly.
 
    procedure Build_Record_Read_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id);
    --  Build procedure for Read attribute for record type
 
    procedure Build_Record_Write_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : out Entity_Id);
    --  Build procedure for Write attribute for record type
 
    procedure Build_Stream_Procedure
-     (Loc  : Source_Ptr;
-      Typ  : Entity_Id;
+     (Typ  : Entity_Id;
       Decl : out Node_Id;
       Pnam : Entity_Id;
       Stms : List_Id;
@@ -151,4 +140,32 @@ package Exp_Strm is
    --  always null), and Pnam is the name of the constructed procedure.
    --  Used by Exp_Dist to generate stream-oriented attributes for RACWs.
 
+   type Status is (Primitives, Possible_Sizes);
+
+   type Sizes is array (Positive range <>) of Nat;
+
+   type Primitive_Result
+     (S   : Status;
+      Len : Natural)
+   is record
+      case S is
+         when Primitives =>
+            Input : RE_Id;
+            Write : RE_Id;
+
+         when Possible_Sizes =>
+            List : Sizes (1 .. Len);
+      end case;
+   end record;
+
+   --------------------
+   -- Get_Primitives --
+   --------------------
+
+   function Get_Primitives
+     (P_Type : Entity_Id; P_Size : Uint) return Primitive_Result;
+   --  If P_Type supports a stream size of P_Size, returns the corresponding
+   --  input and write primitives. Otherwise, returns a list of the stream
+   --  sizes P_Type supports, in nondecreasing order and with possible
+   --  duplicates.
 end Exp_Strm;

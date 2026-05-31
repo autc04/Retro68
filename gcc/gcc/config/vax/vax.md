@@ -1,5 +1,5 @@
 ;; Machine description for GNU compiler, VAX Version
-;; Copyright (C) 1987-2022 Free Software Foundation, Inc.
+;; Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 ;; This file is part of GCC.
 
@@ -2909,7 +2909,7 @@
   "#"
   "reload_completed"
   [(parallel
-     [(match_dup 1)
+     [(use (match_dup 1))
       (set (pc)
 	   (plus:SI (sign_extend:SI
 		      (mem:HI (plus:SI
@@ -2922,7 +2922,7 @@
   "")
 
 (define_insn "*casesi1"
-  [(match_operand:SI 1 "const_int_operand" "n")
+  [(use (match_operand:SI 1 "const_int_operand" "n"))
    (set (pc)
 	(plus:SI (sign_extend:SI
 		   (mem:HI (plus:SI

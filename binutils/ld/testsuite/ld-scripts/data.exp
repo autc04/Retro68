@@ -1,6 +1,6 @@
 # Test DATA STATEMENT in a linker script.
 # By Nathan Sidwell, CodeSourcery LLC
-#   Copyright (C) 2004-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2004-2026 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,6 +29,7 @@ if { [is_pecoff_format] } then {
 run_dump_test data
 run_dump_test fill
 run_dump_test fill16
+run_dump_test fill2
 run_dump_test pr27100
 
 set LDFLAGS $old_LDFLAGS

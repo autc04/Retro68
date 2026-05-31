@@ -1,5 +1,5 @@
 ;; GCC machine description for CRIS cpu cores.
-;; Copyright (C) 1998-2022 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2026 Free Software Foundation, Inc.
 ;; Contributed by Axis Communications.
 
 ;; This file is part of GCC.
@@ -50,9 +50,6 @@
   [
    ;; Stack frame deallocation barrier.
    CRIS_UNSPEC_FRAME_DEALLOC
-
-   ;; Swap all 32 bits of the operand; 31 <=> 0, 30 <=> 1...
-   CRIS_UNSPEC_SWAP_BITS
   ])
 
 ;; Register numbers.
@@ -176,6 +173,9 @@
 (define_mode_iterator BWD [SI HI QI])
 (define_mode_iterator BWDD [DI SI HI QI])
 
+;; Need to handle BWD and SF similarly, at least in the expander.
+(define_mode_iterator BWDSF [SI HI QI SF])
+
 ;; To be able to refer to the same mode_attr for both a multi-mode
 ;; and a mode-specific pattern, we use some singleton iterators.
 (define_mode_iterator DI_ [DI])
@@ -183,6 +183,10 @@
 
 (define_mode_iterator WD [SI HI])
 (define_mode_iterator BW [HI QI])
+
+; Another "BW" for use where an independent iteration is needed.
+(define_mode_iterator BW2 [HI QI])
+
 (define_mode_attr S [(SI "HI") (HI "QI")])
 (define_mode_attr s [(SI "hi") (HI "qi")])
 (define_mode_attr m [(SI ".d") (HI ".w") (QI ".b")])
@@ -203,6 +207,9 @@
 
 ;; Ditto, commutative operators (i.e. not minus).
 (define_code_iterator plusumin [plus umin])
+
+;; For opsplit1.
+(define_code_iterator splitop [and plus])
 
 ;; The addsubbo and nd code-attributes form a hack.  We need to output
 ;; "addu.b", "subu.b" but "bound.b" (no "u"-suffix) which means we'd
@@ -524,7 +531,7 @@
      emitted) is the final value.  */
   if ((CONST_INT_P (operands[1]) || GET_CODE (operands[1]) == CONST_DOUBLE)
       && ! reload_completed
-      && ! reload_in_progress)
+      && ! lra_in_progress)
     {
       rtx insns;
       rtx op0 = operands[0];
@@ -535,8 +542,7 @@
 		      operand_subword (op1, 0, 1, DImode));
       emit_move_insn (operand_subword (op0, 1, 1, DImode),
 		      operand_subword (op1, 1, 1, DImode));
-      insns = get_insns ();
-      end_sequence ();
+      insns = end_sequence ();
 
       emit_insn (insns);
       DONE;
@@ -557,11 +563,11 @@
 
 ;; Normal move patterns from SI on.
 
-(define_expand "movsi"
+(define_expand "mov<mode>"
   [(parallel
     [(set
-      (match_operand:SI 0 "nonimmediate_operand")
-      (match_operand:SI 1 "general_operand"))
+      (match_operand:BWDSF 0 "nonimmediate_operand")
+      (match_operand:BWDSF 1 "general_operand"))
      (clobber (reg:CC CRIS_CC0_REGNUM))])]
   ""
 {
@@ -569,14 +575,16 @@
      input.  */
   if (MEM_P (operands[0])
       && ! REG_S_P (operands[1])
-      && operands[1] != const0_rtx
+      && operands[1] != CONST0_RTX (<MODE>mode)
       && can_create_pseudo_p ())
-    operands[1] = force_reg (SImode, operands[1]);
+    operands[1] = force_reg (<MODE>mode, operands[1]);
 
    /* At post-reload time, we'll get here for e.g. split multi-mode insns
       with a memory destination.  Go directly to the clobber-less variant.
-      FIXME: Also applies to special-register source or destination.  */
-   if (reload_completed
+      FIXME: Also applies to special-register source or destination.
+      Only do this for integer modes.  */
+   if (SCALAR_INT_MODE_P (<MODE>mode)
+       && reload_completed
        && (MEM_P (operands[0]) || operands[1] == const0_rtx))
      {
         emit_insn (gen_rtx_SET (operands[0], operands[1]));
@@ -653,14 +661,14 @@
    (set_attr "cc<cccc><ccnz><ccnzvc>"
 	     "*,*,none,none,*,none,none,*,*,none,none,none,none,none,none,*,none")])
 
-;; FIXME: See movsi.
-
-(define_insn "<acc><anz><anzvc>movhi<setcc><setnz><setnzvc>"
+(define_insn "*movhi_internal<setcc><setnz><setnzvc>"
   [(set
     (match_operand:HI 0 "nonimmediate_operand" "=r,r, r,Q>,r,Q>,r,r,r,g,g,r,r,x")
     (match_operand:HI 1 "general_operand"	"r,Q>,M,M, I,r, L,O,n,M,r,g,x,r"))
    (clobber (reg:CC CRIS_CC0_REGNUM))]
-  ""
+  "(register_operand (operands[0], HImode)
+    || register_operand (operands[1], HImode)
+    || operands[1] == const0_rtx)"
 {
   switch (which_alternative)
     {
@@ -697,13 +705,32 @@
   [(set_attr "slottable" "yes,yes,yes,yes,yes,yes,no,yes,no,no,no,no,yes,yes")
    (set_attr "cc<cccc><ccnz><ccnzvc>" "*,*,none,none,*,none,*,clobber,*,none,none,*,none,none")])
 
-(define_insn "movstricthi"
+(define_expand "movstrict<mode>"
+  [(parallel
+    [(set
+      (strict_low_part (match_operand:BW 0 "nonimmediate_operand"))
+      (match_operand:BW 1 "general_operand"))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])]
+  ""
+{
+  /* If the output goes to a MEM, make sure we have zero or a register as
+     input.  */
+  if (MEM_P (operands[0])
+      && ! REG_S_P (operands[1])
+      && operands[1] != const0_rtx
+      && can_create_pseudo_p ())
+    operands[1] = force_reg (<MODE>mode, operands[1]);
+})
+
+(define_insn "*movstricthi_internal"
   [(set
     (strict_low_part
      (match_operand:HI 0 "nonimmediate_operand" "+r,r, r,Q>,Q>,g,r,g"))
     (match_operand:HI 1 "general_operand"	 "r,Q>,M,M, r, M,g,r"))
    (clobber (reg:CC CRIS_CC0_REGNUM))]
-  ""
+  "(register_operand (operands[0], HImode)
+    || register_operand (operands[1], HImode)
+    || operands[1] == const0_rtx)"
   "@
    move.w %1,%0
    move.w %1,%0
@@ -731,11 +758,13 @@
   ""
   "")
 
-(define_insn "<acc><anz><anzvc>movqi<setcc><setnz><setnzvc>"
+(define_insn "*movqi_internal<setcc><setnz><setnzvc>"
   [(set (match_operand:QI 0 "nonimmediate_operand" "=r,Q>,r, r,Q>,r,g,g,r,r,r,x")
 	(match_operand:QI 1 "general_operand"	    "r,r, Q>,M,M, I,M,r,O,g,x,r"))
    (clobber (reg:CC CRIS_CC0_REGNUM))]
-  ""
+  "(register_operand (operands[0], QImode)
+    || register_operand (operands[1], QImode)
+    || operands[1] == const0_rtx)"
   "@
    move.b %1,%0
    move.b %1,%0
@@ -753,12 +782,14 @@
    (set_attr "cc<cccc><ccnz><ccnzvc>"
 	     "*,none,*,none,none,*,none,none,clobber,*,none,none")])
 
-(define_insn "movstrictqi"
+(define_insn "*movstrictqi_internal"
   [(set (strict_low_part
 	 (match_operand:QI 0 "nonimmediate_operand" "+r,Q>,r, r,Q>,g,g,r"))
 	(match_operand:QI 1 "general_operand"	     "r,r, Q>,M,M, M,r,g"))
    (clobber (reg:CC CRIS_CC0_REGNUM))]
-  ""
+  "(register_operand (operands[0], QImode)
+    || register_operand (operands[1], QImode)
+    || operands[1] == const0_rtx)"
   "@
    move.b %1,%0
    move.b %1,%0
@@ -775,11 +806,13 @@
 ;; all ones); the worthwhile one is "0.0".
 ;; It will use clear, so we know ALL types of immediate 0 never change cc.
 
-(define_insn "movsf"
+(define_insn "*movsf_internal"
   [(set (match_operand:SF 0 "nonimmediate_operand" "=r,Q>,r, r,Q>,g,g,r,r,x,Q>,m,x, x")
 	(match_operand:SF 1 "general_operand"       "r,r, Q>,G,G, G,r,g,x,r,x, x,Q>,g"))
    (clobber (reg:CC CRIS_CC0_REGNUM))]
-  ""
+  "(register_operand (operands[0], SFmode)
+    || register_operand (operands[1], SFmode)
+    || operands[1] == CONST0_RTX (SFmode))"
   "@
    move.d %1,%0
    move.d %1,%0
@@ -1324,7 +1357,7 @@
    && operands[1] != frame_pointer_rtx
    && CONST_INT_P (operands[3])
    && (INTVAL (operands[3]) == 2 || INTVAL (operands[3]) == 4)
-   && (reload_in_progress || reload_completed)"
+   && (lra_in_progress || reload_completed)"
   "#"
   "&& 1"
   [(set (match_dup 0)
@@ -1362,12 +1395,63 @@
 {
   rtx reg = operands[0];
   rtx_insn *i = next_nonnote_nondebug_insn_bb (curr_insn);
+  rtx x, src, dest;
 
   while (i != NULL_RTX && (!INSN_P (i) || DEBUG_INSN_P (i)))
     i = next_nonnote_nondebug_insn_bb (i);
 
-  if (i == NULL_RTX || reg_mentioned_p (reg, i) || BARRIER_P (i))
+  /* We don't want to strip the clobber if the next insn possibly uses the
+     zeroness of the result.  Preferably fail only if we see a compare insn
+     that looks eliminable and with the register "reg" compared.  With some
+     effort we could also check for an equality test (EQ, NE) in the post-split
+     user, just not for now.  */
+  if (i == NULL_RTX)
     FAIL;
+
+  x = single_set (i);
+
+  /* We explicitly need to bail on a BARRIER, but that's implied by a failing
+     single_set test.  */
+  if (x == NULL_RTX)
+    FAIL;
+
+  src = SET_SRC (x);
+  dest = SET_DEST (x);
+
+  /* Bail on (post-split) eliminable compares.  */
+  if (REG_P (dest) && REGNO (dest) == CRIS_CC0_REGNUM
+      && GET_CODE (src) == COMPARE)
+    {
+      rtx cop0 = XEXP (src, 0);
+
+      if (REG_P (cop0) && REGNO (cop0) == REGNO (reg)
+	  && XEXP (src, 1) == const0_rtx)
+	FAIL;
+    }
+
+  /* Bail out if we see a (pre-split) cbranch or cstore where the comparison
+     looks eliminable and uses the destination register in this addition.  We
+     don't need to look very deep: a single_set which is a parallel clobbers
+     something, and (one of) that something, is always CRIS_CC0_REGNUM here.
+     Also, the entities we're looking for are two-element parallels.  A
+     split-up cbranch or cstore doesn't clobber CRIS_CC0_REGNUM.  A cbranch has
+     if_then_else as its source with a comparison operator as the condition,
+     and a cstore has a source with the comparison operator directly.  That
+     also matches dstep, so look for pc as destination for the if_then_else.
+     We error on the safe side if we happen to catch other conditional entities
+     and FAIL, that just means the split won't happen.  */
+  if (GET_CODE (PATTERN (i)) == PARALLEL && XVECLEN (PATTERN (i), 0) == 2)
+    {
+      rtx cmp
+	= (GET_CODE (src) == IF_THEN_ELSE && dest == pc_rtx
+	   ? XEXP (src, 0)
+	   : (COMPARISON_P (src) ? src : NULL_RTX));
+      gcc_assert (cmp == NULL_RTX || COMPARISON_P (cmp));
+
+      if (cmp && REG_P (XEXP (cmp, 0)) && XEXP (cmp, 1) == const0_rtx
+	  && REGNO (XEXP (cmp, 0)) == REGNO (reg))
+	FAIL;
+    }
 })
 
 (define_insn "<u>mul<s><mode>3"
@@ -2119,8 +2203,7 @@
 
 (define_insn "cris_swap_bits"
   [(set (match_operand:SI 0 "register_operand" "=r")
-	(unspec:SI [(match_operand:SI 1 "register_operand" "0")]
-		   CRIS_UNSPEC_SWAP_BITS))
+	(bitreverse:SI (match_operand:SI 1 "register_operand" "0")))
    (clobber (reg:CC CRIS_CC0_REGNUM))]
   "TARGET_HAS_SWAP"
   "swapwbr %0"
@@ -2135,8 +2218,7 @@
 	  (match_operand:SI 1 "register_operand"))
      (clobber (reg:CC CRIS_CC0_REGNUM))])
    (parallel
-    [(set (match_dup 2)
-	  (unspec:SI [(match_dup 2)] CRIS_UNSPEC_SWAP_BITS))
+    [(set (match_dup 2) (bitreverse:SI (match_dup 2)))
      (clobber (reg:CC CRIS_CC0_REGNUM))])
    (parallel
     [(set (match_operand:SI 0 "register_operand")
@@ -2267,7 +2349,9 @@
 	 (label_ref (match_operand 2 ""))
 	 (pc)))
    (clobber (reg:CC CRIS_CC0_REGNUM))]
-  ""
+  "(register_operand (operands[0], <MODE>mode)
+    || register_operand (operands[1], <MODE>mode)
+    || operands[1] == const0_rtx)"
   "#"
   "&& reload_completed"
   [(set (reg:<xCC> CRIS_CC0_REGNUM)
@@ -2365,7 +2449,7 @@
 		      (pc)))]
   "reload_completed"
 {
-  return <MODE>mode == CC_NZmode ? "b<oCC> %l0%#": "b<CC> %l0%#";
+  return <MODE>mode == CC_NZmode ? "b<oCC> %l0%#" : "b<CC> %l0%#";
 }
   [(set_attr "slottable" "has_slot")])
 
@@ -2423,7 +2507,9 @@
 	 (match_operand:BWDD 1 "nonimmediate_operand" "<cmp_op0c>")
 	 (match_operand:BWDD 2 "general_operand" "<cmp_op1c>")))
    (clobber (reg:CC CRIS_CC0_REGNUM))]
-  ""
+  "(register_operand (operands[1], <MODE>mode)
+    || register_operand (operands[2], <MODE>mode)
+    || operands[2] == const0_rtx)"
   "#"
   "&& reload_completed"
   [(set (reg:<xCC> CRIS_CC0_REGNUM)
@@ -2632,6 +2718,59 @@
     = INTVAL (operands[2]) <= 0xff ? GEN_INT (0xff) :  GEN_INT (0xffff);
 })
 
+;; Avoid, after opsplit1 with AND (below), sequences of:
+;;  lsrq N,R
+;;  lslq M,R
+;;  lsrq M,R
+;; (N < M), where we can fold the first lsrq into the lslq-lsrq, like:
+;;  lslq M-N,R
+;;  lsrq M,R
+;; We have to match this before opsplit1 below and before other peephole2s of
+;; lesser value, since peephole2 matching resumes at the first generated insn,
+;; and thus wouldn't match a pattern of the three shifts after opsplit1/AND.
+;; Note that this lsrandsplit1 is in turn of lesser value than movulsr, since
+;; that one doesn't require the same operand for source and destination, but
+;; they happen to be the same hard-register at peephole2 time even if
+;; naturally separated like in peep2-movulsr2.c, thus this placement.  (Source
+;; and destination will be re-separated and the move optimized out in
+;; cprop_hardreg at time of this writing.)
+;; Testcase: gcc.target/cris/peep2-lsrandsplit1.c
+(define_peephole2 ; lsrandsplit1
+  [(parallel
+    [(set (match_operand:SI 0 "register_operand")
+	  (lshiftrt:SI
+	   (match_operand:SI 1 "register_operand")
+	   (match_operand:SI 2 "const_int_operand")))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])
+   (parallel
+    [(set (match_operand 3 "register_operand")
+	  (and
+	   (match_operand 4 "register_operand")
+	   (match_operand 5 "const_int_operand")))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])]
+  "REGNO (operands[0]) == REGNO (operands[1])
+   && REGNO (operands[0]) == REGNO (operands[3])
+   && REGNO (operands[0]) == REGNO (operands[4])
+   && (INTVAL (operands[2])
+       < (clz_hwi (INTVAL (operands[5])) - (HOST_BITS_PER_WIDE_INT - 32)))
+   && cris_splittable_constant_p (INTVAL (operands[5]), AND, SImode,
+				  optimize_function_for_speed_p (cfun)) == 2"
+  ;; We're guaranteed by the above hw_clz test (certainly non-zero) and the
+  ;; test for a two-insn return-value from cris_splittable_constant_p, that
+  ;; the cris_splittable_constant_p AND-replacement would be lslq-lsrq.
+  [(parallel
+    [(set (match_dup 0) (ashift:SI (match_dup 0) (match_dup 9)))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])
+   (parallel
+    [(set (match_dup 0) (lshiftrt:SI (match_dup 0) (match_dup 10)))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])]
+{
+  HOST_WIDE_INT shiftval
+    = clz_hwi (INTVAL (operands[5])) - (HOST_BITS_PER_WIDE_INT - 32);
+  operands[9] = GEN_INT (shiftval - INTVAL (operands[2]));
+  operands[10] = GEN_INT (shiftval);
+})
+
 ;; Testcase for the following four peepholes: gcc.target/cris/peep2-xsrand.c
 
 (define_peephole2 ; asrandb
@@ -2832,6 +2971,162 @@
   operands[3] = gen_rtx_ZERO_EXTEND (SImode, op1);
   operands[4] = GEN_INT (trunc_int_for_mode (INTVAL (operands[1]), QImode));
 })
+
+;; Somewhat similar to andqu, but a different range and expansion,
+;; intended to feed the output into opsplit1 with AND:
+;;  move.d 0x7ffff,$r10
+;;  and.d $r11,$r10
+;; into:
+;;  move.d $r11,$r10
+;;  and.d 0x7ffff,$r10
+;; which opsplit1/AND will change into:
+;;  move.d $r11,$r10 (unaffected by opsplit1/AND; shown only for context)
+;;  lslq 13,$r10
+;;  lsrq 13,$r10
+;; thereby winning in space, but in time only if the 0x7ffff happened to
+;; be unaligned in the code.
+(define_peephole2 ; movandsplit1
+  [(parallel
+    [(set (match_operand 0 "register_operand")
+	  (match_operand 1 "const_int_operand"))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])
+   (parallel
+    [(set (match_operand 2 "register_operand")
+	  (and (match_operand 3 "register_operand")
+	       (match_operand 4 "register_operand")))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])]
+  "REGNO (operands[0]) == REGNO (operands[2])
+   && REGNO (operands[0]) == REGNO (operands[3])
+   && cris_splittable_constant_p (INTVAL (operands[1]), AND,
+				  GET_MODE (operands[2]),
+				  optimize_function_for_speed_p (cfun))"
+  [(parallel
+    [(set (match_dup 2) (match_dup 4))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])
+   (parallel
+    [(set (match_dup 2) (match_dup 5))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])]
+{
+  operands[5] = gen_rtx_AND (GET_MODE (operands[2]), operands[2], operands[1]);
+})
+
+;; Large (read: non-quick) numbers can sometimes be AND:ed by other means.
+;; Testcase: gcc.target/cris/peep2-andsplit1.c
+;; 
+;; Another case is add<ext> N,rx with -126..-64,64..126: it has the same
+;; size and execution time as two addq or subq, but addq and subq can fill
+;; a delay-slot.
+(define_peephole2 ; opsplit1
+  [(parallel
+    [(set (match_operand 0 "register_operand")
+	  (splitop
+	   (match_operand 1 "register_operand")
+	   (match_operand 2 "const_int_operand")))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])]
+   ;; Operands 0 and 1 can be separate identical objects, at least
+   ;; after matching peepholes above.  */
+  "REGNO (operands[0]) == REGNO (operands[1])
+   && cris_splittable_constant_p (INTVAL (operands[2]), <CODE>,
+				  GET_MODE (operands[0]),
+				  optimize_function_for_speed_p (cfun))"
+  [(const_int 0)]
+{
+  cris_split_constant (INTVAL (operands[2]), <CODE>, GET_MODE (operands[0]),
+		       optimize_function_for_speed_p (cfun),
+		       true, operands[0], operands[0]);
+  DONE;
+})
+
+;; Fix a decomposed szext: fuse it with the memory operand of the
+;; load.  This is typically the sign-extension part of a decomposed
+;; "indirect offset" address.
+(define_peephole2 ; lra_szext_decomposed
+  [(parallel
+    [(set (match_operand:BW 0 "register_operand")
+	  (match_operand:BW 1 "memory_operand"))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])
+   (parallel
+    [(set (match_operand:SI 2 "register_operand") (szext:SI (match_dup 0)))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])]
+  "REGNO (operands[0]) == REGNO (operands[2])
+   || peep2_reg_dead_p (2, operands[0])"
+  [(parallel
+    [(set (match_dup 2) (szext:SI (match_dup 1)))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])])
+
+;; Re-compose a decomposed "indirect offset" address for a szext
+;; operation.  The non-clobbering "addi" is generated by LRA.
+;; This and lra_szext_decomposed is covered by cris/rld-legit1.c.
+;; (Unfortunately not true when enabling late-combine.)
+(define_peephole2 ; lra_szext_decomposed_indirect_with_offset
+  [(parallel
+    [(set (match_operand:SI 0 "register_operand")
+	  (sign_extend:SI (mem:BW (match_operand:SI 1 "register_operand"))))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])
+   (set (match_dup 0)
+	(plus:SI (match_dup 0) (match_operand:SI 2 "register_operand")))
+   (parallel
+    [(set (match_operand:SI 3 "register_operand")
+	  (szext:SI (mem:BW2 (match_dup 0))))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])]
+  "(REGNO (operands[0]) == REGNO (operands[3])
+    || peep2_reg_dead_p (3, operands[0]))
+   && (REGNO (operands[0]) == REGNO (operands[1])
+       || peep2_reg_dead_p (3, operands[0]))"
+  [(parallel
+    [(set
+      (match_dup 3)
+      (szext:SI
+       (mem:BW2 (plus:SI (szext:SI (mem:BW (match_dup 1))) (match_dup 2)))))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])])
+
+;; When enabling late-combine, we get a slightly changed register
+;; allocation.  The two allocations for the pseudo-registers involved
+;; in the matching pattern get "swapped" and the (plus ...) in the
+;; pattern above is now a load from a stack-slot.  If peephole2 is
+;; disabled, we see that the original sequence is actually improved;
+;; one less incoming instruction, a load.  We need to "undo" that
+;; improvement a bit and move that load "back" to before the sequence
+;; we combine in lra_szext_decomposed_indirect_with_offset.  But that
+;; changed again, so there's no define_peephole2 for that sequence
+;; here, because it'd be hard or impossible to write a matching
+;; test-case.  A few commits later, the incoming pattern sequence has
+;; changed again: back to the original but with the (plus...) part of
+;; the address inside the second memory reference.
+;; Coverage: cris/rld-legit1.c@r15-1880-gce34fcc572a0dc or
+;; r15-3386-gaf1500dd8c00 when adding -flate-combine-instructions.
+
+(define_peephole2 ; lra_szext_decomposed_indir_plus
+  [(parallel
+    [(set (match_operand:SI 0 "register_operand")
+	  (sign_extend:SI (mem:BW (match_operand:SI 1 "register_operand"))))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])
+   (parallel
+    [(set (match_operand:SI 3 "register_operand")
+	  (szext:SI (mem:BW2 (plus:SI
+			      (match_operand:SI 4 "register_operand")
+			      (match_operand:SI 2 "register_operand")))))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])]
+  "(REGNO (operands[0]) == REGNO (operands[3])
+    || peep2_reg_dead_p (3, operands[0]))
+   && (REGNO (operands[0]) == REGNO (operands[1])
+       || peep2_reg_dead_p (3, operands[0]))
+   && (rtx_equal_p (operands[2], operands[0])
+       || rtx_equal_p (operands[4], operands[0]))"
+  [(parallel
+    [(set
+      (match_dup 3)
+      (szext:SI
+       (mem:BW2 (plus:SI (szext:SI (mem:BW (match_dup 1))) (match_dup 2)))))
+     (clobber (reg:CC CRIS_CC0_REGNUM))])]
+{
+  if (! rtx_equal_p (operands[4], operands[0]))
+    operands[2] = operands[4];
+})
+
+;; Add operations with similar or same decomposed addresses here, when
+;; encountered - but only when covered by mentioned test-cases for at
+;; least one of the cases generalized in the pattern.
 
 ;; Local variables:
 ;; mode:emacs-lisp

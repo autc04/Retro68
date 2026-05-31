@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /* Definitions of target machine for GNU compiler,
    for IBM RS/6000 POWER running AIX.
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -182,7 +182,7 @@
    Don't do this until the fixed IBM assembler is more generally available.
    When this becomes permanently defined, the ASM_OUTPUT_EXTERNAL,
    ASM_OUTPUT_EXTERNAL_LIBCALL, and RS6000_OUTPUT_BASENAME macros will no
-   longer be needed.  Also, the extern declaration of mcount in 
+   longer be needed.  Also, the extern declaration of mcount in
    rs6000_xcoff_file_start will no longer be needed.  */
 
 /* #define ASM_SPEC "-u %(asm_cpu)" */
@@ -228,9 +228,7 @@
 /* AIX increases natural record alignment to doubleword if the first
    field is an FP double while the FP fields remain word aligned.  */
 #define ROUND_TYPE_ALIGN(STRUCT, COMPUTED, SPECIFIED)			\
-  ((TREE_CODE (STRUCT) == RECORD_TYPE					\
-    || TREE_CODE (STRUCT) == UNION_TYPE					\
-    || TREE_CODE (STRUCT) == QUAL_UNION_TYPE)				\
+  (RECORD_OR_UNION_TYPE_P (STRUCT)				\
    && TARGET_ALIGN_NATURAL == 0						\
    ? rs6000_special_round_type_align (STRUCT, COMPUTED, SPECIFIED)	\
    : MAX ((COMPUTED), (SPECIFIED)))
@@ -283,4 +281,6 @@
 #undef SUBTARGET_DRIVER_SELF_SPECS
 #define SUBTARGET_DRIVER_SELF_SPECS	\
 "%{m64:-maix64} %<m64",			\
-"%{m32:-maix32} %<m32"
+"%{m32:-maix32} %<m32",			\
+"%{fstack-protector*: %<fstack-protector* \
+   %estack-protector not supported on AIX}"

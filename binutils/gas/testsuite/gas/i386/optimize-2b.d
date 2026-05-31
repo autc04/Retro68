@@ -23,6 +23,29 @@ Disassembly of section .text:
  +[a-f0-9]+:	84 e4                	test   %ah,%ah
  +[a-f0-9]+:	66 85 ed             	test   %bp,%bp
  +[a-f0-9]+:	85 f6                	test   %esi,%esi
+ +[a-f0-9]+:	87 0a                	xchg   %ecx,\(%edx\)
+ +[a-f0-9]+:	87 11                	xchg   %edx,\(%ecx\)
+ +[a-f0-9]+:	66 98                	cbtw
+ +[a-f0-9]+:	66 98                	cbtw
+ +[a-f0-9]+:	98                   	cwtl
+ +[a-f0-9]+:	98                   	cwtl
+ +[a-f0-9]+:	66 0f b6 c0          	movzbw %al,%ax
+ +[a-f0-9]+:	66 0f b6 c9          	movzbw %cl,%cx
+ +[a-f0-9]+:	66 98                	cbtw
+ +[a-f0-9]+:	98                   	cwtl
+ +[a-f0-9]+:	66 0f b6 d2          	movzbw %dl,%dx
+ +[a-f0-9]+:	00 d2                	add    %dl,%dl
+ +[a-f0-9]+:	00 d2                	add    %dl,%dl
+ +[a-f0-9]+:	66 01 d2             	add    %dx,%dx
+ +[a-f0-9]+:	66 01 d2             	add    %dx,%dx
+ +[a-f0-9]+:	01 d2                	add    %edx,%edx
+ +[a-f0-9]+:	01 d2                	add    %edx,%edx
+ +[a-f0-9]+:	00 d2                	add    %dl,%dl
+ +[a-f0-9]+:	00 d2                	add    %dl,%dl
+ +[a-f0-9]+:	66 01 d2             	add    %dx,%dx
+ +[a-f0-9]+:	66 01 d2             	add    %dx,%dx
+ +[a-f0-9]+:	01 d2                	add    %edx,%edx
+ +[a-f0-9]+:	01 d2                	add    %edx,%edx
  +[a-f0-9]+:	c5 f1 55 e9          	vandnpd %xmm1,%xmm1,%xmm5
  +[a-f0-9]+:	c5 f9 6f d1          	vmovdqa %xmm1,%xmm2
  +[a-f0-9]+:	c5 f9 6f d1          	vmovdqa %xmm1,%xmm2
@@ -160,4 +183,20 @@ Disassembly of section .text:
  +[a-f0-9]+:	62 .*	vporq  \(%eax\)\{1to2\},%xmm2,%xmm3
  +[a-f0-9]+:	62 .*	vpxord \(%eax\)\{1to4\},%xmm2,%xmm3
  +[a-f0-9]+:	62 .*	vpxorq \(%eax\)\{1to4\},%ymm2,%ymm3
+ +[a-f0-9]+:	66 .*	pcmpeqq %xmm2,%xmm2
+ +[a-f0-9]+:	c4 .*	vpcmpeqq %xmm2,%xmm2,%xmm0
+ +[a-f0-9]+:	c4 .*	vpcmpeqq %ymm2,%ymm2,%ymm0
+ +[a-f0-9]+:	0f .*	paddw  %mm2,%mm2
+ +[a-f0-9]+:	66 .*	paddw  %xmm2,%xmm2
+ +[a-f0-9]+:	c5 .*	vpaddw %xmm2,%xmm2,%xmm3
+ +[a-f0-9]+:	62 .*	vpaddw %xmm2,%xmm2,%xmm3\{%k4\}
+ +[a-f0-9]+:	0f .*	paddd  %mm2,%mm2
+ +[a-f0-9]+:	66 .*	paddd  %xmm2,%xmm2
+ +[a-f0-9]+:	c5 .*	vpaddd %ymm2,%ymm2,%ymm3
+ +[a-f0-9]+:	62 .*	vpaddd %ymm2,%ymm2,%ymm3\{%k4\}
+ +[a-f0-9]+:	0f .*	psllq  \$(0x)?1,%mm2
+ +[a-f0-9]+:	66 .*	paddq  %xmm2,%xmm2
+ +[a-f0-9]+:	c5 .*	vpaddq %xmm2,%xmm2,%xmm3
+ +[a-f0-9]+:	62 .*	vpaddq %zmm2,%zmm2,%zmm3
+ +[a-f0-9]+:	c4 .*	vpbroadcastq %xmm2,%xmm0
 #pass

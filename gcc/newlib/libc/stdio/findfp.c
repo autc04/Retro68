@@ -26,17 +26,32 @@
 #include <sys/lock.h>
 #include "local.h"
 
-#if defined(_REENT_SMALL) && !defined(_REENT_GLOBAL_STDIO_STREAMS)
-const struct __sFILE_fake __sf_fake_stdin =
-    {_NULL, 0, 0, 0, 0, {_NULL, 0}, 0, _NULL};
-const struct __sFILE_fake __sf_fake_stdout =
-    {_NULL, 0, 0, 0, 0, {_NULL, 0}, 0, _NULL};
-const struct __sFILE_fake __sf_fake_stderr =
-    {_NULL, 0, 0, 0, 0, {_NULL, 0}, 0, _NULL};
+void (*__stdio_exit_handler) (void);
+
+__FILE __sf[3];
+
+struct _glue __sglue = {NULL, 3, &__sf[0]};
+
+#ifdef _REENT_THREAD_LOCAL
+_Thread_local __FILE *_tls_stdin = &__sf[0];
+_Thread_local __FILE *_tls_stdout = &__sf[1];
+_Thread_local __FILE *_tls_stderr = &__sf[2];
+_Thread_local void (*_tls_cleanup)(struct _reent *);
 #endif
 
-#ifdef _REENT_GLOBAL_STDIO_STREAMS
-__FILE __sf[3];
+#ifdef _STDIO_BSD_SEMANTICS
+  /* BSD and Glibc systems only flush streams which have been written to
+     at exit time.  Calling flush rather than close for speed, as on
+     the aforementioned systems. */
+#define CLEANUP_FILE __sflushw_r
+#else
+  /* Otherwise close files and flush read streams, too.
+     Note we call flush directly if "--enable-lite-exit" is in effect.  */
+#ifdef _LITE_EXIT
+#define CLEANUP_FILE _fflush_r
+#else
+#define CLEANUP_FILE _fclose_r
+#endif
 #endif
 
 #if (defined (__OPTIMIZE_SIZE__) || defined (PREFER_SIZE_OVER_SPEED))
@@ -73,14 +88,10 @@ std (FILE *ptr,
 #else /* _STDIO_CLOSE_STD_STREAMS */
   ptr->_close = NULL;
 #endif /* _STDIO_CLOSE_STD_STREAMS */
-#if !defined(__SINGLE_THREAD__) && !(defined(_REENT_SMALL) && !defined(_REENT_GLOBAL_STDIO_STREAMS))
-  __lock_init_recursive (ptr->_lock);
-  /*
-   * #else
-   * lock is already initialized in __sfp
-   */
+#ifndef __SINGLE_THREAD__
+  if (ptr == &__sf[0] || ptr == &__sf[1] || ptr == &__sf[2])
+    __lock_init_recursive (ptr->_lock);
 #endif
-
 #ifdef __SCLE
   if (__stextmode (ptr->_file))
     ptr->_flags |= __SCLE;
@@ -122,9 +133,8 @@ struct glue_with_file {
   FILE file;
 };
 
-struct _glue *
-__sfmoreglue (struct _reent *d,
-       register int n)
+static struct _glue *
+sfmoreglue (struct _reent *d, int n)
 {
   struct glue_with_file *g;
 
@@ -139,6 +149,23 @@ __sfmoreglue (struct _reent *d,
   return &g->glue;
 }
 
+static void
+stdio_exit_handler (void)
+{
+  (void) _fwalk_sglue (_GLOBAL_REENT, CLEANUP_FILE, &__sglue);
+}
+
+static void
+global_stdio_init (void)
+{
+  if (__stdio_exit_handler == NULL) {
+    __stdio_exit_handler = stdio_exit_handler;
+    stdin_init (&__sf[0]);
+    stdout_init (&__sf[1]);
+    stderr_init (&__sf[2]);
+  }
+}
+
 /*
  * Find a free FILE for fopen et al.
  */
@@ -151,20 +178,19 @@ __sfp (struct _reent *d)
   struct _glue *g;
 
   _newlib_sfp_lock_start ();
+  global_stdio_init ();
 
-  if (!_GLOBAL_REENT->__sdidinit)
-    __sinit (_GLOBAL_REENT);
-  for (g = &_GLOBAL_REENT->__sglue;; g = g->_next)
+  for (g = &__sglue;; g = g->_next)
     {
       for (fp = g->_iobs, n = g->_niobs; --n >= 0; fp++)
 	if (fp->_flags == 0)
 	  goto found;
       if (g->_next == NULL &&
-	  (g->_next = __sfmoreglue (d, NDYNAMIC)) == NULL)
+	  (g->_next = sfmoreglue (d, NDYNAMIC)) == NULL)
 	break;
     }
   _newlib_sfp_lock_exit ();
-  d->_errno = ENOMEM;
+  _REENT_ERRNO(d) = ENOMEM;
   return NULL;
 
 found:
@@ -200,42 +226,16 @@ found:
  * The name `_cleanup' is, alas, fairly well known outside stdio.
  */
 
-void
-_cleanup_r (struct _reent *ptr)
+static void
+cleanup_stdio (struct _reent *ptr)
 {
-  int (*cleanup_func) (struct _reent *, FILE *);
-#ifdef _STDIO_BSD_SEMANTICS
-  /* BSD and Glibc systems only flush streams which have been written to
-     at exit time.  Calling flush rather than close for speed, as on
-     the aforementioned systems. */
-  cleanup_func = __sflushw_r;
-#else
-  /* Otherwise close files and flush read streams, too.
-     Note we call flush directly if "--enable-lite-exit" is in effect.  */
-#ifdef _LITE_EXIT
-  cleanup_func = _fflush_r;
-#else
-  cleanup_func = _fclose_r;
-#endif
-#endif
-#ifdef _REENT_GLOBAL_STDIO_STREAMS
-  if (ptr->_stdin != &__sf[0])
-    (*cleanup_func) (ptr, ptr->_stdin);
-  if (ptr->_stdout != &__sf[1])
-    (*cleanup_func) (ptr, ptr->_stdout);
-  if (ptr->_stderr != &__sf[2])
-    (*cleanup_func) (ptr, ptr->_stderr);
-#endif
-  (void) _fwalk_reent (ptr, cleanup_func);
+  if (_REENT_STDIN(ptr) != &__sf[0])
+    CLEANUP_FILE (ptr, _REENT_STDIN(ptr));
+  if (_REENT_STDOUT(ptr) != &__sf[1])
+    CLEANUP_FILE (ptr, _REENT_STDOUT(ptr));
+  if (_REENT_STDERR(ptr) != &__sf[2])
+    CLEANUP_FILE (ptr, _REENT_STDERR(ptr));
 }
-
-#ifndef _REENT_ONLY
-void
-_cleanup (void)
-{
-  _cleanup_r (_GLOBAL_REENT);
-}
-#endif
 
 /*
  * __sinit() is called whenever stdio's internal variables must be set up.
@@ -244,65 +244,24 @@ _cleanup (void)
 void
 __sinit (struct _reent *s)
 {
-  __sinit_lock_acquire ();
+  __sfp_lock_acquire ();
 
-  if (s->__sdidinit)
+  if (_REENT_CLEANUP(s))
     {
-      __sinit_lock_release ();
+      __sfp_lock_release ();
       return;
     }
 
   /* make sure we clean up on exit */
-  s->__cleanup = _cleanup_r;	/* conservative */
+  _REENT_CLEANUP(s) = cleanup_stdio;	/* conservative */
 
-  s->__sglue._next = NULL;
-#ifndef _REENT_SMALL
-# ifndef _REENT_GLOBAL_STDIO_STREAMS
-  s->__sglue._niobs = 3;
-  s->__sglue._iobs = &s->__sf[0];
-# endif /* _REENT_GLOBAL_STDIO_STREAMS */
-#else
-  s->__sglue._niobs = 0;
-  s->__sglue._iobs = NULL;
-  /* Avoid infinite recursion when calling __sfp  for _GLOBAL_REENT.  The
-     problem is that __sfp checks for _GLOBAL_REENT->__sdidinit and calls
-     __sinit if it's 0. */
-  if (s == _GLOBAL_REENT)
-    s->__sdidinit = 1;
-# ifndef _REENT_GLOBAL_STDIO_STREAMS
-  s->_stdin = __sfp(s);
-  s->_stdout = __sfp(s);
-  s->_stderr = __sfp(s);
-# else /* _REENT_GLOBAL_STDIO_STREAMS */
-  s->_stdin = &__sf[0];
-  s->_stdout = &__sf[1];
-  s->_stderr = &__sf[2];
-# endif /* _REENT_GLOBAL_STDIO_STREAMS */
-#endif
-
-#ifdef _REENT_GLOBAL_STDIO_STREAMS
-  if (__sf[0]._cookie == NULL) {
-    _GLOBAL_REENT->__sglue._niobs = 3;
-    _GLOBAL_REENT->__sglue._iobs = &__sf[0];
-    stdin_init (&__sf[0]);
-    stdout_init (&__sf[1]);
-    stderr_init (&__sf[2]);
-  }
-#else /* _REENT_GLOBAL_STDIO_STREAMS */
-  stdin_init (s->_stdin);
-  stdout_init (s->_stdout);
-  stderr_init (s->_stderr);
-#endif /* _REENT_GLOBAL_STDIO_STREAMS */
-
-  s->__sdidinit = 1;
-
-  __sinit_lock_release ();
+  global_stdio_init ();
+  __sfp_lock_release ();
 }
 
 #ifndef __SINGLE_THREAD__
 
 __LOCK_INIT_RECURSIVE(static, __sfp_recursive_mutex);
-__LOCK_INIT_RECURSIVE(static, __sinit_recursive_mutex);
 
 void
 __sfp_lock_acquire (void)
@@ -316,34 +275,22 @@ __sfp_lock_release (void)
   __lock_release_recursive (__sfp_recursive_mutex);
 }
 
-void
-__sinit_lock_acquire (void)
-{
-  __lock_acquire_recursive (__sinit_recursive_mutex);
-}
-
-void
-__sinit_lock_release (void)
-{
-  __lock_release_recursive (__sinit_recursive_mutex);
-}
-
 /* Walkable file locking routine.  */
 static int
-__fp_lock (FILE * ptr)
+__fp_lock (struct _reent * ptr __unused, FILE * fp)
 {
-  if (!(ptr->_flags2 & __SNLK))
-    _flockfile (ptr);
+  if (!(fp->_flags2 & __SNLK))
+    _flockfile (fp);
 
   return 0;
 }
 
 /* Walkable file unlocking routine.  */
 static int
-__fp_unlock (FILE * ptr)
+__fp_unlock (struct _reent * ptr __unused, FILE * fp)
 {
-  if (!(ptr->_flags2 & __SNLK))
-    _funlockfile (ptr);
+  if (!(fp->_flags2 & __SNLK))
+    _funlockfile (fp);
 
   return 0;
 }
@@ -352,15 +299,13 @@ void
 __fp_lock_all (void)
 {
   __sfp_lock_acquire ();
-
-  (void) _fwalk (_REENT, __fp_lock);
+  (void) _fwalk_sglue (NULL, __fp_lock, &__sglue);
 }
 
 void
 __fp_unlock_all (void)
 {
-  (void) _fwalk (_REENT, __fp_unlock);
-
+  (void) _fwalk_sglue (NULL, __fp_unlock, &__sglue);
   __sfp_lock_release ();
 }
 #endif

@@ -1,6 +1,6 @@
 /* Atomic 64-byte load/store instructions limit register number Rt to below
    condition: the <Xt> register number should be even and <= 22.  */
-.arch armv8.7-a+ls64
+.arch armv8-a+ls64
 
 /* Single-copy Atomic 64-byte Load.  */
 	ld64b x0, [x1]

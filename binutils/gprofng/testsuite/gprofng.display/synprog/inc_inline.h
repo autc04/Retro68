@@ -1,4 +1,4 @@
-/* Copyright (C) 2021 Free Software Foundation, Inc.
+/* Copyright (C) 2021-2026 Free Software Foundation, Inc.
    Contributed by Oracle.
 
    This file is part of GNU Binutils.
@@ -19,7 +19,7 @@
    MA 02110-1301, USA.  */
 
 #ifndef NO_INLINE
-void ext_inline_code() __attribute__ ((always_inline));
+void ext_inline_code(int) __attribute__ ((always_inline));
 #endif
 
 void

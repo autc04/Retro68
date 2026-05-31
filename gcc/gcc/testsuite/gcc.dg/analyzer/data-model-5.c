@@ -60,7 +60,7 @@ base_obj *alloc_obj (type_obj *ob_type, size_t sz)
 {
   base_obj *obj = (base_obj *)malloc (sz);
   if (!obj)
-    return NULL;
+    return NULL; /* { dg-message "using NULL here" } */
   obj->ob_type = ob_type;
   obj->ob_refcnt = 1;
   return obj;
@@ -90,10 +90,6 @@ void unref (base_obj *obj)
 {
   if (--obj->ob_refcnt == 0) /* { dg-bogus "dereference of uninitialized pointer 'obj'" } */
     obj->ob_type->tp_dealloc (obj);
-  /* { dg-warning "dereference of NULL 'obj'" "deref of NULL" { target *-*-* } .-2 } */
-  /* FIXME: ideally we wouldn't issue this, as we've already issued a
-     warning about str_obj which is now in the "stop" state; the cast
-     confuses things.  */
 }
 
 void test_1 (const char *str)

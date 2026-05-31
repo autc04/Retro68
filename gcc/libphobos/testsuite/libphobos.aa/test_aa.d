@@ -7,8 +7,10 @@ void main()
     testRequire1();
     testRequire2();
     testRequire3();
+    testRequire4();
     testUpdate1();
     testUpdate2();
+    testUpdate3();
     testByKey1();
     testByKey2();
     testByKey3();
@@ -40,6 +42,10 @@ void main()
     testZeroSizedValue();
     testTombstonePurging();
     testClear();
+    testTypeInfoCollect();
+    testNew();
+    testAliasThis();
+    testAliasThis2();
 }
 
 void testKeysValues1()
@@ -224,6 +230,20 @@ void testRequire3() pure
     assert("foo" in aa);
 }
 
+void testRequire4() pure
+{
+    int[int] aa;
+    try
+        aa.require(5, {
+            if (true)
+                throw new Exception("oops");
+            else
+                return 1;
+        }());
+    catch (Exception e) {}
+    assert(5 !in aa);
+}
+
 
 void testUpdate1()
 {
@@ -287,6 +307,23 @@ void testUpdate2()
     aa.update("foo", new Creator, new Updater);
     assert(updated);
 }
+
+void testUpdate3() pure
+{
+    int[int] aa;
+    try
+        aa.update(5, {
+            if (true)
+                throw new Exception("oops");
+            else
+                return 1;
+        }, (ref int v) {
+            throw new Exception("unexpected update");
+        });
+    catch (Exception e) {}
+    assert(5 !in aa);
+}
+
 
 void testByKey1() @safe
 {
@@ -585,8 +622,6 @@ void issue13078() nothrow pure
 
 void issue14104()
 {
-    import core.stdc.stdio;
-
     alias K = const(ubyte)*;
     size_t[K] aa;
     immutable key = cast(K)(cast(size_t) uint.max + 1);
@@ -906,4 +941,145 @@ void testClear()
     aa2[5] = 6;
     assert(aa.length == 1);
     assert(aa[5] == 6);
+}
+
+// https://github.com/dlang/dmd/issues/17503
+void testTypeInfoCollect()
+{
+    import core.memory;
+
+    static struct S
+    {
+        int x;
+        ~this() {}
+    }
+
+    static struct AAHolder
+    {
+        S[int] aa;
+    }
+
+    static S* getBadS()
+    {
+        auto aaholder = new AAHolder;
+        aaholder.aa[0] = S();
+        auto s = 0 in aaholder.aa; // keep a pointer to the entry
+        GC.free(aaholder); // but not a pointer to the AA.
+        return s;
+    }
+
+    static void stackStomp()
+    {
+        import core.stdc.string : memset;
+        ubyte[4 * 4096] x;
+        memset(x.ptr, 0, x.sizeof);
+    }
+
+    auto s = getBadS();
+    stackStomp(); // destroy any stale references to the AA or s except in the current frame;
+    GC.collect(); // BUG: this used to invalidate the fake type info, should no longer do this.
+    foreach(i; 0 .. 1000) // try to reallocate the freed type info
+        auto p = new void*[1];
+    s = null; // clear any reference to the entry
+    GC.collect(); // used to segfault.
+}
+
+void testNew()
+{
+    auto aa = new long[int]; // call _d_newAA
+    assert(aa.length == 0);
+    foreach (i; 0 .. 100)
+        aa[i] = i * 2;
+    assert(aa.length == 100);
+
+    // not supported in CTFE (it doesn't do much anyway):
+    // static auto aa = new long[int];
+}
+
+void testAliasThis()
+{
+    static struct S
+    {
+        __gshared int numCopies;
+
+        ubyte[long] aa;
+        S* next;
+
+        this(this) { numCopies++; }
+
+        alias aa this;
+    }
+    S s;
+    long key = 1;
+    s.aa[1] = 1; // create and insert
+    assert(S.numCopies == 0);
+    if (auto p = 1 in s)
+        *p = 2;
+    if (auto p = key in s)
+        *p = 3;
+    if (auto p = () { return 1; }() in s)
+        *p = 4;
+    s.remove(1);
+    assert(S.numCopies == 0);
+}
+
+void testAliasThis2()
+{
+    static struct A
+    {
+        bool extra;
+        uint id;
+    }
+
+    static struct B
+    {
+        uint id;
+
+        A toA() const pure nothrow
+        {
+            return A(false, id);
+        }
+
+        alias toA this;
+    }
+
+    bool[A] aa;
+    aa[B(5)] = true;
+    assert(B(5) in aa);
+    assert(A(false, 5) in aa);
+}
+
+void test22510()
+{
+    static struct S(AA)
+    {
+        AA aa_;
+        auto aa() inout => this.aa_.dup;
+    }
+    auto testDup(AA)()
+    {
+        S!AA s;
+        return s.aa();
+    }
+    auto aa_ii = testDup!(int[int])();
+    static assert(is(typeof(aa_ii) == int[int]));
+
+    auto aa_cii = testDup!(const(int[int]))();
+    static assert(is(typeof(aa_cii) == int[int]));
+
+    static struct T
+    {
+        char[] s; // non const indirection disallows conversion of const(T) -> T when copying
+    }
+    auto aa_it = testDup!(int[T])();
+    static assert(is(typeof(aa_it) == int[T]));
+
+    auto aa_cit = testDup!(const(int[T]))();
+    static assert(is(typeof(aa_cit) == int[T]));
+
+    auto aa_ti = testDup!(T[int])();
+    static assert(is(typeof(aa_ti) == T[int]));
+
+    auto aa_cti = testDup!(const(T[int]))();
+    static assert(is(typeof(aa_cti) == const(T)[int]));
 }

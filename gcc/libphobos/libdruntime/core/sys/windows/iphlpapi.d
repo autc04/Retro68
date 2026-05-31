@@ -9,12 +9,11 @@
  */
 module core.sys.windows.iphlpapi;
 version (Windows):
-@system:
 
 import core.sys.windows.ipexport, core.sys.windows.iprtrmib, core.sys.windows.iptypes;
 import core.sys.windows.winbase, core.sys.windows.windef;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     DWORD AddIPAddress(IPAddr, IPMask, DWORD, PULONG, PULONG);
     DWORD CreateIpForwardEntry(PMIB_IPFORWARDROW);
     DWORD CreateIpNetEntry(PMIB_IPNETROW);

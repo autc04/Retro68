@@ -1,5 +1,5 @@
 /* Common VxWorks target definitions for GNU compiler.
-   Copyright (C) 1999-2022 Free Software Foundation, Inc.
+   Copyright (C) 1999-2026 Free Software Foundation, Inc.
    Contributed by Wind River Systems.
    Rewritten by CodeSourcery, LLC.
 
@@ -19,9 +19,24 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+/* ??? We use HAVE_INITFINI_ARRAY_SUPPORT in preprocessor guards in this
+   header, which is conveyed by auto-host.h despite being a target property.
+   #include auto-host.h here would trigger lots of conflicts so we rely on
+   compiler .c files doing this before target configuration headers.  */
+
 /* Assert that we are targeting VxWorks.  */
 #undef TARGET_VXWORKS
 #define TARGET_VXWORKS 1
+
+/* ??? Even though assigned to a HOST driver hook, this function
+   operates for all vxworks targets regardless of the current host.
+   We will get warnings at build time if the macro happens to be
+   redefined one way or another for a host.  */
+struct cl_decoded_option;
+extern void vxworks_driver_init (unsigned int *, struct cl_decoded_option **);
+
+#define GCC_DRIVER_HOST_INITIALIZATION \
+        vxworks_driver_init (&decoded_options_count, &decoded_options)
 
 /* In kernel mode, VxWorks provides all the libraries itself, as well as
    the functionality of startup files, etc.  In RTP mode, it behaves more
@@ -60,22 +75,27 @@ along with GCC; see the file COPYING3.  If not see
 
 #if TARGET_VXWORKS7
 
-/* We arrange not rely on fixed includes for vx7 and the headers spread over
-   common kernel/rtp directories in addition to specific ones for each mode.
-   Setup sysroot_headers_suffix_spec to deal with kernel/rtp distinction.  */
+/* We arrange not to rely on fixed includes for vx7 and the headers spread
+   over common kernel/rtp directories in addition to specific ones for each
+   mode.  Setup sysroot_headers_suffix_spec to deal with the kernel/rtp
+   distinction.  */
 
 #undef SYSROOT_HEADERS_SUFFIX_SPEC
 #define SYSROOT_HEADERS_SUFFIX_SPEC "%{mrtp:/usr/h;:/krnl/h}"
 
+/* Now expand everything using sysroot(+suffix) relative references.  The
+   absence of %getenv(VSB_DIR) allows all-gcc builds with possible self-tests
+   to succeed without having to define the variable at all.  */
+
 #undef VXWORKS_ADDITIONAL_CPP_SPEC
-#define VXWORKS_ADDITIONAL_CPP_SPEC                     \
- "%{!nostdinc:%{!fself-test=*:                          \
-    %{isystem*}                                         \
-    -idirafter %:getenv(VSB_DIR /h)  \
-    -idirafter %:getenv(VSB_DIR /share/h)  \
-    -idirafter =/system \
-    -idirafter =/public \
-  }}"
+#define VXWORKS_ADDITIONAL_CPP_SPEC	\
+  "%{!nostdinc:				\
+     %{isystem*}			\
+     -idirafter =/../../h		\
+     -idirafter =/../../share/h		\
+     -idirafter =/system		\
+     -idirafter =/public		\
+   }"
 
 #else /* TARGET_VXWORKS7 */
 
@@ -115,7 +135,7 @@ along with GCC; see the file COPYING3.  If not see
      -lc_internal after -lc -lgcc.
 
    - libc_internal also contains __init/__fini functions for
-     USE_INITFINI_ARRAY support. However, the system expects these in
+     INITFINI_ARRAY support. However, the system expects these in
      every shared lib as well, with slightly different names, and it is
      simpler for us to provide our own versions through vxcrtstuff.
 
@@ -143,6 +163,18 @@ along with GCC; see the file COPYING3.  If not see
 /* TLS configuration.  VxWorks 7 now always has proper TLS support.
    Earlier versions did not, not even for RTPS.  */
 #define VXWORKS_HAVE_TLS TARGET_VXWORKS7
+
+/* RTP segments could be loaded with varying offsets, so cross-segment offsets
+   could not be assumed to be constant.  This rules out some PC- and
+   GOT-relative addressing.  */
+#undef TARGET_VXWORKS_VAROFF
+#define TARGET_VXWORKS_VAROFF (!TARGET_VXWORKS7 && TARGET_VXWORKS_RTP)
+
+/* GOTT_BASE and GOTT_INDEX symbols are only used by some ports up to VxWorks6.
+   This macro is only used by i386 so far.  Other ports seem to keep on using
+   GOTTPIC from VxWorks7 on, but they don't test this macro.  */
+#undef TARGET_VXWORKS_GOTTPIC
+#define TARGET_VXWORKS_GOTTPIC (!TARGET_VXWORKS7)
 
 /* On Vx6 and previous, the libraries to pick up depends on the architecture,
    so cannot be defined for all archs at once.  On Vx7, a VSB is always needed
@@ -209,21 +241,60 @@ along with GCC; see the file COPYING3.  If not see
 #undef VXWORKS_LINK_SPEC
 #define VXWORKS_LINK_SPEC VXWORKS_BASE_LINK_SPEC " " VXWORKS_EXTRA_LINK_SPEC
 
+/* Control how to include libgcc in the link closure, handling both "shared"
+   and "non-static" in addition to "static-libgcc" when shared lib support is
+   enabled.  */
+
 #undef VXWORKS_LIBGCC_SPEC
+
+/* libgcc_eh control; libgcc_eh.a is available either together with libgcc_s
+   (mrtp and mcmodel!=large when configured with --enable-shared) or when the
+   compiler is specially setup to support dual sjlj/table-based eh.  */
+
+/* VX_LGCC_EH_SO1: The "-lgcc_eh" part we need in situations where we know a
+   shared libgcc is available (ENABLE_SHARED_LIBGCC + mrtp multilib).  */
+
+#define VX_LGCC_EH_SO1 " -lgcc_eh -lgcc"
+/* Extra -lgcc to handle functions from libgcc_eh that refer to symbols
+   exposed by libgcc and not guaranteed to be dragged in before -lgcc_eh
+   appears.  */
+
+/* VX_LGCC_EH_SO0: The "-lgcc_eh" part we need in situations where we know a
+   shared libgcc is not available (!ENABLE_SHARED_LIBGCC or !mrtp multlib).  */
+
+#if !defined(CONFIG_DUAL_EXCEPTIONS)
+
+/* No shared lib && !DUAL_EH -> no libgcc_eh available at all.  */
+#define VX_LGCC_EH_SO0
+
+#else /* CONFIG_DUAL_EXCEPTIONS  */
+
+/* No shared lib but DUAL_EH -> libgcc_eh around and spec handled by the driver
+   depending on ENABLE_SHARED_LIBGCC.  If defined, the driver expects a regular
+   sequence.  Otherwise, the driver is expected to turn -lgcc into -lgcc_eh on
+   its own and just add an instance to address possible cross refs.  */
+
+#if defined(ENABLE_SHARED_LIBGCC)
+#define VX_LGCC_EH_SO0 " -lgcc_eh -lgcc"
+#else
+#define VX_LGCC_EH_SO0 " -lgcc"
+#endif
+
+#endif /* CONFIG_DUAL_EXCEPTIONS  */
+
 #if defined(ENABLE_SHARED_LIBGCC)
 #define VXWORKS_LIBGCC_SPEC                                             \
-"%{!mrtp:-lgcc -lgcc_eh}                                                \
- %{mrtp:%{!static-libgcc:%{shared|non-static:-lgcc_s;:-lgcc -lgcc_eh}}  \
-         %{static-libgcc:-lgcc -lgcc_eh}}"
+  "%{!mrtp|mcmodel=large:-lgcc" VX_LGCC_EH_SO0 ";"			\
+  " :%{!static-libgcc:%{shared|non-static:-lgcc_s;:-lgcc" VX_LGCC_EH_SO1 "}} \
+     %{static-libgcc:-lgcc" VX_LGCC_EH_SO1 "}}"
 #else
-#define VXWORKS_LIBGCC_SPEC "-lgcc"
+#define VXWORKS_LIBGCC_SPEC "-lgcc" VX_LGCC_EH_SO0
 #endif
 
 /* Setup the crtstuff begin/end we might need for dwarf EH registration
-   and/or INITFINI_ARRAY support for shared libs.  */
-
-#if (HAVE_INITFINI_ARRAY_SUPPORT && defined(ENABLE_SHARED_LIBGCC)) \
-    || (DWARF2_UNWIND_INFO && !defined(CONFIG_SJLJ_EXCEPTIONS))
+   and/or INITFINI_ARRAY support.  */
+#if (HAVE_INITFINI_ARRAY_SUPPORT					\
+     || (DWARF2_UNWIND_INFO && !defined(CONFIG_SJLJ_EXCEPTIONS)))
 #define VX_CRTBEGIN_SPEC "%{!shared:vx_crtbegin.o%s;:vx_crtbeginS.o%s}"
 #define VX_CRTEND_SPEC   "%{!shared:vx_crtend.o%s;:vx_crtendS.o%s}"
 #else
@@ -299,9 +370,16 @@ extern void vxworks_asm_out_destructor (rtx symbol, int priority);
 
 /* A VxWorks implementation of TARGET_OS_CPP_BUILTINS.  */
 
-/* The VxWorks personality we rely on, controlling which sections of system
-   headers files we trigger.  This might be redefined on targets where the
-   base VxWorks environment doesn't come with a GNU toolchain.  */
+/* The VxWorks personality we rely on for VxWorks prior to 7, controlling the
+   definition of TOOL and TOOL_FAMILY macros used within system headers and
+   expected to match the kind of system toolchain on which the OS instance is
+   based (typically, gnu or llvm).  This might be redefined on targets where
+   the base VxWorks environment doesn't come with a GNU toolchain.
+
+   From VxWorks 7 on, the actual personality might vary for different instances
+   for a given architecture.  The TOOL/TOOL_FAMILY definitions are infered at
+   run-time from vxworks-predef.h, which allows accommodating such variations
+   with a single toolchain.  */
 
 #define VXWORKS_PERSONALITY "gnu"
 
@@ -315,8 +393,6 @@ extern void vxworks_asm_out_destructor (rtx symbol, int priority);
 	builtin_define ("__RTP__");					\
       else								\
 	builtin_define ("_WRS_KERNEL");					\
-      builtin_define ("TOOL_FAMILY=" VXWORKS_PERSONALITY);		\
-      builtin_define ("TOOL=" VXWORKS_PERSONALITY);			\
       if (TARGET_VXWORKS7)						\
         {								\
            builtin_define ("_VSB_CONFIG_FILE=<config/vsbConfig.h>");	\
@@ -328,6 +404,11 @@ extern void vxworks_asm_out_destructor (rtx symbol, int priority);
 	   if (!flag_isoc99 && !c_dialect_cxx())			\
              builtin_define ("_ALLOW_KEYWORD_MACROS");			\
         }								\
+      else								\
+	{								\
+	  builtin_define ("TOOL_FAMILY=" VXWORKS_PERSONALITY);		\
+	  builtin_define ("TOOL=" VXWORKS_PERSONALITY);			\
+	}								\
       /* C++ support relies on C99 features from C++11, even C++98	\
          for listdc++ in particular, with corresponding checks at	\
          configure time.  Make sure C99 features are exposed by the	\
@@ -362,11 +443,11 @@ extern void vxworks_asm_out_destructor (rtx symbol, int priority);
   vxworks_emit_call_builtin___clear_cache
 extern void vxworks_emit_call_builtin___clear_cache (rtx begin, rtx end);
 
-/* Default dwarf control values, for non-gdb debuggers that come with
-   VxWorks.  */
+/* Default dwarf control values, accounting for non-gdb debuggers that come
+   with VxWorks.  */
 
-#undef VXWORKS_DWARF_VERSION_DEFAULT
-#define VXWORKS_DWARF_VERSION_DEFAULT (TARGET_VXWORKS7 ? 4 : 2)
+#undef DWARF_VERSION_DEFAULT
+#define DWARF_VERSION_DEFAULT (TARGET_VXWORKS7 ? 3 : 2)
 
 #undef DWARF_GNAT_ENCODINGS_DEFAULT
 #define DWARF_GNAT_ENCODINGS_DEFAULT \

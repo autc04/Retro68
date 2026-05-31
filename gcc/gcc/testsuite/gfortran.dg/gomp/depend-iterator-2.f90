@@ -1,5 +1,5 @@
 ! { dg-do compile }
-
+! { dg-additional-options "-Wno-deprecated-openmp" }
 module mymod
   implicit none (type, external)
   integer, target :: var(0:5) = [0,1,2,3,4,5]
@@ -34,7 +34,7 @@ program main
       !!$omp end task
     !$omp task depend(iterator(i=1:5), source )  ! { dg-error "ITERATOR may not be combined with SOURCE" }
   !!$omp end task
-  !$omp task affinity (iterator(i=1:5): a) depend(iterator(i=1:5), sink : x) ! { dg-error "ITERATOR may not be combined with SINK" }
+  !$omp task affinity (iterator(i=1:5): a) depend(iterator(i=1:5), sink : x) ! { dg-error "SINK at .1. not permitted as dependence-type for this directive" }
   !!$omp end task
 
     end do

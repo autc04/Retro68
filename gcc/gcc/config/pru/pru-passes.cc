@@ -1,5 +1,5 @@
 /* PRU target specific passes
-   Copyright (C) 2017-2022 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
    Dimitar Dimitrov <dimitar@dinux.eu>
 
    This file is part of GCC.
@@ -35,6 +35,7 @@
 #include "gimple-iterator.h"
 #include "gimple-walk.h"
 #include "gimple-expr.h"
+#include "cgraph.h"
 #include "tree-pass.h"
 
 #include "pru-protos.h"
@@ -44,13 +45,13 @@ namespace {
 /* Scan the tree to ensure that the compiled code by GCC
    conforms to the TI ABI specification.  If GCC cannot
    output a conforming code, raise an error.  */
-const pass_data pass_data_tiabi_check =
+const pass_data pass_data_pru_tiabi_check =
 {
-  GIMPLE_PASS, /* type */
-  "*tiabi_check", /* name */
+  SIMPLE_IPA_PASS, /* type */
+  "*pru_tiabi_check", /* name */
   OPTGROUP_NONE, /* optinfo_flags */
   TV_NONE, /* tv_id */
-  PROP_gimple_any, /* properties_required */
+  0, /* properties_required */
   0, /* properties_provided */
   0, /* properties_destroyed */
   0, /* todo_flags_start */
@@ -58,71 +59,96 @@ const pass_data pass_data_tiabi_check =
 };
 
 /* Implementation class for the TI ABI compliance-check pass.  */
-class pass_tiabi_check : public gimple_opt_pass
+class pass_pru_tiabi_check : public simple_ipa_opt_pass
 {
 public:
-  pass_tiabi_check (gcc::context *ctxt)
-    : gimple_opt_pass (pass_data_tiabi_check, ctxt)
+  pass_pru_tiabi_check (gcc::context *ctxt)
+    : simple_ipa_opt_pass (pass_data_pru_tiabi_check, ctxt)
   {}
 
   /* opt_pass methods: */
   virtual unsigned int execute (function *);
 
-  virtual bool gate (function *fun ATTRIBUTE_UNUSED)
+  virtual bool gate (function *)
   {
     return pru_current_abi == PRU_ABI_TI;
   }
 
-}; // class pass_tiabi_check
+}; // class pass_pru_tiabi_check
 
-/* Return 1 if type TYPE is a pointer to function type or a
-   structure having a pointer to function type as one of its fields.
-   Otherwise return 0.  */
-static bool
-chkp_type_has_function_pointer (const_tree type)
+/* Issue an error diagnostic if the given TYPE is not compatible with
+   TI's ABI.  */
+static void
+check_type_tiabi_compatibility (tree type, location_t loc,
+				hash_set<tree> *visited_nodes)
 {
-  bool res = false;
+  /* Do not visit the same type twice.  */
+  if (visited_nodes->add (type))
+    return;
 
-  if (POINTER_TYPE_P (type) && FUNC_OR_METHOD_TYPE_P (TREE_TYPE (type)))
-    res = true;
+  if (POINTER_TYPE_P (type))
+    {
+      /* TODO: All declarations and statements share the same object for a
+	 function pointer tree type.  So if there are several variables
+	 with the same type (function pointer with same function signature),
+	 only the first declaration would get a diagnostic.  */
+      if (FUNC_OR_METHOD_TYPE_P (TREE_TYPE (type)))
+	{
+	  location_t ptrloc = DECL_P (type) ? DECL_SOURCE_LOCATION (type) : loc;
+	  error_at (ptrloc,
+		    "function pointers not supported with %<-mabi=ti%> option");
+	}
+      else
+	check_type_tiabi_compatibility (TREE_TYPE (type), loc, visited_nodes);
+    }
   else if (RECORD_OR_UNION_TYPE_P (type))
     {
-      tree field;
-
-      for (field = TYPE_FIELDS (type); field; field = DECL_CHAIN (field))
+      for (tree field = TYPE_FIELDS (type); field; field = DECL_CHAIN (field))
 	if (TREE_CODE (field) == FIELD_DECL)
-	  res = res || chkp_type_has_function_pointer (TREE_TYPE (field));
+	  {
+	    if (DECL_BIT_FIELD (field))
+	      error_at (DECL_SOURCE_LOCATION (field),
+			"bit-fields not supported with %<-mabi=ti%> option");
+
+	    check_type_tiabi_compatibility (TREE_TYPE (field),
+					    DECL_SOURCE_LOCATION (field),
+					    visited_nodes);
+	  }
     }
   else if (TREE_CODE (type) == ARRAY_TYPE)
-    res = chkp_type_has_function_pointer (TREE_TYPE (type));
-
-  return res;
+    check_type_tiabi_compatibility (TREE_TYPE (type), loc, visited_nodes);
 }
 
-/* Check the function declaration FNTYPE for TI ABI compatibility.  */
+/* Check the GCC function declaration FNTYPE for TI ABI compatibility.  */
 static void
-chk_function_decl (const_tree fntype, location_t call_location)
+check_function_decl (tree fntype, location_t loc,
+		     hash_set<tree> *visited_nodes)
 {
+  /* Do not visit the same type twice.  */
+  if (visited_nodes->add (fntype))
+    return;
+
   /* GCC does not check if the RETURN VALUE pointer is NULL,
      so do not allow GCC functions with large return values.  */
   if (!VOID_TYPE_P (TREE_TYPE (fntype))
       && pru_return_in_memory (TREE_TYPE (fntype), fntype))
-    error_at (call_location,
+    error_at (loc,
 	      "large return values not supported with %<-mabi=ti%> option");
+
+  /* Rest of checks for the returned type.  */
+  check_type_tiabi_compatibility (TREE_TYPE (fntype), loc, visited_nodes);
 
   /* Check this function's arguments.  */
   for (tree p = TYPE_ARG_TYPES (fntype); p; p = TREE_CHAIN (p))
-    {
-      tree arg_type = TREE_VALUE (p);
-      if (chkp_type_has_function_pointer (arg_type))
-	error_at (call_location,
-		  "function pointers not supported with %<-mabi=ti%> option");
-    }
+    check_type_tiabi_compatibility (TREE_VALUE (p), loc, visited_nodes);
 }
 
-/* Callback for walk_gimple_seq that checks TP tree for TI ABI compliance.  */
+/* Callback for walk_gimple_seq that checks TP tree for TI ABI compliance.
+   Note that TP would have been marked as visited before calling
+   this function.  But the underlying type of TP may or may not have
+   been visited before.  */
 static tree
-check_op_callback (tree *tp, int *walk_subtrees, void *data)
+check_op_callback (tree *tp, int *, void *data)
 {
   struct walk_stmt_info *wi = (struct walk_stmt_info *) data;
 
@@ -150,79 +176,162 @@ check_op_callback (tree *tp, int *walk_subtrees, void *data)
     {
     case FUNCTION_TYPE:
     case METHOD_TYPE:
-	{
-	  /* Note: Do not enforce a small return value.  It is safe to
-	     call any TI ABI function from GCC, since GCC will
-	     never pass NULL.  */
+      {
+	/* Has this function already been inspected?  */
+	if (wi->pset->add (type))
+	  return NULL;
 
-	  /* Check arguments for function pointers.  */
-	  for (tree p = TYPE_ARG_TYPES (type); p; p = TREE_CHAIN (p))
-	    {
-	      tree arg_type = TREE_VALUE (p);
-	      if (chkp_type_has_function_pointer (arg_type))
-		error_at (gimple_location (wi->stmt), "function pointers "
-			  "not supported with %<-mabi=ti%> option");
-	    }
-	  break;
-	}
+	/* Note: Do not enforce a small return value.  It is safe to
+	   call any TI ABI function from GCC, since GCC will
+	   never pass NULL.  */
+
+	/* Check arguments for function pointers.  */
+	for (tree p = TYPE_ARG_TYPES (type); p; p = TREE_CHAIN (p))
+	  check_type_tiabi_compatibility (TREE_VALUE (p),
+					  gimple_location (wi->stmt),
+					  wi->pset);
+	break;
+      }
     case RECORD_TYPE:
     case UNION_TYPE:
     case QUAL_UNION_TYPE:
-    case POINTER_TYPE:
-	{
-	  if (chkp_type_has_function_pointer (type))
-	    {
-	      error_at (gimple_location (wi->stmt),
-			"function pointers not supported with "
-			"%<-mabi=ti%> option");
-	      *walk_subtrees = false;
-	    }
-	  break;
-	}
+      {
+	/* walk_tree would not descend and visit field declarations.
+	   So do it here.  */
+	check_type_tiabi_compatibility (type,
+					gimple_location (wi->stmt),
+					wi->pset);
+	break;
+      }
     default:
-	  break;
+      break;
     }
   return NULL;
 }
 
 /* Pass implementation.  */
 unsigned
-pass_tiabi_check::execute (function *fun)
+pass_pru_tiabi_check::execute (function *)
 {
-  struct walk_stmt_info wi;
+  struct cgraph_node *node;
+  hash_set<tree> visited_nodes;
+  symtab_node *snode;
+
+  FOR_EACH_SYMBOL (snode)
+    {
+      tree decl = snode->decl;
+      if (decl)
+	{
+	  if (FUNC_OR_METHOD_TYPE_P (TREE_TYPE (decl)))
+	    check_function_decl (TREE_TYPE (decl),
+				 DECL_SOURCE_LOCATION (decl),
+				 &visited_nodes);
+	  else
+	    check_type_tiabi_compatibility (TREE_TYPE (decl),
+					    DECL_SOURCE_LOCATION (decl),
+					    &visited_nodes);
+	}
+    }
+
+  FOR_EACH_FUNCTION_WITH_GIMPLE_BODY (node)
+    {
+      function *fn = node->get_fun ();
+      gimple_stmt_iterator gsi;
+      basic_block bb;
+
+      FOR_EACH_BB_FN (bb, fn)
+	{
+	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
+	    {
+	      struct walk_stmt_info wi;
+	      memset (&wi, 0, sizeof (wi));
+	      wi.info = NULL;
+	      wi.want_locations = true;
+
+	      wi.pset = &visited_nodes;
+
+	      /* Check the function body.  */
+	      walk_gimple_stmt (&gsi, NULL, check_op_callback, &wi);
+	    }
+	}
+    }
+  return 0;
+}
+
+} // anon namespace
+
+simple_ipa_opt_pass *
+make_pru_tiabi_check (gcc::context *ctxt)
+{
+  return new pass_pru_tiabi_check (ctxt);
+}
+
+namespace {
+
+/* Scan the tree to ensure that the compiled code by GCC
+   conforms to the non-standard minimal runtime.  */
+const pass_data pass_data_pru_minrt_check =
+{
+  GIMPLE_PASS, /* type */
+  "*pru_minrt_check", /* name */
+  OPTGROUP_NONE, /* optinfo_flags */
+  TV_NONE, /* tv_id */
+  PROP_gimple_any, /* properties_required */
+  0, /* properties_provided */
+  0, /* properties_destroyed */
+  0, /* todo_flags_start */
+  0, /* todo_flags_finish */
+};
+
+/* Implementation class for the minrt compliance-check pass.  */
+class pass_pru_minrt_check : public gimple_opt_pass
+{
+public:
+  pass_pru_minrt_check (gcc::context *ctxt)
+    : gimple_opt_pass (pass_data_pru_minrt_check, ctxt)
+  {}
+
+  /* opt_pass methods: */
+  virtual unsigned int execute (function *);
+
+  virtual bool gate (function *)
+  {
+    return TARGET_MINRT;
+  }
+
+}; // class pass_pru_minrt_check
+
+/* Pass implementation.  */
+unsigned
+pass_pru_minrt_check::execute (function *fun)
+{
   const_tree fntype = TREE_TYPE (fun->decl);
 
-  gimple_seq body = gimple_body (current_function_decl);
+  if (id_equal (DECL_NAME (fun->decl), "main"))
+    {
+      /* Argument list always ends with VOID_TYPE, so subtract one
+	 to get the number of function arguments.  */
+      const unsigned num_args = list_length (TYPE_ARG_TYPES (fntype)) - 1;
 
-  memset (&wi, 0, sizeof (wi));
-  wi.info = NULL;
-  wi.want_locations = true;
+      if (num_args != 0)
+	error_at (DECL_SOURCE_LOCATION (fun->decl), "function %<main%> "
+		  "must have no arguments when using the "
+		  "%<-minrt%> option");
 
-  /* Check the function body.  */
-  walk_gimple_seq (body, NULL, check_op_callback, &wi);
-
-  /* Check the function declaration.  */
-  chk_function_decl (fntype, fun->function_start_locus);
-
+      /* The required CFG analysis to detect when a functions would never
+	 return is available only with -O1 and higher.  */
+      if (optimize >= 1 && !TREE_THIS_VOLATILE (fun->decl))
+	error_at (DECL_SOURCE_LOCATION (fun->decl), "function %<main%> "
+		  "must never return when using the "
+		  "%<-minrt%> option");
+    }
   return 0;
 }
 
 } // anon namespace
 
 gimple_opt_pass *
-make_pass_tiabi_check (gcc::context *ctxt)
+make_pru_minrt_check (gcc::context *ctxt)
 {
-  return new pass_tiabi_check (ctxt);
-}
-
-/* Register as early as possible.  */
-void
-pru_register_abicheck_pass (void)
-{
-  opt_pass *tiabi_check = make_pass_tiabi_check (g);
-  struct register_pass_info tiabi_check_info
-    = { tiabi_check, "*warn_unused_result",
-	1, PASS_POS_INSERT_AFTER
-      };
-  register_pass (&tiabi_check_info);
+  return new pass_pru_minrt_check (ctxt);
 }

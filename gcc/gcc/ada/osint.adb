@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,7 +34,7 @@ with Sdefault; use Sdefault;
 with Table;
 with Targparm; use Targparm;
 
-with Unchecked_Conversion;
+with Ada.Unchecked_Conversion;
 
 pragma Warnings (Off);
 --  This package is used also by gnatcoll
@@ -63,6 +63,14 @@ package body Osint is
    No_Dir : constant String_Ptr := Empty'Access;
    --  Used in Locate_File as a fake directory when Name is already an
    --  absolute path.
+
+   procedure Get_Current_Dir
+     (Dir : System.Address; Length : System.Address);
+   pragma Import (C, Get_Current_Dir, "__gnat_get_current_dir");
+
+   Max_Path : Integer;
+   pragma Import (C, Max_Path, "__gnat_max_path_len");
+   --  Maximum length of a path name
 
    -------------------------------------
    -- Use of Name_Find and Name_Enter --
@@ -658,8 +666,7 @@ package body Osint is
    is
    begin
       Get_Name_String (Name);
-      Name_Buffer (Name_Len + 1 .. Name_Len + Suffix'Length) := Suffix;
-      Name_Len := Name_Len + Suffix'Length;
+      Add_Str_To_Name_Buffer (Suffix);
       return Name_Find;
    end Append_Suffix_To_File_Name;
 
@@ -1225,12 +1232,8 @@ package body Osint is
                   declare
                      Full_Path : constant String :=
                                    Normalize_Pathname (Get_Name_String (N));
-                     Full_Size : constant Natural := Full_Path'Length;
-
                   begin
-                     Name_Buffer (1 .. Full_Size) := Full_Path;
-                     Name_Len := Full_Size;
-                     Found    := Name_Find;
+                     Found := Name_Find (Full_Path);
                   end;
                end if;
 
@@ -1431,6 +1434,24 @@ package body Osint is
       Smart_Find_File (N, Source, Full_File, Attr.all);
    end Full_Source_Name;
 
+   ---------------------
+   -- Get_Current_Dir --
+   ---------------------
+
+   function Get_Current_Dir return String is
+      Path_Len : Natural := Max_Path;
+      Buffer   : String (1 .. 1 + Max_Path + 1);
+
+   begin
+      Get_Current_Dir (Buffer'Address, Path_Len'Address);
+
+      if Path_Len = 0 then
+         raise Program_Error;
+      end if;
+
+      return Buffer (1 .. Path_Len);
+   end Get_Current_Dir;
+
    -------------------
    -- Get_Directory --
    -------------------
@@ -1446,9 +1467,7 @@ package body Osint is
          end if;
       end loop;
 
-      Name_Len := Hostparm.Normalized_CWD'Length;
-      Name_Buffer (1 .. Name_Len) := Hostparm.Normalized_CWD;
-      return Name_Find;
+      return Name_Find (Hostparm.Normalized_CWD);
    end Get_Directory;
 
    ------------------------------
@@ -1524,15 +1543,6 @@ package body Osint is
      (Search_Dir : String;
       File_Type  : Search_File_Type) return String_Ptr
    is
-      procedure Get_Current_Dir
-        (Dir    : System.Address;
-         Length : System.Address);
-      pragma Import (C, Get_Current_Dir, "__gnat_get_current_dir");
-
-      Max_Path : Integer;
-      pragma Import (C, Max_Path, "__gnat_max_path_len");
-      --  Maximum length of a path name
-
       Current_Dir        : String_Ptr;
       Default_Search_Dir : String_Access;
       Default_Suffix_Dir : String_Access;
@@ -1886,13 +1896,13 @@ package body Osint is
       end if;
 
       declare
-         Full_Name : String (1 .. Dir_Name'Length + Name'Length + 1);
+         Full_Name :
+           constant String (1 .. Dir_Name'Length + Name'Length + 1) :=
+           Dir_Name.all & Name & ASCII.NUL;
+         --  Use explicit bounds, because Dir_Name might be a substring whose
+         --  'First is not 1.
 
       begin
-         Full_Name (1 .. Dir_Name'Length) := Dir_Name.all;
-         Full_Name (Dir_Name'Length + 1 .. Full_Name'Last - 1) := Name;
-         Full_Name (Full_Name'Last) := ASCII.NUL;
-
          Attr.all := Unknown_Attributes;
 
          if not Is_Regular_File (Full_Name'Address, Attr) then
@@ -1904,10 +1914,8 @@ package body Osint is
             if Dir_Name'Length = 0 then
                Found := N;
             else
-               Name_Len := Full_Name'Length - 1;
-               Name_Buffer (1 .. Name_Len) :=
-                 Full_Name (1 .. Full_Name'Last - 1);
-               Found := Name_Find;
+               Found :=
+                 Name_Find (Full_Name (Full_Name'First .. Full_Name'Last - 1));
             end if;
          end if;
       end;
@@ -1971,9 +1979,9 @@ package body Osint is
    function Nb_Dir_In_Obj_Search_Path return Natural is
    begin
       if Opt.Look_In_Primary_Dir then
-         return Lib_Search_Directories.Last -  Primary_Directory + 1;
+         return Lib_Search_Directories.Last - Primary_Directory + 1;
       else
-         return Lib_Search_Directories.Last -  Primary_Directory;
+         return Lib_Search_Directories.Last - Primary_Directory;
       end if;
    end Nb_Dir_In_Obj_Search_Path;
 
@@ -1984,9 +1992,9 @@ package body Osint is
    function Nb_Dir_In_Src_Search_Path return Natural is
    begin
       if Opt.Look_In_Primary_Dir then
-         return Src_Search_Directories.Last -  Primary_Directory + 1;
+         return Src_Search_Directories.Last - Primary_Directory + 1;
       else
-         return Src_Search_Directories.Last -  Primary_Directory;
+         return Src_Search_Directories.Last - Primary_Directory;
       end if;
    end Nb_Dir_In_Src_Search_Path;
 
@@ -2039,7 +2047,7 @@ package body Osint is
 
          when Binder
             | Gnatls
-          =>
+         =>
             Dir_Name := Normalize_Directory_Name (Dir_Name.all);
             Lib_Search_Directories.Table (Primary_Directory) := Dir_Name;
 
@@ -2184,10 +2192,7 @@ package body Osint is
       Get_Name_String (N);
       Name_Len := Name_Len - ALI_Suffix'Length - 1;
 
-      for J in Target_Object_Suffix'Range loop
-         Name_Len := Name_Len + 1;
-         Name_Buffer (Name_Len) := Target_Object_Suffix (J);
-      end loop;
+      Add_Str_To_Name_Buffer (Target_Object_Suffix);
 
       return Name_Enter;
    end Object_File_Name;
@@ -2216,9 +2221,9 @@ package body Osint is
       --  GNAT releases are available with these functions.
 
       function To_Int is
-        new Unchecked_Conversion (OS_Time, Underlying_OS_Time);
+        new Ada.Unchecked_Conversion (OS_Time, Underlying_OS_Time);
       function From_Int is
-        new Unchecked_Conversion (Underlying_OS_Time, OS_Time);
+        new Ada.Unchecked_Conversion (Underlying_OS_Time, OS_Time);
 
       TI : Underlying_OS_Time := To_Int (T);
       Y  : Year_Type;
@@ -2352,10 +2357,10 @@ package body Osint is
    begin
       --  Construct a C compatible character string buffer
 
-      Buffer (1 .. Search_Dir_Prefix.all'Length)
-        := Search_Dir_Prefix.all;
-      Buffer (Search_Dir_Prefix.all'Length + 1 .. Buffer'Last - 1)
-        := Search_File.all;
+      Buffer (1 .. Search_Dir_Prefix.all'Length) :=
+        Search_Dir_Prefix.all;
+      Buffer (Search_Dir_Prefix.all'Length + 1 .. Buffer'Last - 1) :=
+        Search_File.all;
       Buffer (Buffer'Last) := ASCII.NUL;
 
       File_FD := Open_Read (Buffer'Address, Binary);
@@ -2744,6 +2749,84 @@ package body Osint is
    end Read_Source_File;
 
    -------------------
+   -- Relative_Path --
+   -------------------
+
+   function Relative_Path (Path : String; Ref : String) return String is
+      Norm_Path : constant String :=
+        Normalize_Pathname (Name => Path, Resolve_Links => False);
+      Norm_Ref  : constant String :=
+        Normalize_Pathname (Name => Ref, Resolve_Links => False);
+      Rel_Path : Bounded_String;
+      Last     : Natural := Norm_Ref'Last;
+      Old      : Natural;
+      Depth    : Natural := 0;
+
+   begin
+      pragma Assert (System.OS_Lib.Is_Absolute_Path (Norm_Path));
+      pragma Assert (System.OS_Lib.Is_Absolute_Path (Norm_Ref));
+      pragma Assert (System.OS_Lib.Is_Directory (Norm_Ref));
+
+      --  If the root drives are different on Windows then we cannot create a
+      --  relative path.
+
+      if Root (Norm_Path) /= Root (Norm_Ref) then
+         return Norm_Path;
+      end if;
+
+      if Norm_Path = Norm_Ref then
+         return ".";
+      end if;
+
+      loop
+         exit when Last - Norm_Ref'First + 1 <= Norm_Path'Length
+           and then
+             Norm_Path
+               (Norm_Path'First ..
+                    Norm_Path'First + Last - Norm_Ref'First) =
+             Norm_Ref (Norm_Ref'First .. Last);
+
+         Old := Last;
+         for J in reverse Norm_Ref'First .. Last - 1 loop
+            if Is_Directory_Separator (Norm_Ref (J)) then
+               Depth := Depth + 1;
+               Last  := J;
+               exit;
+            end if;
+         end loop;
+
+         if Old = Last then
+            --  No Dir_Separator in Ref... Let's return Path
+            return Norm_Path;
+         end if;
+      end loop;
+
+      --  Move up the directory chain to the common point
+
+      for I in 1 .. Depth loop
+         Append (Rel_Path, ".." & System.OS_Lib.Directory_Separator);
+      end loop;
+
+      --  Avoid starting the relative path with a directory separator
+
+      if Last < Norm_Path'Length
+        and then Is_Directory_Separator (Norm_Path (Norm_Path'First + Last))
+      then
+         Last := Last + 1;
+      end if;
+
+      --  Add the rest of the path from the common point
+
+      Append
+        (Rel_Path,
+         Norm_Path
+           (Norm_Path'First + Last - Norm_Ref'First + 1 ..
+                Norm_Path'Last));
+
+      return To_String (Rel_Path);
+   end Relative_Path;
+
+   -------------------
    -- Relocate_Path --
    -------------------
 
@@ -2758,7 +2841,25 @@ package body Osint is
 
    begin
       if Std_Prefix = null then
-         Std_Prefix := Executable_Prefix;
+         Std_Prefix := String_Ptr (Getenv ("GNSA_ROOT"));
+
+         if Std_Prefix.all = "" then
+            Std_Prefix := Executable_Prefix;
+
+         elsif not Is_Directory_Separator (Std_Prefix (Std_Prefix'Last)) then
+
+            --  The remainder of this function assumes that Std_Prefix
+            --  terminates with a dir separator, so we force this here.
+
+            declare
+               Old_Prefix : String_Ptr := Std_Prefix;
+            begin
+               Std_Prefix := new String (1 .. Old_Prefix'Length + 1);
+               Std_Prefix (1 .. Old_Prefix'Length) := Old_Prefix.all;
+               Std_Prefix (Old_Prefix'Length + 1) := Directory_Separator;
+               Free (Old_Prefix);
+            end;
+         end if;
 
          if Std_Prefix.all /= "" then
 
@@ -2781,6 +2882,25 @@ package body Osint is
 
       return new String'(Path);
    end Relocate_Path;
+
+   ----------
+   -- Root --
+   ----------
+
+   function Root (Path : String) return String is
+      Last : Natural := Path'First;
+   begin
+      pragma Assert (System.OS_Lib.Is_Absolute_Path (Path));
+
+      for I in Path'Range loop
+         if Is_Directory_Separator (Path (I)) then
+            Last := I;
+            exit;
+         end if;
+      end loop;
+
+      return Path (Path'First .. Last);
+   end Root;
 
    -----------------
    -- Set_Program --
@@ -2919,9 +3039,7 @@ package body Osint is
 
             --  Return part of Name that follows this last directory separator
 
-            Name_Buffer (1 .. Name_Len - J) := Name_Buffer (J + 1 .. Name_Len);
-            Name_Len := Name_Len - J;
-            return Name_Find;
+            return Name_Find (Name_Buffer (J + 1 .. Name_Len));
          end if;
       end loop;
 
@@ -3085,8 +3203,8 @@ package body Osint is
       type Path_String_Access is access Path_String;
 
       function Address_To_Access is new
-        Unchecked_Conversion (Source => Address,
-                              Target => Path_String_Access);
+        Ada.Unchecked_Conversion (Source => Address,
+                                  Target => Path_String_Access);
 
       Path_Access : constant Path_String_Access :=
                       Address_To_Access (Path_Addr);

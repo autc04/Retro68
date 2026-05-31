@@ -11,9 +11,9 @@ Disassembly of section .text:
 0+ <_start>:
  +[a-f0-9]+:	31 c0                	xor    %eax,%eax
  +[a-f0-9]+:	85 c0                	test   %eax,%eax
- +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
- +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
  +[a-f0-9]+:	90                   	nop
+ +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
+ +[a-f0-9]+:	0f 1f 44 00 00       	nopl   0x0\(%rax,%rax,1\)
  +[a-f0-9]+:	31 c0                	xor    %eax,%eax
  +[a-f0-9]+:	31 c0                	xor    %eax,%eax
 

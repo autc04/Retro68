@@ -1,5 +1,5 @@
 /* Control flow graph analysis code for GNU compiler.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -468,7 +468,7 @@ control_dependences::control_dependences ()
 
   bitmap_obstack_initialize (&m_bitmaps);
   control_dependence_map.create (last_basic_block_for_fn (cfun));
-  control_dependence_map.quick_grow (last_basic_block_for_fn (cfun));
+  control_dependence_map.quick_grow_cleared (last_basic_block_for_fn (cfun));
   for (int i = 0; i < last_basic_block_for_fn (cfun); ++i)
     bitmap_initialize (&control_dependence_map[i], &m_bitmaps);
   for (int i = 0; i < num_edges; ++i)
@@ -740,7 +740,7 @@ post_order_compute (int *post_order, bool include_entry_exit,
 }
 
 
-/* Helper routine for inverted_post_order_compute
+/* Helper routine for inverted_rev_post_order_compute
    flow_dfs_compute_reverse_execute, and the reverse-CFG
    deapth first search in dominance.cc.
    BB has to belong to a region of CFG
@@ -820,12 +820,14 @@ dfs_find_deadend (basic_block bb)
    and start looking for a "dead end" from that block
    and do another inverted traversal from that block.  */
 
-void
-inverted_post_order_compute (vec<int> *post_order,
-			     sbitmap *start_points)
+int
+inverted_rev_post_order_compute (struct function *fn,
+				 int *rev_post_order,
+				 sbitmap *start_points)
 {
   basic_block bb;
-  post_order->reserve_exact (n_basic_blocks_for_fn (cfun));
+
+  int rev_post_order_num = n_basic_blocks_for_fn (fn) - 1;
 
   if (flag_checking)
     verify_no_unreachable_blocks ();
@@ -855,17 +857,17 @@ inverted_post_order_compute (vec<int> *post_order,
 	}
     }
   else
-  /* Put all blocks that have no successor into the initial work list.  */
-  FOR_ALL_BB_FN (bb, cfun)
-    if (EDGE_COUNT (bb->succs) == 0)
-      {
-        /* Push the initial edge on to the stack.  */
-        if (EDGE_COUNT (bb->preds) > 0)
-          {
-	    stack.quick_push (ei_start (bb->preds));
-            bitmap_set_bit (visited, bb->index);
-          }
-      }
+    /* Put all blocks that have no successor into the initial work list.  */
+    FOR_ALL_BB_FN (bb, cfun)
+      if (EDGE_COUNT (bb->succs) == 0)
+	{
+	  /* Push the initial edge on to the stack.  */
+	  if (EDGE_COUNT (bb->preds) > 0)
+	    {
+	      stack.quick_push (ei_start (bb->preds));
+	      bitmap_set_bit (visited, bb->index);
+	    }
+	}
 
   do
     {
@@ -893,13 +895,13 @@ inverted_post_order_compute (vec<int> *post_order,
                    time, check its predecessors.  */
 		stack.quick_push (ei_start (pred->preds));
               else
-		post_order->quick_push (pred->index);
+		rev_post_order[rev_post_order_num--] = pred->index;
             }
           else
             {
 	      if (bb != EXIT_BLOCK_PTR_FOR_FN (cfun)
 		  && ei_one_before_end_p (ei))
-		post_order->quick_push (bb->index);
+		rev_post_order[rev_post_order_num--] = bb->index;
 
               if (!ei_one_before_end_p (ei))
 		ei_next (&stack.last ());
@@ -957,7 +959,8 @@ inverted_post_order_compute (vec<int> *post_order,
   while (!stack.is_empty ());
 
   /* EXIT_BLOCK is always included.  */
-  post_order->quick_push (EXIT_BLOCK);
+  rev_post_order[rev_post_order_num--] = EXIT_BLOCK;
+  return n_basic_blocks_for_fn (fn);
 }
 
 /* Compute the depth first search order of FN and store in the array
@@ -1676,31 +1679,17 @@ compute_dominance_frontiers (bitmap_head *frontiers)
 bitmap
 compute_idf (bitmap def_blocks, bitmap_head *dfs)
 {
-  bitmap_iterator bi;
+  bitmap_iterator bi, bi2;
   unsigned bb_index, i;
   bitmap phi_insertion_points;
 
   phi_insertion_points = BITMAP_ALLOC (NULL);
 
-  /* Seed the work set with all the blocks in DEF_BLOCKS.  */
-  auto_bitmap work_set;
-  bitmap_copy (work_set, def_blocks);
-  bitmap_tree_view (work_set);
-
-  /* Pop a block off the workset, add every block that appears in
-     the original block's DF that we have not already processed to
-     the workset.  Iterate until the workset is empty.   Blocks
-     which are added to the workset are potential sites for
-     PHI nodes.  */
-  while (!bitmap_empty_p (work_set))
+  /* The initial workset is the DEF_BLOCKs, process that first,
+     seeding phi_insertion_points as the start of the worklist
+     for the iteration which then also serves as a visited set.  */
+  EXECUTE_IF_SET_IN_BITMAP (def_blocks, 0, bb_index, bi2)
     {
-      /* The dominance frontier of a block is blocks after it so iterating
-         on earlier blocks first is better.
-	 ???  Basic blocks are by no means guaranteed to be ordered in
-	 optimal order for this iteration.  */
-      bb_index = bitmap_first_set_bit (work_set);
-      bitmap_clear_bit (work_set, bb_index);
-
       /* Since the registration of NEW -> OLD name mappings is done
 	 separately from the call to update_ssa, when updating the SSA
 	 form, the basic blocks where new and/or old names are defined
@@ -1709,12 +1698,33 @@ compute_idf (bitmap def_blocks, bitmap_head *dfs)
       gcc_checking_assert (bb_index
 			   < (unsigned) last_basic_block_for_fn (cfun));
 
-      EXECUTE_IF_AND_COMPL_IN_BITMAP (&dfs[bb_index], phi_insertion_points,
-	                              0, i, bi)
-	{
-	  bitmap_set_bit (work_set, i);
-	  bitmap_set_bit (phi_insertion_points, i);
-	}
+      /* The population counts of the dominance frontiers is low
+	 compared to that of phi_insertion_points which approaches
+	 the IDF and of work_set which is at most that of the IDF
+	 as well.  That makes iterating over the DFS bitmap preferential
+	 to whole bitmap operations involving also phi_insertion_points.  */
+      EXECUTE_IF_SET_IN_BITMAP (&dfs[bb_index], 0, i, bi)
+	bitmap_set_bit (phi_insertion_points, i);
+    }
+
+  /* Seed the work set with the initial phi_insertion_points.  */
+  auto_vec<int, 64> work_set (n_basic_blocks_for_fn (cfun));
+  EXECUTE_IF_SET_IN_BITMAP (phi_insertion_points, 0, i, bi)
+    work_set.quick_push (i);
+
+  /* Pop a block off the workset, add every block that appears in
+     the original block's DF that we have not already processed to
+     the workset.  Iterate until the workset is empty.   Blocks
+     which are added to the workset are potential sites for
+     PHI nodes.  */
+  while (!work_set.is_empty ())
+    {
+      bb_index = work_set.pop ();
+      gcc_checking_assert (bb_index
+			   < (unsigned) last_basic_block_for_fn (cfun));
+      EXECUTE_IF_SET_IN_BITMAP (&dfs[bb_index], 0, i, bi)
+	if (bitmap_set_bit (phi_insertion_points, i))
+	  work_set.quick_push (i);
     }
 
   return phi_insertion_points;

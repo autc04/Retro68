@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Synopsys, Inc. All rights reserved.
+   Copyright (c) 2015-2024, Synopsys, Inc. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are met:
@@ -32,8 +32,6 @@
    these are the stack mappings for the registers
    as stored in the ABI for ARC */
 
-       .file "setjmp.S"
-
 ABIr13	= 0
 ABIr14	= ABIr13 + 4
 ABIr15	= ABIr14 + 4
@@ -58,8 +56,8 @@ ABIlps	= ABIlpc + 4
 ABIlpe	= ABIlps + 4
 
 ABIflg	= ABIlpe + 4
-ABImlo	= ABIflg + 4
-ABImhi	= ABImlo + 4
+ABIr58	= ABIflg + 4
+ABIr59	= ABIr58 + 4
 
 	.text
 	.align 4
@@ -95,10 +93,17 @@ setjmp:
 #if (!defined (__ARC700__) && !defined (__ARCEM__) && !defined (__ARCHS__))
 ; Till the configure changes are decided, and implemented, the code working on
 ; mlo/mhi and using mul64 should be disabled.
-; 	st	mlo, [r0, ABImlo]
-; 	st	mhi, [r0, ABImhi]
+; 	st	mlo, [r0, ABIr58]
+; 	st	mhi, [r0, ABIr59]
 	lr	r2, [status32]
 	st	r2, [r0, ABIflg]
+#endif
+
+; If "MPY_OPTION > 6 or FPU_FMA_OPTION" in an ARCHS target, then there
+; is accumulator support in the processor.
+#if (defined (__ARCHS__) && (defined (__ARC_FPU_DP_FMA__) || defined (__ARC_FPU_SP_FMA__) ||  defined (__ARC_MPY_DMPY__) ||  defined (__ARC_DSP__)))
+	st	r58, [r0, ABIr58]
+	st	r59, [r0, ABIr59]
 #endif
 
 	j.d	[blink]
@@ -146,8 +151,8 @@ longjmp:
 	sr	r3, [lp_end]
 
 #if (!defined (__ARC700__) && !defined (__ARCEM__) && !defined (__ARCHS__))
-	ld	r2, [r0, ABImlo]
-	ld	r3, [r0, ABImhi]
+	ld	r2, [r0, ABIr58]
+	ld	r3, [r0, ABIr59]
 ; We do not support restoring of mulhi and mlo registers, yet.
 
 ;	mulu64	0,r2,1			; restores mlo
@@ -155,6 +160,11 @@ longjmp:
 ;	sr	r3, [mulhi]
 	ld	r2, [r0, ABIflg]
 	flag	r2			; restore "status32" register
+#endif
+
+#if (defined (__ARCHS__) && (defined (__ARC_FPU_DP_FMA__) || defined (__ARC_FPU_SP_FMA__) ||  defined (__ARC_MPY_DMPY__) ||  defined (__ARC_DSP__)))
+	ld	r58, [r0, ABIr58]
+	ld	r59, [r0, ABIr59]
 #endif
 
 	mov.f	r1, r1			; to avoid return 0 from longjmp

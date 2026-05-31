@@ -2,8 +2,8 @@
  * with char inputs produce the right results. */
 
 /* { dg-do compile } */
-/* { dg-require-effective-target powerpc_vsx_ok } */
 /* { dg-options "-mvsx -O1" } */
+/* { dg-require-effective-target powerpc_vsx } */
 
 #include <altivec.h>
 
@@ -120,6 +120,6 @@ test6_nor (vector unsigned char x, vector unsigned char y)
   return *foo;
 }
 
-/* { dg-final { scan-assembler-times {\mxxlor\M} 7 } } */
+/* { dg-final { scan-assembler-times {\mxxlor\M} 6 } } */
 /* { dg-final { scan-assembler-times {\mxxlxor\M} 6 } } */
-/* { dg-final { scan-assembler-times {\mxxlnor\M} 1 } } */
+/* { dg-final { scan-assembler-times {\mxxlnor\M} 2 } } */

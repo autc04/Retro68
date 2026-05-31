@@ -30,7 +30,6 @@ version (Posix):
 extern (C):
 nothrow:
 @nogc:
-@system:
 
 //
 // Required
@@ -63,6 +62,7 @@ else version (CRuntime_Musl)
         time_t  modtime;
     }
 
+    pragma(mangle, muslRedirTime64Mangle!("utime", "__utime64"))
     int utime(const scope char*, const scope utimbuf*);
 }
 else version (Darwin)
@@ -93,7 +93,7 @@ else version (NetBSD)
         time_t  modtime;
     }
 
-    int utime(const scope char*, const scope utimbuf*);
+    pragma(mangle, "__utime50") int utime(const scope char*, const scope utimbuf*);
 }
 else version (OpenBSD)
 {

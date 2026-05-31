@@ -1,5 +1,5 @@
 /* Implementation of the MAXVAL intrinsic
-   Copyright (C) 2002-2022 Free Software Foundation, Inc.
+   Copyright (C) 2002-2026 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -29,13 +29,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #if defined (HAVE_GFC_REAL_17) && defined (HAVE_GFC_REAL_17)
 
 
-extern void maxval_r17 (gfc_array_r17 * const restrict, 
+extern void maxval_r17 (gfc_array_r17 * const restrict,
 	gfc_array_r17 * const restrict, const index_type * const restrict);
 export_proto(maxval_r17);
 
 void
-maxval_r17 (gfc_array_r17 * const restrict retarray, 
-	gfc_array_r17 * const restrict array, 
+maxval_r17 (gfc_array_r17 * const restrict retarray,
+	gfc_array_r17 * const restrict array,
 	const index_type * const restrict pdim)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -106,12 +106,7 @@ maxval_r17 (gfc_array_r17 * const restrict retarray,
 
       retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_REAL_17));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-
-	}
+	return;
     }
   else
     {
@@ -207,15 +202,15 @@ maxval_r17 (gfc_array_r17 * const restrict retarray,
 }
 
 
-extern void mmaxval_r17 (gfc_array_r17 * const restrict, 
+extern void mmaxval_r17 (gfc_array_r17 * const restrict,
 	gfc_array_r17 * const restrict, const index_type * const restrict,
 	gfc_array_l1 * const restrict);
 export_proto(mmaxval_r17);
 
 void
-mmaxval_r17 (gfc_array_r17 * const restrict retarray, 
-	gfc_array_r17 * const restrict array, 
-	const index_type * const restrict pdim, 
+mmaxval_r17 (gfc_array_r17 * const restrict retarray,
+	gfc_array_r17 * const restrict array,
+	const index_type * const restrict pdim,
 	gfc_array_l1 * const restrict mask)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -256,8 +251,8 @@ mmaxval_r17 (gfc_array_r17 * const restrict retarray,
     }
 
   len = GFC_DESCRIPTOR_EXTENT(array,dim);
-  if (len <= 0)
-    return;
+  if (len < 0)
+    len = 0;
 
   mbase = mask->base_addr;
 
@@ -315,15 +310,9 @@ mmaxval_r17 (gfc_array_r17 * const restrict retarray,
       retarray->offset = 0;
       retarray->dtype.rank = rank;
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_REAL_17));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_REAL_17));
-
+	return;
     }
   else
     {
@@ -431,15 +420,15 @@ mmaxval_r17 (gfc_array_r17 * const restrict retarray,
 }
 
 
-extern void smaxval_r17 (gfc_array_r17 * const restrict, 
+extern void smaxval_r17 (gfc_array_r17 * const restrict,
 	gfc_array_r17 * const restrict, const index_type * const restrict,
 	GFC_LOGICAL_4 *);
 export_proto(smaxval_r17);
 
 void
-smaxval_r17 (gfc_array_r17 * const restrict retarray, 
-	gfc_array_r17 * const restrict array, 
-	const index_type * const restrict pdim, 
+smaxval_r17 (gfc_array_r17 * const restrict retarray,
+	gfc_array_r17 * const restrict array,
+	const index_type * const restrict pdim,
 	GFC_LOGICAL_4 * mask)
 {
   index_type count[GFC_MAX_DIMENSIONS];
@@ -508,14 +497,9 @@ smaxval_r17 (gfc_array_r17 * const restrict retarray,
 
       alloc_size = GFC_DESCRIPTOR_STRIDE(retarray,rank-1) * extent[rank-1];
 
+      retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_REAL_17));
       if (alloc_size == 0)
-	{
-	  /* Make sure we have a zero-sized array.  */
-	  GFC_DIMENSION_SET(retarray->dim[0], 0, -1, 1);
-	  return;
-	}
-      else
-	retarray->base_addr = xmallocarray (alloc_size, sizeof (GFC_REAL_17));
+	return;
     }
   else
     {

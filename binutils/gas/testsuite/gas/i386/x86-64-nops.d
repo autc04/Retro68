@@ -1,3 +1,4 @@
+#as: --divide
 #objdump: -drw
 #name: x86-64 nops
 
@@ -13,7 +14,7 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	0f 1f 80 00 00 00 00 	nopl   0x0\(%rax\)
 [ 	]*[a-f0-9]+:	0f 1f 84 00 00 00 00 00 	nopl   0x0\(%rax,%rax,1\)
 [ 	]*[a-f0-9]+:	66 0f 1f 84 00 00 00 00 00 	nopw   0x0\(%rax,%rax,1\)
-[ 	]*[a-f0-9]+:	66 2e 0f 1f 84 00 00 00 00 00 	cs nopw 0x0\(%rax,%rax,1\)
+[ 	]*[a-f0-9]+:	2e 66 0f 1f 84 00 00 00 00 00 	cs nopw 0x0\(%rax,%rax,1\)
 [ 	]*[a-f0-9]+:	0f 19 ff             	nop    %edi
 [ 	]*[a-f0-9]+:	0f 1a ff             	nop    %edi
 [ 	]*[a-f0-9]+:	0f 1b ff             	nop    %edi

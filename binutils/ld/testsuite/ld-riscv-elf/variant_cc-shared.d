@@ -1,6 +1,7 @@
 #source: variant_cc-1.s
 #source: variant_cc-2.s
-#ld: -shared --hash-style=sysv -Ttext 0x8000
+#as: -march=rv64i -mabi=lp64
+#ld: -shared --hash-style=sysv -Ttext 0x8000 -m[riscv_choose_lp64_emul]
 #readelf: -rsW
 
 Relocation section '.rela.plt' at .*

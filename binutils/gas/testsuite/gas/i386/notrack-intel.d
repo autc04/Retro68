@@ -1,5 +1,6 @@
 #source: notrack.s
 #objdump: -dw -Mintel
+#as: -march=+mpx
 #name: i386 NOTRACK prefix (Intel disassembly)
 
 .*: +file format .*

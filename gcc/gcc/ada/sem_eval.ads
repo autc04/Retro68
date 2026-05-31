@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -301,34 +301,34 @@ package Sem_Eval is
    --  is static or its value is known at compile time. This version is used
    --  for string types and returns the corresponding N_String_Literal node.
 
-   procedure Eval_Actual                 (N : Node_Id);
-   procedure Eval_Allocator              (N : Node_Id);
-   procedure Eval_Arithmetic_Op          (N : Node_Id);
-   procedure Eval_Call                   (N : Node_Id);
-   procedure Eval_Case_Expression        (N : Node_Id);
-   procedure Eval_Character_Literal      (N : Node_Id);
-   procedure Eval_Concatenation          (N : Node_Id);
-   procedure Eval_Entity_Name            (N : Node_Id);
-   procedure Eval_If_Expression          (N : Node_Id);
-   procedure Eval_Indexed_Component      (N : Node_Id);
-   procedure Eval_Integer_Literal        (N : Node_Id);
-   procedure Eval_Logical_Op             (N : Node_Id);
-   procedure Eval_Membership_Op          (N : Node_Id);
-   procedure Eval_Named_Integer          (N : Node_Id);
-   procedure Eval_Named_Real             (N : Node_Id);
-   procedure Eval_Op_Expon               (N : Node_Id);
-   procedure Eval_Op_Not                 (N : Node_Id);
-   procedure Eval_Real_Literal           (N : Node_Id);
-   procedure Eval_Relational_Op          (N : Node_Id);
-   procedure Eval_Selected_Component     (N : Node_Id);
-   procedure Eval_Shift                  (N : Node_Id);
-   procedure Eval_Short_Circuit          (N : Node_Id);
-   procedure Eval_Slice                  (N : Node_Id);
-   procedure Eval_String_Literal         (N : Node_Id);
-   procedure Eval_Qualified_Expression   (N : Node_Id);
-   procedure Eval_Type_Conversion        (N : Node_Id);
-   procedure Eval_Unary_Op               (N : Node_Id);
-   procedure Eval_Unchecked_Conversion   (N : Node_Id);
+   procedure Eval_Actual               (N : Node_Id);
+   procedure Eval_Allocator            (N : Node_Id);
+   procedure Eval_Arithmetic_Op        (N : Node_Id);
+   procedure Eval_Call                 (N : Node_Id);
+   procedure Eval_Case_Expression      (N : Node_Id);
+   procedure Eval_Character_Literal    (N : Node_Id);
+   procedure Eval_Concatenation        (N : Node_Id);
+   procedure Eval_Entity_Name          (N : Node_Id);
+   procedure Eval_If_Expression        (N : Node_Id);
+   procedure Eval_Indexed_Component    (N : Node_Id);
+   procedure Eval_Integer_Literal      (N : Node_Id);
+   procedure Eval_Logical_Op           (N : Node_Id);
+   procedure Eval_Membership_Op        (N : Node_Id);
+   procedure Eval_Named_Integer        (N : Node_Id);
+   procedure Eval_Named_Real           (N : Node_Id);
+   procedure Eval_Op_Expon             (N : Node_Id);
+   procedure Eval_Op_Not               (N : Node_Id);
+   procedure Eval_Real_Literal         (N : Node_Id);
+   procedure Eval_Relational_Op        (N : Node_Id);
+   procedure Eval_Selected_Component   (N : Node_Id);
+   procedure Eval_Shift                (N : Node_Id);
+   procedure Eval_Short_Circuit        (N : Node_Id);
+   procedure Eval_Slice                (N : Node_Id);
+   procedure Eval_String_Literal       (N : Node_Id);
+   procedure Eval_Qualified_Expression (N : Node_Id);
+   procedure Eval_Type_Conversion      (N : Node_Id);
+   procedure Eval_Unary_Op             (N : Node_Id);
+   procedure Eval_Unchecked_Conversion (N : Node_Id);
 
    procedure Flag_Non_Static_Expr (Msg : String; Expr : Node_Id);
    --  This procedure is called after it has been determined that Expr is not
@@ -342,41 +342,12 @@ package Sem_Eval is
    --  set of messages is all posted.
 
    procedure Fold_Str (N : Node_Id; Val : String_Id; Static : Boolean);
-   --  Rewrite N with a new N_String_Literal node as the result of the compile
-   --  time evaluation of the node N. Val is the resulting string value from
-   --  the folding operation. The Is_Static_Expression flag is set in the
-   --  result node. The result is fully analyzed and resolved. Static indicates
-   --  whether the result should be considered static or not (True = consider
-   --  static). The point here is that normally all string literals are static,
-   --  but if this was the result of some sequence of evaluation where values
-   --  were known at compile time but not static, then the result is not
-   --  static. The call has no effect if Raises_Constraint_Error (N) is True,
-   --  since there is no point in folding if we have an error.
-
    procedure Fold_Uint (N : Node_Id; Val : Uint; Static : Boolean);
-   --  Rewrite N with a (N_Integer_Literal, N_Identifier, N_Character_Literal)
-   --  node as the result of the compile time evaluation of the node N. Val is
-   --  the result in the integer case and is the position of the literal in the
-   --  literals list for the enumeration case. Is_Static_Expression is set True
-   --  in the result node. The result is fully analyzed/resolved. Static
-   --  indicates whether the result should be considered static or not (True =
-   --  consider static). The point here is that normally all integer literals
-   --  are static, but if this was the result of some sequence of evaluation
-   --  where values were known at compile time but not static, then the result
-   --  is not static. The call has no effect if Raises_Constraint_Error (N) is
-   --  True, since there is no point in folding if we have an error.
-
    procedure Fold_Ureal (N : Node_Id; Val : Ureal; Static : Boolean);
-   --  Rewrite N with a new N_Real_Literal node as the result of the compile
-   --  time evaluation of the node N. Val is the resulting real value from the
-   --  folding operation. The Is_Static_Expression flag is set in the result
-   --  node. The result is fully analyzed and result. Static indicates whether
-   --  the result should be considered static or not (True = consider static).
-   --  The point here is that normally all string literals are static, but if
-   --  this was the result of some sequence of evaluation where values were
-   --  known at compile time but not static, then the result is not static.
-   --  The call has no effect if Raises_Constraint_Error (N) is True, since
-   --  there is no point in folding if we have an error.
+   --  Rewrite N with a new literal node with compile-time-known value Val.
+   --  Is_Static_Expression is set to Static. This has no effect if
+   --  Raises_Constraint_Error (N) is True, since there is no point in
+   --  folding if we have an error.
 
    procedure Fold (N : Node_Id);
    --  Rewrite N with the relevant value if Compile_Time_Known_Value (N) is
@@ -409,9 +380,9 @@ package Sem_Eval is
    --  an entity with Is_Known_Valid set, or Assume_No_Invalid_Values is True.
 
    function Is_Null_Range (Lo : Node_Id; Hi : Node_Id) return Boolean;
-   --  Returns True if it can guarantee that Lo .. Hi is a null range. If it
-   --  cannot (because the value of Lo or Hi is not known at compile time) then
-   --  it returns False.
+   --  Returns True if it can guarantee that Lo .. Hi is a null range
+
+   --  WARNING: There is a matching C declaration of this subprogram in fe.h
 
    function Is_OK_Static_Expression (N : Node_Id) return Boolean;
    --  An OK static expression is one that is static in the RM definition sense
@@ -421,6 +392,15 @@ package Sem_Eval is
    --  routine. This routine is *not* to be used in contexts where the test is
    --  for compile time evaluation purposes. Use Compile_Time_Known_Value
    --  instead (see section on "Compile-Time Known Values" above).
+
+   type Staticity is (Static, Not_Static, Invalid);
+
+   function Is_OK_Static_Expression_Of_Type
+     (Expr : Node_Id; Typ : Entity_Id := Empty) return Staticity;
+   --  Return whether Expr is a static expression of the given type (i.e. it
+   --  will be analyzed and resolved using this type, which can be any valid
+   --  argument to Resolve, e.g. Any_Integer is OK). Includes checking that the
+   --  expression does not raise Constraint_Error.
 
    function Is_OK_Static_Range (N : Node_Id) return Boolean;
    --  Determines if range is static, as defined in RM 4.9(26), and also checks
@@ -485,9 +465,7 @@ package Sem_Eval is
    --  per RM 4.9(38/2). N is a node only used to post warnings.
 
    function Not_Null_Range (Lo : Node_Id; Hi : Node_Id) return Boolean;
-   --  Returns True if it can guarantee that Lo .. Hi is not a null range. If
-   --  it cannot (because the value of Lo or Hi is not known at compile time)
-   --  then it returns False.
+   --  Returns True if it can guarantee that Lo .. Hi is not a null range
 
    function Predicates_Compatible (T1, T2 : Entity_Id) return Boolean;
    --  In Ada 2012, subtypes are statically compatible if the predicates are

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 // { dg-timeout-factor 4 }
 
 #include <limits>
@@ -26,8 +25,14 @@
 using max_size_t = std::ranges::__detail::__max_size_type;
 using max_diff_t = std::ranges::__detail::__max_diff_type;
 using rep_t = max_size_t::__rep;
+#if __SIZEOF_INT128__
+using signed_rep_t = __int128;
+#else
+using signed_rep_t = long long;
+#endif
 
 static_assert(sizeof(max_size_t) == sizeof(max_diff_t));
+static_assert(sizeof(rep_t) == sizeof(signed_rep_t));
 
 static_assert(std::regular<max_size_t>);
 static_assert(std::totally_ordered<max_size_t>);
@@ -54,6 +59,8 @@ test01()
   static_assert(max_diff_t(3) % -2 == 1);
   static_assert(max_diff_t(-3) << 1 == -6);
   static_assert(max_diff_t(-3) >> 1 == -2);
+  static_assert(max_diff_t(-3) >> 2 == -1);
+  static_assert(max_diff_t(-3) >> 10 == -1);
   static_assert(max_diff_t(3) >> 1 == 1);
   static_assert(max_diff_t(3) >> 2 == 0);
 
@@ -188,12 +195,12 @@ template<bool signed_p, bool shorten_p>
 void
 test02()
 {
-  using hw_type = std::conditional_t<signed_p, signed rep_t, rep_t>;
+  using hw_type = std::conditional_t<signed_p, signed_rep_t, rep_t>;
   using max_type = std::conditional_t<signed_p, max_diff_t, max_size_t>;
   using shorten_type = std::conditional_t<shorten_p, hw_type, max_type>;
   const int hw_type_bit_size = sizeof(hw_type) * __CHAR_BIT__;
-  const int limit = 1000;
-  const int log2_limit = 10;
+  const unsigned limit = 100;
+  const int log2_limit = 7;
   static_assert((1 << log2_limit) >= limit);
   const int min = (signed_p ? -limit : 0);
   const int max = limit;
@@ -246,12 +253,12 @@ template<bool signed_p, bool toggle_base_p>
 void
 test03()
 {
-  using hw_type = std::conditional_t<signed_p, signed rep_t, rep_t>;
+  using hw_type = std::conditional_t<signed_p, signed_rep_t, rep_t>;
   using max_type = std::conditional_t<signed_p, max_diff_t, max_size_t>;
   using base_type = std::conditional_t<toggle_base_p, hw_type, max_type>;
   constexpr int hw_type_bit_size = sizeof(hw_type) * __CHAR_BIT__;
-  constexpr int limit = 1000;
-  constexpr int log2_limit = 10;
+  constexpr unsigned limit = 100;
+  constexpr int log2_limit = 7;
   static_assert((1 << log2_limit) >= limit);
   const int min = (signed_p ? -limit : 0);
   const int max = limit;
@@ -345,6 +352,9 @@ static_assert(numeric_limits<max_size_t>::is_specialized);
 static_assert(!numeric_limits<max_size_t>::is_signed);
 static_assert(numeric_limits<max_size_t>::is_integer);
 static_assert(numeric_limits<max_size_t>::is_exact);
+static_assert(numeric_limits<max_size_t>::is_bounded);
+static_assert(numeric_limits<max_size_t>::is_modulo);
+static_assert(numeric_limits<max_size_t>::radix == 2);
 // We can't unconditionally use numeric_limits here because __int128 is an
 // integral type only in GNU mode.
 #if __SIZEOF_INT128__
@@ -372,6 +382,9 @@ static_assert(numeric_limits<max_diff_t>::is_specialized);
 static_assert(numeric_limits<max_diff_t>::is_signed);
 static_assert(numeric_limits<max_diff_t>::is_integer);
 static_assert(numeric_limits<max_diff_t>::is_exact);
+static_assert(numeric_limits<max_diff_t>::is_bounded);
+static_assert(!numeric_limits<max_diff_t>::is_modulo);
+static_assert(numeric_limits<max_diff_t>::radix == 2);
 static_assert(numeric_limits<max_diff_t>::digits
 	      == numeric_limits<max_size_t>::digits - 1);
 static_assert(numeric_limits<max_diff_t>::digits10
@@ -392,6 +405,38 @@ static_assert(numeric_limits<max_diff_t>::lowest()
 static_assert(max_diff_t(max_size_t(1)
 			 << (numeric_limits<max_size_t>::digits-1))
 	      == numeric_limits<max_diff_t>::min());
+
+template <typename integer_class>
+constexpr bool verify_numeric_limits_values_not_meaningful_for = true
+	&& (numeric_limits<integer_class>::max_digits10 == 0)
+	&& (numeric_limits<integer_class>::min_exponent == 0)
+	&& (numeric_limits<integer_class>::min_exponent10 == 0)
+	&& (numeric_limits<integer_class>::max_exponent == 0)
+	&& (numeric_limits<integer_class>::max_exponent10 == 0)
+	&& !numeric_limits<integer_class>::is_iec559
+	&& !numeric_limits<integer_class>::has_infinity
+	&& !numeric_limits<integer_class>::has_quiet_NaN
+	&& !numeric_limits<integer_class>::has_signaling_NaN
+	&& !numeric_limits<integer_class>::has_denorm_loss
+	&& !numeric_limits<integer_class>::tinyness_before
+	&& (numeric_limits<integer_class>::has_denorm == std::denorm_absent)
+	&& (numeric_limits<integer_class>::round_style == std::round_toward_zero)
+	&& (numeric_limits<integer_class>::denorm_min() == 0)
+	&& (numeric_limits<integer_class>::epsilon() == 0)
+	&& (numeric_limits<integer_class>::round_error() == 0)
+	&& (numeric_limits<integer_class>::infinity() == 0)
+	&& (numeric_limits<integer_class>::quiet_NaN() == 0)
+	&& (numeric_limits<integer_class>::signaling_NaN() == 0);
+
+static_assert(verify_numeric_limits_values_not_meaningful_for<max_size_t>);
+static_assert(verify_numeric_limits_values_not_meaningful_for<max_diff_t>);
+
+// Verify that the types are structural types and can therefore be used
+// as NTTP types.
+template<max_size_t V> struct Su { static_assert(V*V == V+132); };
+template<max_diff_t V> struct Ss { static_assert(V*V == V+132); };
+template struct Su<12>;
+template struct Ss<12>;
 
 int
 main()

@@ -1,0 +1,432 @@
+diff --git a/binutils/bfd/coff-rs6000.c b/binutils/bfd/coff-rs6000.c
+index 6ad77ba77c..5ffcd2dbf6 100644
+--- a/binutils/bfd/coff-rs6000.c
++++ b/binutils/bfd/coff-rs6000.c
+@@ -494,7 +494,18 @@ _bfd_xcoff_swap_aux_in (bfd *abfd, void * ext1, int type ATTRIBUTE_UNUSED,
+ 	    H_GET_32 (abfd, ext->x_file.x_n.x_n.x_offset);
+ 	}
+       else
+-	memcpy (in->x_file.x_n.x_fname, ext->x_file.x_n.x_fname, FILNMLEN);
++	{
++	  if (numaux > 1)
++	    {
++	      if (indx == 0)
++		memcpy (in->x_file.x_n.x_fname, ext->x_file.x_n.x_fname,
++			numaux * sizeof (AUXENT));
++	    }
++	  else
++	    {
++	      memcpy (in->x_file.x_n.x_fname, ext->x_file.x_n.x_fname, FILNMLEN);
++	    }
++	}
+       in->x_file.x_ftype = H_GET_8 (abfd, ext->x_file.x_ftype);
+       break;
+ 
+@@ -3753,7 +3764,8 @@ xcoff_ppc_relocate_section (bfd *output_bfd,
+ 	  else
+ 	    {
+ 	      if (info->unresolved_syms_in_objects != RM_IGNORE
+-		  && (h->flags & XCOFF_WAS_UNDEFINED) != 0)
++		  && (h->flags & XCOFF_WAS_UNDEFINED) != 0
++                  && h->root.type != bfd_link_hash_undefweak)
+ 		(*info->callbacks->undefined_symbol)
+ 		  (info, h->root.root.string,
+ 		   input_bfd, input_section,
+@@ -3769,13 +3781,18 @@ xcoff_ppc_relocate_section (bfd *output_bfd,
+ 			 + sec->output_section->vma
+ 			 + sec->output_offset);
+ 		}
+-	      else if (h->root.type == bfd_link_hash_common)
+-		{
+-		  sec = h->root.u.c.p->section;
+-		  val = (sec->output_section->vma
+-			 + sec->output_offset);
+-
+-		}
++              else if (h->root.type == bfd_link_hash_common)
++                {
++                  sec = h->root.u.c.p->section;
++                  val = (sec->output_section->vma
++                         + sec->output_offset);
++
++                }
++              else if (h->root.type == bfd_link_hash_undefweak)
++                {
++                  sec = 0;
++                  val = 0;
++                }
+ 	      else
+ 		{
+ 		  BFD_ASSERT (bfd_link_relocatable (info)
+diff --git a/binutils/bfd/coffcode.h b/binutils/bfd/coffcode.h
+index 6de6ecdea3..d6e79377a4 100644
+--- a/binutils/bfd/coffcode.h
++++ b/binutils/bfd/coffcode.h
+@@ -2487,6 +2487,21 @@ coff_print_aux (bfd *abfd ATTRIBUTE_UNUSED,
+   BFD_ASSERT (symbol->is_sym);
+   BFD_ASSERT (! aux->is_sym);
+ #ifdef RS6000COFF_C
++  if (symbol->u.syment.n_sclass == C_FILE)
++    {
++      if (aux->u.auxent.x_file.x_n.x_n.x_zeroes)
++        {
++      	  fprintf (file, "File \"%s\"", aux->u.auxent.x_file.x_n.x_fname);
++	}
++      else
++        {
++	  const char * string_table = obj_coff_strings(abfd);
++
++          fprintf (file, "File \"%s\"", string_table + aux->u.auxent.x_file.x_n.x_n.x_offset);
++	}
++      return true;
++    }
++
+   if (CSECT_SYM_P (symbol->u.syment.n_sclass)
+       && indaux + 1 == symbol->u.syment.n_numaux)
+     {
+diff --git a/binutils/bfd/config.bfd b/binutils/bfd/config.bfd
+index a4c6c8e885..e9135e2113 100644
+--- a/binutils/bfd/config.bfd
++++ b/binutils/bfd/config.bfd
+@@ -1163,6 +1163,8 @@ case "${targ}" in
+     targ_archs="$targ_archs bfd_i386_arch"
+     ;;
+   powerpc-*-macos*)
++    targ_cflags=-DAIX_WEAK_SUPPORT
++    targ_selvecs=powerpc_xcoff_vec
+     targ_defvec=powerpc_xcoff_vec
+     ;;
+   powerpc-*-lynxos*)
+diff --git a/binutils/bfd/elflink.c b/binutils/bfd/elflink.c
+index 2b1450fa4e..db296093f9 100644
+--- a/binutils/bfd/elflink.c
++++ b/binutils/bfd/elflink.c
+@@ -13789,6 +13789,23 @@ _bfd_elf_gc_mark (struct bfd_link_info *info,
+     if (!_bfd_elf_gc_mark (info, group_sec, gc_mark_hook))
+       return false;
+ 
++  { /* keep macsbug sections */
++    asection *next_sec = sec->next;
++    if(next_sec)
++      {
++        const char *p = sec->name, *q = next_sec->name;
++
++        while(*p && *q && *p == *q)
++	  p++, q++;
++
++        if(*p == 0 && strcmp(q, ".macsbug") == 0)
++          if(!next_sec->gc_mark)
++            if (!_bfd_elf_gc_mark (info, next_sec, gc_mark_hook))
++              return false;
++
++      }
++  }
++
+   /* Look through the section relocs.  */
+   ret = true;
+   eh_frame = elf_eh_frame_section (sec->owner);
+diff --git a/binutils/bfd/targets.c b/binutils/bfd/targets.c
+index 3284bb88aa..f4043efaa6 100644
+--- a/binutils/bfd/targets.c
++++ b/binutils/bfd/targets.c
+@@ -1233,7 +1233,7 @@ static const bfd_target * const _bfd_target_vector[] =
+ 	&powerpc_elf64_fbsd_vec,
+ 	&powerpc_elf64_fbsd_le_vec,
+ #endif
+-#if 0
++#if 1
+ 	/* This has the same magic number as RS/6000.  */
+ 	&powerpc_xcoff_vec,
+ #endif
+diff --git a/binutils/bfd/xcofflink.c b/binutils/bfd/xcofflink.c
+index 8346977520..8b55e09c37 100644
+--- a/binutils/bfd/xcofflink.c
++++ b/binutils/bfd/xcofflink.c
+@@ -1903,6 +1903,12 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
+ 	      }
+ 	    csect = section;
+ 	    value = sym.n_value - csect->vma;
++
++		// RetroPPC: keep constructors & exception tables
++	    if(strncmp(name, "_GLOBAL__", 9) == 0)
++	      {
++		csect->flags |= SEC_KEEP;
++	      }
+ 	  }
+ 	  break;
+ 
+@@ -1959,7 +1965,9 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
+ 	  if (xcoff_link_add_symbols_to_hash_table (sym, aux))
+ 	    {
+ 	      csect->flags |= SEC_IS_COMMON;
+-	      csect->size = 0;
++	      // Retro68: see AutomatedTests/LocalStatic.cc
++	      if (sym.n_sclass != C_AIX_WEAKEXT)
++	        csect->size = 0;
+ 	      section = csect;
+ 	      value = aux.x_csect.x_scnlen.l;
+ 	    }
+@@ -2166,8 +2174,12 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
+ 	    {
+ 	      if ((*sym_hash)->root.type != bfd_link_hash_common
+ 		  || (*sym_hash)->root.u.c.p->section != csect)
+-		/* We don't need the common csect we just created.  */
+-		csect->size = 0;
++		{
++		  // Retro68: see AutomatedTests/LocalStatic.cc
++		  if ((*sym_hash)->root.type != bfd_link_hash_defweak)
++		    /* We don't need the common csect we just created.  */
++		     csect->size = 0;
++		}
+ 	      else
+ 		(*sym_hash)->root.u.c.p->alignment_power
+ 		  = csect->alignment_power;
+@@ -2935,8 +2947,10 @@ xcoff_mark_symbol (struct bfd_link_info *info, struct xcoff_link_hash_entry *h)
+ 
+ 	  /* Treat this symbol as undefined if the descriptor was.  */
+ 	  if ((hds->flags & XCOFF_WAS_UNDEFINED) != 0)
+-	    h->flags |= XCOFF_WAS_UNDEFINED;
+-
++          {
++            if(h->root.type != bfd_link_hash_undefweak)
++	      h->flags |= XCOFF_WAS_UNDEFINED;
++          }
+ 	  /* Allocate room for the global linkage code itself.  */
+ 	  sec = xcoff_hash_table (info)->linkage_section;
+ 	  h->root.type = bfd_link_hash_defined;
+@@ -3924,6 +3938,10 @@ bfd_xcoff_size_dynamic_sections (bfd *output_bfd,
+ 		}
+ 	    }
+ 	}
++        // mark entry point, the XCOFF_ENTRY flag is needed later
++      if (entry != NULL
++          && !xcoff_mark_symbol_by_name (info, entry, XCOFF_ENTRY))
++        goto error_return;
+     }
+   else
+     {
+@@ -3936,6 +3954,20 @@ bfd_xcoff_size_dynamic_sections (bfd *output_bfd,
+       if (info->fini_function != NULL
+ 	  && !xcoff_mark_symbol_by_name (info, info->fini_function, 0))
+ 	goto error_return;
++
++	// RetroPPC: mark sections with SEC_KEEP flag set
++      for (sub = info->input_bfds; sub != NULL; sub = sub->link.next)
++	{
++	  asection *o;
++
++	  for (o = sub->sections; o != NULL; o = o->next)
++	    {
++	      if (o->flags & SEC_KEEP)
++	        xcoff_mark(info, o);
++	    }
++	}
++
++
+       if (auto_export_flags != 0)
+ 	{
+ 	  xcoff_link_hash_traverse (xcoff_hash_table (info),
+diff --git a/binutils/binutils/configure b/binutils/binutils/configure
+index 0270c7b9c1..49d3019e5b 100755
+--- a/binutils/binutils/configure
++++ b/binutils/binutils/configure
+@@ -14718,7 +14718,8 @@ do
+ 	  ;;
+ 	powerpc*-aix5.[01])
+ 	  ;;
+-	powerpc*-aix[5-9].*)
++	powerpc*-aix[5-9].* \
++	| powerpc-*-macos)
+ 	  OBJDUMP_DEFS="-DAIX_WEAK_SUPPORT"
+ 	  ;;
+ 	powerpc*-*-linux* | powerpc*-*-elf* | powerpc*-*-eabi*)
+diff --git a/binutils/binutils/configure.ac b/binutils/binutils/configure.ac
+index e204a201a0..e351b4767f 100644
+--- a/binutils/binutils/configure.ac
++++ b/binutils/binutils/configure.ac
+@@ -401,8 +401,9 @@ changequote(,)dnl
+ changequote([,])dnl
+ 	  ;;
+ changequote(,)dnl
+-	powerpc*-aix[5-9].*)
++	powerpc*-aix[5-9].* \
+ changequote([,])dnl
++	| powerpc-*-macos)
+ 	  OBJDUMP_DEFS="-DAIX_WEAK_SUPPORT"
+ 	  ;;
+ 	powerpc*-*-linux* | powerpc*-*-elf* | powerpc*-*-eabi*)
+diff --git a/binutils/configure b/binutils/configure
+index be433ef6d5..0090a06bf3 100755
+--- a/binutils/configure
++++ b/binutils/configure
+@@ -2792,7 +2792,7 @@ host_libs="intl libiberty opcodes bfd readline tcl tk itcl libgui zlib libbacktr
+ # binutils, gas and ld appear in that order because it makes sense to run
+ # "make check" in that particular order.
+ # If --enable-gold is used, "gold" may replace "ld".
+-host_tools="texinfo flex bison binutils gas ld fixincludes gcc cgen sid sim gdb gdbserver gprof etc expect dejagnu m4 utils guile fastjar gnattools libcc1 gotools"
++host_tools="texinfo flex bison binutils gas ld fixincludes gcc cgen sid sim gdb gprof etc expect dejagnu m4 utils guile fastjar gnattools libcc1 gotools"
+ 
+ # these libraries are built for the target environment, and are built after
+ # the host libraries and the host tools (which may be a cross compiler)
+diff --git a/binutils/gas/configure b/binutils/gas/configure
+index 1c614b469d..169b44fc16 100755
+--- a/binutils/gas/configure
++++ b/binutils/gas/configure
+@@ -12057,7 +12057,8 @@ $as_echo "#define STRICTCOFF 1" >>confdefs.h
+       microblaze*)
+         ;;
+ 
+-      ppc-*-aix[5-9].*)
++      ppc-*-aix[5-9].* \
++      | ppc-*-macos*)
+ 
+ $as_echo "#define AIX_WEAK_SUPPORT 1" >>confdefs.h
+ 
+diff --git a/binutils/gas/configure.ac b/binutils/gas/configure.ac
+index 21795a82bd..3728ec34dc 100644
+--- a/binutils/gas/configure.ac
++++ b/binutils/gas/configure.ac
+@@ -264,8 +264,9 @@ for this_target in $target $canon_targets ; do
+         ;;
+ 
+ changequote(,)dnl
+-      ppc-*-aix[5-9].*)
++      ppc-*-aix[5-9].* \
+ changequote([,])dnl
++      | ppc-*-macos*)
+ 	AC_DEFINE(AIX_WEAK_SUPPORT, 1,
+ 		  [Define if using AIX 5.2 value for C_WEAKEXT.])
+ 	;;
+diff --git a/binutils/gas/configure.tgt b/binutils/gas/configure.tgt
+index 62f806bdfe..6e26a0d089 100644
+--- a/binutils/gas/configure.tgt
++++ b/binutils/gas/configure.tgt
+@@ -290,6 +290,7 @@ case ${generic_target} in
+   m68hc12-*-* | m6812-*-*)		fmt=elf ;;
+ 
+   m68k-*-elf*)				fmt=elf ;;
++  m68k-*-macos*)      fmt=elf ;;
+   m68k-*-sysv4*)			fmt=elf em=svr4 ;;
+   m68k-*-linux-*)			fmt=elf em=linux ;;
+   m68k-*-uclinux*)			fmt=elf em=uclinux ;;
+@@ -357,7 +358,7 @@ case ${generic_target} in
+   ppc-*-aix5.[01])			fmt=coff em=aix5 ;;
+   ppc-*-aix[5-9].*)			fmt=coff em=aix5 ;;
+   ppc-*-aix*)				fmt=coff em=aix ;;
+-  ppc-*-beos*)				fmt=coff ;;
++  ppc-*-beos*)        fmt=coff ;;
+   ppc-*-*n*bsd* | ppc-*-elf*)		fmt=elf ;;
+   ppc-*-eabi* | ppc-*-sysv4*)		fmt=elf ;;
+   ppc-*-haiku*)				fmt=elf em=haiku ;;
+diff --git a/binutils/ld/emulparams/ppcmacos.sh b/binutils/ld/emulparams/ppcmacos.sh
+index 9f02af404f..12e437ddd5 100644
+--- a/binutils/ld/emulparams/ppcmacos.sh
++++ b/binutils/ld/emulparams/ppcmacos.sh
+@@ -1,5 +1,5 @@
+ TEMPLATE_NAME=aix
+-SCRIPT_NAME=aix
++SCRIPT_NAME=ppcmacos
+ OUTPUT_FORMAT="xcoff-powermac"
+ OUTPUT_FORMAT_32BIT="xcoff-powermac"
+ OUTPUT_FORMAT_64BIT="xcoff-powermac"
+diff --git a/binutils/ld/scripttempl/ppcmacos.sc b/binutils/ld/scripttempl/ppcmacos.sc
+new file mode 100644
+index 0000000000..5dd1f66d5e
+--- /dev/null
++++ b/binutils/ld/scripttempl/ppcmacos.sc
+@@ -0,0 +1,75 @@
++# AIX linker script.
++# AIX always uses shared libraries.  The section VMA appears to be
++# unimportant.  The native linker aligns the sections on boundaries
++# specified by the -H option.
++#
++# Copyright (C) 2014 Free Software Foundation, Inc.
++# 
++# Copying and distribution of this file, with or without modification,
++# are permitted in any medium without royalty provided the copyright
++# notice and this notice are preserved.
++
++cat <<EOF
++/* Copyright (C) 2014 Free Software Foundation, Inc.
++
++   Copying and distribution of this script, with or without modification,
++   are permitted in any medium without royalty provided the copyright
++   notice and this notice are preserved.  */
++
++OUTPUT_ARCH(${ARCH})
++${RELOCATING+${LIB_SEARCH_DIRS}}
++${RELOCATING+ENTRY (__start)}
++SECTIONS
++{
++  .pad 0 : { *(.pad) }
++
++  . = ALIGN (0x10000000 + SIZEOF_HEADERS, 32);
++  .text 0 : {
++    ${RELOCATING+PROVIDE (_text = .);}
++    *(.text)
++    *(.pr)
++    *(.ro)
++    *(.db)
++    *(.gl)
++    *(.xo)
++    *(.ti)
++    *(.tb)
++    ${RELOCATING+PROVIDE (_etext = .);}
++  }
++
++  . = ALIGN (ALIGN (0x10000000) + (. & 0xfff), 32);
++  .data 0 : {
++    ${RELOCATING+PROVIDE (_data = .);}
++    *(.data)
++    *(.rw)
++    *(.sv)
++    *(.sv64)
++    *(.sv3264)
++    *(.ua)
++    . = ALIGN(4);
++    ${CONSTRUCTING+CONSTRUCTORS}
++    *(.ds)
++    *(.tc0)
++    *(.tc)
++    *(.td)
++    ${RELOCATING+PROVIDE (_edata = .);}
++  }
++  .bss : {
++    *(.tocbss)
++    *(.bss)
++    *(.bs)
++    *(.uc)
++    *(COMMON)
++    ${RELOCATING+PROVIDE (_end = .);}
++    ${RELOCATING+PROVIDE (end = .);}
++  }
++
++  .loader : {
++    *(.loader)
++  }
++  
++  .debug : {
++    *(.debug)
++  }
++}
++EOF
+diff --git a/binutils/zlib/zutil.h b/binutils/zlib/zutil.h
+index d9a20ae1bf..3b9daef749 100644
+--- a/binutils/zlib/zutil.h
++++ b/binutils/zlib/zutil.h
+@@ -139,15 +139,6 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
+ 
+ #if defined(MACOS) || defined(TARGET_OS_MAC)
+ #  define OS_CODE  7
+-#  ifndef Z_SOLO
+-#    if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
+-#      include <unix.h> /* for fdopen */
+-#    else
+-#      ifndef fdopen
+-#        define fdopen(fd,mode) NULL /* No fdopen() */
+-#      endif
+-#    endif
+-#  endif
+ #endif
+ 
+ #ifdef __acorn

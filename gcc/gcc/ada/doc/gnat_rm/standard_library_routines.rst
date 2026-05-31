@@ -157,7 +157,7 @@ the unit is not implemented.
 
 ``Ada.Directories.Hierarchical_File_Names`` *(A.16.1)*
   This package provides additional directory operations handling
-  hiearchical file names.
+  hierarchical file names.
 
 
 ``Ada.Directories.Information`` *(A.16)*
@@ -302,12 +302,14 @@ the unit is not implemented.
 
 ``Ada.Numerics.Discrete_Random``
   This generic package provides a random number generator suitable for generating
-  uniformly distributed values of a specified discrete subtype.
+  uniformly distributed values of a specified discrete subtype. It should not be
+  used as a cryptographic pseudo-random source.
 
 
 ``Ada.Numerics.Float_Random``
   This package provides a random number generator suitable for generating
-  uniformly distributed floating point values in the unit interval.
+  uniformly distributed floating point values in the unit interval. It should not
+  be used as a cryptographic pseudo-random source.
 
 
 ``Ada.Numerics.Generic_Complex_Elementary_Functions``
@@ -381,7 +383,8 @@ the unit is not implemented.
   then such a backward jump may occur.
 
 ``Ada.Real_Time.Timing_Events`` *(D.15)*
-  Not implemented in GNAT.
+  This package allows procedures to be executed at a specified time without
+  the use of a task or a delay statement.
 
 ``Ada.Sequential_IO`` *(A.8.1)*
   This package provides input-output facilities for sequential files,
@@ -550,7 +553,7 @@ the unit is not implemented.
   This package provides the capability of associating arbitrary
   task-specific data with separate tasks.
 
-``Ada.Task_Identifification`` *(C.7.1)*
+``Ada.Task_Identification`` *(C.7.1)*
   This package provides capabilities for task identification.
 
 ``Ada.Task_Termination`` *(C.7.3)*

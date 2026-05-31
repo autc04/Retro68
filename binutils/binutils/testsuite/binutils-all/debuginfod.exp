@@ -1,4 +1,4 @@
-# Copyright (C) 2002-2022 Free Software Foundation, Inc.
+# Copyright (C) 2002-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,17 +34,17 @@ if { ![is_elf_format] || ![isnative] } {
 }
 
 if { [which $OBJDUMP] == 0} {
-    perror "$test $OBJDUMP (does not exist)"
+    perror "$test [file tail $OBJDUMP] (does not exist)"
     return
 }
 
  if { [which $READELF] == 0} {
-    perror "$test $READELF (does not exist)"
+     perror "$test [file tail $READELF] (does not exist)"
     return
 }
 
 # Compile testprog.c, move the debuginfo to a separate file and add .gnu_debuglink.
-if { [target_compile $srcdir/$subdir/testprog.c tmpdir/testprog executable debug] != ""} {
+if { [target_compile $srcdir/$subdir/testprog.c tmpdir/testprog executable "debug additional_flags=-Wl,--build-id"] != ""} {
     unsupported "$test (compilation failed)"
     return
 }
@@ -162,9 +162,9 @@ proc test_fetch_debuglink { prog progargs } {
     set got [binutils_run $prog "$progargs tmpdir/testprog"]
 
     if { [regexp ".*Found separate debug info file.*Contents\[^\n\]*loaded from\[^\n\]*" $got] } {
-       pass "$test ($prog debuglink)"
+        pass "$test ([file tail $prog] debuglink)"
     } else {
-       fail "$test ($prog did not find debuglink to cache $cache)"
+        fail "$test ([file tail $prog] did not find debuglink to cache)"
     }
 }
 
@@ -178,9 +178,9 @@ proc test_fetch_debugaltlink { prog progargs } {
     set buildid "00112233445566778899aabbccddeeff0123456789abcdef"
 
     if { [regexp ".*Found separate debug info file\[^\n\]*$cache/$buildid" $got] } {
-        pass "$test ($prog debugaltlink)"
+        pass "$test ([file tail $prog] debugaltlink)"
     } else {
-        fail "$test ($prog could not load debugaltlink)"
+        fail "$test ([file tail $prog] could not load debugaltlink)"
     }
 }
 

@@ -34,22 +34,13 @@
 /* See rawmemchr-stub.c.  */
 #else
 
-#define L(l) .L ## l
-
-	.macro def_fn f p2align=0
-	.text
-	.p2align \p2align
-	.global \f
-	.type \f, %function
-\f:
-	.endm
+#include "asmdefs.h"
 
 /* Special case rawmemchr (s, 0) as strlen, otherwise tailcall memchr.
    Call strlen without setting up a full frame - it preserves x14/x15.
 */
 
-def_fn rawmemchr p2align=5
-	.cfi_startproc
+ENTRY_ALIGN (rawmemchr, 5)
 	cbz	w1, L(do_strlen)
 	mov	x2, -1
 	b	memchr
@@ -61,8 +52,6 @@ L(do_strlen):
 	bl	strlen
 	add	x0, x14, x0
 	ret	x15
-	.cfi_endproc
+END (rawmemchr)
 
-	.size   rawmemchr, . - rawmemchr
 #endif
-

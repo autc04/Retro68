@@ -1,6 +1,6 @@
 // Map implementation -*- C++ -*-
 
-// Copyright (C) 2001-2022 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -56,12 +56,16 @@
 #ifndef _STL_MAP_H
 #define _STL_MAP_H 1
 
-#include <bits/functexcept.h>
+#include <bits/stdexcept_throw.h>
 #include <bits/concept_check.h>
 #if __cplusplus >= 201103L
 #include <initializer_list>
 #include <tuple>
 #endif
+#if __glibcxx_containers_ranges // C++ >= 23
+# include <bits/ranges_base.h> // ranges::begin, ranges::distance etc.
+#endif
+// #include <stl_tree.h>  // done in std/map
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -76,6 +80,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
    *  retrieved based on a key, in logarithmic time.
    *
    *  @ingroup associative_containers
+   *  @headerfile map
+   *  @since C++98
    *
    *  @tparam _Key  Type of key objects.
    *  @tparam  _Tp  Type of mapped objects.
@@ -178,7 +184,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       typedef typename _Rep_type::reverse_iterator	 reverse_iterator;
       typedef typename _Rep_type::const_reverse_iterator const_reverse_iterator;
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17
       using node_type = typename _Rep_type::node_type;
       using insert_return_type = typename _Rep_type::insert_return_type;
 #endif
@@ -302,6 +308,26 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	    const allocator_type& __a = allocator_type())
 	: _M_t(__comp, _Pair_alloc_type(__a))
 	{ _M_t._M_insert_range_unique(__first, __last); }
+
+#if __glibcxx_containers_ranges // C++ >= 23
+      /**
+       * @brief Builds a %map from a range.
+       * @since C++23
+       */
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	map(from_range_t, _Rg&& __rg,
+	    const _Compare& __comp,
+	    const _Alloc& __a = _Alloc())
+	: _M_t(__comp, _Pair_alloc_type(__a))
+	{ insert_range(std::forward<_Rg>(__rg)); }
+
+      /// Allocator-extended range constructor.
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	map(from_range_t, _Rg&& __rg, const _Alloc& __a = _Alloc())
+	: _M_t(_Pair_alloc_type(__a))
+	{ insert_range(std::forward<_Rg>(__rg)); }
+#endif
+
 
 #if __cplusplus >= 201103L
       /**
@@ -496,6 +522,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  subscript.  If the key does not exist, a pair with that key
        *  is created using default values, which is then returned.
        *
+       *  If a heterogeneous key matches a range of elements, the first is
+       *  chosen.
+       *
        *  Lookup requires logarithmic time.
        */
       mapped_type&
@@ -534,6 +563,13 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       }
 #endif
 
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<map> _Kt>
+	mapped_type&
+	operator[](_Kt&& __k)
+	{ return try_emplace(std::forward<_Kt>(__k)).first->second; }
+#endif
+
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
       // DR 464. Suggestion for new member functions in standard containers.
       /**
@@ -542,6 +578,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  @return  A reference to the data whose key is equivalent to @a __k, if
        *           such a data is present in the %map.
        *  @throw  std::out_of_range  If no such data is present.
+       *
+       *  If a heterogeneous key __k matches a range of elements, the
+       *  first is chosen.
        */
       mapped_type&
       at(const key_type& __k)
@@ -552,6 +591,18 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	return (*__i).second;
       }
 
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<map> _Kt>
+	mapped_type&
+	at(const _Kt& __k)
+	{
+	  iterator __i = lower_bound(__k);
+	  if (__i == end() || key_comp()(__k, (*__i).first))
+	    __throw_out_of_range(__N("map::at"));
+	  return (*__i).second;
+	}
+#endif
+
       const mapped_type&
       at(const key_type& __k) const
       {
@@ -560,6 +611,18 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	  __throw_out_of_range(__N("map::at"));
 	return (*__i).second;
       }
+
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<map> _Kt>
+	const mapped_type&
+	at(const _Kt& __k) const
+	{
+	  const_iterator __i = lower_bound(__k);
+	  if (__i == end() || key_comp()(__k, (*__i).first))
+	    __throw_out_of_range(__N("map::at"));
+	  return (*__i).second;
+	}
+#endif
 
       // modifiers
 #if __cplusplus >= 201103L
@@ -640,7 +703,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	}
 #endif
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17
       /// Extract a node.
       node_type
       extract(const_iterator __pos)
@@ -653,6 +716,13 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       node_type
       extract(const key_type& __x)
       { return _M_t.extract(__x); }
+
+#ifdef __glibcxx_associative_heterogeneous_erasure // C++23
+      template <__heterogeneous_tree_key<map> _Kt>
+	node_type
+	extract(_Kt&& __key)
+	{ return _M_t._M_extract_tr(__key); }
+#endif
 
       /// Re-insert an extracted node.
       insert_return_type
@@ -694,8 +764,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	{ merge(__source); }
 #endif // C++17
 
-#if __cplusplus > 201402L
-#define __cpp_lib_map_try_emplace 201411L
+#ifdef __glibcxx_map_try_emplace // C++ >= 17 && HOSTED
       /**
        *  @brief Attempts to build and insert a std::pair into the %map.
        *
@@ -713,6 +782,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  A %map relies on unique keys and thus a %pair is only inserted if its
        *  first element (the key) is not already present in the %map.
        *  If a %pair is not inserted, this function has no effect.
+       *
+       *  If a heterogeneous key __k matches a range of elements, an iterator
+       *  to the first is returned.
        *
        *  Insertion requires logarithmic time.
        */
@@ -749,6 +821,26 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	  return {__i, false};
 	}
 
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<map> _Kt, typename ..._Args>
+	pair<iterator, bool>
+	try_emplace(_Kt&& __k, _Args&&... __args)
+	{
+	  iterator __i;
+	  auto [__left, __node] = _M_t._M_get_insert_unique_pos_tr(__k);
+	  if (__node)
+	    {
+	      __i = _M_t._M_emplace_here(__left == __node, __node,
+		std::piecewise_construct,
+		std::forward_as_tuple(std::forward<_Kt>(__k)),
+		std::forward_as_tuple(std::forward<_Args>(__args)...));
+	      return { __i, true };
+	    }
+	  __i = iterator(__left);
+	  return { __i, false };
+	}
+#endif
+
       /**
        *  @brief Attempts to build and insert a std::pair into the %map.
        *
@@ -774,7 +866,12 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  https://gcc.gnu.org/onlinedocs/libstdc++/manual/associative.html#containers.associative.insert_hints
        *  for more on @a hinting.
        *
+       *  If a heterogeneous key __k matches a range of elements, an iterator
+       *  to the first is returned.
+       *
        *  Insertion requires logarithmic time (if the hint is not taken).
+       *
+       *  @{
        */
       template <typename... _Args>
 	iterator
@@ -811,7 +908,28 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	    __i = iterator(__true_hint.first);
 	  return __i;
 	}
+
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<map> _Kt, typename ..._Args>
+	iterator
+	try_emplace(const_iterator __hint, _Kt&& __k, _Args&&... __args)
+	{
+	  iterator __i;
+	  auto [__left, __node] =
+	    _M_t._M_get_insert_hint_unique_pos_tr(__hint, __k);
+	  if (__node)
+	    {
+	      __i = _M_t._M_emplace_here(__left == __node, __node,
+		std::piecewise_construct,
+		std::forward_as_tuple(std::forward<_Kt>(__k)),
+		std::forward_as_tuple(std::forward<_Args>(__args)...));
+	    }
+	  else __i = iterator(__left);
+	  return __i;
+	}
 #endif
+      /// @}
+#endif // __glibcxx_map_try_emplace
 
       /**
        *  @brief Attempts to insert a std::pair into the %map.
@@ -847,7 +965,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	{
 #if __cplusplus >= 201703L
 	  using _P2 = remove_reference_t<_Pair>;
-	  if constexpr (__is_pair<_P2>)
+	  if constexpr (__is_pair<remove_const_t<_P2>>)
 	    if constexpr (is_same_v<allocator_type, allocator<value_type>>)
 	      if constexpr (__usable_key<typename _P2::first_type>)
 		{
@@ -864,7 +982,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	  return _M_t._M_emplace_unique(std::forward<_Pair>(__x));
 	}
 #endif
-      /// @}
+      ///@}
 
 #if __cplusplus >= 201103L
       /**
@@ -877,6 +995,24 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       void
       insert(std::initializer_list<value_type> __list)
       { insert(__list.begin(), __list.end()); }
+#endif
+
+#if __glibcxx_containers_ranges // C++ >= 23
+      /**
+       *  @brief Inserts a range of elements.
+       *  @since C++23
+       *  @param  __rg An input range of elements that can be converted to
+       *               the map's value type.
+       */
+      template<__detail::__container_compatible_range<value_type> _Rg>
+	void
+	insert_range(_Rg&& __rg)
+	{
+	  auto __first = ranges::begin(__rg);
+	  const auto __last = ranges::end(__rg);
+	  for (; __first != __last; ++__first)
+	    insert(*__first);
+	}
 #endif
 
       /**
@@ -941,7 +1077,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	insert(_InputIterator __first, _InputIterator __last)
 	{ _M_t._M_insert_range_unique(__first, __last); }
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_map_try_emplace // >= C++17 && HOSTED
       /**
        *  @brief Attempts to insert or assign a std::pair into the %map.
        *  @param __k    Key to use for finding a possibly existing pair in
@@ -960,6 +1096,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  is assigned from __obj.
        *
        *  Insertion requires logarithmic time.
+       *  @{
        */
       template <typename _Obj>
 	pair<iterator, bool>
@@ -996,6 +1133,29 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	  return {__i, false};
 	}
 
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<map> _Kt, typename _Obj>
+	pair<iterator, bool>
+	insert_or_assign(_Kt&& __k, _Obj&& __obj)
+	{
+	  iterator __i;
+	  auto [__left, __node] =_M_t._M_get_insert_unique_pos_tr(__k);
+	  if (__node)
+	    {
+	      __i = _M_t._M_emplace_here(__left == __node, __node,
+		std::piecewise_construct,
+		std::forward_as_tuple(std::forward<_Kt>(__k)),
+		std::forward_as_tuple(std::forward<_Obj>(__obj)));
+	      return { __i, true };
+	    }
+	  __i = iterator(__left);
+	  (*__i).second = std::forward<_Obj>(__obj);
+	  return { __i, false };
+	}
+#endif
+      ///@}
+
+      ///@{
       /**
        *  @brief Attempts to insert or assign a std::pair into the %map.
        *  @param  __hint  An iterator that serves as a hint as to where the
@@ -1013,6 +1173,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  first element (the key) is not already present in the %map.
        *  If the %pair was already in the %map, the .second of the %pair
        *  is assigned from __obj.
+       *
+       *  If a heterogeneous key __k matches a range of elements, the first
+       *  is chosen.
        *
        *  Insertion requires logarithmic time.
        */
@@ -1055,7 +1218,29 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	  (*__i).second = std::forward<_Obj>(__obj);
 	  return __i;
 	}
+
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<map> _Kt, typename _Obj>
+	iterator
+	insert_or_assign(const_iterator __hint, _Kt&& __k, _Obj&& __obj)
+	{
+	  iterator __i;
+	  auto [__left, __node] =
+	    _M_t._M_get_insert_hint_unique_pos_tr(__hint, __k);
+	  if (__node)
+	    {
+	      return _M_t._M_emplace_here(__left == __node, __node,
+		std::piecewise_construct,
+		std::forward_as_tuple(std::forward<_Kt>(__k)),
+		std::forward_as_tuple(std::forward<_Obj>(__obj)));
+	    }
+	  __i = iterator(__left);
+	  (*__i).second = std::forward<_Obj>(__obj);
+	  return __i;
+	}
 #endif
+      ///@}
+#endif // __glibcxx_map_try_emplace
 
 #if __cplusplus >= 201103L
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
@@ -1101,6 +1286,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       { _M_t.erase(__position); }
 #endif
 
+      ///@{
       /**
        *  @brief Erases elements according to the provided key.
        *  @param  __x  Key of element to be erased.
@@ -1114,7 +1300,18 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        */
       size_type
       erase(const key_type& __x)
-      { return _M_t.erase(__x); }
+      { return _M_t._M_erase_unique(__x); }
+
+#ifdef __glibcxx_associative_heterogeneous_erasure // C++23
+      // Note that for some types _Kt this may erase more than
+      // one element, such as if _Kt::operator< checks only part
+      // of the key.
+      template <__heterogeneous_tree_key<map> _Kt>
+	size_type
+	erase(_Kt&& __x)
+	{ return _M_t._M_erase_tr(__x); }
+#endif
+      ///@}
 
 #if __cplusplus >= 201103L
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
@@ -1217,7 +1414,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       find(const key_type& __x)
       { return _M_t.find(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	find(const _Kt& __x) -> decltype(_M_t._M_find_tr(__x))
@@ -1242,7 +1439,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       find(const key_type& __x) const
       { return _M_t.find(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	find(const _Kt& __x) const -> decltype(_M_t._M_find_tr(__x))
@@ -1263,7 +1460,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       count(const key_type& __x) const
       { return _M_t.find(__x) == _M_t.end() ? 0 : 1; }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	count(const _Kt& __x) const -> decltype(_M_t._M_count_tr(__x))
@@ -1306,7 +1503,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       lower_bound(const key_type& __x)
       { return _M_t.lower_bound(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	lower_bound(const _Kt& __x)
@@ -1331,7 +1528,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       lower_bound(const key_type& __x) const
       { return _M_t.lower_bound(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	lower_bound(const _Kt& __x) const
@@ -1351,7 +1548,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       upper_bound(const key_type& __x)
       { return _M_t.upper_bound(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	upper_bound(const _Kt& __x)
@@ -1371,7 +1568,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       upper_bound(const key_type& __x) const
       { return _M_t.upper_bound(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	upper_bound(const _Kt& __x) const
@@ -1400,7 +1597,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       equal_range(const key_type& __x)
       { return _M_t.equal_range(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	equal_range(const _Kt& __x)
@@ -1429,7 +1626,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       equal_range(const key_type& __x) const
       { return _M_t.equal_range(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	equal_range(const _Kt& __x) const
@@ -1493,6 +1690,24 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	   typename = _RequireAllocator<_Allocator>>
     map(initializer_list<pair<_Key, _Tp>>, _Allocator)
     -> map<_Key, _Tp, less<_Key>, _Allocator>;
+
+#if __glibcxx_containers_ranges // C++ >= 23
+  template<ranges::input_range _Rg,
+	   __not_allocator_like _Compare = less<__detail::__range_key_type<_Rg>>,
+	   __allocator_like _Alloc =
+	      std::allocator<__detail::__range_to_alloc_type<_Rg>>>
+    map(from_range_t, _Rg&&, _Compare = _Compare(), _Alloc = _Alloc())
+      -> map<__detail::__range_key_type<_Rg>,
+	     __detail::__range_mapped_type<_Rg>,
+	     _Compare, _Alloc>;
+
+  template<ranges::input_range _Rg, __allocator_like _Alloc>
+    map(from_range_t, _Rg&&, _Alloc)
+      -> map<__detail::__range_key_type<_Rg>,
+	     __detail::__range_mapped_type<_Rg>,
+	     less<__detail::__range_key_type<_Rg>>,
+	     _Alloc>;
+#endif
 
 #endif // deduction guides
 
@@ -1589,7 +1804,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 
 _GLIBCXX_END_NAMESPACE_CONTAINER
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17 && HOSTED
   // Allow std::map access to internals of compatible maps.
   template<typename _Key, typename _Val, typename _Cmp1, typename _Alloc,
 	   typename _Cmp2>

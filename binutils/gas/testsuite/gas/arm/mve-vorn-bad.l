@@ -1,21 +1,21 @@
 [^:]*: Assembler messages:
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:17: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:19: Error: syntax error -- `vorneq q0,q1,q2'
-[^:]*:20: Error: syntax error -- `vorneq q0,q1,q2'
-[^:]*:22: Error: syntax error -- `vorneq q0,q1,q2'
-[^:]*:24: Error: instruction missing MVE vector predication code -- `vorn q0,q1,q2'
-[^:]*:25: Error: vector predicated instruction should be in VPT/VPST block -- `vornt q0,q1,q2'
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:26: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:7: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:12: Error: syntax error -- `vorneq q0,q1,q2'
+[^:]*:13: Error: syntax error -- `vorneq q0,q1,q2'
+[^:]*:15: Error: syntax error -- `vorneq q0,q1,q2'
+[^:]*:17: Error: instruction missing MVE vector predication code -- `vorn q0,q1,q2'
+[^:]*:18: Error: vector predicated instruction should be in VPT/VPST block -- `vornt q0,q1,q2'
+[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:23: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:28: Error: syntax error -- `vorneq.i16 q0,#255'
 [^:]*:29: Error: syntax error -- `vorneq.i16 q0,#255'
 [^:]*:31: Error: syntax error -- `vorneq.i16 q0,#255'

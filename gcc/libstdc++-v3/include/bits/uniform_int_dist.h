@@ -1,6 +1,6 @@
 // Class template uniform_int_distribution -*- C++ -*-
 
-// Copyright (C) 2009-2022 Free Software Foundation, Inc.
+// Copyright (C) 2009-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -44,6 +44,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 #ifdef __cpp_lib_concepts
   /// Requirements for a uniform random bit generator.
+  /**
+   * @ingroup random_distributions_uniform
+   * @headerfile random
+   * @since C++20
+   */
   template<typename _Gen>
     concept uniform_random_bit_generator
       = invocable<_Gen&> && unsigned_integral<invoke_result_t<_Gen&>>
@@ -55,6 +60,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       };
 #endif
 
+  /// @cond undocumented
   namespace __detail
   {
     // Determine whether number is a power of two.
@@ -67,11 +73,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	return ((__x - 1) & __x) == 0;
       }
   }
+  /// @endcond
 
   /**
    * @brief Uniform discrete distribution for random numbers.
    * A discrete random distribution on the range @f$[min, max]@f$ with equal
    * probability throughout the range.
+   *
+   * @ingroup random_distributions_uniform
+   * @headerfile random
+   * @since C++11
    */
   template<typename _IntType = int>
     class uniform_int_distribution
@@ -297,9 +308,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 	    const __uctype __uerange = __urange + 1; // __urange can be zero
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions" // if constexpr
 #if defined __UINT64_TYPE__ && defined __UINT32_TYPE__
 #if __SIZEOF_INT128__
-	    if _GLIBCXX17_CONSTEXPR (__urngrange == __UINT64_MAX__)
+	    if constexpr (__urngrange == __UINT64_MAX__)
 	      {
 		// __urng produces values that use exactly 64-bits,
 		// so use 128-bit integers to downscale to desired range.
@@ -309,7 +322,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	      }
 	    else
 #endif
-	    if _GLIBCXX17_CONSTEXPR (__urngrange == __UINT32_MAX__)
+	    if constexpr (__urngrange == __UINT32_MAX__)
 	      {
 		// __urng produces values that use exactly 32-bits,
 		// so use 64-bit integers to downscale to desired range.
@@ -327,6 +340,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 		while (__ret >= __past);
 		__ret /= __scaling;
 	      }
+#pragma GCC diagnostic pop
 	  }
 	else if (__urngrange < __urange)
 	  {

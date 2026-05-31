@@ -1,6 +1,6 @@
 !  OpenACC Runtime Library Definitions.			-*- mode: fortran -*-
 
-!  Copyright (C) 2014-2022 Free Software Foundation, Inc.
+!  Copyright (C) 2014-2026 Free Software Foundation, Inc.
 
 !  Contributed by Tobias Burnus <burnus@net-b.de>
 !              and Mentor Embedded.
@@ -204,8 +204,19 @@
         end function
       end interface
 
-      ! acc_malloc: Only available in C/C++
-      ! acc_free: Only available in C/C++
+      interface
+        type(c_ptr) function acc_malloc(bytes) bind(C)
+          use iso_c_binding, only: c_ptr, c_size_t
+          integer(c_size_t), value :: bytes
+        end function
+      end interface
+
+      interface
+        subroutine acc_free(data_dev) bind(C)
+          use iso_c_binding, only: c_ptr
+          type(c_ptr), value :: data_dev
+        end subroutine
+      end interface
 
       interface acc_copyin
         subroutine acc_copyin_32_h (a, len)
@@ -339,6 +350,32 @@
         end subroutine
       end interface
 
+      interface acc_copyout_finalize_async
+        subroutine acc_copyout_finalize_async_32_h (a, len, async)
+          use iso_c_binding, only: c_int32_t
+          import acc_handle_kind
+!GCC$ ATTRIBUTES NO_ARG_CHECK :: a
+          type (*), dimension (*) :: a
+          integer (c_int32_t) len
+          integer (acc_handle_kind) async
+        end subroutine
+
+        subroutine acc_copyout_finalize_async_64_h (a, len, async)
+          use iso_c_binding, only: c_int64_t
+          import acc_handle_kind
+!GCC$ ATTRIBUTES NO_ARG_CHECK :: a
+          type (*), dimension (*) :: a
+          integer (c_int64_t) len
+          integer (acc_handle_kind) async
+        end subroutine
+
+        subroutine acc_copyout_finalize_async_array_h (a, async_)
+          import acc_handle_kind
+          type (*), dimension (..), contiguous :: a
+          integer (acc_handle_kind) async_
+        end subroutine
+      end interface
+
       interface acc_delete
         subroutine acc_delete_32_h (a, len)
           use iso_c_binding, only: c_int32_t
@@ -376,6 +413,32 @@
 
         subroutine acc_delete_finalize_array_h (a)
           type (*), dimension (..), contiguous :: a
+        end subroutine
+      end interface
+
+      interface acc_delete_finalize_async
+        subroutine acc_delete_finalize_async_32_h (a, len, async)
+          use iso_c_binding, only: c_int32_t
+          import acc_handle_kind
+!GCC$ ATTRIBUTES NO_ARG_CHECK :: a
+          type (*), dimension (*) :: a
+          integer (c_int32_t) len
+          integer (acc_handle_kind) async
+        end subroutine
+
+        subroutine acc_delete_finalize_async_64_h (a, len, async)
+          use iso_c_binding, only: c_int64_t
+          import acc_handle_kind
+!GCC$ ATTRIBUTES NO_ARG_CHECK :: a
+          type (*), dimension (*) :: a
+          integer (c_int64_t) len
+          integer (acc_handle_kind) async
+        end subroutine
+
+        subroutine acc_delete_finalize_async_array_h (a, async_)
+          import acc_handle_kind
+          type (*), dimension (..), contiguous :: a
+          integer (acc_handle_kind) async_
         end subroutine
       end interface
 
@@ -419,10 +482,34 @@
         end subroutine
       end interface
 
-      ! acc_map_data: Only available in C/C++
-      ! acc_unmap_data: Only available in C/C++
-      ! acc_deviceptr: Only available in C/C++
-      ! acc_hostptr: Only available in C/C++
+      interface
+        subroutine acc_map_data(data_arg, data_dev, bytes) bind(C)
+          use iso_c_binding, only: c_ptr, c_size_t
+          type(*), dimension(*) :: data_arg
+          type(c_ptr), value :: data_dev
+          integer(c_size_t), value :: bytes
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_unmap_data(data_arg) bind(C)
+          type(*), dimension(*) :: data_arg
+        end subroutine
+      end interface
+
+      interface
+        type(c_ptr) function acc_deviceptr(data_arg) bind(C)
+          use iso_c_binding, only: c_ptr
+          type(*), dimension(*) :: data_arg
+        end function
+      end interface
+
+      interface
+        type(c_ptr) function acc_hostptr(data_dev) bind(C)
+          use iso_c_binding, only: c_ptr
+          type(c_ptr), value :: data_dev
+        end function
+      end interface
 
       interface acc_is_present
         function acc_is_present_32_h (a, len)
@@ -447,8 +534,75 @@
         end function
       end interface
 
-      ! acc_memcpy_to_device: Only available in C/C++
-      ! acc_memcpy_from_device: Only available in C/C++
+      interface
+        subroutine acc_memcpy_to_device(data_dev_dest, data_host_src,   &
+     &                                  bytes) bind(C)
+          use iso_c_binding, only: c_ptr, c_size_t
+          type(c_ptr), value :: data_dev_dest
+          type(*),dimension(*) :: data_host_src
+          integer(c_size_t), value :: bytes
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_memcpy_to_device_async(data_dev_dest,            &
+     &                                        data_host_src, bytes,     &
+     &                                        async_arg) bind(C)
+          use iso_c_binding, only: c_ptr, c_size_t
+          import :: acc_handle_kind
+          type(c_ptr), value :: data_dev_dest
+          type(*),dimension(*) :: data_host_src
+          integer(c_size_t), value :: bytes
+          integer(acc_handle_kind), value :: async_arg
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_memcpy_from_device(data_host_dest,               &
+     &                                    data_dev_src, bytes) bind(C)
+          use iso_c_binding, only: c_ptr, c_size_t
+          type(*),dimension(*) :: data_host_dest
+          type(c_ptr), value :: data_dev_src
+          integer(c_size_t), value :: bytes
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_memcpy_from_device_async(data_host_dest,         &
+     &                                          data_dev_src, bytes,    &
+     &                                          async_arg) bind(C)
+          use iso_c_binding, only: c_ptr, c_size_t
+          import :: acc_handle_kind
+          type(*),dimension(*) :: data_host_dest
+          type(c_ptr), value :: data_dev_src
+          integer(c_size_t), value :: bytes
+          integer(acc_handle_kind), value :: async_arg
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_memcpy_device(data_dev_dest, data_dev_src,       &
+     &                               bytes) bind(C)
+          use iso_c_binding, only: c_ptr, c_size_t
+          type(c_ptr), value :: data_dev_dest
+          type(c_ptr), value :: data_dev_src
+          integer(c_size_t), value :: bytes
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_memcpy_device_async(data_dev_dest,               &
+     &                                     data_dev_src, bytes,         &
+     &                                     async_arg) bind(C)
+          use iso_c_binding, only: c_ptr, c_size_t
+          import :: acc_handle_kind
+          type(c_ptr), value :: data_dev_dest
+          type(c_ptr), value :: data_dev_src
+          integer(c_size_t), value :: bytes
+          integer(acc_handle_kind), value :: async_arg
+        end subroutine
+      end interface
+
 
       interface acc_copyin_async
         subroutine acc_copyin_async_32_h (a, len, async)
@@ -603,5 +757,47 @@
           import acc_handle_kind
           type (*), dimension (..), contiguous :: a
           integer (acc_handle_kind) async_
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_attach (ptr_addr) bind(C)
+          type(*), dimension(..) :: ptr_addr
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_attach_async (ptr_addr, async_arg) bind(C)
+          import :: acc_handle_kind
+          type(*), dimension(..) :: ptr_addr
+          integer(acc_handle_kind), value :: async_arg
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_detach (ptr_addr) bind(C)
+          type(*), dimension(..) :: ptr_addr
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_detach_async (ptr_addr, async_arg) bind(C)
+          import :: acc_handle_kind
+          type(*), dimension(..) :: ptr_addr
+          integer(acc_handle_kind), value :: async_arg
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_detach_finalize (ptr_addr) bind(C)
+          type(*), dimension(..) :: ptr_addr
+        end subroutine
+      end interface
+
+      interface
+        subroutine acc_detach_finalize_async(ptr_addr, async_arg)bind(C)
+          import :: acc_handle_kind
+          type(*), dimension(..) :: ptr_addr
+          integer(acc_handle_kind), value :: async_arg
         end subroutine
       end interface

@@ -6,19 +6,19 @@
    generated.  */
 
 /* { dg-do compile } */
-/* { dg-options "-O0 -dA -gbtf -mco-re" } */
+/* { dg-options "-O0 -dA -gbtf -mco-re -masm=normal" } */
 
 struct O {
   int e;
   int f;
-};
+} __attribute__((preserve_access_index));
 
 struct S {
   int a;
   struct {
     int b;
     int c;
-  } inner;
+  } __attribute__((preserve_access_index)) inner;
   struct O other;
 } __attribute__((preserve_access_index));
 

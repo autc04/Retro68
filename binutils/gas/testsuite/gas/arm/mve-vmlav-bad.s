@@ -1,14 +1,14 @@
-.macro cond, op
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-\op\().s16 r0, q1, q2
-.endr
-.endm
-
 .syntax unified
 .thumb
-cond vmlav
-cond vmlava
+.irp op, vmlav, vmlava
+.irp cond, eq, ne, gt, ge, lt, le
+
+it \cond
+\op\().s16 r0, q1, q2
+
+.endr
+.endr
+
 vmlav.s64 r0, q1, q2
 vmlav.f32 r0, q1, q2
 vmlava.s64 r0, q1, q2

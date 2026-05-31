@@ -1,5 +1,5 @@
 /* Sets (bit vectors) of hard registers, and operations on them.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC
 
@@ -173,22 +173,50 @@ struct hard_reg_set_container
 #define CLEAR_HARD_REG_SET(TO) ((TO) = HARD_CONST (0))
 #define SET_HARD_REG_SET(TO) ((TO) = ~ HARD_CONST (0))
 
-static inline bool
+inline bool
 hard_reg_set_subset_p (const_hard_reg_set x, const_hard_reg_set y)
 {
   return (x & ~y) == HARD_CONST (0);
 }
 
-static inline bool
+inline bool
 hard_reg_set_intersect_p (const_hard_reg_set x, const_hard_reg_set y)
 {
   return (x & y) != HARD_CONST (0);
 }
 
-static inline bool
+inline bool
 hard_reg_set_empty_p (const_hard_reg_set x)
 {
   return x == HARD_CONST (0);
+}
+
+inline int
+hard_reg_set_popcount (const_hard_reg_set x)
+{
+  return popcount_hwi (x);
+}
+
+/* Return 0 if there aren't any differences between X and Y after the first
+   SKIP registers, or 1 + the register number of the lowest-numbered
+   difference, negated if it's set in Y.  The return value is suitable for
+   qsort.  */
+inline int
+hard_reg_set_first_diff (const_hard_reg_set x, const_hard_reg_set y,
+			 unsigned skip)
+{
+  if (skip >= UHOST_BITS_PER_WIDE_INT)
+    return 0;
+  const HARD_REG_ELT_TYPE full_mask = -1;
+  HARD_REG_ELT_TYPE mask = full_mask << skip;
+  HARD_REG_ELT_TYPE dif = (x ^ y) & mask;
+  if (dif == 0)
+    return 0;
+  int bit = ctz_hwi (dif);
+  int regp1 = bit + 1;
+  if (y & (HARD_CONST (1) << bit))
+    return -regp1;
+  return regp1;
 }
 
 #else
@@ -228,7 +256,7 @@ SET_HARD_REG_SET (HARD_REG_SET &set)
     set.elts[i] = -1;
 }
 
-static inline bool
+inline bool
 hard_reg_set_subset_p (const_hard_reg_set x, const_hard_reg_set y)
 {
   HARD_REG_ELT_TYPE bad = 0;
@@ -237,7 +265,7 @@ hard_reg_set_subset_p (const_hard_reg_set x, const_hard_reg_set y)
   return bad == 0;
 }
 
-static inline bool
+inline bool
 hard_reg_set_intersect_p (const_hard_reg_set x, const_hard_reg_set y)
 {
   HARD_REG_ELT_TYPE good = 0;
@@ -246,13 +274,50 @@ hard_reg_set_intersect_p (const_hard_reg_set x, const_hard_reg_set y)
   return good != 0;
 }
 
-static inline bool
+inline bool
 hard_reg_set_empty_p (const_hard_reg_set x)
 {
   HARD_REG_ELT_TYPE bad = 0;
   for (unsigned int i = 0; i < ARRAY_SIZE (x.elts); ++i)
     bad |= x.elts[i];
   return bad == 0;
+}
+
+inline int
+hard_reg_set_popcount (const_hard_reg_set x)
+{
+  int count = 0;
+  for (unsigned int i = 0; i < ARRAY_SIZE (x.elts); ++i)
+    count += popcount_hwi (x.elts[i]);
+  return count;
+}
+
+/* Return 0 if there aren't any differences between X and Y after the first
+   SKIP registers, or 1 + the register number of the lowest-numbered
+   difference, negated if it's set in Y.  The return value is suitable for
+   qsort.  */
+inline int
+hard_reg_set_first_diff (const_hard_reg_set x, const_hard_reg_set y,
+			 unsigned skip)
+{
+  const HARD_REG_ELT_TYPE full_mask = -1;
+  HARD_REG_ELT_TYPE mask = full_mask << (skip % UHOST_BITS_PER_WIDE_INT);
+  for (unsigned int i = skip / UHOST_BITS_PER_WIDE_INT;
+       i < ARRAY_SIZE (x.elts); ++i)
+    {
+      HARD_REG_ELT_TYPE dif = (x.elts[i] ^ y.elts[i]) & mask;
+      if (dif == 0)
+	{
+	  mask = full_mask;
+	  continue;
+	}
+      int bit = ctz_hwi (dif);
+      int regp1 = bit + 1 + i * UHOST_BITS_PER_WIDE_INT;
+      if (y.elts[i] & (HARD_CONST (1) << bit))
+	return -regp1;
+      return regp1;
+    }
+  return 0;
 }
 #endif
 
@@ -277,9 +342,9 @@ struct hard_reg_set_iterator
 
 #define HARD_REG_ELT_BITS UHOST_BITS_PER_WIDE_INT
 
-/* The implementation of the iterator functions is fully analogous to
-   the bitmap iterators.  */
-static inline void
+/* The implementation of the iterator functions is a simplified version of
+   those of bitmap iterators.  */
+inline void
 hard_reg_set_iter_init (hard_reg_set_iterator *iter, const_hard_reg_set set,
                         unsigned min, unsigned *regno)
 {
@@ -295,14 +360,11 @@ hard_reg_set_iter_init (hard_reg_set_iterator *iter, const_hard_reg_set set,
     {
       iter->bits = iter->pelt[iter->word_no];
       iter->bits >>= min % HARD_REG_ELT_BITS;
-
-      /* This is required for correct search of the next bit.  */
-      min += !iter->bits;
+      *regno = min;
     }
-  *regno = min;
 }
 
-static inline bool
+inline bool
 hard_reg_set_iter_set (hard_reg_set_iterator *iter, unsigned *regno)
 {
   while (1)
@@ -313,37 +375,34 @@ hard_reg_set_iter_set (hard_reg_set_iterator *iter, unsigned *regno)
 
       if (iter->bits)
         {
-          /* Find the correct bit and return it.  */
-          while (!(iter->bits & 1))
-            {
-              iter->bits >>= 1;
-              *regno += 1;
-            }
+	  unsigned skip = ctz_hwi (iter->bits);
+	  iter->bits >>= skip;
+	  *regno += skip;
           return (*regno < FIRST_PSEUDO_REGISTER);
         }
-
-      /* Round to the beginning of the next word.  */
-      *regno = (*regno + HARD_REG_ELT_BITS - 1);
-      *regno -= *regno % HARD_REG_ELT_BITS;
 
       /* Find the next non-zero word.  */
       while (++iter->word_no < iter->length)
         {
           iter->bits = iter->pelt[iter->word_no];
           if (iter->bits)
-            break;
-          *regno += HARD_REG_ELT_BITS;
+	    {
+	      *regno = iter->word_no * HARD_REG_ELT_BITS;
+	      break;
+	    }
         }
     }
 }
 
-static inline void
-hard_reg_set_iter_next (hard_reg_set_iterator *iter, unsigned *regno)
+inline void
+hard_reg_set_iter_next (hard_reg_set_iterator *iter, unsigned *)
 {
-  iter->bits >>= 1;
-  *regno += 1;
+  /* Only clear the bit, so that we skip it in iter_set.  */
+  iter->bits &= ~ HARD_CONST (1);
 }
 
+/* SET must not change throughout the iteration.
+   REGNUM (and ITER) may only be changed by the iteration functions.  */
 #define EXECUTE_IF_SET_IN_HARD_REG_SET(SET, MIN, REGNUM, ITER)          \
   for (hard_reg_set_iter_init (&(ITER), (SET), (MIN), &(REGNUM));       \
        hard_reg_set_iter_set (&(ITER), &(REGNUM));                      \
@@ -421,6 +480,9 @@ struct target_hard_regs {
      with the local stack frame are safe, but scant others.  */
   HARD_REG_SET x_regs_invalidated_by_call;
 
+  /* The set of registers that are used by EH_RETURN_DATA_REGNO.  */
+  HARD_REG_SET x_eh_return_data_regs;
+
   /* Table of register numbers in the order in which to try to use them.  */
   int x_reg_alloc_order[FIRST_PSEUDO_REGISTER];
 
@@ -485,6 +547,8 @@ extern struct target_hard_regs *this_target_hard_regs;
 #define call_used_or_fixed_regs \
   (regs_invalidated_by_call | fixed_reg_set)
 #endif
+#define eh_return_data_regs \
+  (this_target_hard_regs->x_eh_return_data_regs)
 #define reg_alloc_order \
   (this_target_hard_regs->x_reg_alloc_order)
 #define inv_reg_alloc_order \

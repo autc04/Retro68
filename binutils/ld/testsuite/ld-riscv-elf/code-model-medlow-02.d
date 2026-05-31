@@ -1,5 +1,5 @@
 #source: code-model.s
-#as: -march=rv64i -mabi=lp64 --defsym __medlow__=1
+#as: -march=rv64i -mabi=lp64 -mlittle-endian --defsym __medlow__=1
 #ld: -Tcode-model-02.ld -melf64lriscv --no-relax
 #objdump: -d -Mno-aliases
 

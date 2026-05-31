@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 AVX512VL/GFNI insns (Intel disassembly)
 #source: avx512vl_gfni.s

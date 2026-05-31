@@ -111,7 +111,7 @@ private struct DRange
         static assert(is(ElementType!DRange == BaseNode*));
     }
 
-nothrow @safe pure:
+nothrow @safe @nogc pure:
     private BaseNode* _first;
     private BaseNode* _last;
 
@@ -185,6 +185,7 @@ Implements a doubly-linked list.
 struct DList(T)
 {
     import std.range : Take;
+    import std.traits : isMutable;
 
     /*
     A Node with a Payload. A PayNode.
@@ -198,8 +199,10 @@ struct DList(T)
 
         this (BaseNode _base, T _payload)
         {
+            import std.algorithm.mutation : move;
+
             this._base = _base;
-            this._payload = _payload;
+            this._payload = move(_payload);
         }
 
         inout(BaseNode)* asBaseNode() inout @trusted
@@ -216,7 +219,12 @@ struct DList(T)
     //Construct as new PayNode, and returns it as a BaseNode.
     static BaseNode* createNode(Stuff)(auto ref Stuff arg, BaseNode* prev = null, BaseNode* next = null)
     {
-        return (new PayNode(BaseNode(prev, next), arg)).asBaseNode();
+        import std.algorithm.mutation : move;
+
+        static if (isMutable!Stuff)
+            return (new PayNode(BaseNode(prev, next), move(arg))).asBaseNode();
+        else
+            return (new PayNode(BaseNode(prev, next), arg)).asBaseNode();
     }
 
     void initialize() nothrow @safe pure
@@ -241,7 +249,8 @@ struct DList(T)
 /**
 Constructor taking a number of nodes
      */
-    this(U)(U[] values...) if (isImplicitlyConvertible!(U, T))
+    this(U)(U[] values...)
+    if (isImplicitlyConvertible!(U, T))
     {
         insertBack(values);
     }
@@ -442,7 +451,7 @@ iterating over the container are never invalidated.
 
 Returns: The number of elements inserted
 
-Complexity: $(BIGOH log(n))
+Complexity: $(BIGOH m), where `m` is the length of `stuff`
      */
     size_t insertFront(Stuff)(Stuff stuff)
     {
@@ -721,7 +730,9 @@ Complexity: $(BIGOH n)
      */
     bool linearRemoveElement(T value)
     {
-        auto n1 = findNodeByValue(_root, value);
+        import std.algorithm.mutation : move;
+
+        auto n1 = findNodeByValue(_root, move(value));
         if (n1)
         {
             auto n2 = n1._next._next;
@@ -1117,4 +1128,47 @@ private:
     auto a = DList!int();
     a.insertFront(iota(0, 5)); // can insert range with non-ref front
     assert(a.front == 0 && a.back == 4);
+}
+
+// https://issues.dlang.org/show_bug.cgi?id=22147
+@safe unittest
+{
+    import std.algorithm.mutation : move;
+
+    static struct Item
+    {
+        @disable this(this);
+
+        int x;
+    }
+
+    auto list = DList!Item();
+    list.insertFront(Item(1));
+    assert(list[].walkLength == 1);
+    assert(list.front.x == 1);
+    auto item = list.moveFront;
+    item.x = 2;
+    list.front = move(item);
+    assert(list.front.x == 2);
+    list.removeFront();
+    assert(list[].walkLength == 0);
+}
+
+//  https://issues.dlang.org/show_bug.cgi?id=24637
+@safe unittest
+{
+    import std.algorithm.comparison : equal;
+
+    struct A
+    {
+        int c;
+    }
+
+    DList!A B;
+    B.insert(A(1));
+    assert(B[].equal([A(1)]));
+
+    const a = A(3);
+    B.insert(a);
+    assert(B[].equal([A(1), A(3)]));
 }

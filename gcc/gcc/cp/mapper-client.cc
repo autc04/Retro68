@@ -1,5 +1,5 @@
 /* C++ modules.  Experimental!
-   Copyright (C) 2017-2022 Free Software Foundation, Inc.
+   Copyright (C) 2017-2026 Free Software Foundation, Inc.
    Written by Nathan Sidwell <nathan@acm.org> while at FaceBook
 
    This file is part of GCC.
@@ -27,13 +27,15 @@ along with GCC; see the file COPYING3.  If not see
 #define INCLUDE_STRING
 #define INCLUDE_VECTOR
 #define INCLUDE_MAP
-#define INCLUDE_MEMORY
 #include "system.h"
+#include "libiberty.h"
 
 #include "line-map.h"
+#include "rich-location.h"
 #include "diagnostic-core.h"
 #include "mapper-client.h"
 #include "intl.h"
+#include "mkdeps.h"
 
 #include "../../c++tools/resolver.h"
 
@@ -50,37 +52,18 @@ static module_client *
 spawn_mapper_program (char const **errmsg, std::string &name,
 		      char const *full_program_name)
 {
-  /* Split writable at white-space.  No space-containing args for
-     you!  */
-  // At most every other char could be an argument
-  char **argv = new char *[name.size () / 2 + 2];
-  unsigned arg_no = 0;
-  char *str = new char[name.size ()];
-  memcpy (str, name.c_str () + 1, name.size ());
+  // Split mapper argument into parameters.
+  char** original_argv = buildargv (name.c_str () + 1);
+  int arg_no = countargv (original_argv);
+  char **argv = new char *[arg_no + 1];
+  for (int i = 0; i < arg_no; i++)
+    argv[i] = original_argv[i];
 
-  for (auto ptr = str; ; ++ptr)
-    {
-      while (*ptr == ' ')
-	ptr++;
-      if (!*ptr)
-	break;
-
-      if (!arg_no)
-	{
-	  /* @name means look in the compiler's install dir.  */
-	  if (ptr[0] == '@')
-	    ptr++;
-	  else
-	    full_program_name = nullptr;
-	}
-
-      argv[arg_no++] = ptr;
-      while (*ptr && *ptr != ' ')
-	ptr++;
-      if (!*ptr)
-	break;
-      *ptr = 0;
-    }
+  /* @name means look in the compiler's install dir.  */
+  if (arg_no && argv[0][0] == '@')
+    argv[0] = argv[0] + 1;
+  else
+    full_program_name = nullptr;
   argv[arg_no] = nullptr;
 
   auto *pex = pex_init (PEX_USE_PIPES, progname, NULL);
@@ -107,8 +90,8 @@ spawn_mapper_program (char const **errmsg, std::string &name,
       int err;
       *errmsg = pex_run (pex, flags, argv[0], argv, NULL, NULL, &err);
     }
-  delete[] str;
   delete[] argv;
+  freeargv (original_argv);
 
   int fd_from = -1, fd_to = -1;
   if (!*errmsg)
@@ -132,6 +115,7 @@ spawn_mapper_program (char const **errmsg, std::string &name,
 
 module_client *
 module_client::open_module_client (location_t loc, const char *o,
+				   class mkdeps *deps,
 				   void (*set_repo) (const char *),
 				   char const *full_program_name)
 {
@@ -227,6 +211,8 @@ module_client::open_module_client (location_t loc, const char *o,
 		int fd = -1;
 #if CODY_NETWORKING
 		fd = Cody::OpenLocal (&errmsg, name.c_str () + 1);
+#else
+		errmsg = "disabled";
 #endif
 		if (fd >= 0)
 		  c = new module_client (fd, fd);
@@ -254,6 +240,8 @@ module_client::open_module_client (location_t loc, const char *o,
 			int fd = -1;
 #if CODY_NETWORKING
 			fd = Cody::OpenInet6 (&errmsg, name.c_str (), port);
+#else
+			errmsg = "disabled";
 #endif
 			name[colon] = ':';
 
@@ -261,7 +249,7 @@ module_client::open_module_client (location_t loc, const char *o,
 			  c = new module_client (fd, fd);
 		      }
 		  }
-		
+
 	      }
 	      break;
 	    }
@@ -281,13 +269,16 @@ module_client::open_module_client (location_t loc, const char *o,
 	  errmsg = "opening";
 	else
 	  {
+	    /* Add the mapper file to the dependency tracking. */
+	    if (deps)
+	      deps_add_dep (deps, name.c_str ());
 	    if (int l = r->read_tuple_file (fd, ident, false))
 	      {
 		if (l > 0)
 		  line = l;
 		errmsg = "reading";
 	      }
-	      
+
 	    close (fd);
 	  }
 	}

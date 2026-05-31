@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,6 +33,26 @@ package Sem_Ch10 is
    procedure Analyze_Task_Body_Stub                     (N : Node_Id);
    procedure Analyze_Protected_Body_Stub                (N : Node_Id);
    procedure Analyze_Subunit                            (N : Node_Id);
+
+   procedure Decorate_Type
+     (Ent         : Entity_Id;
+      Scop        : Entity_Id;
+      Is_Tagged   : Boolean := False;
+      Materialize : Boolean := False);
+   --  Perform minimal decoration of a type or its corresponding shadow
+   --  entity denoted by Ent. Scop is the proper scope. Flag Is_Tagged
+   --  should be set when Ent is a tagged type. Flag Materialize should be
+   --  set when Ent is a tagged type and its class-wide type needs to appear
+   --  in the tree.
+
+   procedure Expand_With_Clause (Item : Node_Id; Nam : Node_Id; N : Node_Id);
+   --  When a child unit appears in a context clause, the implicit withs on
+   --  parents are made explicit, and with clauses are inserted in the context
+   --  clause before the one for the child. If a parent in the with_clause
+   --  is a renaming, the implicit with_clause is on the renaming whose name
+   --  is mentioned in the with_clause, and not on the package it renames.
+   --  N is the compilation unit whose list of context items receives the
+   --  implicit with_clauses.
 
    procedure Install_Context (N : Node_Id; Chain : Boolean := True);
    --  Installs the entities from the context clause of the given compilation

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -60,11 +60,10 @@ package Ttypes is
    --  Two approaches are used for handling target dependent values in the
    --  standard library packages. Package Standard is handled specially,
    --  being constructed internally (by package Stand). Target dependent
-   --  values needed in Stand are obtained by direct reference to Ttypes
-   --  and Ttypef.
+   --  values needed in Stand are obtained by direct reference to Ttypes.
 
    --  For package System, there is a separate version for each target, with
-   --  explicit declarations of the required, constants.
+   --  explicit declarations of the required constants.
 
    --  Historical note: Originally we had in mind dealing with target dependent
    --  differences by referencing appropriate attributes. Ada 95 already
@@ -178,16 +177,14 @@ package Ttypes is
    ----------------------------------------
 
    Maximum_Alignment : constant Pos := Set_Targ.Maximum_Alignment;
-   --  The maximum alignment, in storage units, that an object or type may
-   --  require on the target machine.
+   --  The maximum default alignment, in storage units, that an object or type
+   --  may require on the target machine. The implementation must never choose
+   --  a larger alignment on its own, that is to say when it is not explicitly
+   --  requested by an alignment aspect/clause in the source code.
 
    System_Allocator_Alignment : constant Pos :=
                                   Set_Targ.System_Allocator_Alignment;
    --  The alignment in storage units of addresses returned by malloc
-
-   Max_Unaligned_Field : constant Pos := Set_Targ.Max_Unaligned_Field;
-   --  The maximum supported size in bits for a field that is not aligned
-   --  on a storage unit boundary.
 
    Bytes_Big_Endian : Boolean := Set_Targ.Bytes_BE /= 0;
    --  Important note: for Ada purposes, the important setting is the bytes

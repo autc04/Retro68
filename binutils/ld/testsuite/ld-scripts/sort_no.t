@@ -1,5 +1,5 @@
 SECTIONS
 {
   .text : {*(.text*)}
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

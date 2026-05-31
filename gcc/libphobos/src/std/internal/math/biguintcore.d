@@ -250,7 +250,8 @@ private:
        data = x;
     }
   package(std)  // used from: std.bigint
-    this(T)(T x) pure nothrow @safe scope if (isIntegral!T)
+    this(T)(T x) pure nothrow @safe scope
+    if (isIntegral!T)
     {
         opAssign(x);
     }
@@ -312,7 +313,8 @@ public:
     }
 
     ///
-    void opAssign(Tulong)(Tulong u) pure nothrow @safe scope if (is (Tulong == ulong))
+    void opAssign(Tulong)(Tulong u) pure nothrow @safe scope
+    if (is (Tulong == ulong))
     {
         if (u == 0) data = ZERO;
         else if (u == 1) data = ONE;
@@ -356,7 +358,8 @@ public:
     }
 
     ///
-    int opCmp(Tulong)(Tulong y) pure nothrow @nogc const @safe scope if (is (Tulong == ulong))
+    int opCmp(Tulong)(Tulong y) pure nothrow @nogc const @safe scope
+    if (is (Tulong == ulong))
     {
         if (data.length > maxBigDigits!Tulong)
             return 1;
@@ -501,8 +504,8 @@ public:
     }
 
     // return false if invalid character found
-    bool fromHexString(Range)(Range s) scope if (
-        isBidirectionalRange!Range && isSomeChar!(ElementType!Range))
+    bool fromHexString(Range)(Range s) scope
+    if (isBidirectionalRange!Range && isSomeChar!(ElementType!Range))
     {
         import std.range : walkLength;
 
@@ -570,8 +573,8 @@ public:
     }
 
     // return true if OK; false if erroneous characters found
-    bool fromDecimalString(Range)(Range s) scope if (
-        isForwardRange!Range && isSomeChar!(ElementType!Range))
+    bool fromDecimalString(Range)(Range s) scope
+    if (isForwardRange!Range && isSomeChar!(ElementType!Range))
     {
         import std.range : walkLength;
 
@@ -596,9 +599,9 @@ public:
     }
 
     void fromMagnitude(Range)(Range magnitude) scope
-        if (isInputRange!Range
-            && (isForwardRange!Range || hasLength!Range)
-            && isUnsigned!(ElementType!Range))
+    if (isInputRange!Range
+        && (isForwardRange!Range || hasLength!Range)
+        && isUnsigned!(ElementType!Range))
     {
         while (!magnitude.empty && magnitude.front == 0)
             magnitude.popFront;
@@ -711,7 +714,7 @@ public:
 
     // return x >> y
     BigUint opBinary(string op, Tulong)(Tulong y) pure nothrow @safe const return scope
-        if (op == ">>" && is (Tulong == ulong))
+    if (op == ">>" && is (Tulong == ulong))
     {
         assert(y > 0, "Can not right shift BigUint by 0");
         uint bits = cast(uint) y & BIGDIGITSHIFTMASK;
@@ -735,7 +738,7 @@ public:
 
     // return x << y
     BigUint opBinary(string op, Tulong)(Tulong y) pure nothrow @safe const scope
-        if (op == "<<" && is (Tulong == ulong))
+    if (op == "<<" && is (Tulong == ulong))
     {
         assert(y > 0, "Can not left shift BigUint by 0");
         if (isZero()) return this;
@@ -761,8 +764,8 @@ public:
 
     // If wantSub is false, return x + y, leaving sign unchanged
     // If wantSub is true, return abs(x - y), negating sign if x < y
-    static BigUint addOrSubInt(Tulong)(const scope BigUint x, Tulong y,
-            bool wantSub, ref bool sign) pure nothrow @safe if (is(Tulong == ulong))
+    static BigUint addOrSubInt(Tulong)(const scope BigUint x, Tulong y, bool wantSub, ref bool sign) pure nothrow @safe
+    if (is(Tulong == ulong))
     {
         BigUint r;
         if (wantSub)
@@ -921,7 +924,8 @@ public:
     }
 
     // return x % y
-    static uint modInt(T)(scope BigUint x, T y_) pure if ( is(immutable T == immutable uint) )
+    static uint modInt(T)(scope BigUint x, T y_) pure
+    if ( is(immutable T == immutable uint) )
     {
         import core.memory : GC;
         uint y = y_;
@@ -936,7 +940,11 @@ public:
             uint [] wasteful = new BigDigit[x.data.length];
             wasteful[] = x.data[];
             immutable rem = multibyteDivAssign(wasteful, y, 0);
-            () @trusted { GC.free(wasteful.ptr); } ();
+            if (!__ctfe)
+            {
+                //use free only at runtime
+                () @trusted { GC.free(wasteful.ptr); } ();
+            }
             return rem;
         }
     }
@@ -994,7 +1002,8 @@ public:
 
     // return x op y
     static BigUint bitwiseOp(string op)(scope BigUint x, scope BigUint y, bool xSign, bool ySign, ref bool resultSign)
-    pure nothrow @safe if (op == "|" || op == "^" || op == "&")
+    pure nothrow @safe
+    if (op == "|" || op == "^" || op == "&")
     {
         auto d1 = includeSign(x.data, y.uintLength, xSign);
         auto d2 = includeSign(y.data, x.uintLength, ySign);
@@ -1274,6 +1283,13 @@ pure @safe unittest
    assert(s == 5);
 }
 
+pure @safe unittest
+{ //evaluate mod at compile time
+   enum BigUint r = BigUint([5]);
+   enum BigUint t = BigUint([7]);
+   enum BigUint s = BigUint.mod(r, t);
+   static assert(s == 5);
+}
 
 @safe pure unittest
 {
@@ -1720,7 +1736,11 @@ void mulInternal(BigDigit[] result, const(BigDigit)[] x, const(BigDigit)[] y)
             mulKaratsuba(result[half .. $], y, x[half .. $], scratchbuff);
             BigDigit c = addAssignSimple(result[half .. half + y.length], partial);
             if (c) multibyteIncrementAssign!('+')(result[half + y.length..$], c);
-            () @trusted { GC.free(scratchbuff.ptr); } ();
+            if (!__ctfe)
+            {
+                //use free only at runtime
+                () @trusted { GC.free(scratchbuff.ptr); } ();
+            }
         }
         else
         {
@@ -1779,7 +1799,11 @@ void mulInternal(BigDigit[] result, const(BigDigit)[] x, const(BigDigit)[] y)
                 addAssignSimple(result[done .. done + y.length + chunksize], partial);
                 done += chunksize;
             }
-            () @trusted { GC.free(scratchbuff.ptr); } ();
+            if (!__ctfe)
+            {
+                //use free only at runtime
+                () @trusted { GC.free(scratchbuff.ptr); } ();
+            }
         }
     }
     else
@@ -1787,7 +1811,11 @@ void mulInternal(BigDigit[] result, const(BigDigit)[] x, const(BigDigit)[] y)
         // Balanced. Use Karatsuba directly.
         BigDigit [] scratchbuff = new BigDigit[karatsubaRequiredBuffSize(x.length)];
         mulKaratsuba(result, x, y, scratchbuff);
-        () @trusted { GC.free(scratchbuff.ptr); } ();
+        if (!__ctfe)
+        {
+            //use free only at runtime
+            () @trusted { GC.free(scratchbuff.ptr); } ();
+        }
     }
 }
 
@@ -1823,24 +1851,28 @@ void mulInternal(BigDigit[] result, const(BigDigit)[] x, const(BigDigit)[] y)
  */
 void squareInternal(BigDigit[] result, const BigDigit[] x) pure nothrow @safe
 {
-  import core.memory : GC;
-  // Squaring is potentially half a multiply, plus add the squares of
-  // the diagonal elements.
-  assert(result.length == 2*x.length,
-     "result needs to have twice the capacity of x");
-  if (x.length <= KARATSUBASQUARELIMIT)
-  {
-      if (x.length == 1)
-      {
-         result[1] = multibyteMul(result[0 .. 1], x, x[0], 0);
-         return;
-      }
-      return squareSimple(result, x);
-  }
-  // The nice thing about squaring is that it always stays balanced
-  BigDigit [] scratchbuff = new BigDigit[karatsubaRequiredBuffSize(x.length)];
-  squareKaratsuba(result, x, scratchbuff);
-  () @trusted { GC.free(scratchbuff.ptr); } ();
+    import core.memory : GC;
+    // Squaring is potentially half a multiply, plus add the squares of
+    // the diagonal elements.
+    assert(result.length == 2*x.length,
+        "result needs to have twice the capacity of x");
+    if (x.length <= KARATSUBASQUARELIMIT)
+    {
+        if (x.length == 1)
+        {
+            result[1] = multibyteMul(result[0 .. 1], x, x[0], 0);
+            return;
+        }
+        return squareSimple(result, x);
+    }
+    // The nice thing about squaring is that it always stays balanced
+    BigDigit [] scratchbuff = new BigDigit[karatsubaRequiredBuffSize(x.length)];
+    squareKaratsuba(result, x, scratchbuff);
+    if (!__ctfe)
+    {
+        //use free only at runtime
+        () @trusted { GC.free(scratchbuff.ptr); } ();
+    }
 }
 
 
@@ -1892,7 +1924,11 @@ void divModInternal(BigDigit [] quotient, BigDigit[] remainder, const BigDigit [
         if (s == 0) remainder[] = un[0 .. vn.length];
         else multibyteShr(remainder, un[0 .. vn.length+1], s);
     }
-    () @trusted { GC.free(un.ptr); GC.free(vn.ptr); } ();
+    if (!__ctfe)
+    {
+        //use free only at runtime
+        () @trusted { GC.free(un.ptr); GC.free(vn.ptr); } ();
+    }
 }
 
 pure @safe unittest
@@ -2240,31 +2276,6 @@ do
     }
     return carry;
 }
-
-//  result = left - right
-// returns carry (0 or 1)
-BigDigit subSimple(BigDigit [] result,const(BigDigit) [] left,
-        const(BigDigit) [] right) pure nothrow
-in
-{
-    assert(result.length == left.length,
-        "result and left must be of the same length");
-    assert(left.length >= right.length,
-        "left must be longer or of equal length to right");
-    assert(right.length > 0, "right must not be empty");
-}
-do
-{
-    BigDigit carry = multibyteSub(result[0 .. right.length],
-            left[0 .. right.length], right, 0);
-    if (right.length < left.length)
-    {
-        result[right.length .. left.length] = left[right.length .. $];
-        carry = multibyteIncrementAssign!('-')(result[right.length..$], carry);
-    } //else if (result.length == left.length+1) { result[$-1] = carry; carry=0; }
-    return carry;
-}
-
 
 /* result = result - right
  * Returns carry = 1 if result was less than right.
@@ -2862,7 +2873,11 @@ pure nothrow @safe
         m -= v.length;
     }
     recursiveDivMod(quotient[0 .. m], u[0 .. m + v.length], v, scratch);
-    () @trusted { GC.free(scratch.ptr); } ();
+    if (!__ctfe)
+    {
+        //use free only at runtime
+        () @trusted { GC.free(scratch.ptr); } ();
+    }
 }
 
 @system unittest

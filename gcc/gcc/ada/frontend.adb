@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,7 +38,6 @@ with Ghost;          use Ghost;
 with Inline;         use Inline;
 with Lib;            use Lib;
 with Lib.Load;       use Lib.Load;
-with Lib.Xref;
 with Live;           use Live;
 with Namet;          use Namet;
 with Nlists;         use Nlists;
@@ -56,11 +55,11 @@ with Scn;            use Scn;
 with Sem;            use Sem;
 with Sem_Aux;
 with Sem_Ch8;
+with Sem_Ch12;
 with Sem_SCIL;
 with Sem_Elab;       use Sem_Elab;
 with Sem_Prag;       use Sem_Prag;
 with Sem_Warn;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinfo.Utils;    use Sinfo.Utils;
 with Sinput;         use Sinput;
@@ -68,7 +67,7 @@ with Sinput.L;       use Sinput.L;
 with SCIL_LL;
 with Tbuild;         use Tbuild;
 with Types;          use Types;
-with VAST;
+with Warnsw;         use Warnsw;
 
 procedure Frontend is
 begin
@@ -157,7 +156,6 @@ begin
       --  intended -gnatg or -gnaty compilations. We also disconnect checking
       --  for maximum line length.
 
-      Opt.Style_Check := False;
       Style_Check := False;
 
       --  Capture current suppress options, which may get modified
@@ -286,13 +284,6 @@ begin
 
       Save_Config_Cunit_Boolean_Restrictions;
 
-      --  If there was a -gnatem switch, initialize the mappings of unit names
-      --  to file names and of file names to path names from the mapping file.
-
-      if Mapping_File_Name /= null then
-         Fmap.Initialize (Mapping_File_Name.all);
-      end if;
-
       --  Adjust Optimize_Alignment mode from debug switches if necessary
 
       if Debug_Flag_Dot_SS then
@@ -375,11 +366,12 @@ begin
       --  If we have restriction No_Exception_Propagation, and we did not have
       --  an explicit switch turning off Warn_On_Non_Local_Exception, then turn
       --  on this warning by default if we have encountered an exception
-      --  handler.
+      --  handler. We do not override the setting of GNATprove.
 
       if Restriction_Check_Required (No_Exception_Propagation)
         and then not No_Warn_On_Non_Local_Exception
         and then Exception_Handler_Encountered
+        and then not GNATprove_Mode
       then
          Warn_On_Non_Local_Exception := True;
       end if;
@@ -387,9 +379,7 @@ begin
       --  Disable Initialize_Scalars for runtime files to avoid circular
       --  dependencies.
 
-      if Initialize_Scalars
-        and then Fname.Is_Predefined_File_Name (File_Name (Main_Source_File))
-      then
+      if Initialize_Scalars and then Is_Predefined_Unit (Main_Unit) then
          Initialize_Scalars   := False;
          Init_Or_Norm_Scalars := Normalize_Scalars;
       end if;
@@ -425,26 +415,31 @@ begin
 
             --  Cleanup processing after completing main analysis
 
-            --  In GNATprove_Mode we do not perform most expansions but body
-            --  instantiation is needed.
-
-            pragma Assert
-              (Operating_Mode = Generate_Code
-                or else Operating_Mode = Check_Semantics);
-
-            if Operating_Mode = Generate_Code
-              or else GNATprove_Mode
-            then
-               Instantiate_Bodies;
-            end if;
-
-            --  Analyze all inlined bodies, check access-before-elaboration
-            --  rules, and remove ignored Ghost code when generating code or
-            --  compiling for GNATprove.
+            pragma Assert (Operating_Mode in Check_Semantics | Generate_Code);
 
             if Operating_Mode = Generate_Code or else GNATprove_Mode then
+
+               --  In GNATprove_Mode we do not perform most expansions but body
+               --  instantiation is needed.
+
+               Instantiate_Bodies;
+
+               --  Analyze inlined bodies if required
+
                if Inline_Processing_Required then
                   Analyze_Inlined_Bodies;
+               end if;
+
+               --  Mark the structural instances spawned by the main unit as
+               --  Link Once because other units may spawn them too.
+
+               Sem_Ch12.Mark_Link_Once
+                 (Declarations (Aux_Decls_Node (Cunit (Main_Unit))));
+
+               if Nkind (Unit (Cunit (Main_Unit))) = N_Package_Body then
+                  Sem_Ch12.Mark_Link_Once
+                    (Declarations
+                      (Aux_Decls_Node (Spec_Lib_Unit (Cunit (Main_Unit)))));
                end if;
 
                --  Remove entities from program that do not have any execution
@@ -453,6 +448,8 @@ begin
                if Debug_Flag_UU then
                   Collect_Garbage_Entities;
                end if;
+
+               --  Check access-before-elaboration rules
 
                if Legacy_Elaboration_Checks then
                   Check_Elab_Calls;
@@ -481,7 +478,6 @@ begin
 
             --  Output waiting warning messages
 
-            Lib.Xref.Process_Deferred_References;
             Sem_Warn.Output_Non_Modified_In_Out_Warnings;
             Sem_Warn.Output_Unreferenced_Messages;
             Sem_Warn.Check_Unused_Withs;
@@ -491,7 +487,7 @@ begin
             --  executable. This action must be performed very late because it
             --  heavily alters the tree.
 
-            if Operating_Mode = Generate_Code or else GNATprove_Mode then
+            if Operating_Mode = Generate_Code and not CodePeer_Mode then
                Remove_Ignored_Ghost_Code;
             end if;
 
@@ -517,12 +513,6 @@ begin
    if Generate_SCIL then
       pragma Debug (Sem_SCIL.Check_SCIL_Nodes (Cunit (Main_Unit)));
       null;
-   end if;
-
-   --  Verify the validity of the tree
-
-   if Debug_Flag_Underscore_VV then
-      VAST.Check_Tree (Cunit (Main_Unit));
    end if;
 
    --  Dump the source now. Note that we do this as soon as the analysis
@@ -560,6 +550,4 @@ begin
    if Mapping_File_Name /= null then
       Fmap.Update_Mapping_File (Mapping_File_Name.all);
    end if;
-
-   return;
 end Frontend;

@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022 Free Software Foundation, Inc.
+// Copyright (C) 2020-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -15,8 +15,7 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-// { dg-options "-std=gnu++2a" }
-// { dg-do run { target c++2a } }
+// { dg-do run { target c++20 } }
 
 #include <algorithm>
 #include <ranges>
@@ -244,7 +243,7 @@ test08()
 
   long b[10]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
   test_range<long, ra_test_wrapper> rb(b);
-  ranges::subrange sized = {rb.begin(), rb.begin()+6};
+  ranges::subrange sized = {rb.begin(), ranges::next(rb.begin(), 6)};
   using Sized = decltype(sized);
   static_assert( ranges::random_access_range<Sized> );
   static_assert( ranges::sized_range<Sized> );
@@ -275,6 +274,17 @@ test09()
   static_assert(!requires { views::all | drop; });
 }
 
+constexpr bool
+test10()
+{
+  // PR libstdc++/112641 - drop_view::begin const may have O(n) complexity
+  const auto s = ranges::subrange(views::iota(size_t(1)), size_t(-1));
+  const auto r = ranges::drop_view(s, s.size() - 1);
+  const auto b = r.begin(); // time out
+  VERIFY( *b == size_t(-1) );
+  return true;
+}
+
 int
 main()
 {
@@ -287,4 +297,5 @@ main()
   test07();
   test08();
   test09();
+  static_assert(test10());
 }

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 KEYLOCKER insns (Intel disassembly)
 #source: keylocker.s

@@ -1,4 +1,4 @@
-.. Copyright (C) 2014-2022 Free Software Foundation, Inc.
+.. Copyright (C) 2014-2026 Free Software Foundation, Inc.
    Originally contributed by David Malcolm <dmalcolm@redhat.com>
 
    This is free software: you can redistribute it and/or modify it
@@ -137,7 +137,7 @@ Running under valgrind
 The jit testsuite detects if :envvar:`RUN_UNDER_VALGRIND` is present in the
 environment (with any value).  If it is present, it runs the test client
 code under `valgrind <https://valgrind.org>`_,
-specifcally, the default
+specifically, the default
 `memcheck <https://valgrind.org/docs/manual/mc-manual.html>`_
 tool with
 `--leak-check=full
@@ -291,8 +291,7 @@ For example:
 Overview of code structure
 --------------------------
 
-The library is implemented in C++.  The source files have the ``.c``
-extension for legacy reasons.
+The library is implemented in C++.
 
 * ``libgccjit.cc`` implements the API entrypoints.  It performs error
   checking, then calls into classes of the gcc::jit::recording namespace
@@ -359,7 +358,7 @@ in your email (along with the host triple that the tests were run on).
 
 A good patch should contain the information listed in the
 gcc contribution guide linked to above; for a ``jit`` patch, the patch
-shold contain:
+should contain:
 
   * the code itself (for example, a new API entrypoint will typically
     touch ``libgccjit.h`` and ``.c``, along with support code in

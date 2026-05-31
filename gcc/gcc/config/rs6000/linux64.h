@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for 64 bit PowerPC linux.
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -224,9 +224,7 @@ extern int dot_symbols;
 #undef  ROUND_TYPE_ALIGN
 #define ROUND_TYPE_ALIGN(STRUCT, COMPUTED, SPECIFIED)			\
   ((TARGET_64BIT							\
-    && (TREE_CODE (STRUCT) == RECORD_TYPE				\
-	|| TREE_CODE (STRUCT) == UNION_TYPE				\
-	|| TREE_CODE (STRUCT) == QUAL_UNION_TYPE)			\
+    && RECORD_OR_UNION_TYPE_P (STRUCT)			\
     && TARGET_ALIGN_NATURAL == 0)					\
    ? rs6000_special_round_type_align (STRUCT, COMPUTED, SPECIFIED)	\
    : MAX ((COMPUTED), (SPECIFIED)))
@@ -287,6 +285,9 @@ extern int dot_symbols;
    this includes full c99 runtime and sincos.  */
 #undef TARGET_LIBC_HAS_FUNCTION
 #define TARGET_LIBC_HAS_FUNCTION linux_libc_has_function
+
+#undef TARGET_LIBM_FUNCTION_MAX_ERROR
+#define TARGET_LIBM_FUNCTION_MAX_ERROR rs6000_linux_libm_function_max_error
 
 #undef  TARGET_OS_CPP_BUILTINS
 #define TARGET_OS_CPP_BUILTINS()			\
@@ -392,9 +393,9 @@ extern int dot_symbols;
 /* Use gnu-user.h LINK_GCC_SEQUENCE_SPEC for linux.  */
 #undef LINK_GCC_C_SEQUENCE_SPEC
 #define	LINK_GCC_C_SEQUENCE_SPEC \
-  "%{mads|myellowknife|mmvme|msim:%G %L %G;" \
+  "%{mads|myellowknife|mmvme|msim:%G" LINK_LIBATOMIC_SPEC "%L %G;" \
   "!mcall-*|mcall-linux:" GNU_USER_TARGET_LINK_GCC_C_SEQUENCE_SPEC ";" \
-  ":%G %L %G}"
+  ":%G" LINK_LIBATOMIC_SPEC "%L %G}"
 
 #undef  TOC_SECTION_ASM_OP
 #define TOC_SECTION_ASM_OP \

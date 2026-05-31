@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: --defsym DIRECTIVE=1
+#as: -menable-sysreg-checking --defsym DIRECTIVE=1
 #source: virthostext.s
 
 

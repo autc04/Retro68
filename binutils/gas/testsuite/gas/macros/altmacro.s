@@ -1,5 +1,5 @@
-# Check use of LOCAL directive inside .altmacro.
-# Test derived from PR 11507.
+/* Check use of LOCAL directive inside .altmacro.
+   Test derived from PR 11507.  */
 
         .altmacro
 	
@@ -7,12 +7,12 @@
                 .print "local "
         .endm
 
-	.macro DEF
+	.macro EDF
 		LOCAL fred
 		.print "fred"
 	.endm
 
-# This one is just being perverse, but it should work.
+/* This one is just being perverse, but it should work.  */
 	.macro GHI
 		local local
 		.print "local"
@@ -21,6 +21,6 @@
 	
         ABC
 
-	DEF
+	EDF
 
 	GHI

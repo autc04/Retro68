@@ -1,20 +1,11 @@
-.macro cond1
+.syntax unified
+.thumb
+
 .irp cond, eq, ne, gt, ge, lt, le
 it \cond
 vbic q0, q1, q2
 .endr
-.endm
 
-.macro cond2
-.irp cond, eq, ne, gt, ge, lt, le
-it \cond
-vbic.i16 q0, #255
-.endr
-.endm
-
-.syntax unified
-.thumb
-cond1
 it eq
 vbiceq q0, q1, q2
 vbiceq q0, q1, q2
@@ -23,7 +14,12 @@ vbiceq q0, q1, q2
 vpst
 vbic q0, q1, q2
 vbict q0, q1, q2
-cond2
+
+.irp cond, eq, ne, gt, ge, lt, le
+it \cond
+vbic.i16 q0, #255
+.endr
+
 it eq
 vbiceq.i16 q0, #255
 vbiceq.i16 q0, #255

@@ -2,7 +2,7 @@
 #source: retain7.s
 #ld: -e _start --gc-sections
 # hppa-linux chooses ELFOSABI_GNU regardless of GNU feature use
-#notarget: ![supports_gnu_osabi] ![check_gc_sections_available] hppa-*-linux*
+#notarget: ![supports_gnu_osabi] ![check_gc_sections_available] hppa-*-linux* hppa[12]*-*-linux*
 #readelf: -h
 
 #failif

@@ -1,6 +1,6 @@
 dnl Process this with autoconf to create configure
 
-AC_INIT([zlib], [1.1.4])
+AC_INIT([zlib], [1.3.1])
 AC_CONFIG_SRCDIR([zlib.h])
 
 if test -n "${with_target_subdir}"; then
@@ -14,7 +14,6 @@ mkinstalldirs="`cd $ac_aux_dir && ${PWDCMD-pwd}`/mkinstalldirs"
 AC_SUBST(mkinstalldirs)
 
 AM_INIT_AUTOMAKE
-AM_SILENT_RULES([yes])
 
 AM_MAINTAINER_MODE
 
@@ -60,7 +59,12 @@ m4_rename_force([real_PRECIOUS],[_AC_ARG_VAR_PRECIOUS])
 
 AC_SUBST(CFLAGS)
 
+# Add CET specific flags if CET is enabled
+GCC_CET_FLAGS(CET_FLAGS)
+AC_SUBST(CET_FLAGS)
+
 AC_PROG_LIBTOOL
+AM_CONDITIONAL([ENABLE_DARWIN_AT_RPATH], [test x$enable_darwin_at_rpath = xyes])
 
 # Find CPP now so that any conditional tests below won't do it and
 # thereby make the resulting definitions conditional.
@@ -75,28 +79,26 @@ if test -n "$with_cross_host"; then
    # we'll have.
    AC_DEFINE(HAVE_MEMCPY)
    AC_DEFINE(HAVE_STRERROR)
-
-   # We ignore --with-system-zlib in this case.
-   target_all=libzgcj.la
 else
    AC_FUNC_MMAP
    AC_CHECK_FUNCS(memcpy strerror)
-
-   if test "$with_system_zlib" = yes; then
-      AC_CHECK_LIB(z, deflate, target_all=, target_all=libzgcj.la)
-   else
-      target_all=libzgcj.la
-   fi
 fi
 
-AC_SUBST(target_all)
-
 AC_CHECK_HEADERS(unistd.h)
+
+GCC_WITH_TOOLEXECLIBDIR
 
 if test -n "$with_cross_host" &&
    test x"$with_cross_host" != x"no"; then
   toolexecdir='$(exec_prefix)/$(target_alias)'
-  toolexeclibdir='$(toolexecdir)/lib'
+  case ${with_toolexeclibdir} in
+    no)
+      toolexeclibdir='$(toolexecdir)/lib'
+      ;;
+    *)
+      toolexeclibdir=${with_toolexeclibdir}
+      ;;
+  esac
 else
   toolexecdir='$(libdir)/gcc-lib/$(target_alias)'
   toolexeclibdir='$(libdir)'
@@ -121,11 +123,26 @@ else
   multilib_arg=
 fi
 
+# Enable --enable-host-shared.
 AC_ARG_ENABLE(host-shared,
 [AS_HELP_STRING([--enable-host-shared],
-		[build host code as shared libraries])],
-[PICFLAG=-fPIC], [PICFLAG=])
-AC_SUBST(PICFLAG)
+		[build host code as shared libraries])])
+AC_SUBST(enable_host_shared)
 
+# Enable --enable-host-pie.
+AC_ARG_ENABLE(host-pie,
+[AS_HELP_STRING([--enable-host-pie],
+		[build host code as PIE])])
+AC_SUBST(enable_host_pie)
+
+if test x$enable_host_shared = xyes; then
+  PICFLAG=-fPIC
+elif test x$enable_host_pie = xyes; then
+  PICFLAG=-fPIE
+else
+  PICFLAG=
+fi
+
+AC_SUBST(PICFLAG)
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

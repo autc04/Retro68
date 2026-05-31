@@ -2,6 +2,8 @@
 #warning_output: sve-movprfx_3.l
 #as: -march=armv8-a+sve -I$srcdir/$subdir --generate-missing-build-notes=no
 #objdump: -Dr -M notes
+# This test is only valid on ELF based ports.
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 .* file format .*
 

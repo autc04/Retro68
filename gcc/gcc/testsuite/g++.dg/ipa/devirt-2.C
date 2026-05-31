@@ -1,7 +1,7 @@
 /* Verify that simple virtual calls using this pointer are converted
    to direct calls by ipa-cp.  */
 /* { dg-do run } */
-/* { dg-options "-O3 -fno-early-inlining -fno-inline -fdump-ipa-cp"  } */
+/* { dg-options "-O3 -fno-early-inlining -fno-inline -fdump-ipa-cp --param max-devirt-targets=1"  } */
 
 extern "C" void abort (void);
 
@@ -43,7 +43,7 @@ int C::foo (int i)
   return i + 3;
 }
 
-int __attribute__ ((noinline,noclone)) get_input(void)
+int __attribute__ ((noinline,noclone,noipa)) get_input(void)
 {
   return 1;
 }

@@ -1,6 +1,6 @@
 /* { dg-do compile } */
 /* { dg-options "-fopenmp" } */
-
+// { dg-additional-options "-Wno-deprecated-openmp" }
 int foo (void), bar (void);
 extern int a;
 int b;
@@ -10,4 +10,4 @@ long c;
 #pragma omp end declare target
 
 #pragma omp declare target (bar, a)
-#pragma omp declare target to (b) link (d) to (foo)
+#pragma omp declare target to (b) link (d) enter (foo)

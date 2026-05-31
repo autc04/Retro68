@@ -1,54 +1,54 @@
 [^:]*: Assembler messages:
-[^:]*:10: Error: bad type in SIMD instruction -- `vqrshrnt.s8 q0,q1,#1'
-[^:]*:11: Error: bad type in SIMD instruction -- `vqrshrnt.s64 q0,q1,#1'
-[^:]*:12: Error: immediate operand expected in the range \[1,8\] -- `vqrshrnt.s16 q0,q1,#0'
-[^:]*:13: Error: immediate operand expected in the range \[1,8\] -- `vqrshrnt.s16 q0,q1,#9'
-[^:]*:14: Error: immediate operand expected in the range \[1,16\] -- `vqrshrnt.s32 q0,q1,#0'
-[^:]*:15: Error: immediate operand expected in the range \[1,16\] -- `vqrshrnt.s32 q0,q1,#17'
-[^:]*:16: Error: bad type in SIMD instruction -- `vqrshrnb.s8 q0,q1,#1'
-[^:]*:17: Error: bad type in SIMD instruction -- `vqrshrnb.s64 q0,q1,#1'
-[^:]*:18: Error: immediate operand expected in the range \[1,8\] -- `vqrshrnb.s16 q0,q1,#0'
-[^:]*:19: Error: immediate operand expected in the range \[1,8\] -- `vqrshrnb.s16 q0,q1,#9'
-[^:]*:20: Error: immediate operand expected in the range \[1,16\] -- `vqrshrnb.s32 q0,q1,#0'
-[^:]*:21: Error: immediate operand expected in the range \[1,16\] -- `vqrshrnb.s32 q0,q1,#17'
-[^:]*:22: Error: bad type in SIMD instruction -- `vqrshrunt.s8 q0,q1,#1'
-[^:]*:23: Error: bad type in SIMD instruction -- `vqrshrunt.s64 q0,q1,#1'
-[^:]*:24: Error: immediate operand expected in the range \[1,8\] -- `vqrshrunt.s16 q0,q1,#0'
-[^:]*:25: Error: immediate operand expected in the range \[1,8\] -- `vqrshrunt.s16 q0,q1,#9'
-[^:]*:26: Error: immediate operand expected in the range \[1,16\] -- `vqrshrunt.s32 q0,q1,#0'
-[^:]*:27: Error: immediate operand expected in the range \[1,16\] -- `vqrshrunt.s32 q0,q1,#17'
-[^:]*:28: Error: bad type in SIMD instruction -- `vqrshrunt.u16 q0,q1,#1'
-[^:]*:29: Error: bad type in SIMD instruction -- `vqrshrunb.s8 q0,q1,#1'
-[^:]*:30: Error: bad type in SIMD instruction -- `vqrshrunb.s64 q0,q1,#1'
-[^:]*:31: Error: immediate operand expected in the range \[1,8\] -- `vqrshrunb.s16 q0,q1,#0'
-[^:]*:32: Error: immediate operand expected in the range \[1,8\] -- `vqrshrunb.s16 q0,q1,#9'
-[^:]*:33: Error: immediate operand expected in the range \[1,16\] -- `vqrshrunb.s32 q0,q1,#0'
-[^:]*:34: Error: immediate operand expected in the range \[1,16\] -- `vqrshrunb.s32 q0,q1,#17'
-[^:]*:35: Error: bad type in SIMD instruction -- `vqrshrunb.u16 q0,q1,#1'
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:36: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:37: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:38: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:38: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:38: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:38: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:38: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:38: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:39: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:39: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:39: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:39: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:39: Warning: instruction is UNPREDICTABLE in an IT block
-[^:]*:39: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:4: Error: bad type in SIMD instruction -- `vqrshrnt.s8 q0,q1,#1'
+[^:]*:5: Error: bad type in SIMD instruction -- `vqrshrnt.s64 q0,q1,#1'
+[^:]*:6: Error: immediate operand expected in the range \[1,8\] -- `vqrshrnt.s16 q0,q1,#0'
+[^:]*:7: Error: immediate operand expected in the range \[1,8\] -- `vqrshrnt.s16 q0,q1,#9'
+[^:]*:8: Error: immediate operand expected in the range \[1,16\] -- `vqrshrnt.s32 q0,q1,#0'
+[^:]*:9: Error: immediate operand expected in the range \[1,16\] -- `vqrshrnt.s32 q0,q1,#17'
+[^:]*:10: Error: bad type in SIMD instruction -- `vqrshrnb.s8 q0,q1,#1'
+[^:]*:11: Error: bad type in SIMD instruction -- `vqrshrnb.s64 q0,q1,#1'
+[^:]*:12: Error: immediate operand expected in the range \[1,8\] -- `vqrshrnb.s16 q0,q1,#0'
+[^:]*:13: Error: immediate operand expected in the range \[1,8\] -- `vqrshrnb.s16 q0,q1,#9'
+[^:]*:14: Error: immediate operand expected in the range \[1,16\] -- `vqrshrnb.s32 q0,q1,#0'
+[^:]*:15: Error: immediate operand expected in the range \[1,16\] -- `vqrshrnb.s32 q0,q1,#17'
+[^:]*:16: Error: bad type in SIMD instruction -- `vqrshrunt.s8 q0,q1,#1'
+[^:]*:17: Error: bad type in SIMD instruction -- `vqrshrunt.s64 q0,q1,#1'
+[^:]*:18: Error: immediate operand expected in the range \[1,8\] -- `vqrshrunt.s16 q0,q1,#0'
+[^:]*:19: Error: immediate operand expected in the range \[1,8\] -- `vqrshrunt.s16 q0,q1,#9'
+[^:]*:20: Error: immediate operand expected in the range \[1,16\] -- `vqrshrunt.s32 q0,q1,#0'
+[^:]*:21: Error: immediate operand expected in the range \[1,16\] -- `vqrshrunt.s32 q0,q1,#17'
+[^:]*:22: Error: bad type in SIMD instruction -- `vqrshrunt.u16 q0,q1,#1'
+[^:]*:23: Error: bad type in SIMD instruction -- `vqrshrunb.s8 q0,q1,#1'
+[^:]*:24: Error: bad type in SIMD instruction -- `vqrshrunb.s64 q0,q1,#1'
+[^:]*:25: Error: immediate operand expected in the range \[1,8\] -- `vqrshrunb.s16 q0,q1,#0'
+[^:]*:26: Error: immediate operand expected in the range \[1,8\] -- `vqrshrunb.s16 q0,q1,#9'
+[^:]*:27: Error: immediate operand expected in the range \[1,16\] -- `vqrshrunb.s32 q0,q1,#0'
+[^:]*:28: Error: immediate operand expected in the range \[1,16\] -- `vqrshrunb.s32 q0,q1,#17'
+[^:]*:29: Error: bad type in SIMD instruction -- `vqrshrunb.u16 q0,q1,#1'
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
+[^:]*:35: Warning: instruction is UNPREDICTABLE in an IT block
 [^:]*:41: Error: syntax error -- `vqrshrnteq.s16 q0,q1,#1'
 [^:]*:42: Error: syntax error -- `vqrshrnteq.s16 q0,q1,#1'
 [^:]*:44: Error: syntax error -- `vqrshrnteq.s16 q0,q1,#1'

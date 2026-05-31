@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -71,8 +71,8 @@ package Ada.Tags is
    pragma Preelaborate;
    --  In accordance with Ada 2005 AI-362
 
-   type Tag is private;
-   pragma Preelaborable_Initialization (Tag);
+   type Tag is private
+   with Preelaborable_Initialization;
 
    No_Tag : constant Tag;
 
@@ -260,6 +260,7 @@ private
 
    type Prim_Ptr is access procedure;
    type Address_Array is array (Positive range <>) of Prim_Ptr;
+   pragma Suppress_Initialization (Address_Array);
 
    subtype Dispatch_Table is Address_Array (1 .. 1);
    --  Used by GDB to identify the _tags and traverse the run-time structure

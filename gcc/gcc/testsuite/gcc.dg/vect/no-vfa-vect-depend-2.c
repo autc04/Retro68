@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-additional-options "--param vect-max-version-for-alias-checks=0" } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -21,6 +22,7 @@ int main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (ia[i] != 0)
@@ -34,6 +36,7 @@ int main1 ()
     }
 
   /* check results:  */
+#pragma GCC novector
   for (i = 0; i < N; i++)
     {
       if (ib[i] != res[i])
@@ -51,4 +54,5 @@ int main (void)
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" {xfail { vect_no_align && { ! vect_hw_misalign } } } } } */
-/* { dg-final { scan-tree-dump-times "dependence distance negative" 1 "vect" } } */
+/* { dg-final { scan-tree-dump-times "dependence distance negative" 1 "vect" { target { ! vect_multiple_sizes } } } } */
+/* { dg-final { scan-tree-dump "dependence distance negative" "vect" { target vect_multiple_sizes } } } */

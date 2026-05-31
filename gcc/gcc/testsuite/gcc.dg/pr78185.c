@@ -1,4 +1,6 @@
-/* { dg-do run { target *-*-linux* *-*-gnu* *-*-uclinux* } } */
+/* { dg-do run } */
+/* { dg-require-effective-target alarm } */
+/* { dg-require-effective-target signal } */
 /* { dg-options "-O" } */
 
 #include <unistd.h>

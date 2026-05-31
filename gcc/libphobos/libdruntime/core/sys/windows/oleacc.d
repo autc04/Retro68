@@ -8,7 +8,6 @@
  */
 module core.sys.windows.oleacc;
 version (Windows):
-@system:
 
 version (ANSI) {} else version = Unicode;
 pragma(lib, "oleacc");
@@ -185,9 +184,9 @@ interface IAccessible : IDispatch {
     HRESULT put_accValue(VARIANT, BSTR);
 }
 
-alias IAccessible LPACCESSIBLE;
+alias LPACCESSIBLE = IAccessible;
 
-extern (Windows) {
+extern (Windows) nothrow @nogc {
     HRESULT AccessibleChildren(IAccessible, LONG, LONG, VARIANT*, LONG*);
     HRESULT AccessibleObjectFromEvent(HWND, DWORD, DWORD, IAccessible, VARIANT*);
     HRESULT AccessibleObjectFromPoint(POINT, IAccessible*, VARIANT*);
@@ -207,11 +206,11 @@ extern (Windows) {
 }
 
 version (Unicode) {
-    alias CreateStdAccessibleProxyW CreateStdAccessibleProxy;
-    alias GetRoleTextW GetRoleText;
-    alias GetStateTextW GetStateText;
+    alias CreateStdAccessibleProxy = CreateStdAccessibleProxyW;
+    alias GetRoleText = GetRoleTextW;
+    alias GetStateText = GetStateTextW;
 } else {
-    alias CreateStdAccessibleProxyA CreateStdAccessibleProxy;
-    alias GetRoleTextA GetRoleText;
-    alias GetStateTextA GetStateText;
+    alias CreateStdAccessibleProxy = CreateStdAccessibleProxyA;
+    alias GetRoleText = GetRoleTextA;
+    alias GetStateText = GetStateTextA;
 }

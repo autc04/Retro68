@@ -1,3 +1,4 @@
+#as: -march=+mpx
 #objdump: -drw
 #name: i386 MPX
 

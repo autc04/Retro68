@@ -89,8 +89,6 @@
 #  define SIZE 248
 #elif defined (xstormy16)
 #  define SIZE 254
-#elif defined (__nios2__)
-#  define SIZE 252
 #elif defined (__PRU__)
 #  define SIZE 252
 #elif defined (__v850__)
@@ -105,7 +103,7 @@
 #  define SIZE 252
 #elif defined (__CRIS__)
 #  define SIZE 252
-#elif defined (__loongarch_lp64)
+#elif defined (__loongarch__)
 #  define SIZE 240   /* 256 - 8 bytes for $fp, and 8 bytes for a temp value */
 #else
 #  define SIZE 256

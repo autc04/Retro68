@@ -28,6 +28,50 @@ Disassembly of section .text:
  +[a-f0-9]+:	41 f6 c4 7f          	test   \$0x7f,%r12b
  +[a-f0-9]+:	41 f6 c4 7f          	test   \$0x7f,%r12b
  +[a-f0-9]+:	41 f6 c4 7f          	test   \$0x7f,%r12b
+ +[a-f0-9]+:	d5 10 f6 c6 7f       	test   \$0x7f,%r22b
+ +[a-f0-9]+:	d5 10 f6 c6 7f       	test   \$0x7f,%r22b
+ +[a-f0-9]+:	d5 10 f6 c6 7f       	test   \$0x7f,%r22b
+ +[a-f0-9]+:	d5 10 f6 c6 7f       	test   \$0x7f,%r22b
+ +[a-f0-9]+:	62 f4 04 0a f6 c3 7f 	ctestt( \{dfv=\})? \$0x7f,%bl
+ +[a-f0-9]+:	62 f4 04 0a f6 c3 7f 	ctestt( \{dfv=\})? \$0x7f,%bl
+ +[a-f0-9]+:	62 f4 04 0a f6 c3 7f 	ctestt( \{dfv=\})? \$0x7f,%bl
+ +[a-f0-9]+:	62 f4 04 0a f6 c3 7f 	ctestt( \{dfv=\})? \$0x7f,%bl
+ +[a-f0-9]+:	62 f4 04 0a f6 c7 7f 	ctestt( \{dfv=\})? \$0x7f,%dil
+ +[a-f0-9]+:	62 f4 04 0a f6 c7 7f 	ctestt( \{dfv=\})? \$0x7f,%dil
+ +[a-f0-9]+:	62 f4 04 0a f6 c7 7f 	ctestt( \{dfv=\})? \$0x7f,%dil
+ +[a-f0-9]+:	62 f4 04 0a f6 c7 7f 	ctestt( \{dfv=\})? \$0x7f,%dil
+ +[a-f0-9]+:	62 d4 04 0a f6 c1 7f 	ctestt( \{dfv=\})? \$0x7f,%r9b
+ +[a-f0-9]+:	62 d4 04 0a f6 c1 7f 	ctestt( \{dfv=\})? \$0x7f,%r9b
+ +[a-f0-9]+:	62 d4 04 0a f6 c1 7f 	ctestt( \{dfv=\})? \$0x7f,%r9b
+ +[a-f0-9]+:	62 d4 04 0a f6 c1 7f 	ctestt( \{dfv=\})? \$0x7f,%r9b
+ +[a-f0-9]+:	62 d4 04 0a f6 c4 7f 	ctestt( \{dfv=\})? \$0x7f,%r12b
+ +[a-f0-9]+:	62 d4 04 0a f6 c4 7f 	ctestt( \{dfv=\})? \$0x7f,%r12b
+ +[a-f0-9]+:	62 d4 04 0a f6 c4 7f 	ctestt( \{dfv=\})? \$0x7f,%r12b
+ +[a-f0-9]+:	62 d4 04 0a f6 c4 7f 	ctestt( \{dfv=\})? \$0x7f,%r12b
+ +[a-f0-9]+:	62 fc 04 0a f6 c6 7f 	ctestt( \{dfv=\})? \$0x7f,%r22b
+ +[a-f0-9]+:	62 fc 04 0a f6 c6 7f 	ctestt( \{dfv=\})? \$0x7f,%r22b
+ +[a-f0-9]+:	62 fc 04 0a f6 c6 7f 	ctestt( \{dfv=\})? \$0x7f,%r22b
+ +[a-f0-9]+:	62 fc 04 0a f6 c6 7f 	ctestt( \{dfv=\})? \$0x7f,%r22b
+ +[a-f0-9]+:	62 f4 04 02 f6 c3 7f 	ctestb( \{dfv=\})? \$0x7f,%bl
+ +[a-f0-9]+:	62 f4 04 02 f6 c3 7f 	ctestb( \{dfv=\})? \$0x7f,%bl
+ +[a-f0-9]+:	62 f4 04 02 f6 c3 7f 	ctestb( \{dfv=\})? \$0x7f,%bl
+ +[a-f0-9]+:	62 f4 04 02 f6 c3 7f 	ctestb( \{dfv=\})? \$0x7f,%bl
+ +[a-f0-9]+:	62 f4 04 02 f6 c7 7f 	ctestb( \{dfv=\})? \$0x7f,%dil
+ +[a-f0-9]+:	62 f4 04 02 f6 c7 7f 	ctestb( \{dfv=\})? \$0x7f,%dil
+ +[a-f0-9]+:	62 f4 04 02 f6 c7 7f 	ctestb( \{dfv=\})? \$0x7f,%dil
+ +[a-f0-9]+:	62 f4 04 02 f6 c7 7f 	ctestb( \{dfv=\})? \$0x7f,%dil
+ +[a-f0-9]+:	62 d4 04 02 f6 c1 7f 	ctestb( \{dfv=\})? \$0x7f,%r9b
+ +[a-f0-9]+:	62 d4 04 02 f6 c1 7f 	ctestb( \{dfv=\})? \$0x7f,%r9b
+ +[a-f0-9]+:	62 d4 04 02 f6 c1 7f 	ctestb( \{dfv=\})? \$0x7f,%r9b
+ +[a-f0-9]+:	62 d4 04 02 f6 c1 7f 	ctestb( \{dfv=\})? \$0x7f,%r9b
+ +[a-f0-9]+:	62 d4 04 02 f6 c4 7f 	ctestb( \{dfv=\})? \$0x7f,%r12b
+ +[a-f0-9]+:	62 d4 04 02 f6 c4 7f 	ctestb( \{dfv=\})? \$0x7f,%r12b
+ +[a-f0-9]+:	62 d4 04 02 f6 c4 7f 	ctestb( \{dfv=\})? \$0x7f,%r12b
+ +[a-f0-9]+:	62 d4 04 02 f6 c4 7f 	ctestb( \{dfv=\})? \$0x7f,%r12b
+ +[a-f0-9]+:	62 fc 04 02 f6 c6 7f 	ctestb( \{dfv=\})? \$0x7f,%r22b
+ +[a-f0-9]+:	62 fc 04 02 f6 c6 7f 	ctestb( \{dfv=\})? \$0x7f,%r22b
+ +[a-f0-9]+:	62 fc 04 02 f6 c6 7f 	ctestb( \{dfv=\})? \$0x7f,%r22b
+ +[a-f0-9]+:	62 fc 04 02 f6 c6 7f 	ctestb( \{dfv=\})? \$0x7f,%r22b
  +[a-f0-9]+:	20 c9                	and    %cl,%cl
  +[a-f0-9]+:	66 21 d2             	and    %dx,%dx
  +[a-f0-9]+:	21 db                	and    %ebx,%ebx
@@ -36,6 +80,16 @@ Disassembly of section .text:
  +[a-f0-9]+:	66 09 f6             	or     %si,%si
  +[a-f0-9]+:	09 ff                	or     %edi,%edi
  +[a-f0-9]+:	4d 09 c0             	or     %r8,%r8
+ +[a-f0-9]+:	66 98                	cbtw
+ +[a-f0-9]+:	66 98                	cbtw
+ +[a-f0-9]+:	98                   	cwtl
+ +[a-f0-9]+:	98                   	cwtl
+ +[a-f0-9]+:	48 98                	cltq
+ +[a-f0-9]+:	48 98                	cltq
+ +[a-f0-9]+:	48 98                	cltq
+ +[a-f0-9]+:	66 98                	cbtw
+ +[a-f0-9]+:	98                   	cwtl
+ +[a-f0-9]+:	48 98                	cltq
  +[a-f0-9]+:	c5 f1 55 e9          	vandnpd %xmm1,%xmm1,%xmm5
  +[a-f0-9]+:	c5 f9 6f d1          	vmovdqa %xmm1,%xmm2
  +[a-f0-9]+:	c5 f9 6f d1          	vmovdqa %xmm1,%xmm2
@@ -199,4 +253,12 @@ Disassembly of section .text:
  +[a-f0-9]+:	62 .*	vporq  \(%rax\)\{1to2\},%xmm2,%xmm3
  +[a-f0-9]+:	62 .*	vpxord \(%rax\)\{1to4\},%xmm2,%xmm3
  +[a-f0-9]+:	62 .*	vpxorq \(%rax\)\{1to4\},%ymm2,%ymm3
+ +[a-f0-9]+:	66 .*	pcmpeqd %xmm2,%xmm2
+ +[a-f0-9]+:	c5 .*	vpcmpeqd %xmm2,%xmm2,%xmm0
+ +[a-f0-9]+:	c5 .*	vpcmpeqd %ymm2,%ymm2,%ymm0
+ +[a-f0-9]+:	66 .*	pcmpeqd %xmm12,%xmm12
+ +[a-f0-9]+:	c4 .*	vpcmpeqq %xmm12,%xmm12,%xmm0
+ +[a-f0-9]+:	c4 .*	vpcmpeqq %ymm12,%ymm12,%ymm0
+ +[a-f0-9]+:	c5 .*	vpunpcklqdq %xmm2,%xmm2,%xmm0
+ +[a-f0-9]+:	c4 .*	vpbroadcastq %xmm12,%xmm0
 #pass

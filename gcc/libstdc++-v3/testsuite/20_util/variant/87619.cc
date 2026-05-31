@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Free Software Foundation, Inc.
+// Copyright (C) 2018-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -16,8 +16,7 @@
 // <http://www.gnu.org/licenses/>.
 
 // { dg-do compile { target c++17 } }
-// FIXME: Need increased timeout due to PR c++/102780
-// { dg-timeout-factor 2 { target c++20 } }
+// { dg-options "-ftemplate-depth=270" }
 
 #include <variant>
 #include <utility>
@@ -25,6 +24,7 @@
 
 template<std::size_t I>
 struct S {
+ ~S() {}
 };
 
 template <std::size_t... Is>

@@ -1,5 +1,5 @@
 /* Print RTL for GCC.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -24,6 +24,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "bitmap.h"
 #endif /* #ifndef GENERATOR_FILE */
 
+namespace diagnostics { class sarif_builder; }
+namespace json { class object; }
+
 class rtx_reuse_manager;
 
 /* A class for writing rtx to a FILE *.  */
@@ -36,7 +39,7 @@ class rtx_writer
 
   void print_rtx (const_rtx in_rtx);
   void print_rtl (const_rtx rtx_first);
-  int print_rtl_single_with_indent (const_rtx x, int ind);
+  void print_rtl_single_with_indent (const_rtx x, int ind);
 
   void finish_directive ();
 
@@ -45,6 +48,7 @@ class rtx_writer
   void print_rtx_operand_code_e (const_rtx in_rtx, int idx);
   void print_rtx_operand_codes_E_and_V (const_rtx in_rtx, int idx);
   void print_rtx_operand_code_i (const_rtx in_rtx, int idx);
+  void print_rtx_operand_code_L (const_rtx in_rtx, int idx);
   void print_rtx_operand_code_r (const_rtx in_rtx);
   void print_rtx_operand_code_u (const_rtx in_rtx, int idx);
   void print_rtx_operand (const_rtx in_rtx, int idx);
@@ -52,8 +56,8 @@ class rtx_writer
 
  private:
   FILE *m_outfile;
-  int m_sawclose;
   int m_indent;
+  bool m_sawclose;
   bool m_in_call_function_usage;
 
   /* True means use simplified format without flags, modes, etc.  */
@@ -89,6 +93,10 @@ extern void print_insn (pretty_printer *pp, const rtx_insn *x, int verbose);
 extern void print_insn_with_notes (pretty_printer *, const rtx_insn *);
 
 extern void rtl_dump_bb_for_graph (pretty_printer *, basic_block);
+extern void
+rtl_dump_bb_as_sarif_properties (diagnostics::sarif_builder *,
+				 json::object &,
+				 basic_block);
 extern const char *str_pattern_slim (const_rtx);
 
 extern void print_rtx_function (FILE *file, function *fn, bool compact);

@@ -9,7 +9,6 @@ version (linux):
 extern (C):
 nothrow:
 @nogc:
-@system:
 
 version (ARM)     version = ARM_Any;
 version (AArch64) version = ARM_Any;
@@ -143,6 +142,20 @@ else version (IBMZ_Any)
         void _dl_mcount_wrapper_check(void* __selfpc);
     }
 }
+else version (LoongArch64)
+{
+    // http://sourceware.org/git/?p=glibc.git;a=blob;f=bits/dlfcn.h
+    static if (_GNU_SOURCE)
+    {
+        RT DL_CALL_FCT(RT, Args...)(RT function(Args) fctp, auto ref Args args)
+        {
+            _dl_mcount_wrapper_check(cast(void*)fctp);
+            return fctp(args);
+        }
+
+        void _dl_mcount_wrapper_check(void* __selfpc);
+    }
+}
 else
     static assert(0, "unimplemented");
 
@@ -152,7 +165,7 @@ static if (_GNU_SOURCE)
 {
     enum RTLD_NEXT = cast(void *)-1L;
     enum RTLD_DEFAULT = cast(void *)0;
-    alias c_long Lmid_t;
+    alias Lmid_t = c_long;
     enum LM_ID_BASE = 0;
     enum LM_ID_NEWLM = -1;
 }

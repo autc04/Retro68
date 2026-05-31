@@ -33,6 +33,10 @@ Disassembly of section .text:
 [ 	]*[a-f0-9]+:	8b 04 40             	mov    \(%eax,%eax,2\),%eax
 [ 	]*[a-f0-9]+:	8b 04 80             	mov    \(%eax,%eax,4\),%eax
 [ 	]*[a-f0-9]+:	8b 04 c0             	mov    \(%eax,%eax,8\),%eax
+[ 	]*[a-f0-9]+:	8b 14 08             	mov    \(%eax,%ecx,1\),%edx
+[ 	]*[a-f0-9]+:	8b 14 48             	mov    \(%eax,%ecx,2\),%edx
+[ 	]*[a-f0-9]+:	8b 14 88             	mov    \(%eax,%ecx,4\),%edx
+[ 	]*[a-f0-9]+:	8b 14 c8             	mov    \(%eax,%ecx,8\),%edx
 [ 	]*[a-f0-9]+:	8b 04 25 e2 ff ff ff 	mov    -0x1e\(,%eiz,1\),%eax
 [ 	]*[a-f0-9]+:	8b 04 65 e2 ff ff ff 	mov    -0x1e\(,%eiz,2\),%eax
 [ 	]*[a-f0-9]+:	8b 04 a5 e2 ff ff ff 	mov    -0x1e\(,%eiz,4\),%eax

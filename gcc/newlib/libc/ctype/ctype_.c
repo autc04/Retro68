@@ -95,21 +95,12 @@ char _ctype_b[128 + 256] = {
 /* For backward compatibility */
 char __EXPORT *__ctype_ptr__ = DEFAULT_CTYPE_PTR;
 
-#    ifdef __x86_64__
 __asm__ ("					\n\
         .data					\n\
 	.globl  _ctype_				\n\
 	.set    _ctype_,_ctype_b+127		\n\
 	.text                                   \n\
 ");
-#    else
-__asm__ ("					\n\
-        .data					\n\
-	.globl  __ctype_			\n\
-	.set    __ctype_,__ctype_b+127		\n\
-	.text                                   \n\
-");
-#    endif
 #  else /* !__CYGWIN__ */
 
 const char _ctype_[1 + 256] = {

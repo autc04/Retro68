@@ -1,6 +1,7 @@
 #source: ifunc.s
 #objdump: -drw
 #name: x86-64 ifunc
+#target: [supports_gnu_osabi]
 
 .*: +file format .*
 

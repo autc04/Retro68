@@ -11,5 +11,5 @@ SECTIONS
   {
     *(.data)
   }
-  /DISCARD/ : { *(.*) }
+  /DISCARD/ : { *(*) }
 }

@@ -30,6 +30,10 @@ pslldq $2, %xmm10
 	add	$1, %sil
 	add	$1, %dil
 
+	in	$0, %axl
+	out	%axl, $0
+	shl	%cxl, %eax
+
 .intel_syntax noprefix
 psrlw mm6, 2
 psrlw xmm2, 2

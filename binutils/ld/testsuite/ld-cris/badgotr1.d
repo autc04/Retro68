@@ -1,5 +1,5 @@
 #source: gotrel1.s
-#as: --pic --underscore --em=criself
+#as: --pic --underscore --emulation=criself
 #ld: -m crislinux -shared
 #objdump: -dr
 #error: \A[^\nc][^\n]*o: uses _-prefixed [^\nc]*\n[^\nc][^\n]* failed to merge [^\n]*\n[^\nc][^\n]* no GOT [^\n]*\n[^\nc][^\n]* bad value\Z

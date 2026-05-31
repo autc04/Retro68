@@ -1,6 +1,6 @@
 // <experimental/memory> -*- C++ -*-
 
-// Copyright (C) 2015-2022 Free Software Foundation, Inc.
+// Copyright (C) 2015-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,11 @@
 #ifndef _GLIBCXX_EXPERIMENTAL_MEMORY
 #define _GLIBCXX_EXPERIMENTAL_MEMORY 1
 
+#ifdef _GLIBCXX_SYSHDR
 #pragma GCC system_header
+#endif
+
+#include <bits/requires_hosted.h> // experimental is currently omitted
 
 #if __cplusplus >= 201402L
 
@@ -144,42 +148,42 @@ inline namespace fundamentals_v2
     }; // observer_ptr<>
 
   template<typename _Tp>
-    void
+    constexpr void
     swap(observer_ptr<_Tp>& __p1, observer_ptr<_Tp>& __p2) noexcept
     {
       __p1.swap(__p2);
     }
 
   template<typename _Tp>
-    observer_ptr<_Tp>
+    constexpr observer_ptr<_Tp>
     make_observer(_Tp* __p) noexcept
     {
       return observer_ptr<_Tp>(__p);
     }
 
   template<typename _Tp, typename _Up>
-    bool
+    constexpr bool
     operator==(observer_ptr<_Tp> __p1, observer_ptr<_Up> __p2)
     {
       return __p1.get() == __p2.get();
     }
 
   template<typename _Tp, typename _Up>
-    bool
+    constexpr bool
     operator!=(observer_ptr<_Tp> __p1, observer_ptr<_Up> __p2)
     {
     return !(__p1 == __p2);
     }
 
   template<typename _Tp>
-    bool
+    constexpr bool
     operator==(observer_ptr<_Tp> __p, nullptr_t) noexcept
     {
       return !__p;
     }
 
   template<typename _Tp>
-    bool
+    constexpr bool
     operator==(nullptr_t, observer_ptr<_Tp> __p) noexcept
     {
       return !__p;
@@ -193,14 +197,14 @@ inline namespace fundamentals_v2
     }
 
   template<typename _Tp>
-    bool
+    constexpr bool
     operator!=(nullptr_t, observer_ptr<_Tp> __p) noexcept
     {
       return bool(__p);
     }
 
   template<typename _Tp, typename _Up>
-    bool
+    constexpr bool
     operator<(observer_ptr<_Tp> __p1, observer_ptr<_Up> __p2)
     {
       return std::less<typename common_type<typename add_pointer<_Tp>::type,
@@ -210,21 +214,21 @@ inline namespace fundamentals_v2
     }
 
   template<typename _Tp, typename _Up>
-    bool
+    constexpr bool
     operator>(observer_ptr<_Tp> __p1, observer_ptr<_Up> __p2)
     {
       return __p2 < __p1;
     }
 
   template<typename _Tp, typename _Up>
-    bool
+    constexpr bool
     operator<=(observer_ptr<_Tp> __p1, observer_ptr<_Up> __p2)
     {
       return !(__p2 < __p1);
     }
 
   template<typename _Tp, typename _Up>
-    bool
+    constexpr bool
     operator>=(observer_ptr<_Tp> __p1, observer_ptr<_Up> __p2)
     {
       return !(__p1 < __p2);

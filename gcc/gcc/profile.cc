@@ -1,5 +1,5 @@
 /* Calculate branch probabilities, and basic block execution counts.
-   Copyright (C) 1990-2022 Free Software Foundation, Inc.
+   Copyright (C) 1990-2026 Free Software Foundation, Inc.
    Contributed by James E. Wilson, UC Berkeley/Cygnus Support;
    based on some ideas from Dain Samples of UC Berkeley.
    Further mangling by Bob Manson, Cygnus Support.
@@ -68,6 +68,18 @@ along with GCC; see the file COPYING3.  If not see
 #include "file-prefix-map.h"
 
 #include "profile.h"
+#include "auto-profile.h"
+
+struct condcov;
+struct condcov *find_conditions (struct function*);
+size_t cov_length (const struct condcov*);
+array_slice<basic_block> cov_blocks (struct condcov*, size_t);
+array_slice<uint64_t> cov_masks (struct condcov*, size_t);
+array_slice<sbitmap> cov_maps (struct condcov* cov, size_t n);
+void cov_free (struct condcov*);
+size_t instrument_decisions (array_slice<basic_block>, size_t,
+			     array_slice<sbitmap>,
+			     array_slice<gcov_type_unsigned>);
 
 /* Map from BBs/edges to gcov counters.  */
 vec<gcov_type> bb_gcov_counts;
@@ -86,7 +98,7 @@ struct bb_profile_info {
 
 /* Counter summary from the last set of coverage counts read.  */
 
-gcov_summary *profile_info;
+gcov_summary *profile_info, *gcov_profile_info;
 
 /* Collect statistics on the performance of this pass for the entire source
    file.  */
@@ -100,6 +112,28 @@ static int total_num_passes;
 static int total_num_times_called;
 static int total_hist_br_prob[20];
 static int total_num_branches;
+static int total_num_conds;
+
+/* Map between auto-fdo and fdo counts used to compare quality
+   of the profiles.  */
+struct afdo_fdo_record
+{
+  cgraph_node *node;
+  struct bb_record
+  {
+    /* Index of the  basic block.  */
+    int index;
+    profile_count afdo;
+    profile_count fdo;
+
+    /* Successors and predecessors in CFG.  */
+    vec <int> preds;
+    vec <int> succs;
+  };
+  vec <bb_record> bbs;
+};
+
+static vec <afdo_fdo_record> afdo_fdo_records;
 
 /* Forward declarations.  */
 static void find_spanning_tree (struct edge_list *);
@@ -196,8 +230,8 @@ instrument_values (histogram_values values)
 }
 
 
-/* Computes hybrid profile for all matching entries in da_file.  
-   
+/* Computes hybrid profile for all matching entries in da_file.
+
    CFG_CHECKSUM is the precomputed checksum for the CFG.  */
 
 static gcov_type *
@@ -413,7 +447,7 @@ cmp_stats (const void *ptr1, const void *ptr2)
 
 
 /* Compute the branch probabilities for the various branches.
-   Annotate them accordingly.  
+   Annotate them accordingly.
 
    CFG_CHECKSUM is the precomputed checksum for the CFG.  */
 
@@ -459,6 +493,22 @@ compute_branch_probabilities (unsigned cfg_checksum, unsigned lineno_checksum)
   /* Avoid predicting entry on exit nodes.  */
   BB_INFO (EXIT_BLOCK_PTR_FOR_FN (cfun))->succ_count = 2;
   BB_INFO (ENTRY_BLOCK_PTR_FOR_FN (cfun))->pred_count = 2;
+
+  afdo_fdo_record record = {cgraph_node::get (current_function_decl), vNULL};;
+  if (dump_file && flag_auto_profile)
+    {
+      FOR_ALL_BB_FN (bb, cfun)
+	{
+	  record.bbs.safe_push ({bb->index, bb->count.ipa (),
+				profile_count::uninitialized (), vNULL, vNULL});
+	  record.bbs.last ().preds.reserve (EDGE_COUNT (bb->preds));
+	  for (auto &e : bb->preds)
+	    record.bbs.last ().preds.safe_push (e->src->index);
+	  record.bbs.last ().succs.reserve (EDGE_COUNT (bb->succs));
+	  for (auto &e : bb->succs)
+	    record.bbs.last ().succs.safe_push (e->dest->index);
+	}
+    }
 
   num_edges = read_profile_edge_counts (exec_counts);
 
@@ -716,7 +766,7 @@ compute_branch_probabilities (unsigned cfg_checksum, unsigned lineno_checksum)
 	      FOR_EACH_EDGE (e, ei, bb->succs)
 		if (!(e->flags & (EDGE_COMPLEX | EDGE_FAKE)))
 		  e->probability
-		    = profile_probability::guessed_always ().apply_scale (1, total);
+		    = profile_probability::guessed_always () / total;
 		else
 		  e->probability = profile_probability::never ();
 	    }
@@ -724,8 +774,7 @@ compute_branch_probabilities (unsigned cfg_checksum, unsigned lineno_checksum)
 	    {
 	      total += EDGE_COUNT (bb->succs);
 	      FOR_EACH_EDGE (e, ei, bb->succs)
-		e->probability
-		 = profile_probability::guessed_always ().apply_scale (1, total);
+		e->probability = profile_probability::guessed_always () / total;
 	    }
 	  if (bb->index >= NUM_FIXED_BLOCKS
 	      && block_ends_with_condjump_p (bb)
@@ -754,7 +803,8 @@ compute_branch_probabilities (unsigned cfg_checksum, unsigned lineno_checksum)
 	    bb->count = profile_count::from_gcov_type (bb_gcov_count (bb));
 	  else
 	    bb->count = profile_count::guessed_zero ();
-	  if (dump_file && bb->index >= 0)
+
+	  if (dump_file && (dump_flags & TDF_DETAILS) && bb->index >= 0)
 	    {
 	      double freq1 = cnt.to_sreal_scale (old_entry_cnt).to_double ();
 	      double freq2 = bb->count.to_sreal_scale
@@ -767,7 +817,7 @@ compute_branch_probabilities (unsigned cfg_checksum, unsigned lineno_checksum)
 	      sum2 += freq2;
 	    }
 	}
-      if (dump_file)
+      if (dump_file && (dump_flags & TDF_DETAILS))
 	{
 	  double nsum1 = 0, nsum2 = 0;
 	  stats.qsort (cmp_stats);
@@ -777,8 +827,8 @@ compute_branch_probabilities (unsigned cfg_checksum, unsigned lineno_checksum)
 	      nsum2 += stat.feedback;
 	      fprintf (dump_file,
 		       " Basic block %4i guessed freq: %12.3f"
-		       " cummulative:%6.2f%% "
-		       " feedback freq: %12.3f cummulative:%7.2f%%"
+		       " cumulative:%6.2f%% "
+		       " feedback freq: %12.3f cumulative:%7.2f%%"
 		       " cnt: 10%" PRId64 "\n", stat.bb->index,
 		       stat.guessed,
 		       nsum1 * 100 / sum1,
@@ -799,6 +849,18 @@ compute_branch_probabilities (unsigned cfg_checksum, unsigned lineno_checksum)
   bb_gcov_counts.release ();
   delete edge_gcov_counts;
   edge_gcov_counts = NULL;
+
+  if (dump_file && flag_auto_profile)
+    {
+      int i = 0;
+      FOR_ALL_BB_FN (bb, cfun)
+	{
+	  gcc_checking_assert (record.bbs[i].index == bb->index);
+	  record.bbs[i].fdo = bb->count.ipa ();
+	  i++;
+	}
+      afdo_fdo_records.safe_push (record);
+    }
 
   update_max_bb_count ();
 
@@ -862,7 +924,7 @@ sort_hist_values (histogram_value hist)
     }
 }
 /* Load value histograms values whose description is stored in VALUES array
-   from .gcda file.  
+   from .gcda file.
 
    CFG_CHECKSUM is the precomputed checksum for the CFG.  */
 
@@ -1155,6 +1217,12 @@ read_thunk_profile (struct cgraph_node *node)
    the flow graph that are needed to reconstruct the dynamic behavior of the
    flow graph.  This data is written to the gcno file for gcov.
 
+   When FLAG_PROFILE_CONDITIONS is nonzero, this functions instruments the
+   edges in the control flow graph to track what conditions are evaluated to in
+   order to determine what conditions are covered and have an independent
+   effect on the outcome (modified condition/decision coverage).  This data is
+   written to the gcno file for gcov.
+
    When FLAG_BRANCH_PROBABILITIES is nonzero, this function reads auxiliary
    information from the gcda file containing edge count information from
    previous executions of the function being compiled.  In this case, the
@@ -1173,6 +1241,7 @@ branch_prob (bool thunk)
   struct edge_list *el;
   histogram_values values = histogram_values ();
   unsigned cfg_checksum, lineno_checksum;
+  bool output_to_file;
 
   total_num_times_called++;
 
@@ -1321,6 +1390,20 @@ branch_prob (bool thunk)
 	  EDGE_INFO (e)->ignore = 1;
 	  ignored_edges++;
 	}
+      /* Ignore edges after musttail calls.  */
+      if (cfun->has_musttail
+	  && e->src != ENTRY_BLOCK_PTR_FOR_FN (cfun))
+	{
+	  gimple_stmt_iterator gsi = gsi_last_nondebug_bb (e->src);
+	  gimple *stmt = gsi_stmt (gsi);
+	  if (stmt
+	      && is_gimple_call (stmt)
+	      && gimple_call_must_tail_p (as_a <const gcall *> (stmt)))
+	    {
+	      EDGE_INFO (e)->ignore = 1;
+	      ignored_edges++;
+	    }
+	}
     }
 
   /* Create spanning tree from basic block graph, mark each edge that is
@@ -1381,7 +1464,7 @@ branch_prob (bool thunk)
 
   /* Compute two different checksums. Note that we want to compute
      the checksum in only once place, since it depends on the shape
-     of the control flow which can change during 
+     of the control flow which can change during
      various transformations.  */
   if (thunk)
     {
@@ -1397,9 +1480,17 @@ branch_prob (bool thunk)
 
   /* Write the data from which gcov can reconstruct the basic block
      graph and function line numbers (the gcno file).  */
+  output_to_file = false;
   if (coverage_begin_function (lineno_checksum, cfg_checksum))
     {
       gcov_position_t offset;
+
+      /* The condition coverage needs a deeper analysis to identify expressions
+	 of conditions, which means it is not yet ready to write to the gcno
+	 file.  It will write its entries later, but needs to know if it do it
+	 in the first place, which is controlled by the return value of
+	 coverage_begin_function.  */
+      output_to_file = true;
 
       /* Basic block flags */
       offset = gcov_write_tag (GCOV_TAG_BLOCKS);
@@ -1429,6 +1520,10 @@ branch_prob (bool thunk)
 		    flag_bits |= GCOV_ARC_FAKE;
 		  if (e->flags & EDGE_FALLTHRU)
 		    flag_bits |= GCOV_ARC_FALLTHROUGH;
+		  if (e->flags & EDGE_TRUE_VALUE)
+		    flag_bits |= GCOV_ARC_TRUE;
+		  if (e->flags & EDGE_FALSE_VALUE)
+		    flag_bits |= GCOV_ARC_FALSE;
 		  /* On trees we don't have fallthru flags, but we can
 		     recompute them from CFG shape.  */
 		  if (e->flags & (EDGE_TRUE_VALUE | EDGE_FALSE_VALUE)
@@ -1457,11 +1552,13 @@ branch_prob (bool thunk)
 	  if (bb == ENTRY_BLOCK_PTR_FOR_FN (cfun)->next_bb)
 	    {
 	      location_t loc = DECL_SOURCE_LOCATION (current_function_decl);
-	      gcc_checking_assert (!RESERVED_LOCATION_P (loc));
-	      seen_locations.add (loc);
-	      expanded_location curr_location = expand_location (loc);
-	      output_location (&streamed_locations, curr_location.file,
-			       MAX (1, curr_location.line), &offset, bb);
+	      if (!RESERVED_LOCATION_P (loc))
+		{
+		  seen_locations.add (get_pure_location (loc));
+		  expanded_location curr_location = expand_location (loc);
+		  output_location (&streamed_locations, curr_location.file,
+				   MAX (1, curr_location.line), &offset, bb);
+		}
 	    }
 
 	  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
@@ -1470,7 +1567,7 @@ branch_prob (bool thunk)
 	      location_t loc = gimple_location (stmt);
 	      if (!RESERVED_LOCATION_P (loc))
 		{
-		  seen_locations.add (loc);
+		  seen_locations.add (get_pure_location (loc));
 		  output_location (&streamed_locations, gimple_filename (stmt),
 				   MAX (1, gimple_lineno (stmt)), &offset, bb);
 		}
@@ -1483,7 +1580,7 @@ branch_prob (bool thunk)
 	  if (single_succ_p (bb)
 	      && (loc = single_succ_edge (bb)->goto_locus)
 	      && !RESERVED_LOCATION_P (loc)
-	      && !seen_locations.contains (loc))
+	      && !seen_locations.contains (get_pure_location (loc)))
 	    {
 	      expanded_location curr_location = expand_location (loc);
 	      output_location (&streamed_locations, curr_location.file,
@@ -1512,13 +1609,49 @@ branch_prob (bool thunk)
 
   remove_fake_edges ();
 
+  if (condition_coverage_flag || path_coverage_flag || profile_arc_flag)
+      gimple_init_gcov_profiler ();
+
+  if (condition_coverage_flag)
+    {
+      struct condcov *cov = find_conditions (cfun);
+      gcc_assert (cov);
+      const size_t nconds = cov_length (cov);
+      total_num_conds += nconds;
+
+      if (coverage_counter_alloc (GCOV_COUNTER_CONDS, 2 * nconds))
+	{
+	  gcov_position_t offset {};
+	  if (output_to_file)
+	      offset = gcov_write_tag (GCOV_TAG_CONDS);
+
+	  for (size_t i = 0; i != nconds; ++i)
+	    {
+	      array_slice<basic_block> expr = cov_blocks (cov, i);
+	      array_slice<uint64_t> masks = cov_masks (cov, i);
+	      array_slice<sbitmap> maps = cov_maps (cov, i);
+	      gcc_assert (expr.is_valid ());
+	      gcc_assert (masks.is_valid ());
+	      gcc_assert (maps.is_valid ());
+
+	      size_t terms = instrument_decisions (expr, i, maps, masks);
+	      if (output_to_file)
+		{
+		  gcov_write_unsigned (expr.front ()->index);
+		  gcov_write_unsigned (terms);
+		}
+	    }
+	  if (output_to_file)
+	      gcov_write_length (offset);
+	}
+      cov_free (cov);
+    }
+
   /* For each edge not on the spanning tree, add counting code.  */
   if (profile_arc_flag
       && coverage_counter_alloc (GCOV_COUNTER_ARCS, num_instrumented))
     {
       unsigned n_instrumented;
-
-      gimple_init_gcov_profiler ();
 
       n_instrumented = instrument_edges (el);
 
@@ -1526,29 +1659,44 @@ branch_prob (bool thunk)
 
       if (flag_profile_values)
 	instrument_values (values);
+    }
 
-      /* Commit changes done by instrumentation.  */
-      gsi_commit_edge_inserts ();
+  unsigned instrument_prime_paths (struct function*);
+  if (path_coverage_flag)
+    {
+      const unsigned npaths = instrument_prime_paths (cfun);
+      if (output_to_file)
+	{
+	  gcov_position_t offset = gcov_write_tag (GCOV_TAG_PATHS);
+	  gcov_write_unsigned (npaths);
+	  gcov_write_length (offset);
+	}
     }
 
   free_aux_for_edges ();
 
   values.release ();
   free_edge_list (el);
+  /* Commit changes done by instrumentation.  */
+  gsi_commit_edge_inserts ();
+
   coverage_end_function (lineno_checksum, cfg_checksum);
   if (flag_branch_probabilities
       && (profile_status_for_fn (cfun) == PROFILE_READ))
     {
       if (dump_file && (dump_flags & TDF_DETAILS))
 	report_predictor_hitrates ();
+      sreal nit;
+      bool reliable;
 
       /* At this moment we have precise loop iteration count estimates.
 	 Record them to loop structure before the profile gets out of date. */
       for (auto loop : loops_list (cfun, 0))
-	if (loop->header->count > 0 && loop->header->count.reliable_p ())
+	if (loop->header->count.ipa ().nonzero_p ()
+	    && expected_loop_iterations_by_profile (loop, &nit, &reliable)
+	    && reliable)
 	  {
-	    gcov_type nit = expected_loop_iterations_unbounded (loop);
-	    widest_int bound = gcov_type_to_wide_int (nit);
+	    widest_int bound = nit.to_nearest_int ();
 	    loop->any_estimate = false;
 	    record_niter_bound (loop, bound, true, false);
 	  }
@@ -1664,6 +1812,7 @@ init_branch_prob (void)
   total_num_passes = 0;
   total_num_times_called = 0;
   total_num_branches = 0;
+  total_num_conds = 0;
   for (i = 0; i < 20; i++)
     total_hist_br_prob[i] = 0;
 }
@@ -1703,5 +1852,73 @@ end_branch_prob (void)
 		     (total_hist_br_prob[i] + total_hist_br_prob[19-i]) * 100
 		     / total_num_branches, 5*i, 5*i+5);
 	}
+      fprintf (dump_file, "Total number of conditions: %d\n",
+	       total_num_conds);
+      if (afdo_fdo_records.length ())
+	{
+	  profile_count fdo_sum = profile_count::zero ();
+	  profile_count afdo_sum = profile_count::zero ();
+	  for (const auto &r : afdo_fdo_records)
+	    for (const auto &b : r.bbs)
+	      if (b.fdo.initialized_p () && b.afdo.initialized_p ())
+		{
+		  fdo_sum += b.fdo;
+		  afdo_sum += b.afdo;
+		}
+	  for (auto &r : afdo_fdo_records)
+	    {
+	      for (auto &b : r.bbs)
+		if (b.fdo.initialized_p () && b.afdo.initialized_p ())
+		  {
+		    fprintf (dump_file, "%s bb %i fdo %" PRIu64 " (%s) afdo ",
+			     r.node->dump_name (), b.index,
+			     (int64_t)b.fdo.to_gcov_type (),
+			     maybe_hot_count_p
+				     (NULL, b.fdo.apply_scale (1, 1000))
+			     ? "very hot"
+			     : maybe_hot_count_p (NULL, b.fdo)
+			     ?  "hot" : "cold");
+		    b.afdo.dump (dump_file);
+		    fprintf (dump_file, " (%s) ",
+			     maybe_hot_afdo_count_p
+				     (b.afdo.apply_scale (1, 1000))
+			     ? "very hot"
+			     : maybe_hot_afdo_count_p (b.afdo)
+			     ?  "hot" : "cold");
+		    if (afdo_sum.nonzero_p ())
+		      {
+			profile_count scaled
+			       	= b.afdo.apply_scale (fdo_sum, afdo_sum);
+			fprintf (dump_file, "scaled %" PRIu64,
+				 scaled.to_gcov_type ());
+			if (b.fdo.to_gcov_type ())
+			  fprintf (dump_file, " diff %" PRId64 ", %+2.2f%%",
+				   scaled.to_gcov_type ()
+				   - b.fdo.to_gcov_type (),
+				   (scaled.to_gcov_type ()
+				    - b.fdo.to_gcov_type ()) * 100.0
+				   / b.fdo.to_gcov_type ());
+		      }
+		    fprintf (dump_file, "\n preds");
+		    for (int val : b.preds)
+		      fprintf (dump_file, " %i", val);
+		    b.preds.release ();
+		    fprintf (dump_file, "\n succs");
+		    for (int val : b.succs)
+		      fprintf (dump_file, " %i", val);
+		    b.succs.release ();
+		    fprintf (dump_file, "\n");
+		  }
+	       r.bbs.release ();
+	     }
+	}
+      afdo_fdo_records.release ();
     }
+}
+
+/* Return true if any cfg coverage/profiling is enabled; -fprofile-arcs
+   -fcondition-coverage -fpath-coverage.  */
+bool coverage_instrumentation_p ()
+{
+  return profile_arc_flag || condition_coverage_flag || path_coverage_flag;
 }

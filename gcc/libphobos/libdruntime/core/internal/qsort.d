@@ -10,7 +10,7 @@ module core.internal.qsort;
 
 //debug=qsort;
 
-import core.stdc.stdlib;
+debug (qsort) import core.stdc.stdio : printf;
 
 version (OSX)
     version = Darwin;
@@ -41,7 +41,7 @@ else
 
 static if (Glibc_Qsort_R)
 {
-    alias extern (C) int function(scope const void *, scope const void *, scope void *) Cmp;
+    alias Cmp = extern (C) int function(scope const void *, scope const void *, scope void *);
     extern (C) void qsort_r(scope void *base, size_t nmemb, size_t size, Cmp cmp, scope void *arg);
 
     extern (C) void[] _adSort(return scope void[] a, TypeInfo ti)
@@ -56,22 +56,43 @@ static if (Glibc_Qsort_R)
 }
 else version (FreeBSD)
 {
-    alias extern (C) int function(scope void *, scope const void *, scope const void *) Cmp;
-    extern (C) void qsort_r(scope void *base, size_t nmemb, size_t size, scope void *thunk, Cmp cmp);
+    import core.sys.freebsd.config : __FreeBSD_version;
 
-    extern (C) void[] _adSort(return scope void[] a, TypeInfo ti)
+    static if (__FreeBSD_version >= 1400000)
     {
-        extern (C) int cmp(scope void* ti, scope const void* p1, scope const void* p2)
+        // FreeBSD changed qsort_r function signature to POSIX in FreeBSD 14.0
+        alias Cmp = extern (C) int function(scope const void*, scope const void*, scope void*);
+        extern (C) void qsort_r(scope void* base, size_t nmemb, size_t size, Cmp cmp, scope void* thunk);
+
+        extern (C) void[] _adSort(return scope void[] a, TypeInfo ti)
         {
-            return (cast(TypeInfo)ti).compare(p1, p2);
+            extern (C) int cmp(scope const void* p1, scope const void* p2, scope void* ti)
+            {
+                return (cast(TypeInfo)ti).compare(p1, p2);
+            }
+            qsort_r(a.ptr, a.length, ti.tsize, &cmp, cast(void*)ti);
+            return a;
         }
-        qsort_r(a.ptr, a.length, ti.tsize, cast(void*)ti, &cmp);
-        return a;
+    }
+    else
+    {
+        alias Cmp = extern (C) int function(scope void *, scope const void *, scope const void *);
+        extern (C) void qsort_r(scope void* base, size_t nmemb, size_t size, scope void* thunk, Cmp cmp);
+
+        extern (C) void[] _adSort(return scope void[] a, TypeInfo ti)
+        {
+            extern (C) int cmp(scope void* ti, scope const void* p1, scope const void* p2)
+            {
+                return (cast(TypeInfo)ti).compare(p1, p2);
+            }
+            qsort_r(a.ptr, a.length, ti.tsize, cast(void*)ti, &cmp);
+            return a;
+        }
     }
 }
 else version (DragonFlyBSD)
 {
-    alias extern (C) int function(scope void *, scope const void *, scope const void *) Cmp;
+    alias Cmp = extern (C) int function(scope void *, scope const void *, scope const void *);
     extern (C) void qsort_r(scope void *base, size_t nmemb, size_t size, scope void *thunk, Cmp cmp);
 
     extern (C) void[] _adSort(return scope void[] a, TypeInfo ti)
@@ -86,7 +107,7 @@ else version (DragonFlyBSD)
 }
 else version (Darwin)
 {
-    alias extern (C) int function(scope void *, scope const void *, scope const void *) Cmp;
+    alias Cmp = extern (C) int function(scope void *, scope const void *, scope const void *);
     extern (C) void qsort_r(scope void *base, size_t nmemb, size_t size, scope void *thunk, Cmp cmp);
 
     extern (C) void[] _adSort(return scope void[] a, TypeInfo ti)
@@ -101,7 +122,7 @@ else version (Darwin)
 }
 else version (CRuntime_UClibc)
 {
-    alias extern (C) int function(scope const void *, scope const void *, scope void *) __compar_d_fn_t;
+    alias __compar_d_fn_t = extern (C) int function(scope const void *, scope const void *, scope void *);
     extern (C) void qsort_r(scope void *base, size_t nmemb, size_t size, __compar_d_fn_t cmp, scope void *arg);
 
     extern (C) void[] _adSort(return scope void[] a, TypeInfo ti)
@@ -116,6 +137,8 @@ else version (CRuntime_UClibc)
 }
 else
 {
+    import core.stdc.stdlib : qsort;
+
     private TypeInfo tiglobal;
 
     extern (C) void[] _adSort(return scope void[] a, TypeInfo ti)
@@ -151,8 +174,8 @@ unittest
 
     for (int i = 0; i < a.length - 1; i++)
     {
-        //printf("i = %d", i);
-        //printf(" %d %d\n", a[i], a[i + 1]);
+        debug(qsort) printf("i = %d", i);
+        debug(qsort) printf(" %d %d\n", a[i], a[i + 1]);
         assert(a[i] <= a[i + 1]);
     }
 }

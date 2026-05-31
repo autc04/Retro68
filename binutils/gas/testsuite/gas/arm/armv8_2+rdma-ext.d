@@ -1,4 +1,4 @@
-#name: Valid ARMv8.2-A with ARMv8.1-A NEON instructions.
+#name: Valid ARMv8.2-A with ARMv8.1-A NEON instructions (ext).
 #as: -march=armv8.2-a+simd
 #objdump: -dr
 #skip: *-*-pe *-*-wince

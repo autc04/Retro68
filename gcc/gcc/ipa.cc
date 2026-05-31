@@ -1,5 +1,5 @@
 /* Basic IPA optimizations and utilities.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -33,6 +33,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "ipa-utils.h"
 #include "symbol-summary.h"
 #include "tree-vrp.h"
+#include "sreal.h"
+#include "ipa-cp.h"
 #include "ipa-prop.h"
 #include "ipa-fnsummary.h"
 #include "dbgcnt.h"
@@ -182,7 +184,7 @@ walk_polymorphic_call_targets (hash_set<void *> *reachable_call_targets,
     = possible_polymorphic_call_targets
 	(edge, &final, &cache_token);
 
-  if (!reachable_call_targets->add (cache_token))
+  if (cache_token != NULL && !reachable_call_targets->add (cache_token))
     {
       for (i = 0; i < targets.length (); i++)
 	{
@@ -232,8 +234,7 @@ walk_polymorphic_call_targets (hash_set<void *> *reachable_call_targets,
 	  if (targets.length () == 1)
 	    target = targets[0];
 	  else
-	    target = cgraph_node::get_create
-		       (builtin_decl_implicit (BUILT_IN_UNREACHABLE));
+	    target = cgraph_node::get_create (builtin_decl_unreachable ());
 
 	  if (dump_enabled_p ())
 	    {
@@ -262,7 +263,7 @@ walk_polymorphic_call_targets (hash_set<void *> *reachable_call_targets,
      nodes even when they are reachable.
 
    - virtual functions are kept in callgraph even if they seem unreachable in
-     hope calls to them will be devirtualized. 
+     hope calls to them will be devirtualized.
 
      Again we remove them after inlining.  In late optimization some
      devirtualization may happen, but it is not important since we won't inline
@@ -309,6 +310,7 @@ bool
 symbol_table::remove_unreachable_nodes (FILE *file)
 {
   symtab_node *first = (symtab_node *) (void *) 1;
+  symtab_node *snode;
   struct cgraph_node *node, *next;
   varpool_node *vnode, *vnext;
   bool changed = false;
@@ -356,6 +358,12 @@ symbol_table::remove_unreachable_nodes (FILE *file)
 	reachable.add (vnode);
 	enqueue_node (vnode, &first, &reachable);
       }
+
+  /* Declarations or symbols in other partitions are also needed if referenced
+     from asm.  */
+  FOR_EACH_SYMBOL (snode)
+    if (snode->ref_by_asm)
+      enqueue_node (snode, &first, &reachable);
 
   /* Perform reachability analysis.  */
   while (first != (symtab_node *) (void *) 1)
@@ -427,11 +435,12 @@ symbol_table::remove_unreachable_nodes (FILE *file)
 		  for (e = cnode->indirect_calls; e; e = next)
 		    {
 		      next = e->next_callee;
-		      if (e->indirect_info->polymorphic)
+		      if (usable_polymorphic_info_p (e->indirect_info))
 			walk_polymorphic_call_targets (&reachable_call_targets,
 						       e, &first, &reachable);
 		    }
 		}
+
 	      for (e = cnode->callees; e; e = e->next_callee)
 		{
 	          symtab_node *body = e->callee->function_symbol ();
@@ -450,9 +459,6 @@ symbol_table::remove_unreachable_nodes (FILE *file)
 			reachable.add (body);
 		      reachable.add (e->callee);
 		    }
-		  else if (e->callee->declare_variant_alt
-			   && !e->callee->in_other_partition)
-		    reachable.add (e->callee);
 		  enqueue_node (e->callee, &first, &reachable);
 		}
 
@@ -477,6 +483,15 @@ symbol_table::remove_unreachable_nodes (FILE *file)
 	    }
 	  else if (cnode->thunk)
 	    enqueue_node (cnode->callees->callee, &first, &reachable);
+
+	  /* A reference to the default node implies use of all the other
+	     versions (they get used in the function resolver made later
+	     in multiple_target.cc)  */
+	  cgraph_function_version_info *node_v = cnode->function_version ();
+	  if (node_v && is_function_default_version (node->decl))
+	    for (cgraph_function_version_info *fvi = node_v->next; fvi;
+		 fvi = fvi->next)
+	      enqueue_node (fvi->this_node, &first, &reachable);
 
 	  /* If any reachable function has simd clones, mark them as
 	     reachable as well.  */
@@ -807,7 +822,7 @@ ipa_discover_variable_flags (void)
 	  }
 	if (!address_taken && !written
 	    /* Making variable in explicit section readonly can cause section
-	       type conflict. 
+	       type conflict.
 	       See e.g. gcc.c-torture/compile/pr23237.c */
 	    && vnode->get_section () == NULL)
 	  {
@@ -819,7 +834,7 @@ ipa_discover_variable_flags (void)
 	  {
 	    if (dump_file)
 	      fprintf (dump_file, " %s (write-only)", vnode->dump_name ());
-	    vnode->call_for_symbol_and_aliases (set_writeonly_bit, &remove_p, 
+	    vnode->call_for_symbol_and_aliases (set_writeonly_bit, &remove_p,
 					        true);
 	  }
       }
@@ -1343,8 +1358,11 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual bool gate (function *);
-  virtual unsigned int execute (function *) { return ipa_cdtor_merge (); }
+  bool gate (function *) final override;
+  unsigned int execute (function *) final override
+  {
+    return ipa_cdtor_merge ();
+  }
 
 }; // class pass_ipa_cdtor_merge
 
@@ -1374,7 +1392,7 @@ make_pass_ipa_cdtor_merge (gcc::context *ctxt)
    FUNCTION is current single user of a variable, VAR is variable that uses it.
    Latttice is stored in SINGLE_USER_MAP.
 
-   We represent: 
+   We represent:
     - TOP by no entry in SIGNLE_USER_MAP
     - BOTTOM by BOTTOM in AUX pointer (to save lookups)
     - known single user by cgraph pointer in SINGLE_USER_MAP.  */
@@ -1566,7 +1584,7 @@ public:
   {}
 
   /* opt_pass methods: */
-  virtual unsigned int execute (function *) { return ipa_single_use (); }
+  unsigned int execute (function *) final override { return ipa_single_use (); }
 
 }; // class pass_ipa_single_use
 

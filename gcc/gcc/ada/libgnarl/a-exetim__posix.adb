@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---         Copyright (C) 2007-2022, Free Software Foundation, Inc.          --
+--         Copyright (C) 2007-2026, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -34,8 +34,9 @@
 with Ada.Task_Identification;  use Ada.Task_Identification;
 with Ada.Unchecked_Conversion;
 
-with System.Tasking;
+with System.C_Time;
 with System.OS_Interface; use System.OS_Interface;
+with System.Tasking;
 with System.Task_Primitives.Operations; use System.Task_Primitives.Operations;
 
 with Interfaces.C; use Interfaces.C;
@@ -98,7 +99,7 @@ package body Ada.Execution_Time is
      (T : Ada.Task_Identification.Task_Id :=
         Ada.Task_Identification.Current_Task) return CPU_Time
    is
-      TS       : aliased timespec;
+      TS       : aliased System.C_Time.timespec;
       Clock_Id : aliased Interfaces.C.int;
       Result   : Interfaces.C.int;
 
@@ -112,15 +113,15 @@ package body Ada.Execution_Time is
 
       function clock_gettime
         (clock_id : Interfaces.C.int;
-         tp       : access timespec)
-         return int;
+         tp       : access System.C_Time.timespec)
+         return Interfaces.C.int;
       pragma Import (C, clock_gettime, "clock_gettime");
       --  Function from the POSIX.1b Realtime Extensions library
 
       function pthread_getcpuclockid
         (tid       : Thread_Id;
          clock_id  : access Interfaces.C.int)
-         return int;
+         return Interfaces.C.int;
       pragma Import (C, pthread_getcpuclockid, "pthread_getcpuclockid");
       --  Function from the Thread CPU-Time Clocks option
 
@@ -139,7 +140,7 @@ package body Ada.Execution_Time is
         (clock_id => Clock_Id, tp => TS'Unchecked_Access);
       pragma Assert (Result = 0);
 
-      return To_CPU_Time (To_Duration (TS));
+      return To_CPU_Time (System.C_Time.To_Duration (TS));
    end Clock;
 
    --------------------------

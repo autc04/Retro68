@@ -14,7 +14,6 @@ import core.stdc.config;
 version (CRuntime_Glibc):
 // Some of these may be from linux kernel headers.
 extern (C):
-@system:
 
 version (ARM)     version = ARM_Any;
 version (AArch64) version = ARM_Any;
@@ -57,6 +56,7 @@ version (linux)
     version (IA64)      version = GENERICMSQ;
     version (IBMZ_Any)  version = GENERICMSQ;
     version (RISCV_Any) version = GENERICMSQ;
+    version (LoongArch64) version = GENERICMSQ;
 
     version (GENERICMSQ)
     {
@@ -200,7 +200,10 @@ struct msgbuf
     char[1] mtext = 0;
 }
 
-int msgctl(int msqid, int cmd, msqid_ds* __buf);
+version (NetBSD)
+    pragma(mangle, "__msgctl50") int msgctl(int msqid, int cmd, msqid_ds* __buf);
+else
+    int msgctl(int msqid, int cmd, msqid_ds* __buf);
 int msgget(key_t key, int msgflg);
 ssize_t msgrcv(int msqid, void* msgp, size_t msgsz, c_long msgtyp, int msgflg);
 int msgsnd(int msqid, msgbuf* msgp, int msgsz, int msgflg);

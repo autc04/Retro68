@@ -1,4 +1,5 @@
 // { dg-do run }
+// { dg-skip-if "requires hosted libstdc++ for cstdlib abort" { ! hostedlib } }
 
 // Check  foo (compiler temp, co_await).
 
@@ -67,6 +68,6 @@ int main ()
       abort ();
     }
 
-  puts ("main: done");
+  PRINT ("main: done");
   return 0;
 }

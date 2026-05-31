@@ -1,4 +1,4 @@
-#ld: -Tdata=0x1000 -Tdata=0x2000 -Tcross2.t
+#ld: -Tdata=0x1000 -Tdata=0x2000 -Tcross2.t --no-error-rwx-segments
 #source: align2a.s
 #objdump: -h
 #notarget: *-*-*aout *-*-netbsd *-*-vms ns32k-*-* rx-*-*

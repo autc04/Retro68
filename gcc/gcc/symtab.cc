@@ -1,5 +1,5 @@
 /* Symbol table.
-   Copyright (C) 2012-2022 Free Software Foundation, Inc.
+   Copyright (C) 2012-2026 Free Software Foundation, Inc.
    Contributed by Jan Hubicka
 
 This file is part of GCC.
@@ -303,8 +303,14 @@ symbol_table::change_decl_assembler_name (tree decl, tree name)
 	warning (0, "%qD renamed after being referenced in assembly", decl);
 
       SET_DECL_ASSEMBLER_NAME (decl, name);
+      if (DECL_RTL_SET_P (decl))
+	{
+	  SET_DECL_RTL (decl, NULL);
+	  make_decl_rtl (decl);
+	}
       if (alias)
 	{
+	  gcc_assert (!IDENTIFIER_INTERNAL_P (name));
 	  IDENTIFIER_TRANSPARENT_ALIAS (name) = 1;
 	  TREE_CHAIN (name) = alias;
 	}
@@ -331,7 +337,7 @@ symbol_table::change_decl_assembler_name (tree decl, tree name)
 			      && IDENTIFIER_TRANSPARENT_ALIAS
 				     (DECL_ASSEMBLER_NAME (alias->decl)));
 
-		  TREE_CHAIN (DECL_ASSEMBLER_NAME (alias->decl)) = 
+		  TREE_CHAIN (DECL_ASSEMBLER_NAME (alias->decl)) =
 		    ultimate_transparent_alias_target
 			 (DECL_ASSEMBLER_NAME (node->decl));
 		}
@@ -578,7 +584,7 @@ symtab_node::get_dump_name (bool asm_name_p) const
   unsigned l = strlen (fname);
 
   char *s = (char *)ggc_internal_cleared_alloc (l + EXTRA);
-  snprintf (s, l + EXTRA, "%s/%d", fname, order);
+  snprintf (s, l + EXTRA, "%s/%d", fname, m_uid);
 
   return s;
 }
@@ -748,12 +754,13 @@ symtab_node::clone_reference (ipa_ref *ref, gimple *stmt)
   return ref2;
 }
 
-/* Find the structure describing a reference to REFERRED_NODE
-   and associated with statement STMT.  */
+/* Find the structure describing a reference to REFERRED_NODE of USE_TYPE and
+   associated with statement STMT or LTO_STMT_UID.  */
 
 ipa_ref *
 symtab_node::find_reference (symtab_node *referred_node,
-			     gimple *stmt, unsigned int lto_stmt_uid)
+			     gimple *stmt, unsigned int lto_stmt_uid,
+			     enum ipa_ref_use use_type)
 {
   ipa_ref *r = NULL;
   int i;
@@ -761,6 +768,7 @@ symtab_node::find_reference (symtab_node *referred_node,
   for (i = 0; iterate_reference (i, r); i++)
     if (r->referred == referred_node
 	&& !r->speculative
+	&& r->use == use_type
 	&& ((stmt && r->stmt == stmt)
 	    || (lto_stmt_uid && r->lto_stmt_uid == lto_stmt_uid)
 	    || (!stmt && !lto_stmt_uid && !r->stmt && !r->lto_stmt_uid)))
@@ -865,7 +873,16 @@ symtab_node::dump_referring (FILE *file)
   fprintf (file, "\n");
 }
 
-static const char * const symtab_type_names[] = {"symbol", "function", "variable"};
+static const char * const toplevel_type_names[] =
+{
+ "base",
+ "asm",
+ "symbol",
+ "function",
+ "variable",
+};
+
+static_assert (ARRAY_SIZE(toplevel_type_names) == TOPLEVEL_MAX, "");
 
 /* Dump the visibility of the symbol.  */
 
@@ -881,7 +898,7 @@ symtab_node::get_visibility_string () const
 const char *
 symtab_node::get_symtab_type_string () const
 {
-  return symtab_type_names[type];
+  return toplevel_type_names[type];
 }
 
 /* Dump base fields of symtab nodes to F.  Not to be used directly.  */
@@ -894,8 +911,9 @@ symtab_node::dump_base (FILE *f)
   };
 
   fprintf (f, "%s (%s)", dump_asm_name (), name ());
-  dump_addr (f, " @", (void *)this);
-  fprintf (f, "\n  Type: %s", symtab_type_names[type]);
+  if (dump_flags & TDF_ADDRESS)
+    dump_addr (f, " @", (void *)this);
+  fprintf (f, "\n  Type: %s", toplevel_type_names[type]);
 
   if (definition)
     fprintf (f, " definition");
@@ -986,10 +1004,10 @@ symtab_node::dump_base (FILE *f)
 	     same_comdat_group->dump_asm_name ());
   if (next_sharing_asm_name)
     fprintf (f, "  next sharing asm name: %i\n",
-	     next_sharing_asm_name->order);
+	     next_sharing_asm_name->get_uid ());
   if (previous_sharing_asm_name)
     fprintf (f, "  previous sharing asm name: %i\n",
-	     previous_sharing_asm_name->order);
+	     previous_sharing_asm_name->get_uid ());
 
   if (address_taken)
     fprintf (f, "  Address is taken.\n");
@@ -1132,7 +1150,7 @@ symtab_node::verify_base (void)
       error ("node has invalid order %i", order);
       error_found = true;
     }
-   
+
   if (symtab->state != LTO_STREAMING)
     {
       hashed_node = symtab_node::get (decl);
@@ -1366,6 +1384,98 @@ symtab_node::verify (void)
   timevar_pop (TV_CGRAPH_VERIFY);
 }
 
+/* Return true and set *DATA to true if NODE is an ifunc resolver.  */
+
+static bool
+check_ifunc_resolver (cgraph_node *node, void *data)
+{
+  if (node->ifunc_resolver)
+    {
+      bool *is_ifunc_resolver = (bool *) data;
+      *is_ifunc_resolver = true;
+      return true;
+    }
+  return false;
+}
+
+static bitmap ifunc_ref_map;
+
+/* Return true if any caller of NODE is an ifunc resolver.  */
+
+static bool
+is_caller_ifunc_resolver (cgraph_node *node)
+{
+  bool is_ifunc_resolver = false;
+
+  for (cgraph_edge *e = node->callers; e; e = e->next_caller)
+    {
+      /* Return true if caller is known to be an IFUNC resolver.  */
+      if (e->caller->called_by_ifunc_resolver)
+	return true;
+
+      /* Check for recursive call.  */
+      if (e->caller == node)
+	continue;
+
+      /* Skip if it has been visited.  */
+      unsigned int uid = e->caller->get_uid ();
+      if (!bitmap_set_bit (ifunc_ref_map, uid))
+	continue;
+
+      if (is_caller_ifunc_resolver (e->caller))
+	{
+	  /* Return true if caller is an IFUNC resolver.  */
+	  e->caller->called_by_ifunc_resolver = true;
+	  return true;
+	}
+
+      /* Check if caller's alias is an IFUNC resolver.  */
+      e->caller->call_for_symbol_and_aliases (check_ifunc_resolver,
+					      &is_ifunc_resolver,
+					      true);
+      if (is_ifunc_resolver)
+	{
+	  /* Return true if caller's alias is an IFUNC resolver.  */
+	  e->caller->called_by_ifunc_resolver = true;
+	  return true;
+	}
+    }
+
+  return false;
+}
+
+/* Check symbol table for callees of IFUNC resolvers.  */
+
+void
+symtab_node::check_ifunc_callee_symtab_nodes (void)
+{
+  symtab_node *node;
+
+  bitmap_obstack_initialize (NULL);
+  ifunc_ref_map = BITMAP_ALLOC (NULL);
+
+  FOR_EACH_SYMBOL (node)
+    {
+      cgraph_node *cnode = dyn_cast <cgraph_node *> (node);
+      if (!cnode)
+	continue;
+
+      unsigned int uid = cnode->get_uid ();
+      if (bitmap_bit_p (ifunc_ref_map, uid))
+	continue;
+      bitmap_set_bit (ifunc_ref_map, uid);
+
+      bool is_ifunc_resolver = false;
+      cnode->call_for_symbol_and_aliases (check_ifunc_resolver,
+					  &is_ifunc_resolver, true);
+      if (is_ifunc_resolver || is_caller_ifunc_resolver (cnode))
+	cnode->called_by_ifunc_resolver = true;
+    }
+
+  BITMAP_FREE (ifunc_ref_map);
+  bitmap_obstack_release (NULL);
+}
+
 /* Verify symbol table for internal consistency.  */
 
 DEBUG_FUNCTION void
@@ -1375,7 +1485,9 @@ symtab_node::verify_symtab_nodes (void)
   hash_map<tree, symtab_node *> comdat_head_map (251);
   asm_node *anode;
 
-  for (anode = symtab->first_asm_symbol (); anode; anode = anode->next)
+  for (anode = symtab->first_asm_symbol ();
+       anode;
+       anode = safe_as_a<asm_node*>(anode->next))
     if (anode->order < 0 || anode->order >= symtab->order)
        {
 	  error ("invalid order in asm node %i", anode->order);
@@ -1785,11 +1897,9 @@ symtab_node::set_init_priority (priority_type priority)
   if (is_a <cgraph_node *> (this))
     gcc_assert (DECL_STATIC_CONSTRUCTOR (this->decl));
 
-  if (priority == DEFAULT_INIT_PRIORITY)
-    {
-      gcc_assert (get_init_priority() == priority);
-      return;
-    }
+  if (priority == DEFAULT_INIT_PRIORITY
+      && get_init_priority() == priority)
+    return;
   h = priority_info ();
   h->init = priority;
 }
@@ -1803,11 +1913,9 @@ cgraph_node::set_fini_priority (priority_type priority)
 
   gcc_assert (DECL_STATIC_DESTRUCTOR (this->decl));
 
-  if (priority == DEFAULT_INIT_PRIORITY)
-    {
-      gcc_assert (get_fini_priority() == priority);
-      return;
-    }
+  if (priority == DEFAULT_INIT_PRIORITY
+      && get_fini_priority() == priority)
+    return;
   h = priority_info ();
   h->fini = priority;
 }
@@ -2065,7 +2173,7 @@ symtab_node::get_partitioning_class (void)
   if (DECL_ABSTRACT_P (decl))
     return SYMBOL_EXTERNAL;
 
-  if (cnode && (cnode->inlined_to || cnode->declare_variant_alt))
+  if (cnode && cnode->inlined_to)
     return SYMBOL_DUPLICATE;
 
   /* Transparent aliases are always duplicated.  */
@@ -2112,10 +2220,11 @@ symtab_node::get_partitioning_class (void)
   return SYMBOL_PARTITION;
 }
 
-/* Return true when symbol is known to be non-zero.  */
+/* Return true when symbol is known to be non-zero, assume that
+   flag_delete_null_pointer_checks is equal to delete_null_pointer_checks.  */
 
 bool
-symtab_node::nonzero_address ()
+symtab_node::nonzero_address (bool delete_null_pointer_checks)
 {
   /* Weakrefs may be NULL when their target is not defined.  */
   if (alias && weakref)
@@ -2130,7 +2239,7 @@ symtab_node::nonzero_address ()
 	     target is used only via the alias.
 	     We may walk references and look for strong use, but we do not know
 	     if this strong use will survive to final binary, so be
-	     conservative here.  
+	     conservative here.
 	     ??? Maybe we could do the lookup during late optimization that
 	     could be useful to eliminate the NULL pointer checks in LTO
 	     programs.  */
@@ -2139,7 +2248,7 @@ symtab_node::nonzero_address ()
 	  if (target->resolution != LDPR_UNKNOWN
 	      && target->resolution != LDPR_UNDEF
 	      && !target->can_be_discarded_p ()
-	      && flag_delete_null_pointer_checks)
+	      && delete_null_pointer_checks)
 	    return true;
 	  return false;
 	}
@@ -2156,7 +2265,7 @@ symtab_node::nonzero_address ()
 
      When parsing, beware the cases when WEAK attribute is added later.  */
   if ((!DECL_WEAK (decl) || DECL_COMDAT (decl))
-      && flag_delete_null_pointer_checks)
+      && delete_null_pointer_checks)
     {
       refuse_visibility_changes = true;
       return true;
@@ -2167,7 +2276,7 @@ symtab_node::nonzero_address ()
      Play safe for flag_delete_null_pointer_checks where weak definition may
      be re-defined by NULL.  */
   if (definition && !DECL_EXTERNAL (decl)
-      && (flag_delete_null_pointer_checks || !DECL_WEAK (decl)))
+      && (delete_null_pointer_checks || !DECL_WEAK (decl)))
     {
       if (!DECL_WEAK (decl))
         refuse_visibility_changes = true;
@@ -2178,14 +2287,22 @@ symtab_node::nonzero_address ()
   if (resolution != LDPR_UNKNOWN
       && resolution != LDPR_UNDEF
       && !can_be_discarded_p ()
-      && flag_delete_null_pointer_checks)
+      && delete_null_pointer_checks)
     return true;
   return false;
 }
 
+/* Return true when symbol is known to be non-zero.  */
+
+bool
+symtab_node::nonzero_address ()
+{
+  return nonzero_address (flag_delete_null_pointer_checks);
+}
+
 /* Return 0 if symbol is known to have different address than S2,
    Return 1 if symbol is known to have same address as S2,
-   return -1 otherwise.  
+   return -1 otherwise.
 
    If MEMORY_ACCESSED is true, assume that both memory pointer to THIS
    and S2 is going to be accessed.  This eliminates the situations when
@@ -2260,7 +2377,7 @@ symtab_node::equal_address_to (symtab_node *s2, bool memory_accessed)
 
   /* If we have a non-interposable definition of at least one of the symbols
      and the other symbol is different, we know other unit cannot interpose
-     it to the first symbol; all aliases of the definition needs to be 
+     it to the first symbol; all aliases of the definition needs to be
      present in the current unit.  */
   if (((really_binds_local1 || really_binds_local2)
       /* If we have both definitions and they are different, we know they
@@ -2331,7 +2448,7 @@ address_matters_1 (symtab_node *n, void *)
 
   if (!n->address_can_be_compared_p ())
     return false;
-  if (n->externally_visible || n->force_output)
+  if (n->externally_visible || n->force_output || n->ref_by_asm)
     return true;
 
   for (unsigned int i = 0; n->iterate_referring (i, ref); i++)
@@ -2455,7 +2572,7 @@ symtab_node::definition_alignment ()
 
 /* Return symbol used to separate symbol name from suffix.  */
 
-char 
+char
 symbol_table::symbol_suffix_separator ()
 {
 #ifndef NO_DOT_IN_LABEL

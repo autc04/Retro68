@@ -1,6 +1,6 @@
 // Set implementation -*- C++ -*-
 
-// Copyright (C) 2001-2022 Free Software Foundation, Inc.
+// Copyright (C) 2001-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -60,6 +60,10 @@
 #if __cplusplus >= 201103L
 #include <initializer_list>
 #endif
+#if __glibcxx_containers_ranges // C++ >= 23
+# include <bits/ranges_base.h> // ranges::begin, ranges::distance etc.
+#endif
+// #include <bits/stl_tree.h>  // done in std/set
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -74,6 +78,8 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
    *  retrieved in logarithmic time.
    *
    *  @ingroup associative_containers
+   *  @headerfile set
+   *  @since C++98
    *
    *  @tparam _Key  Type of key objects.
    *  @tparam _Compare  Comparison function object type, defaults to less<_Key>.
@@ -152,7 +158,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       typedef typename _Rep_type::difference_type	 difference_type;
       ///@}
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17
       using node_type = typename _Rep_type::node_type;
       using insert_return_type = typename _Rep_type::insert_return_type;
 #endif
@@ -272,6 +278,25 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 	    const allocator_type& __a)
 	: _M_t(_Key_alloc_type(__a))
 	{ _M_t._M_insert_range_unique(__first, __last); }
+
+#if __glibcxx_containers_ranges // C++ >= 23
+      /**
+       * @brief Builds a %set from a range.
+       * @since C++23
+       */
+      template<__detail::__container_compatible_range<_Key> _Rg>
+	set(from_range_t, _Rg&& __rg,
+	    const _Compare& __comp,
+	    const _Alloc& __a = _Alloc())
+	: _M_t(__comp, _Key_alloc_type(__a))
+	{ insert_range(std::forward<_Rg>(__rg)); }
+
+      /// Allocator-extended range constructor.
+      template<__detail::__container_compatible_range<_Key> _Rg>
+	set(from_range_t, _Rg&& __rg, const _Alloc& __a = _Alloc())
+	: _M_t(_Key_alloc_type(__a))
+	{ insert_range(std::forward<_Rg>(__rg)); }
+#endif
 
       /**
        *  The dtor only erases the elements, and note that if the elements
@@ -523,6 +548,22 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       }
 #endif
 
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<set> _Kt>
+	pair<iterator, bool>
+	insert(_Kt&& __k)
+	{
+	  auto [__left, __node] =_M_t._M_get_insert_unique_pos_tr(__k);
+	  if (__node)
+	    {
+	      iterator __i = _M_t._M_emplace_here(
+		(__left == __node), __node, std::forward<_Kt>(__k));
+	      return { __i, true };
+	    }
+	  return { iterator(__left), false };
+	}
+#endif
+
       /**
        *  @brief Attempts to insert an element into the %set.
        *  @param  __position  An iterator that serves as a hint as to where the
@@ -540,7 +581,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  For more on @a hinting, see:
        *  https://gcc.gnu.org/onlinedocs/libstdc++/manual/associative.html#containers.associative.insert_hints
        *
+       *  If a heterogeneous key __k matches a range of elements, an iterator
+       *  to the first is returned.
+       *
        *  Insertion requires logarithmic time (if the hint is not taken).
+       *  @{
        */
       iterator
       insert(const_iterator __position, const value_type& __x)
@@ -551,6 +596,22 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       insert(const_iterator __position, value_type&& __x)
       { return _M_t._M_insert_unique_(__position, std::move(__x)); }
 #endif
+
+#ifdef __glibcxx_associative_heterogeneous_insertion  // C++26
+      template <__heterogeneous_tree_key<set> _Kt>
+	iterator
+	insert(const_iterator __position, _Kt&& __k)
+	{
+	  auto [__left, __node] =
+	    _M_t._M_get_insert_hint_unique_pos_tr(__position, __k);
+	  if (__node)
+	    return _M_t._M_emplace_here(
+	      (__left == __node), __node, std::forward<_Kt>(__k));
+	  else
+	    return iterator(__left);
+	}
+#endif
+      ///@}
 
       /**
        *  @brief A template function that attempts to insert a range
@@ -579,7 +640,29 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       { this->insert(__l.begin(), __l.end()); }
 #endif
 
-#if __cplusplus > 201402L
+#if __glibcxx_containers_ranges // C++ >= 23
+      /**
+       *  @brief Inserts a range of elements.
+       *  @since C++23
+       *  @param  __rg An input range of elements that can be converted to
+       *               the set's value type.
+       */
+      template<__detail::__container_compatible_range<_Key> _Rg>
+	void
+	insert_range(_Rg&& __rg)
+	{
+	  auto __first = ranges::begin(__rg);
+	  const auto __last = ranges::end(__rg);
+	  using _Rv = remove_cvref_t<ranges::range_reference_t<_Rg>>;
+	  for (; __first != __last; ++__first)
+	    if constexpr (is_same_v<_Rv, _Key>)
+	      _M_t._M_insert_unique(*__first);
+	    else
+	      _M_t._M_emplace_unique(*__first);
+	}
+#endif
+
+#ifdef __glibcxx_node_extract // >= C++17
       /// Extract a node.
       node_type
       extract(const_iterator __pos)
@@ -592,6 +675,13 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       node_type
       extract(const key_type& __x)
       { return _M_t.extract(__x); }
+
+#ifdef __glibcxx_associative_heterogeneous_erasure // C++23
+      template <__heterogeneous_tree_key<set> _Kt>
+	node_type
+	extract(_Kt&& __key)
+	{ return _M_t._M_extract_tr(__key); }
+#endif
 
       /// Re-insert an extracted node.
       insert_return_type
@@ -682,7 +772,17 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        */
       size_type
       erase(const key_type& __x)
-      { return _M_t.erase(__x); }
+      { return _M_t._M_erase_unique(__x); }
+
+#ifdef __glibcxx_associative_heterogeneous_erasure // C++23
+      // Note that for some types _Kt this may erase more than
+      // one element, such as if _Kt::operator< checks only part
+      // of the key.
+      template <__heterogeneous_tree_key<set> _Kt>
+	size_type
+	erase(_Kt&& __key)
+	{ return _M_t._M_erase_tr(__key); }
+#endif
 
 #if __cplusplus >= 201103L
       // _GLIBCXX_RESOLVE_LIB_DEFECTS
@@ -748,7 +848,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       count(const key_type& __x) const
       { return _M_t.find(__x) == _M_t.end() ? 0 : 1; }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	count(const _Kt& __x) const
@@ -798,7 +898,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       find(const key_type& __x) const
       { return _M_t.find(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	find(const _Kt& __x)
@@ -833,7 +933,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       lower_bound(const key_type& __x) const
       { return _M_t.lower_bound(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	lower_bound(const _Kt& __x)
@@ -863,7 +963,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       upper_bound(const key_type& __x) const
       { return _M_t.upper_bound(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	upper_bound(const _Kt& __x)
@@ -873,7 +973,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       template<typename _Kt>
 	auto
 	upper_bound(const _Kt& __x) const
-	-> decltype(iterator(_M_t._M_upper_bound_tr(__x)))
+	-> decltype(const_iterator(_M_t._M_upper_bound_tr(__x)))
 	{ return const_iterator(_M_t._M_upper_bound_tr(__x)); }
 #endif
       ///@}
@@ -902,7 +1002,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       equal_range(const key_type& __x) const
       { return _M_t.equal_range(__x); }
 
-#if __cplusplus > 201103L
+#ifdef __glibcxx_generic_associative_lookup // C++ >= 14
       template<typename _Kt>
 	auto
 	equal_range(const _Kt& __x)
@@ -968,6 +1068,17 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
     set(initializer_list<_Key>, _Allocator)
     -> set<_Key, less<_Key>, _Allocator>;
 
+#if __glibcxx_containers_ranges // C++ >= 23
+  template<ranges::input_range _Rg,
+	   __not_allocator_like _Compare = less<ranges::range_value_t<_Rg>>,
+	   __allocator_like _Alloc = std::allocator<ranges::range_value_t<_Rg>>>
+    set(from_range_t, _Rg&&, _Compare = _Compare(), _Alloc = _Alloc())
+      -> set<ranges::range_value_t<_Rg>, _Compare, _Alloc>;
+
+  template<ranges::input_range _Rg, __allocator_like _Alloc>
+    set(from_range_t, _Rg&&, _Alloc)
+      -> set<ranges::range_value_t<_Rg>, less<ranges::range_value_t<_Rg>>, _Alloc>;
+#endif
 #endif // deduction guides
 
   /**
@@ -1062,7 +1173,7 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
 
 _GLIBCXX_END_NAMESPACE_CONTAINER
 
-#if __cplusplus > 201402L
+#ifdef __glibcxx_node_extract // >= C++17 && HOSTED
   // Allow std::set access to internals of compatible sets.
   template<typename _Val, typename _Cmp1, typename _Alloc, typename _Cmp2>
     struct

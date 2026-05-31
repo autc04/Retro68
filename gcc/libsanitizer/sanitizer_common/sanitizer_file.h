@@ -15,7 +15,7 @@
 #ifndef SANITIZER_FILE_H
 #define SANITIZER_FILE_H
 
-#include "sanitizer_interface_internal.h"
+#include "sanitizer_common.h"
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_libc.h"
 #include "sanitizer_mutex.h"
@@ -43,6 +43,9 @@ struct ReportFile {
   // PID of the process that opened fd. If a fork() occurs,
   // the PID of child will be different from fd_pid.
   uptr fd_pid;
+  // Set to true if the last attempt to open the logfile failed, perhaps due to
+  // permission errors
+  bool fallbackToStderrActive = false;
 
  private:
   void ReopenIfNecessary();
@@ -78,12 +81,13 @@ bool SupportsColoredOutput(fd_t fd);
 // OS
 const char *GetPwd();
 bool FileExists(const char *filename);
+bool DirExists(const char *path);
 char *FindPathToBinary(const char *name);
 bool IsPathSeparator(const char c);
 bool IsAbsolutePath(const char *path);
 // Returns true on success, false on failure.
 bool CreateDir(const char *pathname);
-// Starts a subprocess and returs its pid.
+// Starts a subprocess and returns its pid.
 // If *_fd parameters are not kInvalidFd their corresponding input/output
 // streams will be redirect to the file. The files will always be closed
 // in parent process even in case of an error.

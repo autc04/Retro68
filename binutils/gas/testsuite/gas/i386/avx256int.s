@@ -1,6 +1,5 @@
 # Check i386 256bit integer AVX instructions
 
-	.allow_index_reg
 	.text
 _start:
 

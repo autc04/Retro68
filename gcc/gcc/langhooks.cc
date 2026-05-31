@@ -1,5 +1,5 @@
 /* Default language-specific hooks.
-   Copyright (C) 2001-2022 Free Software Foundation, Inc.
+   Copyright (C) 2001-2026 Free Software Foundation, Inc.
    Contributed by Alexandre Oliva  <aoliva@redhat.com>
 
 This file is part of GCC.
@@ -18,6 +18,7 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#define INCLUDE_VECTOR
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -38,6 +39,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "stor-layout.h"
 #include "cgraph.h"
 #include "debug.h"
+#include "diagnostics/text-sink.h"
 
 /* Do nothing; in many cases the default hook.  */
 
@@ -329,7 +331,7 @@ global_decl_processing (void)
 
 /* Called to perform language-specific initialization of CTX.  */
 void
-lhd_initialize_diagnostics (diagnostic_context *ctx ATTRIBUTE_UNUSED)
+lhd_initialize_diagnostics (diagnostics::context *ctx ATTRIBUTE_UNUSED)
 {
 }
 
@@ -368,20 +370,23 @@ lhd_handle_option (size_t code ATTRIBUTE_UNUSED,
 /* The default function to print out name of current function that caused
    an error.  */
 void
-lhd_print_error_function (diagnostic_context *context, const char *file,
-			  diagnostic_info *diagnostic)
+lhd_print_error_function (diagnostics::text_sink &text_output,
+			  const char *file,
+			  const diagnostics::diagnostic_info *diagnostic)
 {
+  diagnostics::context *const context = &text_output.get_context ();
   if (diagnostic_last_function_changed (context, diagnostic))
     {
-      char *old_prefix = pp_take_prefix (context->printer);
+      pretty_printer *const pp = text_output.get_printer ();
+      char *old_prefix = pp_take_prefix (pp);
       tree abstract_origin = diagnostic_abstract_origin (diagnostic);
       char *new_prefix = (file && abstract_origin == NULL)
-			 ? file_name_as_prefix (context, file) : NULL;
+			 ? text_output.file_name_as_prefix (file) : NULL;
 
-      pp_set_prefix (context->printer, new_prefix);
+      pp_set_prefix (pp, new_prefix);
 
       if (current_function_decl == NULL)
-	pp_printf (context->printer, _("At top level:"));
+	pp_printf (pp, _("At top level:"));
       else
 	{
 	  tree fndecl, ao;
@@ -397,11 +402,11 @@ lhd_print_error_function (diagnostic_context *context, const char *file,
 
 	  if (TREE_CODE (TREE_TYPE (fndecl)) == METHOD_TYPE)
 	    pp_printf
-	      (context->printer, _("In member function %qs"),
+	      (pp, _("In member function %qs"),
 	       identifier_to_locale (lang_hooks.decl_printable_name (fndecl, 2)));
 	  else
 	    pp_printf
-	      (context->printer, _("In function %qs"),
+	      (pp, _("In function %qs"),
 	       identifier_to_locale (lang_hooks.decl_printable_name (fndecl, 2)));
 
 	  while (abstract_origin)
@@ -440,34 +445,33 @@ lhd_print_error_function (diagnostic_context *context, const char *file,
 	      if (fndecl)
 		{
 		  expanded_location s = expand_location (*locus);
-		  pp_comma (context->printer);
-		  pp_newline (context->printer);
+		  pp_comma (pp);
+		  pp_newline (pp);
 		  if (s.file != NULL)
 		    {
-		      if (context->show_column)
-			pp_printf (context->printer,
+		      if (context->m_show_column)
+			pp_printf (pp,
 				   _("    inlined from %qs at %r%s:%d:%d%R"),
 				   identifier_to_locale (lang_hooks.decl_printable_name (fndecl, 2)),
 				   "locus", s.file, s.line, s.column);
 		      else
-			pp_printf (context->printer,
+			pp_printf (pp,
 				   _("    inlined from %qs at %r%s:%d%R"),
 				   identifier_to_locale (lang_hooks.decl_printable_name (fndecl, 2)),
 				   "locus", s.file, s.line);
 
 		    }
 		  else
-		    pp_printf (context->printer, _("    inlined from %qs"),
+		    pp_printf (pp, _("    inlined from %qs"),
 			       identifier_to_locale (lang_hooks.decl_printable_name (fndecl, 2)));
 		}
 	    }
-	  pp_colon (context->printer);
+	  pp_colon (pp);
 	}
 
       diagnostic_set_last_function (context, diagnostic);
-      pp_newline_and_flush (context->printer);
-      context->printer->prefix = old_prefix;
-      free ((char*) new_prefix);
+      pp_newline_and_flush (pp);
+      pp->set_prefix (old_prefix);
     }
 }
 
@@ -634,6 +638,64 @@ lhd_omp_finish_clause (tree, gimple_seq *, bool)
 {
 }
 
+/* Return array size; cf. omp_array_data.  */
+
+tree
+lhd_omp_array_size (tree, gimple_seq *)
+{
+  return NULL_TREE;
+}
+
+/* Returns true when additional mappings for a decl are needed.  */
+
+bool
+lhd_omp_deep_mapping_p (const gimple *, tree)
+{
+  return false;
+}
+
+/* Returns number of additional mappings for a decl.  */
+
+tree
+lhd_omp_deep_mapping_cnt (const gimple *, tree, gimple_seq *)
+{
+  return NULL_TREE;
+}
+
+/* Do the additional mappings.  */
+
+void
+lhd_omp_deep_mapping (const gimple *, tree, unsigned HOST_WIDE_INT, tree, tree,
+		      tree, tree, tree, gimple_seq *)
+{
+}
+
+/* Look up an OpenMP "declare mapper" mapper.  */
+
+tree
+lhd_omp_mapper_lookup (tree, tree)
+{
+  return NULL_TREE;
+}
+
+/* Given the representation used by the front-end to contain a mapper
+   directive, return the statement for the directive itself.  */
+
+tree
+lhd_omp_extract_mapper_directive (tree)
+{
+  return error_mark_node;
+}
+
+/* Return a simplified form for OMP_ARRAY_SECTION argument, or
+   error_mark_node if impossible.  */
+
+tree
+lhd_omp_map_array_section (location_t, tree)
+{
+  return error_mark_node;
+}
+
 /* Return true if DECL is a scalar variable (for the purpose of
    implicit firstprivatization & mapping). Only if alloc_ptr_ok
    are allocatables and pointers accepted. */
@@ -676,17 +738,6 @@ void
 lhd_omp_firstprivatize_type_sizes (struct gimplify_omp_ctx *c ATTRIBUTE_UNUSED,
 				   tree t ATTRIBUTE_UNUSED)
 {
-}
-
-/* Return true if TYPE is an OpenMP mappable type.  */
-
-bool
-lhd_omp_mappable_type (tree type)
-{
-  /* Mappable type has to be complete.  */
-  if (type == error_mark_node || !COMPLETE_TYPE_P (type))
-    return false;
-  return true;
 }
 
 /* Common function for add_builtin_function, add_builtin_function_ext_scope
@@ -915,6 +966,14 @@ lhd_finalize_early_debug (void)
   struct cgraph_node *cnode;
   FOR_EACH_FUNCTION_WITH_GIMPLE_BODY (cnode)
     (*debug_hooks->early_global_decl) (cnode->decl);
+}
+
+/* Default implementation of LANG_HOOKS_GET_SARIF_SOURCE_LANGUAGE.  */
+
+const char *
+lhd_get_sarif_source_language (const char *)
+{
+  return NULL;
 }
 
 /* Returns true if the current lang_hooks represents the GNU C frontend.  */

@@ -13,14 +13,13 @@ import core.sys.linux.config : __USE_FILE_OFFSET64;
 import core.stdc.stdio : FILE;
 import core.stdc.stddef : wchar_t;
 
-@system:
 
 extern(C) nothrow
 {
-    alias ssize_t function(void *cookie, char *buf, size_t size) cookie_read_function_t;
-    alias ssize_t function(void *cookie, const(char) *buf, size_t size) cookie_write_function_t;
-    alias int function(void *cookie, off64_t *offset, int whence) cookie_seek_function_t;
-    alias int function(void *cookie) cookie_close_function_t;
+    alias cookie_read_function_t = ssize_t function(void *cookie, char *buf, size_t size);
+    alias cookie_write_function_t = ssize_t function(void *cookie, const(char) *buf, size_t size);
+    alias cookie_seek_function_t = int function(void *cookie, off64_t *offset, int whence);
+    alias cookie_close_function_t = int function(void *cookie);
 
     struct cookie_io_functions_t
     {
@@ -29,7 +28,7 @@ extern(C) nothrow
         cookie_seek_function_t seek;
         cookie_close_function_t close;
     }
-    FILE* fopencookie(in void* cookie, in char* mode, cookie_io_functions_t io_funcs);
+    FILE* fopencookie(void* cookie, const(char)* mode, cookie_io_functions_t io_funcs);
     void setbuffer(FILE *stream, char *buf, size_t size); // note: _DEFAULT_SOURCE
 }
 

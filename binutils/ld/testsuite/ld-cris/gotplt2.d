@@ -1,7 +1,7 @@
 #source: dso-2.s
 #source: dsofnf.s
 #source: gotrel1.s
-#as: --pic --no-underscore --em=criself
+#as: --pic --no-underscore --emulation=criself
 #ld: -shared -m crislinux -z nocombreloc --hash-style=sysv
 #objdump: -sR
 

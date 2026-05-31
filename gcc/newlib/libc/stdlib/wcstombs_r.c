@@ -17,14 +17,15 @@ _wcstombs_r (struct _reent *r,
   if (s == NULL)
     {
       size_t num_bytes = 0;
-      while (*pwcs != 0)
+      do
 	{
-	  bytes = __WCTOMB (r, buff, *pwcs++, state);
+	  bytes = __WCTOMB (r, buff, *pwcs, state);
 	  if (bytes == -1)
 	    return -1;
 	  num_bytes += bytes;
 	}
-      return num_bytes;
+      while (*pwcs++ != 0x00);
+      return num_bytes - 1;
     }
   else
     {

@@ -1,6 +1,6 @@
 #source: dso-1.s
 #source: gotrel1.s --pic
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux tmpdir/libdso-4.so
 #objdump: -T
 

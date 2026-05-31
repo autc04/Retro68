@@ -32,7 +32,7 @@ static const char kShadowMemoryMappingHint[] =
     "TSAN_OPTIONS=%s=0\n";
 
 #  if !SANITIZER_GO
-static void DontDumpShadow(uptr addr, uptr size) {
+void DontDumpShadow(uptr addr, uptr size) {
   if (common_flags()->use_madv_dontdump)
     if (!DontDumpShadowMemory(addr, size)) {
       Printf(kShadowMemoryMappingWarning, SanitizerToolName, addr, addr + size,
@@ -94,43 +94,68 @@ static void ProtectRange(uptr beg, uptr end) {
   }
 }
 
-void CheckAndProtect() {
+// CheckAndProtect will check if the memory layout is compatible with TSan.
+// Optionally (if 'protect' is true), it will set the memory regions between
+// app memory to be inaccessible.
+// 'ignore_heap' means it will not consider heap memory allocations to be a
+// conflict. Set this based on whether we are calling CheckAndProtect before
+// or after the allocator has initialized the heap.
+bool CheckAndProtect(bool protect, bool ignore_heap, bool print_warnings) {
   // Ensure that the binary is indeed compiled with -pie.
   MemoryMappingLayout proc_maps(true);
   MemoryMappedSegment segment;
   while (proc_maps.Next(&segment)) {
-    if (IsAppMem(segment.start)) continue;
+    if (segment.start >= HeapMemBeg() && segment.end <= HeapEnd()) {
+      if (ignore_heap) {
+        continue;
+      } else {
+        return false;
+      }
+    }
+
+    // Note: IsAppMem includes if it is heap memory, hence we must
+    // put this check after the heap bounds check.
+    if (IsAppMem(segment.start) && IsAppMem(segment.end - 1))
+      continue;
+
+    // Guard page after the heap end
     if (segment.start >= HeapMemEnd() && segment.start < HeapEnd()) continue;
+
     if (segment.protection == 0)  // Zero page or mprotected.
       continue;
+
     if (segment.start >= VdsoBeg())  // vdso
       break;
-    Printf("FATAL: ThreadSanitizer: unexpected memory mapping 0x%zx-0x%zx\n",
-           segment.start, segment.end);
-    Die();
+
+    // Debug output can break tests. Suppress this message in most cases.
+    if (print_warnings)
+      Printf(
+          "WARNING: ThreadSanitizer: unexpected memory mapping 0x%zx-0x%zx\n",
+          segment.start, segment.end);
+
+    return false;
   }
 
-#    if defined(__aarch64__) && defined(__APPLE__) && SANITIZER_IOS
+  if (!protect)
+    return true;
+
+#    if SANITIZER_IOS && !SANITIZER_IOSSIM
   ProtectRange(HeapMemEnd(), ShadowBeg());
   ProtectRange(ShadowEnd(), MetaShadowBeg());
-  ProtectRange(MetaShadowEnd(), TraceMemBeg());
-#else
+  ProtectRange(MetaShadowEnd(), HiAppMemBeg());
+#    else
   ProtectRange(LoAppMemEnd(), ShadowBeg());
   ProtectRange(ShadowEnd(), MetaShadowBeg());
   if (MidAppMemBeg()) {
     ProtectRange(MetaShadowEnd(), MidAppMemBeg());
-    ProtectRange(MidAppMemEnd(), TraceMemBeg());
+    ProtectRange(MidAppMemEnd(), HeapMemBeg());
   } else {
-    ProtectRange(MetaShadowEnd(), TraceMemBeg());
+    ProtectRange(MetaShadowEnd(), HeapMemBeg());
   }
-  // Memory for traces is mapped lazily in MapThreadTrace.
-  // Protect the whole range for now, so that user does not map something here.
-  ProtectRange(TraceMemBeg(), TraceMemEnd());
-  ProtectRange(TraceMemEnd(), HeapMemBeg());
   ProtectRange(HeapEnd(), HiAppMemBeg());
-#endif
+#    endif
 
-#if defined(__s390x__)
+#    if defined(__s390x__)
   // Protect the rest of the address space.
   const uptr user_addr_max_l4 = 0x0020000000000000ull;
   const uptr user_addr_max_l5 = 0xfffffffffffff000ull;
@@ -139,8 +164,10 @@ void CheckAndProtect() {
   // Older s390x kernels may not support 5-level page tables.
   TryProtectRange(user_addr_max_l4, user_addr_max_l5);
 #endif
+
+  return true;
 }
-#endif
+#  endif
 
 }  // namespace __tsan
 

@@ -1,0 +1,11 @@
+.*: Assembler messages:
+.*:3: Error: unrecognized opcode `break\.'
+.*:4: Error: unrecognized opcode `entry\.'
+.*:5: Error: unrecognized opcode `addiu\. \$2,0x7fff'
+.*:6: Error: unrecognized opcode `addiu\. \$3,\$2,0'
+.*:7: Error: unrecognized opcode `exit\.ex'
+.*:8: Error: unrecognized opcode `exit\.tx'
+.*:9: Error: unrecognized opcode `nop\.ey'
+.*:10: Error: unrecognized opcode `nop\.ty'
+.*:11: Error: unrecognized opcode `li\.ez \$2,0'
+.*:12: Error: unrecognized opcode `li\.tz \$2,0'

@@ -1,7 +1,7 @@
 #as: -mevexwig=1
 #objdump: -dw
 #name: x86_64 AVX512VL/VAES wig insns
-#source: x86-64-avx512vl_vaes-wig.s
+#source: x86-64-avx512vl_vaes.s
 
 .*: +file format .*
 
@@ -13,6 +13,7 @@ Disassembly of section \.text:
 [ 	]*[a-f0-9]+:[ 	]*62 22 95 00 de b4 f0 23 01 00 00[ 	]*vaesdec 0x123\(%rax,%r14,8\),%xmm29,%xmm30
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 00 de 72 7f[ 	]*vaesdec 0x7f0\(%rdx\),%xmm29,%xmm30
 [ 	]*[a-f0-9]+:[ 	]*62 02 95 20 de f4[ 	]*vaesdec %ymm28,%ymm29,%ymm30
+[ 	]*[a-f0-9]+:[ 	]*62 62 95 20 de 31[ 	]*vaesdec \(%rcx\),%ymm29,%ymm30
 [ 	]*[a-f0-9]+:[ 	]*62 22 95 20 de b4 f0 23 01 00 00[ 	]*vaesdec 0x123\(%rax,%r14,8\),%ymm29,%ymm30
 [ 	]*[a-f0-9]+:[ 	]*62 62 95 20 de 72 7f[ 	]*vaesdec 0xfe0\(%rdx\),%ymm29,%ymm30
 [ 	]*[a-f0-9]+:[ 	]*62 02 95 00 df f4[ 	]*vaesdeclast %xmm28,%xmm29,%xmm30

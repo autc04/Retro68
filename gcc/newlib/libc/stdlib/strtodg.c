@@ -159,7 +159,7 @@ trailz (_Bigint *b)
 	return n;
 	}
 
-_Bigint *
+static _Bigint *
 increment (struct _reent *p, _Bigint *b)
 {
 	__ULong *x, *xe;

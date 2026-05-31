@@ -1,4 +1,4 @@
-#   Copyright (C) 2010-2022 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ if {[catch "system \"bzip2 -dc $t > $tempfile\""] != 0} {
 	    fail $testname
 	} else {
 	    send_log "cmp tmpdir/pr27708.out $srcdir/$subdir/pr27708.dump\n"
-	    verbose "cmp tmpdir/pr27708.out $srcdir/$subdir/pr26808.dump" 1
+	    verbose "cmp tmpdir/pr27708.out $srcdir/$subdir/pr27708.dump" 1
 	    set status [remote_exec build cmp "tmpdir/pr27708.out $srcdir/$subdir/pr27708.dump"]
 	    set exec_output [lindex $status 1]
 	    set exec_output [prune_warnings $exec_output]
@@ -95,4 +95,231 @@ if {[catch "system \"bzip2 -dc $t > $tempfile\""] != 0} {
 	    }
 	}
     }
+}
+
+proc run_pr33198_test { fat strip_flags } {
+    global srcdir
+    global subdir
+    global llvm_plug_opt
+    global AR
+    global CLANG_FOR_TARGET
+    global NM
+    global READELF
+    global STRIP
+
+    set test pr33198
+    set testname "${test}${fat} with $strip_flags"
+
+    if { [istarget "x86_64-*-linux*-gnux32"] \
+	 || ![info exists CLANG_FOR_TARGET]
+	 || [string match "" $llvm_plug_opt] } then {
+	untested $testname
+	return
+    }
+
+    set src $srcdir/$subdir/${test}.c
+    set obj tmpdir/${test}${fat}.o
+    set archive tmpdir/${test}${fat}.a
+    set CLANG_CFLAGS "-c -O2 -flto"
+    if { "$fat" == "-fat" } {
+	append CLANG_CFLAGS " -ffat-lto-objects"
+    }
+
+    append strip_flags " --strip-unneeded $llvm_plug_opt"
+
+    set cmd "$CLANG_FOR_TARGET $CLANG_CFLAGS -o $obj $src"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname ($obj)"
+	return
+    }
+
+    set cmd "$NM $llvm_plug_opt $obj\n"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![regexp "0+ T foo" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname ($obj)"
+	return
+    }
+
+    pass "$testname ($obj)"
+
+    set cmd "$STRIP $strip_flags $obj -o ${obj}.strip"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname (strip $obj)"
+	return
+    }
+
+    set cmd "$NM $llvm_plug_opt ${obj}.strip"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![regexp "0+ T foo" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname (strip $obj)"
+	return
+    }
+
+    if { "$fat" == "-fat" } {
+	set cmd "$READELF -SW ${obj}.strip"
+	send_log "$cmd\n"
+	verbose "$cmd" 1
+	catch "exec $cmd" got
+	if [regexp "\.llvm\.lto *LLVM_LTO *" $got] then {
+	    send_log "$got\n"
+	    verbose "$got" 1
+	    fail "$testname (strip $obj)"
+	    return
+	}
+    }
+
+    pass "$testname (strip $obj)"
+
+    set cmd "$AR $llvm_plug_opt -s -r -c $archive $obj"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname ($archive)"
+	return
+    }
+
+    set cmd "$NM $llvm_plug_opt $archive\n"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![regexp "0+ T foo" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname ($archive)"
+	return
+    }
+
+    pass "$testname ($archive)"
+
+    set cmd "$STRIP $strip_flags $archive -o ${archive}.strip"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname (strip $archive)"
+	return
+    }
+
+    set cmd "$NM $llvm_plug_opt ${archive}.strip"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if ![regexp "0+ T foo" $got] then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname (strip $archive)"
+	return
+    }
+
+    if { "$fat" == "-fat" } {
+	set cmd "$READELF -SW ${archive}.strip"
+	send_log "$cmd\n"
+	verbose "$cmd" 1
+	catch "exec $cmd" got
+	if [regexp "\.llvm\.lto *LLVM_LTO *" $got] then {
+	    send_log "$got\n"
+	    verbose "$got" 1
+	    fail "$testname (strip $archive)"
+	    return
+	}
+    }
+
+    pass "$testname (strip $archive)"
+}
+
+run_pr33198_test "" "-R .gnu.lto_* -R .gnu.debuglto_* -R .llvm.lto -N __gnu_lto_v1"
+run_pr33198_test "-fat" "-R .gnu.lto_* -R .gnu.debuglto_* -R .llvm.lto -N __gnu_lto_v1"
+run_pr33198_test "" "-R .llvm.lto"
+run_pr33198_test "-fat" "-R .llvm.lto"
+
+proc run_pr33230_test { testname obj strip_flags run_readelf } {
+    global srcdir
+    global subdir
+    global READELF
+    global STRIP
+
+    append strip_flags " --strip-debug"
+    append testname " ($strip_flags)"
+
+    set cmd "$STRIP $strip_flags $obj -o ${obj}.strip"
+    send_log "$cmd\n"
+    verbose "$cmd" 1
+    catch "exec $cmd" got
+    if { $run_readelf == "yes" } {
+	if ![string match "" $got] then {
+	    send_log "$got\n"
+	    verbose "$got" 1
+	    fail "$testname (${obj})"
+	    return
+	}
+	set cmd "$READELF -h $obj"
+	send_log "$cmd\n"
+	verbose "$cmd" 1
+	catch "exec $cmd" got
+	if { ![regexp "Machine: +AArch64" $got] } then {
+	    send_log "$got\n"
+	    verbose "$got" 1
+	    fail "$testname (${obj})"
+	    return
+	}
+	set cmd "$READELF -h ${obj}.strip"
+	send_log "$cmd\n"
+	verbose "$cmd" 1
+	catch "exec $cmd" got
+	if { ![regexp "Machine: +AArch64" $got] } then {
+	    send_log "$got\n"
+	    verbose "$got" 1
+	    fail "$testname (${obj}.strip)"
+	    return
+	}
+    } elseif { ![regexp "Unable to recognise the architecture" $got] } then {
+	send_log "$got\n"
+	verbose "$got" 1
+	fail "$testname"
+	return
+    }
+
+    pass "$testname"
+}
+
+set t $srcdir/$subdir/pr33230.obj.bz2
+# We need to strip the ".bz2", but can leave the dirname.
+set test $subdir/[file tail $t]
+set testname [file rootname $test]
+verbose $testname
+set obj tmpdir/pr33230.o
+if {[catch "system \"bzip2 -dc $t > $obj\""] != 0} {
+  untested "bzip2 -dc ($testname)"
+} else {
+    catch "exec $STRIP --help" got
+    if { [regexp "elf64-littleaarch64" $got] } {
+	set run_readelf "yes"
+    } else {
+	set run_readelf "no"
+    }
+    run_pr33230_test "$testname" $obj "" $run_readelf
+    run_pr33230_test "$testname" $obj "--input-target=default" $run_readelf
 }

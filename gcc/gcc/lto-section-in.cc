@@ -1,6 +1,6 @@
 /* Input functions for reading LTO sections.
 
-   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+   Copyright (C) 2009-2026 Free Software Foundation, Inc.
    Contributed by Kenneth Zadeck <zadeck@naturalbridge.com>
 
 This file is part of GCC.
@@ -225,7 +225,7 @@ lto_free_section_data (struct lto_file_decl_data *file_data,
   /* The underlying data address has been extracted from the mapping header.
      Free that, then free the allocated uncompression buffer.  */
   (free_section_f) (file_data, section_type, name, header->data, header->len);
-  free (CONST_CAST (char *, real_data));
+  free (const_cast<char *> (real_data));
 }
 
 /* Free data allocated by lto_get_raw_section_data.  */
@@ -262,7 +262,7 @@ lto_create_simple_input_block (struct lto_file_decl_data *file_data,
 
   *datar = data;
   return new lto_input_block (data + main_offset, header->main_size,
-			      file_data->mode_table);
+			      file_data);
 }
 
 
@@ -321,8 +321,8 @@ renaming_slot_free (void *slot)
 {
   struct lto_renaming_slot *s = (struct lto_renaming_slot *) slot;
 
-  free (CONST_CAST (void *, (const void *) s->old_name));
-  free (CONST_CAST (void *, (const void *) s->new_name));
+  free (const_cast<void *> ((const void *) s->old_name));
+  free (const_cast<void *> ((const void *) s->new_name));
   free ((void *) s);
 }
 
@@ -428,7 +428,7 @@ lto_free_function_in_decl_state (struct lto_in_decl_state *state)
   ggc_free (state);
 }
 
-/* Free decl_states associated with NODE.  This makes it possible to furhter
+/* Free decl_states associated with NODE.  This makes it possible to further
    release trees needed by the NODE's body.  */
 
 void
@@ -448,7 +448,6 @@ lto_free_function_in_decl_state_for_node (symtab_node *node)
       lto_free_function_in_decl_state (*slot);
       node->lto_file_data->function_decl_states->clear_slot (slot);
     }
-  node->lto_file_data = NULL;
 }
 
 

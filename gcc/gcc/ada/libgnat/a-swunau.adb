@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -60,6 +60,19 @@ package body Ada.Strings.Wide_Unbounded.Aux is
       Finalize (UP);
       UP.Reference := S;
       UP.Last := UP.Reference'Length;
+   end Set_Wide_String;
+
+   procedure Set_Wide_String
+     (U      : out Unbounded_Wide_String;
+      Length : Positive;
+      Set    : not null access procedure (S : out Wide_String))
+   is
+      Old : Wide_String_Access := U.Reference;
+   begin
+      U.Last := Length;
+      U.Reference := new Wide_String (1 .. Length);
+      Set (U.Reference.all);
+      Free (Old);
    end Set_Wide_String;
 
 end Ada.Strings.Wide_Unbounded.Aux;

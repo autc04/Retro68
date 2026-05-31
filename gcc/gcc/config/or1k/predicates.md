@@ -1,5 +1,5 @@
 ;; Predicate definitions for OpenRISC
-;; Copyright (C) 2018-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2018-2026 Free Software Foundation, Inc.
 ;; Contributed by Stafford Horne
 
 ;; This file is part of GCC.
@@ -60,8 +60,13 @@
     (and (match_operand 0 "register_operand")
 	 (match_test "TARGET_ROR"))))
 
+(define_predicate "sr_f_reg_operand"
+  (and (match_operand 0 "register_operand")
+       (match_test "REGNO (op) == SR_F_REGNUM")))
+
 (define_predicate "call_insn_operand"
-  (ior (match_code "symbol_ref")
+  (ior (and (match_code "symbol_ref")
+	    (match_test "!TARGET_CMODEL_LARGE"))
        (match_operand 0 "register_operand")))
 
 (define_predicate "high_operand"

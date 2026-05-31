@@ -1,5 +1,5 @@
 /* Tracking equivalence classes and constraints at a point on an execution path.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,44 +18,31 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "gimple-iterator.h"
+#include "analyzer/common.h"
+
 #include "fold-const.h"
-#include "selftest.h"
-#include "diagnostic-core.h"
-#include "graphviz.h"
-#include "function.h"
-#include "json.h"
-#include "analyzer/analyzer.h"
 #include "ordered-hash-map.h"
-#include "options.h"
 #include "cgraph.h"
 #include "cfg.h"
 #include "digraph.h"
-#include "analyzer/supergraph.h"
 #include "sbitmap.h"
-#include "bitmap.h"
-#include "tristate.h"
+#include "tree-pretty-print.h"
+
+#include "analyzer/supergraph.h"
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/call-string.h"
 #include "analyzer/program-point.h"
 #include "analyzer/store.h"
 #include "analyzer/region-model.h"
 #include "analyzer/constraint-manager.h"
+#include "analyzer/call-summary.h"
 #include "analyzer/analyzer-selftests.h"
-#include "tree-pretty-print.h"
 
 #if ENABLE_ANALYZER
 
 namespace ana {
 
-static tristate
+tristate
 compare_constants (tree lhs_const, enum tree_code op, tree rhs_const)
 {
   tree comparison
@@ -117,7 +104,7 @@ minus_one (tree cst)
    closed one.  */
 
 void
-bound::ensure_closed (enum bound_kind bound_kind)
+bound::ensure_closed (enum bound_kind bnd_kind)
 {
   if (!m_closed)
     {
@@ -125,10 +112,12 @@ bound::ensure_closed (enum bound_kind bound_kind)
 	 For example, convert 3 < x into 4 <= x,
 	 and convert x < 5 into x <= 4.  */
       gcc_assert (CONSTANT_CLASS_P (m_constant));
-      m_constant = fold_build2 (bound_kind == BK_UPPER ? MINUS_EXPR : PLUS_EXPR,
+      gcc_assert (INTEGRAL_TYPE_P (TREE_TYPE (m_constant)));
+      m_constant = fold_build2 (bnd_kind == bound_kind::upper ? MINUS_EXPR : PLUS_EXPR,
 				TREE_TYPE (m_constant),
 				m_constant, integer_one_node);
       gcc_assert (CONSTANT_CLASS_P (m_constant));
+      gcc_assert (INTEGRAL_TYPE_P (TREE_TYPE (m_constant)));
       m_closed = true;
     }
 }
@@ -180,13 +169,9 @@ range::dump_to_pp (pretty_printer *pp) const
 DEBUG_FUNCTION void
 range::dump () const
 {
-  pretty_printer pp;
-  pp_format_decoder (&pp) = default_tree_printer;
-  pp_show_color (&pp) = pp_show_color (global_dc->printer);
-  pp.buffer->stream = stderr;
+  tree_dump_pretty_printer pp (stderr);
   dump_to_pp (&pp);
   pp_newline (&pp);
-  pp_flush (&pp);
 }
 
 /* Determine if there is only one possible value for this range.
@@ -205,8 +190,8 @@ range::constrained_to_single_element ()
     return NULL_TREE;
 
   /* Convert any open bounds to closed bounds.  */
-  m_lower_bound.ensure_closed (BK_LOWER);
-  m_upper_bound.ensure_closed (BK_UPPER);
+  m_lower_bound.ensure_closed (bound_kind::lower);
+  m_upper_bound.ensure_closed (bound_kind::upper);
 
   // Are they equal?
   tree comparison = fold_binary (EQ_EXPR, boolean_type_node,
@@ -305,26 +290,30 @@ range::above_upper_bound (tree rhs_const) const
    Return true if feasible; false if infeasible.  */
 
 bool
-range::add_bound (bound b, enum bound_kind bound_kind)
+range::add_bound (bound b, enum bound_kind bnd_kind)
 {
-  b.ensure_closed (bound_kind);
+  /* Bail out on floating point constants.  */
+  if (!INTEGRAL_TYPE_P (TREE_TYPE (b.m_constant)))
+    return true;
 
-  switch (bound_kind)
+  b.ensure_closed (bnd_kind);
+
+  switch (bnd_kind)
     {
     default:
       gcc_unreachable ();
-    case BK_LOWER:
+    case bound_kind::lower:
       /* Discard redundant bounds.  */
       if (m_lower_bound.m_constant)
 	{
-	  m_lower_bound.ensure_closed (BK_LOWER);
+	  m_lower_bound.ensure_closed (bound_kind::lower);
 	  if (tree_int_cst_le (b.m_constant,
 			       m_lower_bound.m_constant))
 	    return true;
 	}
       if (m_upper_bound.m_constant)
 	{
-	  m_upper_bound.ensure_closed (BK_UPPER);
+	  m_upper_bound.ensure_closed (bound_kind::upper);
 	  /* Reject B <= V <= UPPER when B > UPPER.  */
 	  if (!tree_int_cst_le (b.m_constant,
 				m_upper_bound.m_constant))
@@ -333,18 +322,18 @@ range::add_bound (bound b, enum bound_kind bound_kind)
       m_lower_bound = b;
       break;
 
-    case BK_UPPER:
+    case bound_kind::upper:
       /* Discard redundant bounds.  */
       if (m_upper_bound.m_constant)
 	{
-	  m_upper_bound.ensure_closed (BK_UPPER);
+	  m_upper_bound.ensure_closed (bound_kind::upper);
 	  if (!tree_int_cst_lt (b.m_constant,
 				m_upper_bound.m_constant))
 	    return true;
 	}
       if (m_lower_bound.m_constant)
 	{
-	  m_lower_bound.ensure_closed (BK_LOWER);
+	  m_lower_bound.ensure_closed (bound_kind::lower);
 	  /* Reject LOWER <= V <= B when LOWER > B.  */
 	  if (!tree_int_cst_le (m_lower_bound.m_constant,
 				b.m_constant))
@@ -369,16 +358,16 @@ range::add_bound (enum tree_code op, tree rhs_const)
       return true;
     case LT_EXPR:
       /* "V < RHS_CONST"  */
-      return add_bound (bound (rhs_const, false), BK_UPPER);
+      return add_bound (bound (rhs_const, false), bound_kind::upper);
     case LE_EXPR:
       /* "V <= RHS_CONST"  */
-      return add_bound (bound (rhs_const, true), BK_UPPER);
+      return add_bound (bound (rhs_const, true), bound_kind::upper);
     case GE_EXPR:
       /* "V >= RHS_CONST"  */
-      return add_bound (bound (rhs_const, true), BK_LOWER);
+      return add_bound (bound (rhs_const, true), bound_kind::lower);
     case GT_EXPR:
       /* "V > RHS_CONST"  */
-      return add_bound (bound (rhs_const, false), BK_LOWER);
+      return add_bound (bound (rhs_const, false), bound_kind::lower);
     }
 }
 
@@ -422,7 +411,7 @@ dump_cst (pretty_printer *pp, tree cst, bool show_types)
 void
 bounded_range::dump_to_pp (pretty_printer *pp, bool show_types) const
 {
-  if (tree_int_cst_equal (m_lower, m_upper))
+  if (singleton_p ())
     dump_cst (pp, m_lower, show_types);
   else
     {
@@ -439,33 +428,37 @@ bounded_range::dump_to_pp (pretty_printer *pp, bool show_types) const
 void
 bounded_range::dump (bool show_types) const
 {
-  pretty_printer pp;
-  pp_format_decoder (&pp) = default_tree_printer;
-  pp_show_color (&pp) = pp_show_color (global_dc->printer);
-  pp.buffer->stream = stderr;
+  tree_dump_pretty_printer pp (stderr);
   dump_to_pp (&pp, show_types);
   pp_newline (&pp);
-  pp_flush (&pp);
 }
 
-json::object *
+std::unique_ptr<json::object>
 bounded_range::to_json () const
 {
-  json::object *range_obj = new json::object ();
-  set_json_attr (range_obj, "lower", m_lower);
-  set_json_attr (range_obj, "upper", m_upper);
+  auto range_obj = std::make_unique<json::object> ();
+  set_json_attr (*range_obj, "lower", m_lower);
+  set_json_attr (*range_obj, "upper", m_upper);
   return range_obj;
+}
+
+std::unique_ptr<text_art::widget>
+bounded_range::make_dump_widget (const text_art::dump_widget_info &dwi) const
+{
+  using text_art::tree_widget;
+  return tree_widget::from_fmt (dwi, default_tree_printer,
+				"%qE ... %qE", m_lower, m_upper);
 }
 
 /* Subroutine of bounded_range::to_json.  */
 
 void
-bounded_range::set_json_attr (json::object *obj, const char *name, tree value)
+bounded_range::set_json_attr (json::object &obj, const char *name, tree value)
 {
   pretty_printer pp;
   pp_format_decoder (&pp) = default_tree_printer;
   pp_printf (&pp, "%E", value);
-  obj->set (name, new json::string (pp_formatted_text (&pp)));
+  obj.set_string (name, pp_formatted_text (&pp));
 }
 
 
@@ -519,13 +512,28 @@ bounded_range::operator== (const bounded_range &other) const
 	  && tree_int_cst_equal (m_upper, other.m_upper));
 }
 
+static int
+cmp_types (const_tree type1, const_tree type2)
+{
+  int t1 = TYPE_UID (type1);
+  int t2 = TYPE_UID (type2);
+  return t1 - t2;
+}
+
 int
 bounded_range::cmp (const bounded_range &br1, const bounded_range &br2)
 {
-  if (int cmp_lower = tree_int_cst_compare (br1.m_lower,
-					    br2.m_lower))
+  if (int cmp_lower = tree_int_cst_compare (br1.m_lower, br2.m_lower))
     return cmp_lower;
-  return tree_int_cst_compare (br1.m_upper, br2.m_upper);
+  if (int cmp_upper = tree_int_cst_compare (br1.m_upper, br2.m_upper))
+    return cmp_upper;
+  if (int cmp_lower_type = cmp_types (TREE_TYPE (br1.m_lower),
+				      TREE_TYPE (br2.m_lower)))
+    return cmp_lower_type;
+  if (int cmp_upper_type = cmp_types (TREE_TYPE (br1.m_upper),
+				      TREE_TYPE (br2.m_upper)))
+    return cmp_upper_type;
+  return 0;
 }
 
 /* struct bounded_ranges.  */
@@ -616,7 +624,7 @@ bounded_ranges::canonicalize ()
     {
       bounded_range *prev = &m_ranges[i - 1];
       const bounded_range *next = &m_ranges[i];
-      if (prev->intersects_p (*next, NULL)
+      if (prev->intersects_p (*next, nullptr)
 	  || (can_plus_one_p (prev->m_upper)
 	      && tree_int_cst_equal (plus_one (prev->m_upper),
 				     next->m_lower)))
@@ -704,24 +712,28 @@ bounded_ranges::dump_to_pp (pretty_printer *pp, bool show_types) const
 DEBUG_FUNCTION void
 bounded_ranges::dump (bool show_types) const
 {
-  pretty_printer pp;
-  pp_format_decoder (&pp) = default_tree_printer;
-  pp_show_color (&pp) = pp_show_color (global_dc->printer);
-  pp.buffer->stream = stderr;
+  tree_dump_pretty_printer pp (stderr);
   dump_to_pp (&pp, show_types);
   pp_newline (&pp);
-  pp_flush (&pp);
 }
 
-json::value *
+std::unique_ptr<json::value>
 bounded_ranges::to_json () const
 {
-  json::array *arr_obj = new json::array ();
+  auto arr_obj = std::make_unique<json::array> ();
 
   for (unsigned i = 0; i < m_ranges.length (); ++i)
     arr_obj->append (m_ranges[i].to_json ());
 
   return arr_obj;
+}
+
+void
+bounded_ranges::add_to_dump_widget (text_art::tree_widget &parent,
+				    const text_art::dump_widget_info &dwi) const
+{
+  for (auto &range : m_ranges)
+    parent.add_child (range.make_dump_widget (dwi));
 }
 
 /* Determine whether (X OP RHS_CONST) is known to be true or false
@@ -933,53 +945,6 @@ bounded_ranges_manager::consolidate (bounded_ranges *inst)
   return inst;
 }
 
-/* Get the bounded_ranges instance for EDGE of SWITCH_STMT,
-   creating it if necessary, and caching it by edge.  */
-
-const bounded_ranges *
-bounded_ranges_manager::
-get_or_create_ranges_for_switch (const switch_cfg_superedge *edge,
-				 const gswitch *switch_stmt)
-{
-  /* Look in per-edge cache.  */
-  if (const bounded_ranges ** slot = m_edge_cache.get (edge))
-    return *slot;
-
-  /* Not yet in cache.  */
-  const bounded_ranges *all_cases_ranges
-    = create_ranges_for_switch (*edge, switch_stmt);
-  m_edge_cache.put (edge, all_cases_ranges);
-  return all_cases_ranges;
-}
-
-/* Get the bounded_ranges instance for EDGE of SWITCH_STMT,
-   creating it if necessary, for edges for which the per-edge
-   cache has not yet been populated.  */
-
-const bounded_ranges *
-bounded_ranges_manager::
-create_ranges_for_switch (const switch_cfg_superedge &edge,
-			  const gswitch *switch_stmt)
-{
-  /* Get the ranges for each case label.  */
-  auto_vec <const bounded_ranges *> case_ranges_vec
-    (gimple_switch_num_labels (switch_stmt));
-
-  for (tree case_label : edge.get_case_labels ())
-    {
-      /* Get the ranges for this case label.  */
-      const bounded_ranges *case_ranges
-	= make_case_label_ranges (switch_stmt, case_label);
-      case_ranges_vec.quick_push (case_ranges);
-    }
-
-  /* Combine all the ranges for each case label into a single collection
-     of ranges.  */
-  const bounded_ranges *all_cases_ranges
-    = get_or_create_union (case_ranges_vec);
-  return all_cases_ranges;
-}
-
 /* Get the bounded_ranges instance for CASE_LABEL within
    SWITCH_STMT.  */
 
@@ -1061,7 +1026,7 @@ bounded_ranges_manager::log_stats (logger *logger, bool show_objs) const
 /* equiv_class's default ctor.  */
 
 equiv_class::equiv_class ()
-: m_constant (NULL_TREE), m_cst_sval (NULL), m_vars ()
+: m_constant (NULL_TREE), m_cst_sval (nullptr), m_vars ()
 {
 }
 
@@ -1103,25 +1068,58 @@ equiv_class::print (pretty_printer *pp) const
    {"svals" : [str],
     "constant" : optional str}.  */
 
-json::object *
+std::unique_ptr<json::object>
 equiv_class::to_json () const
 {
-  json::object *ec_obj = new json::object ();
+  auto ec_obj = std::make_unique<json::object> ();
 
-  json::array *sval_arr = new json::array ();
+  auto sval_arr = std::make_unique<json::array> ();
   for (const svalue *sval : m_vars)
     sval_arr->append (sval->to_json ());
-  ec_obj->set ("svals", sval_arr);
+  ec_obj->set ("svals", std::move (sval_arr));
 
   if (m_constant)
     {
       pretty_printer pp;
       pp_format_decoder (&pp) = default_tree_printer;
       pp_printf (&pp, "%qE", m_constant);
-      ec_obj->set ("constant", new json::string (pp_formatted_text (&pp)));
+      ec_obj->set_string ("constant", pp_formatted_text (&pp));
     }
 
   return ec_obj;
+}
+
+std::unique_ptr<text_art::tree_widget>
+equiv_class::make_dump_widget (const text_art::dump_widget_info &dwi,
+			       unsigned id) const
+{
+  using text_art::tree_widget;
+  std::unique_ptr<tree_widget> ec_widget;
+
+  {
+    pretty_printer pp;
+    pp_string (&pp, "Equivalence class ");
+    equiv_class_id (id).print (&pp);
+    ec_widget = tree_widget::make (dwi, &pp);
+  }
+
+  for (const svalue *sval : m_vars)
+    {
+      pretty_printer pp;
+      pp_format_decoder (&pp) = default_tree_printer;
+      sval->dump_to_pp (&pp, true);
+      ec_widget->add_child (tree_widget::make (dwi, &pp));
+    }
+
+  if (m_constant)
+    {
+      pretty_printer pp;
+      pp_format_decoder (&pp) = default_tree_printer;
+      pp_printf (&pp, "%qE", m_constant);
+      ec_widget->add_child (tree_widget::make (dwi, &pp));
+    }
+
+  return ec_widget;
 }
 
 /* Generate a hash value for this equiv_class.
@@ -1145,7 +1143,7 @@ equiv_class::hash () const
    meaningful.  */
 
 bool
-equiv_class::operator== (const equiv_class &other)
+equiv_class::operator== (const equiv_class &other) const
 {
   if (m_constant != other.m_constant)
     return false; // TODO: use tree equality here?
@@ -1337,16 +1335,27 @@ constraint::print (pretty_printer *pp, const constraint_manager &cm) const
     "op"  : str,
     "rhs" : int, the EC index}.  */
 
-json::object *
+std::unique_ptr<json::object>
 constraint::to_json () const
 {
-  json::object *con_obj = new json::object ();
+  auto con_obj = std::make_unique<json::object> ();
 
-  con_obj->set ("lhs", new json::integer_number (m_lhs.as_int ()));
-  con_obj->set ("op", new json::string (constraint_op_code (m_op)));
-  con_obj->set ("rhs", new json::integer_number (m_rhs.as_int ()));
+  con_obj->set_integer ("lhs", m_lhs.as_int ());
+  con_obj->set_string ("op", constraint_op_code (m_op));
+  con_obj->set_integer ("rhs", m_rhs.as_int ());
 
   return con_obj;
+}
+
+std::unique_ptr<text_art::widget>
+constraint::make_dump_widget (const text_art::dump_widget_info &dwi,
+			      const constraint_manager &cm) const
+{
+  pretty_printer pp;
+  pp_format_decoder (&pp) = default_tree_printer;
+  pp_show_color (&pp) = true;
+  print (&pp, cm);
+  return text_art::tree_widget::make (dwi, &pp);
 }
 
 /* Generate a hash value for this constraint.  */
@@ -1414,15 +1423,27 @@ bounded_ranges_constraint::print (pretty_printer *pp,
   m_ranges->dump_to_pp (pp, true);
 }
 
-json::object *
+std::unique_ptr<json::object>
 bounded_ranges_constraint::to_json () const
 {
-  json::object *con_obj = new json::object ();
+  auto con_obj = std::make_unique<json::object> ();
 
-  con_obj->set ("ec", new json::integer_number (m_ec_id.as_int ()));
+  con_obj->set_integer ("ec", m_ec_id.as_int ());
   con_obj->set ("ranges", m_ranges->to_json ());
 
   return con_obj;
+}
+
+std::unique_ptr<text_art::tree_widget>
+bounded_ranges_constraint::
+make_dump_widget (const text_art::dump_widget_info &dwi) const
+{
+  using text_art::tree_widget;
+  std::unique_ptr<tree_widget> brc_widget
+    (tree_widget::from_fmt (dwi, nullptr,
+			    "ec%i bounded ranges", m_ec_id.as_int ()));
+  m_ranges->add_to_dump_widget (*brc_widget.get (), dwi);
+  return brc_widget;
 }
 
 bool
@@ -1691,12 +1712,8 @@ constraint_manager::dump_to_pp (pretty_printer *pp, bool multiline) const
 void
 constraint_manager::dump (FILE *fp) const
 {
-  pretty_printer pp;
-  pp_format_decoder (&pp) = default_tree_printer;
-  pp_show_color (&pp) = pp_show_color (global_dc->printer);
-  pp.buffer->stream = fp;
+  tree_dump_pretty_printer pp (fp);
   dump_to_pp (&pp, true);
-  pp_flush (&pp);
 }
 
 /* Dump a multiline representation of this constraint_manager to stderr.  */
@@ -1719,36 +1736,63 @@ debug (const constraint_manager &cm)
    {"ecs" : array of objects, one per equiv_class
     "constraints" : array of objects, one per constraint}.  */
 
-json::object *
+std::unique_ptr<json::object>
 constraint_manager::to_json () const
 {
-  json::object *cm_obj = new json::object ();
+  auto cm_obj = std::make_unique<json::object> ();
 
   /* Equivalence classes.  */
   {
-    json::array *ec_arr = new json::array ();
+    auto ec_arr = std::make_unique<json::array> ();
     for (const equiv_class *ec : m_equiv_classes)
       ec_arr->append (ec->to_json ());
-    cm_obj->set ("ecs", ec_arr);
+    cm_obj->set ("ecs", std::move (ec_arr));
   }
 
   /* Constraints.  */
   {
-    json::array *con_arr = new json::array ();
+    auto con_arr = std::make_unique<json::array> ();
     for (const constraint &c : m_constraints)
       con_arr->append (c.to_json ());
-    cm_obj->set ("constraints", con_arr);
+    cm_obj->set ("constraints", std::move (con_arr));
   }
 
   /* m_bounded_ranges_constraints.  */
   {
-    json::array *con_arr = new json::array ();
+    auto con_arr = std::make_unique<json::array> ();
     for (const auto &c : m_bounded_ranges_constraints)
       con_arr->append (c.to_json ());
-    cm_obj->set ("bounded_ranges_constraints", con_arr);
+    cm_obj->set ("bounded_ranges_constraints", std::move (con_arr));
   }
 
   return cm_obj;
+}
+
+std::unique_ptr<text_art::tree_widget>
+constraint_manager::make_dump_widget (const text_art::dump_widget_info &dwi) const
+{
+  using text_art::tree_widget;
+  std::unique_ptr<tree_widget> cm_widget
+    (tree_widget::make (dwi, "Constraints"));
+
+  /* Equivalence classes.  */
+  unsigned i;
+  equiv_class *ec;
+  FOR_EACH_VEC_ELT (m_equiv_classes, i, ec)
+    cm_widget->add_child (ec->make_dump_widget (dwi, i));
+
+  /* Constraints.  */
+  for (const constraint &c : m_constraints)
+    cm_widget->add_child (c.make_dump_widget (dwi, *this));
+
+  /* m_bounded_ranges_constraints.  */
+  for (const auto &brc : m_bounded_ranges_constraints)
+    cm_widget->add_child (brc.make_dump_widget (dwi));
+
+  if (cm_widget->get_num_children () == 0)
+    return nullptr;
+
+  return cm_widget;
 }
 
 /* Attempt to add the constraint LHS OP RHS to this constraint_manager.
@@ -2119,6 +2163,17 @@ bool
 constraint_manager::add_bounded_ranges (const svalue *sval,
 					const bounded_ranges *ranges)
 {
+  /* If RANGES is just a singleton, convert this to adding the constraint:
+     "SVAL == {the singleton}".  */
+  if (ranges->get_count () == 1
+      && ranges->get_range (0).singleton_p ())
+    {
+      tree range_cst = ranges->get_range (0).m_lower;
+      const svalue *range_sval
+	= m_mgr->get_or_create_constant_svalue (range_cst);
+      return add_constraint (sval, EQ_EXPR, range_sval);
+    }
+
   sval = sval->unwrap_any_unmergeable ();
 
   /* Nothing can be known about unknown/poisoned values.  */
@@ -2204,6 +2259,137 @@ constraint_manager::get_equiv_class_by_svalue (const svalue *sval,
 	      *out = equiv_class_id (i);
 	    return true;
 	  }
+    }
+  return false;
+}
+
+/* Tries to find a svalue inside another svalue.  */
+
+class sval_finder : public visitor
+{
+public:
+  sval_finder (const svalue *query) : m_query (query), m_found (false)
+  {
+  }
+
+  bool found_query_p ()
+  {
+    return m_found;
+  }
+
+  void visit_region_svalue (const region_svalue *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_constant_svalue (const constant_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_unknown_svalue (const unknown_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_poisoned_svalue (const poisoned_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_setjmp_svalue (const setjmp_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_initial_svalue (const initial_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_unaryop_svalue (const unaryop_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_binop_svalue (const binop_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_sub_svalue (const sub_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_repeated_svalue (const repeated_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_bits_within_svalue (const bits_within_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_unmergeable_svalue (const unmergeable_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_placeholder_svalue (const placeholder_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_widening_svalue (const widening_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_compound_svalue (const compound_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_conjured_svalue (const conjured_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_asm_output_svalue (const asm_output_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+  void visit_const_fn_result_svalue (const const_fn_result_svalue  *sval)
+  {
+    m_found |= m_query == sval;
+  }
+
+private:
+  const svalue *m_query;
+  bool m_found;
+};
+
+/* Returns true if SVAL is constrained.  */
+
+bool
+constraint_manager::sval_constrained_p (const svalue *sval) const
+{
+  int i;
+  equiv_class *ec;
+  sval_finder finder (sval);
+  FOR_EACH_VEC_ELT (m_equiv_classes, i, ec)
+    {
+      int j;
+      const svalue *iv;
+      FOR_EACH_VEC_ELT (ec->m_vars, j, iv)
+	{
+	  iv->accept (&finder);
+	  if (finder.found_query_p ())
+	    return true;
+	}
     }
   return false;
 }
@@ -2347,12 +2533,12 @@ constraint_manager::get_ec_bounds (equiv_class_id ec_id) const
 
 	      case CONSTRAINT_LT:
 		/* We have "EC_ID < OTHER_CST".  */
-		result.add_bound (bound (other_cst, false), BK_UPPER);
+		result.add_bound (bound (other_cst, false), bound_kind::upper);
 		break;
 
 	      case CONSTRAINT_LE:
 		/* We have "EC_ID <= OTHER_CST".  */
-		result.add_bound (bound (other_cst, true), BK_UPPER);
+		result.add_bound (bound (other_cst, true), bound_kind::upper);
 		break;
 	      }
 	}
@@ -2369,13 +2555,13 @@ constraint_manager::get_ec_bounds (equiv_class_id ec_id) const
 	      case CONSTRAINT_LT:
 		/* We have "OTHER_CST < EC_ID"
 		   i.e. "EC_ID > OTHER_CST".  */
-		result.add_bound (bound (other_cst, false), BK_LOWER);
+		result.add_bound (bound (other_cst, false), bound_kind::lower);
 		break;
 
 	      case CONSTRAINT_LE:
 		/* We have "OTHER_CST <= EC_ID"
 		   i.e. "EC_ID >= OTHER_CST".  */
-		result.add_bound (bound (other_cst, true), BK_LOWER);
+		result.add_bound (bound (other_cst, true), bound_kind::lower);
 		break;
 	      }
 	}
@@ -2467,6 +2653,66 @@ constraint_manager::eval_condition (equiv_class_id lhs_ec,
   return tristate::unknown ();
 }
 
+/* Return true iff "LHS == RHS" is known to be impossible due to
+   derived conditions.
+
+   Look for an EC containing an EC_VAL of the form (LHS OP CST).
+   If found, see if (LHS OP CST) == EC_VAL is false.
+   If so, we know this condition is false.
+
+   For example, if we already know that
+     (X & CST_MASK) == Y
+   and we're evaluating X == Z, we can test to see if
+     (Z & CST_MASK) == EC_VAL
+   and thus if:
+     (Z & CST_MASK) == Y
+   and reject this if we know that's false.  */
+
+bool
+constraint_manager::impossible_derived_conditions_p (const svalue *lhs,
+						     const svalue *rhs) const
+{
+  int i;
+  equiv_class *ec;
+  FOR_EACH_VEC_ELT (m_equiv_classes, i, ec)
+    {
+      for (const svalue *ec_sval : ec->m_vars)
+	switch (ec_sval->get_kind ())
+	  {
+	  default:
+	    break;
+	  case SK_BINOP:
+	    {
+	      const binop_svalue *iter_binop
+		= as_a <const binop_svalue *> (ec_sval);
+	      if (lhs == iter_binop->get_arg0 ()
+		  && iter_binop->get_type ())
+		if (iter_binop->get_arg1 ()->get_kind () == SK_CONSTANT)
+		  {
+		    /* Try evalating EC_SVAL with LHS
+		       as the value of EC_SVAL's lhs, and see if it's
+		       consistent with existing knowledge.  */
+		    const svalue *subst_bin_op
+		      = m_mgr->get_or_create_binop
+		      (iter_binop->get_type (),
+		       iter_binop->get_op (),
+		       rhs,
+		       iter_binop->get_arg1 ());
+		    tristate t = eval_condition (subst_bin_op,
+						 EQ_EXPR,
+						 ec_sval);
+		    if (t.is_false ())
+		      return true; /* Impossible.  */
+		  }
+	    }
+	    break;
+	  }
+    }
+  /* Not known to be impossible.  */
+  return false;
+}
+
+
 /* Evaluate the condition LHS OP RHS, without modifying this
    constraint_manager (avoiding the creation of equiv_class instances).  */
 
@@ -2516,6 +2762,10 @@ constraint_manager::eval_condition (const svalue *lhs,
       if (result_for_ecs.is_known ())
 	return result_for_ecs;
     }
+
+  if (op == EQ_EXPR
+      && impossible_derived_conditions_p (lhs, rhs))
+    return false;
 
   /* If at least one is not in an EC, we have no constraints
      comparing LHS and RHS yet.
@@ -2742,7 +2992,7 @@ on_liveness_change (const svalue_set &live_svalues,
 		    const region_model *model)
 {
   dead_svalue_purger p (live_svalues, model);
-  purge (p, NULL);
+  purge (p, nullptr);
 }
 
 class svalue_purger
@@ -2765,7 +3015,7 @@ void
 constraint_manager::purge_state_involving (const svalue *sval)
 {
   svalue_purger p (sval);
-  purge (p, NULL);
+  purge (p, nullptr);
 }
 
 /* Comparator for use by constraint_manager::canonicalize.
@@ -2905,11 +3155,11 @@ public:
   {}
 
   void on_fact (const svalue *lhs, enum tree_code code, const svalue *rhs)
-    FINAL OVERRIDE
+    final override
   {
     /* Special-case for widening.  */
     if (lhs->get_kind () == SK_WIDENING)
-      if (!m_cm_b->get_equiv_class_by_svalue (lhs, NULL))
+      if (!m_cm_b->get_equiv_class_by_svalue (lhs, nullptr))
 	{
 	  /* LHS isn't constrained within m_cm_b.  */
 	  bool sat = m_out->add_constraint (lhs, code, rhs);
@@ -2933,7 +3183,7 @@ public:
   }
 
   void on_ranges (const svalue *lhs_sval,
-		  const bounded_ranges *ranges) FINAL OVERRIDE
+		  const bounded_ranges *ranges) final override
   {
     for (const auto &iter : m_cm_b->m_bounded_ranges_constraints)
       {
@@ -3043,6 +3293,60 @@ constraint_manager::for_each_fact (fact_visitor *visitor) const
     }
 }
 
+/* Subclass of fact_visitor for use by
+   constraint_manager::replay_call_summary.  */
+
+class replay_fact_visitor : public fact_visitor
+{
+public:
+  replay_fact_visitor (call_summary_replay &r,
+		       constraint_manager *out)
+  : m_r (r), m_out (out), m_feasible (true)
+  {}
+
+  bool feasible_p () const { return m_feasible; }
+
+  void on_fact (const svalue *lhs, enum tree_code code, const svalue *rhs)
+    final override
+  {
+    const svalue *caller_lhs = m_r.convert_svalue_from_summary (lhs);
+    if (!caller_lhs)
+      return;
+    const svalue *caller_rhs = m_r.convert_svalue_from_summary (rhs);
+    if (!caller_rhs)
+      return;
+    if (!m_out->add_constraint (caller_lhs, code, caller_rhs))
+      m_feasible = false;
+  }
+
+  void on_ranges (const svalue *lhs_sval,
+		  const bounded_ranges *ranges) final override
+  {
+    const svalue *caller_lhs = m_r.convert_svalue_from_summary (lhs_sval);
+    if (!caller_lhs)
+      return;
+    if (!m_out->add_bounded_ranges (caller_lhs, ranges))
+      m_feasible = false;
+  }
+
+private:
+  call_summary_replay &m_r;
+  constraint_manager *m_out;
+  bool m_feasible;
+};
+
+/* Attempt to use R to replay the constraints from SUMMARY into this object.
+   Return true if it is feasible.  */
+
+bool
+constraint_manager::replay_call_summary (call_summary_replay &r,
+					 const constraint_manager &summary)
+{
+  replay_fact_visitor v (r, this);
+  summary.for_each_fact (&v);
+  return v.feasible_p ();
+}
+
 /* Assert that this object is valid.  */
 
 void
@@ -3109,8 +3413,8 @@ namespace selftest {
 static void
 test_range ()
 {
-  tree int_0 = build_int_cst (integer_type_node, 0);
-  tree int_1 = build_int_cst (integer_type_node, 1);
+  tree int_0 = integer_zero_node;
+  tree int_1 = integer_one_node;
   tree int_2 = build_int_cst (integer_type_node, 2);
   tree int_5 = build_int_cst (integer_type_node, 5);
 
@@ -3154,7 +3458,7 @@ static void
 test_constraint_conditions ()
 {
   tree int_42 = build_int_cst (integer_type_node, 42);
-  tree int_0 = build_int_cst (integer_type_node, 0);
+  tree int_0 = integer_zero_node;
 
   tree x = build_global_decl ("x", integer_type_node);
   tree y = build_global_decl ("y", integer_type_node);
@@ -3179,7 +3483,7 @@ test_constraint_conditions ()
     ADD_SAT_CONSTRAINT (model, x, EQ_EXPR, x);
     ADD_SAT_CONSTRAINT (model, int_42, EQ_EXPR, int_42);
     /* ...even when done directly via svalues: */
-    const svalue *sval_int_42 = model.get_rvalue (int_42, NULL);
+    const svalue *sval_int_42 = model.get_rvalue (int_42, nullptr);
     bool sat = model.get_constraints ()->add_constraint (sval_int_42,
 							  EQ_EXPR,
 							  sval_int_42);
@@ -3609,7 +3913,7 @@ test_transitivity ()
 static void
 test_constant_comparisons ()
 {
-  tree int_1 = build_int_cst (integer_type_node, 1);
+  tree int_1 = integer_one_node;
   tree int_3 = build_int_cst (integer_type_node, 3);
   tree int_4 = build_int_cst (integer_type_node, 4);
   tree int_5 = build_int_cst (integer_type_node, 5);
@@ -3793,7 +4097,7 @@ static void
 test_constraint_impl ()
 {
   tree int_42 = build_int_cst (integer_type_node, 42);
-  tree int_0 = build_int_cst (integer_type_node, 0);
+  tree int_0 = integer_zero_node;
 
   tree x = build_global_decl ("x", integer_type_node);
   tree y = build_global_decl ("y", integer_type_node);
@@ -3923,10 +4227,10 @@ test_equality ()
 static void
 test_many_constants ()
 {
-  program_point point (program_point::origin ());
+  region_model_manager mgr;
+  program_point point (program_point::origin (mgr));
   tree a = build_global_decl ("a", integer_type_node);
 
-  region_model_manager mgr;
   region_model model (&mgr);
   auto_vec<tree> constants;
   for (int i = 0; i < 20; i++)
@@ -3955,7 +4259,7 @@ test_many_constants ()
 static void
 test_purging (void)
 {
-  tree int_0 = build_int_cst (integer_type_node, 0);
+  tree int_0 = integer_zero_node;
   tree a = build_global_decl ("a", integer_type_node);
   tree b = build_global_decl ("b", integer_type_node);
 
@@ -3968,8 +4272,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 1);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should have an empty constraint_manager.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 0);
@@ -3986,8 +4290,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 2);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should just have the constraint/ECs involving b != 0.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 2);
@@ -4005,8 +4309,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 1);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should just have the EC involving b == 0.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 1);
@@ -4023,8 +4327,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 0);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should have an empty constraint_manager.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 0);
@@ -4041,8 +4345,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 1);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should just have the constraint/ECs involving b != 0.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 2);
@@ -4060,8 +4364,8 @@ test_purging (void)
     ASSERT_EQ (model.get_constraints ()->m_constraints.length (), 0);
 
     /* Purge state for "a".  */
-    const svalue *sval_a = model.get_rvalue (a, NULL);
-    model.purge_state_involving (sval_a, NULL);
+    const svalue *sval_a = model.get_rvalue (a, nullptr);
+    model.purge_state_involving (sval_a, nullptr);
     model.canonicalize ();
     /* We should just have the EC involving b == 0.  */
     ASSERT_EQ (model.get_constraints ()->m_equiv_classes.length (), 1);
@@ -4123,8 +4427,8 @@ test_bounded_range ()
   bounded_range br_u8_64_128 (u8_64, u8_128);
   ASSERT_DUMP_BOUNDED_RANGE_EQ (br_u8_64_128, "[64, 128]");
 
-  ASSERT_FALSE (br_u8_0.intersects_p (br_u8_64_128, NULL));
-  ASSERT_FALSE (br_u8_64_128.intersects_p (br_u8_0, NULL));
+  ASSERT_FALSE (br_u8_0.intersects_p (br_u8_64_128, nullptr));
+  ASSERT_FALSE (br_u8_64_128.intersects_p (br_u8_0, nullptr));
 
   bounded_range br_u8_128_255 (u8_128, u8_255);
   ASSERT_DUMP_BOUNDED_RANGE_EQ (br_u8_128_255, "[128, 255]");
@@ -4382,6 +4686,94 @@ test_bounded_ranges ()
 	     mgr.get_or_create_point (ch1));
 }
 
+/* Verify that we can handle sufficiently simple bitmasking operations.  */
+
+static void
+test_bits (void)
+{
+  region_model_manager mgr;
+
+  tree int_0 = integer_zero_node;
+  tree int_0x80 = build_int_cst (integer_type_node, 0x80);
+  tree int_0xff = build_int_cst (integer_type_node, 0xff);
+  tree x = build_global_decl ("x", integer_type_node);
+
+  tree x_bit_and_0x80 = build2 (BIT_AND_EXPR, integer_type_node, x, int_0x80);
+  tree x_bit_and_0xff = build2 (BIT_AND_EXPR, integer_type_node, x, int_0xff);
+
+  /* "x & 0x80 == 0x80".  */
+  {
+    region_model model (&mgr);
+    ADD_SAT_CONSTRAINT (model, x_bit_and_0x80, EQ_EXPR, int_0x80);
+    ASSERT_CONDITION_FALSE (model, x, EQ_EXPR, int_0);
+    ASSERT_CONDITION_UNKNOWN (model, x, EQ_EXPR, int_0x80);
+  }
+
+  /* "x & 0x80 != 0x80".  */
+  {
+    region_model model (&mgr);
+    ADD_SAT_CONSTRAINT (model, x_bit_and_0x80, NE_EXPR, int_0x80);
+    ASSERT_CONDITION_UNKNOWN (model, x, EQ_EXPR, int_0);
+    ASSERT_CONDITION_FALSE (model, x, EQ_EXPR, int_0x80);
+  }
+
+  /* "x & 0x80 == 0".  */
+  {
+    region_model model (&mgr);
+
+    ADD_SAT_CONSTRAINT (model, x_bit_and_0x80, EQ_EXPR, int_0);
+    ASSERT_CONDITION_UNKNOWN (model, x, EQ_EXPR, int_0);
+    ASSERT_CONDITION_FALSE (model, x, EQ_EXPR, int_0x80);
+  }
+
+  /* "x & 0x80 != 0".  */
+  {
+    region_model model (&mgr);
+    ADD_SAT_CONSTRAINT (model, x_bit_and_0x80, NE_EXPR, int_0);
+    ASSERT_CONDITION_FALSE (model, x, EQ_EXPR, int_0);
+    ASSERT_CONDITION_UNKNOWN (model, x, EQ_EXPR, int_0x80);
+  }
+
+  /* More that one bit in the mask.  */
+
+  /* "x & 0xff == 0x80".  */
+  {
+    region_model model (&mgr);
+    ADD_SAT_CONSTRAINT (model, x_bit_and_0xff, EQ_EXPR, int_0x80);
+    ASSERT_CONDITION_FALSE (model, x, EQ_EXPR, int_0);
+    ASSERT_CONDITION_UNKNOWN (model, x, EQ_EXPR, int_0x80);
+    ASSERT_CONDITION_FALSE (model, x, EQ_EXPR, int_0xff);
+  }
+
+  /* "x & 0xff != 0x80".  */
+  {
+    region_model model (&mgr);
+    ADD_SAT_CONSTRAINT (model, x_bit_and_0xff, NE_EXPR, int_0x80);
+    ASSERT_CONDITION_UNKNOWN (model, x, EQ_EXPR, int_0);
+    ASSERT_CONDITION_FALSE (model, x, EQ_EXPR, int_0x80);
+    ASSERT_CONDITION_UNKNOWN (model, x, EQ_EXPR, int_0xff);
+  }
+
+  /* "x & 0xff == 0".  */
+  {
+    region_model model (&mgr);
+
+    ADD_SAT_CONSTRAINT (model, x_bit_and_0xff, EQ_EXPR, int_0);
+    ASSERT_CONDITION_UNKNOWN (model, x, EQ_EXPR, int_0);
+    ASSERT_CONDITION_FALSE (model, x, EQ_EXPR, int_0x80);
+    ASSERT_CONDITION_FALSE (model, x, EQ_EXPR, int_0xff);
+  }
+
+  /* "x & 0xff != 0".  */
+  {
+    region_model model (&mgr);
+    ADD_SAT_CONSTRAINT (model, x_bit_and_0xff, NE_EXPR, int_0);
+    ASSERT_CONDITION_FALSE (model, x, EQ_EXPR, int_0);
+    ASSERT_CONDITION_UNKNOWN (model, x, EQ_EXPR, int_0x80);
+    ASSERT_CONDITION_UNKNOWN (model, x, EQ_EXPR, int_0xff);
+  }
+}
+
 /* Run the selftests in this file, temporarily overriding
    flag_analyzer_transitivity with TRANSITIVITY.  */
 
@@ -4405,6 +4797,7 @@ run_constraint_manager_tests (bool transitivity)
   test_purging ();
   test_bounded_range ();
   test_bounded_ranges ();
+  test_bits ();
 
   flag_analyzer_transitivity = saved_flag_analyzer_transitivity;
 }

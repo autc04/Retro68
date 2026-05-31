@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw
 #name: x86_64 PREFETCHWT1 insns
 

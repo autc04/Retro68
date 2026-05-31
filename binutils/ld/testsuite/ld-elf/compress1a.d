@@ -3,6 +3,8 @@
 #ld: -e func_cu2
 #readelf: -S --wide
 #xfail: alpha-*-*ecoff
+# PR ld/25802
+#xfail: sparcv9-*-solaris2*
 
 #failif
 #...

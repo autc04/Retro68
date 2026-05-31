@@ -8,7 +8,7 @@
  */
 module core.sys.windows.unknwn;
 version (Windows):
-@system:
+nothrow:
 
 import core.sys.windows.objfwd, core.sys.windows.windef, core.sys.windows.wtypes;
 import core.sys.windows.basetyps;
@@ -27,13 +27,13 @@ extern (Windows) {
         ULONG Release();
     }
 
-    alias IUnknown LPUNKNOWN;
+    alias LPUNKNOWN = IUnknown;
 
     interface IClassFactory : IUnknown {
         HRESULT CreateInstance(IUnknown UnkOuter, IID* riid, void** pvObject);
         HRESULT LockServer(BOOL fLock);
     }
-    alias IClassFactory LPCLASSFACTORY;
+    alias LPCLASSFACTORY = IClassFactory;
 
     /+
     // These do not seem to be necessary (or desirable) for D.

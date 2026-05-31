@@ -50,10 +50,10 @@ but uses the UTF-8 charset.
 
 The following charsets are recognized:
 <<"UTF-8">>, <<"JIS">>, <<"EUCJP">>, <<"SJIS">>, <<"KOI8-R">>, <<"KOI8-U">>,
-<<"GEORGIAN-PS">>, <<"PT154">>, <<"TIS-620">>, <<"ISO-8859-x">> with
-1 <= x <= 16, or <<"CPxxx">> with xxx in [437, 720, 737, 775, 850, 852, 855,
-857, 858, 862, 866, 874, 932, 1125, 1250, 1251, 1252, 1253, 1254, 1255, 1256,
-1257, 1258].
+<<"KOI8-T">>, <<"GEORGIAN-PS">>, <<"PT154">>, <<"TIS-620">>, <<"ISO-8859-x">>
+with 1 <= x <= 16, or <<"CPxxx">> with xxx in [437, 720, 737, 775, 850, 852,
+855, 857, 858, 862, 866, 874, 932, 1125, 1250, 1251, 1252, 1253, 1254, 1255,
+1256, 1257, 1258].
 
 Charsets are case insensitive.  For instance, <<"EUCJP">> and <<"eucJP">>
 are equivalent.  Charset names with dashes can also be written without
@@ -65,8 +65,8 @@ build with multibyte support and support for all ISO and Windows Codepage.
 Otherwise all singlebyte charsets are simply mapped to ASCII.  Right now,
 only newlib for Cygwin is built with full charset support by default.
 Under Cygwin, this implementation additionally supports the charsets
-<<"GBK">>, <<"GB2312">>, <<"eucCN">>, <<"eucKR">>, and <<"Big5">>.  Cygwin
-does not support <<"JIS">>.
+<<"GB18030">>, <<"GBK">>, <<"GB2312">>, <<"eucCN">>, <<"eucKR">>, and
+<<"Big5">>.  Cygwin does not support <<"JIS">>.
 
 Cygwin additionally supports locales from the file
 /usr/share/locale/locale.alias.
@@ -166,6 +166,10 @@ No supporting OS subroutines are required.
 #include "../ctype/ctype_.h"
 #include "../stdlib/local.h"
 
+#ifdef _REENT_THREAD_LOCAL
+_Thread_local struct __locale_t *_tls_locale;
+#endif
+
 #ifdef __CYGWIN__ /* Has to be kept available as exported symbol for
 		     backward compatibility.  Set it in setlocale, but
 		     otherwise ignore it.  Applications compiled after
@@ -195,6 +199,7 @@ static char *categories[_LC_LAST] = {
  */
 #ifndef DEFAULT_LOCALE
 #define DEFAULT_LOCALE	"C"
+#define DEFAULT_LOCALE_IS_C
 #endif
 
 #ifdef _MB_CAPABLE
@@ -207,6 +212,9 @@ char __default_locale[ENCODING_LEN + 1] = DEFAULT_LOCALE;
 const struct __locale_t __C_locale =
 {
   { "C", "C", "C", "C", "C", "C", "C", },
+#ifdef _MB_CAPABLE
+  "C",
+#endif
   __ascii_wctomb,
   __ascii_mbtowc,
   0,
@@ -243,6 +251,13 @@ const struct __locale_t __C_locale =
 struct __locale_t __global_locale =
 {
   { "C", "C", DEFAULT_LOCALE, "C", "C", "C", "C", },
+#ifdef _MB_CAPABLE
+# ifdef DEFAULT_LOCALE_IS_C
+  "C",
+# else
+  "C/" DEFAULT_LOCALE "/C/C/C/C",
+# endif
+#endif
 #ifdef __CYGWIN__
   __utf8_wctomb,
   __utf8_mbtowc,
@@ -268,10 +283,11 @@ struct __locale_t __global_locale =
     { NULL, NULL },			/* LC_ALL */
 #ifdef __CYGWIN__
     { &_C_collate_locale, NULL },	/* LC_COLLATE */
+    { &_C_utf8_ctype_locale, NULL },	/* LC_CTYPE */
 #else
     { NULL, NULL },			/* LC_COLLATE */
-#endif
     { &_C_ctype_locale, NULL },		/* LC_CTYPE */
+#endif
     { &_C_monetary_locale, NULL },	/* LC_MONETARY */
     { &_C_numeric_locale, NULL },	/* LC_NUMERIC */
     { &_C_time_locale, NULL },		/* LC_TIME */
@@ -279,15 +295,6 @@ struct __locale_t __global_locale =
   },
 #endif /* __HAVE_LOCALE_INFO__ */
 };
-
-#ifdef _MB_CAPABLE
-/* Renamed from current_locale_string to make clear this is only the
-   *global* string for setlocale (LC_ALL, NULL).  There's no equivalent
-   functionality for uselocale. */
-static char global_locale_string[_LC_LAST * (ENCODING_LEN + 1/*"/"*/ + 1)];
-static char *currentlocale (void);
-
-#endif /* _MB_CAPABLE */
 
 char *
 _setlocale_r (struct _reent *p,
@@ -307,16 +314,17 @@ _setlocale_r (struct _reent *p,
   static char saved_categories[_LC_LAST][ENCODING_LEN + 1];
   int i, j, len, saverr;
   const char *env, *r;
+  char *ret;
 
   if (category < LC_ALL || category >= _LC_LAST)
     {
-      p->_errno = EINVAL;
+      _REENT_ERRNO(p) = EINVAL;
       return NULL;
     }
 
   if (locale == NULL)
     return category != LC_ALL ? __get_global_locale ()->categories[category]
-			      : currentlocale();
+			      : __get_global_locale ()->locale_string;
 
   /*
    * Default to the current locale for everything.
@@ -336,7 +344,7 @@ _setlocale_r (struct _reent *p,
 	      env = __get_locale_env (p, i);
 	      if (strlen (env) > ENCODING_LEN)
 		{
-		  p->_errno = EINVAL;
+		  _REENT_ERRNO(p) = EINVAL;
 		  return NULL;
 		}
 	      strcpy (new_categories[i], env);
@@ -347,7 +355,7 @@ _setlocale_r (struct _reent *p,
 	  env = __get_locale_env (p, category);
 	  if (strlen (env) > ENCODING_LEN)
 	    {
-	      p->_errno = EINVAL;
+	      _REENT_ERRNO(p) = EINVAL;
 	      return NULL;
 	    }
 	  strcpy (new_categories[category], env);
@@ -357,7 +365,7 @@ _setlocale_r (struct _reent *p,
     {
       if (strlen (locale) > ENCODING_LEN)
 	{
-	  p->_errno = EINVAL;
+	  _REENT_ERRNO(p) = EINVAL;
 	  return NULL;
 	}
       strcpy (new_categories[category], locale);
@@ -368,7 +376,7 @@ _setlocale_r (struct _reent *p,
 	{
 	  if (strlen (locale) > ENCODING_LEN)
 	    {
-	      p->_errno = EINVAL;
+	      _REENT_ERRNO(p) = EINVAL;
 	      return NULL;
 	    }
 	  for (i = 1; i < _LC_LAST; ++i)
@@ -380,7 +388,7 @@ _setlocale_r (struct _reent *p,
 	    ;
 	  if (!r[1])
 	    {
-	      p->_errno = EINVAL;
+	      _REENT_ERRNO(p) = EINVAL;
 	      return NULL;  /* Hmm, just slashes... */
 	    }
 	  do
@@ -389,7 +397,7 @@ _setlocale_r (struct _reent *p,
 		break;  /* Too many slashes... */
 	      if ((len = r - locale) > ENCODING_LEN)
 		{
-		  p->_errno = EINVAL;
+		  _REENT_ERRNO(p) = EINVAL;
 		  return NULL;
 		}
 	      strlcpy (new_categories[i], locale, len + 1);
@@ -410,15 +418,20 @@ _setlocale_r (struct _reent *p,
     }
 
   if (category != LC_ALL)
-    return __loadlocale (__get_global_locale (), category,
-			 new_categories[category]);
+    {
+      ret = __loadlocale (__get_global_locale (), category,
+			  new_categories[category]);
+      __currentlocale (__get_global_locale (),
+		       __get_global_locale ()->locale_string);
+      return ret;
+    }
 
   for (i = 1; i < _LC_LAST; ++i)
     {
       strcpy (saved_categories[i], __get_global_locale ()->categories[i]);
       if (__loadlocale (__get_global_locale (), i, new_categories[i]) == NULL)
 	{
-	  saverr = p->_errno;
+	  saverr = _REENT_ERRNO(p);
 	  for (j = 1; j < i; j++)
 	    {
 	      strcpy (new_categories[j], saved_categories[j]);
@@ -429,35 +442,35 @@ _setlocale_r (struct _reent *p,
 		  __loadlocale (__get_global_locale (), j, new_categories[j]);
 		}
 	    }
-	  p->_errno = saverr;
+	  _REENT_ERRNO(p) = saverr;
 	  return NULL;
 	}
     }
-  return currentlocale ();
+  return __currentlocale (__get_global_locale (),
+			  __get_global_locale ()->locale_string);
 #endif /* _MB_CAPABLE */
 }
 
 #ifdef _MB_CAPABLE
-static char *
-currentlocale ()
+char *
+__currentlocale (struct __locale_t *locobj, char *locale_string)
 {
   int i;
 
-  strcpy (global_locale_string, __get_global_locale ()->categories[1]);
+  strcpy (locale_string, locobj->categories[1]);
 
   for (i = 2; i < _LC_LAST; ++i)
-    if (strcmp (__get_global_locale ()->categories[1],
-		__get_global_locale ()->categories[i]))
+    if (strcmp (locobj->categories[1],
+		locobj->categories[i]))
       {
 	for (i = 2; i < _LC_LAST; ++i)
 	  {
-	    (void)strcat(global_locale_string, "/");
-	    (void)strcat(global_locale_string,
-			 __get_global_locale ()->categories[i]);
+	    (void)strcat(locale_string, "/");
+	    (void)strcat(locale_string, locobj->categories[i]);
 	  }
 	break;
       }
-  return global_locale_string;
+  return locale_string;
 }
 
 extern void __set_ctype (struct __locale_t *, const char *charset);
@@ -646,7 +659,7 @@ restart:
 	}
 #ifdef __CYGWIN__
       /* Newlib does neither provide EUC-KR nor EUC-CN, and Cygwin's
-      	 implementation requires Windows support. */
+	 implementation requires Windows support. */
       else if (!strcasecmp (c, "KR"))
 	{
 	  strcpy (charset, "EUCKR");
@@ -758,7 +771,7 @@ restart:
     break;
     case 'K':
     case 'k':
-      /* KOI8-R, KOI8-U and the aliases without dash */
+      /* KOI8-R, KOI8-U, KOI8-T and the aliases without dash */
       if (strncasecmp (charset, "KOI8", 4))
 	FAIL;
       c = charset + 4;
@@ -773,6 +786,11 @@ restart:
 	{
 	  val = 21866;
 	  strcpy (charset, "CP21866");
+	}
+      else if (*c == 'T' || *c == 't')
+	{
+	  val = 103;
+	  strcpy (charset, "CP103");
 	}
       else
 	FAIL;
@@ -801,11 +819,18 @@ restart:
 	 requires Windows support. */
       if (!strcasecmp (charset, "GBK")
 	  || !strcasecmp (charset, "GB2312"))
-      	{
+	{
 	  strcpy (charset, charset[2] == '2' ? "GB2312" : "GBK");
 	  mbc_max = 2;
 	  l_wctomb = __gbk_wctomb;
 	  l_mbtowc = __gbk_mbtowc;
+	}
+      else if (!strcasecmp (charset, "GB18030"))
+	{
+	  strcpy (charset, "GB18030");
+	  mbc_max = 4;
+	  l_wctomb = __gb18030_wctomb;
+	  l_mbtowc = __gb18030_mbtowc;
 	}
       else
 #endif /* __CYGWIN__ */

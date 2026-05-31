@@ -1,5 +1,5 @@
 #source: tls-ld-6.s --pic
-#as: --no-underscore --em=criself
+#as: --no-underscore --emulation=criself
 #ld: -m crislinux --shared
 #error: \A[^\n]*\.o[^\n]*undefined reference[^\n]*\n[^\n]*bad value\Z
 

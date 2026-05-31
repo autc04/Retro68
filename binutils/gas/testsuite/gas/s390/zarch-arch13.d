@@ -1,4 +1,4 @@
-#name: s390x opcode
+#name: s390x opcodes (arch 13)
 #objdump: -dr
 
 .*: +file format .*
@@ -12,7 +12,11 @@ Disassembly of section .text:
 .*:	b9 74 b0 69 [	 ]*nnrk	%r6,%r9,%r11
 .*:	b9 64 b0 69 [	 ]*nngrk	%r6,%r9,%r11
 .*:	b9 76 b0 69 [	 ]*nork	%r6,%r9,%r11
+.*:	b9 76 70 67 [	 ]*nork	%r6,%r7,%r7
+.*:	b9 76 70 67 [	 ]*nork	%r6,%r7,%r7
 .*:	b9 66 b0 69 [	 ]*nogrk	%r6,%r9,%r11
+.*:	b9 66 70 67 [	 ]*nogrk	%r6,%r7,%r7
+.*:	b9 66 70 67 [	 ]*nogrk	%r6,%r7,%r7
 .*:	b9 77 b0 69 [	 ]*nxrk	%r6,%r9,%r11
 .*:	b9 67 b0 69 [	 ]*nxgrk	%r6,%r9,%r11
 .*:	b9 75 b0 69 [	 ]*ocrk	%r6,%r9,%r11

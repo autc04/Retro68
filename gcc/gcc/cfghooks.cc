@@ -1,5 +1,5 @@
 /* Hooks for cfg representation specific functions.
-   Copyright (C) 2003-2022 Free Software Foundation, Inc.
+   Copyright (C) 2003-2026 Free Software Foundation, Inc.
    Contributed by Sebastian Pop <s.pop@laposte.net>
 
 This file is part of GCC.
@@ -18,6 +18,7 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#define INCLUDE_VECTOR
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -29,10 +30,13 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic-core.h"
 #include "dumpfile.h"
 #include "cfganal.h"
+#include "tree.h"
 #include "tree-ssa.h"
 #include "cfgloop.h"
 #include "sreal.h"
 #include "profile.h"
+#include "diagnostics/sarif-sink.h"
+#include "custom-sarif-properties/cfg.h"
 
 /* Disable warnings about missing quoting in GCC diagnostics.  */
 #if __GNUC__ >= 10
@@ -101,7 +105,7 @@ DEBUG_FUNCTION void
 verify_flow_info (void)
 {
   size_t *edge_checksum;
-  int err = 0;
+  bool err = false;
   basic_block bb, last_bb_seen;
   basic_block *last_visited;
 
@@ -117,14 +121,14 @@ verify_flow_info (void)
 	  && bb != BASIC_BLOCK_FOR_FN (cfun, bb->index))
 	{
 	  error ("bb %d on wrong place", bb->index);
-	  err = 1;
+	  err = true;
 	}
 
       if (bb->prev_bb != last_bb_seen)
 	{
 	  error ("prev_bb of %d should be %d, not %d",
 		 bb->index, last_bb_seen->index, bb->prev_bb->index);
-	  err = 1;
+	  err = true;
 	}
 
       last_bb_seen = bb;
@@ -141,18 +145,18 @@ verify_flow_info (void)
 	{
 	  error ("verify_flow_info: Block %i has loop_father, but there are no loops",
 		 bb->index);
-	  err = 1;
+	  err = true;
 	}
       if (bb->loop_father == NULL && current_loops != NULL)
 	{
 	  error ("verify_flow_info: Block %i lacks loop_father", bb->index);
-	  err = 1;
+	  err = true;
 	}
 
       if (!bb->count.verify ())
 	{
 	  error ("verify_flow_info: Wrong count of block %i", bb->index);
-	  err = 1;
+	  err = true;
 	}
       /* FIXME: Graphite and SLJL and target code still tends to produce
 	 edges with no probability.  */
@@ -160,13 +164,13 @@ verify_flow_info (void)
           && !bb->count.initialized_p () && !flag_graphite && 0)
 	{
 	  error ("verify_flow_info: Missing count of block %i", bb->index);
-	  err = 1;
+	  err = true;
 	}
 
       if (bb->flags & ~cfun->cfg->bb_flags_allocated)
 	{
 	  error ("verify_flow_info: unallocated flag set on BB %d", bb->index);
-	  err = 1;
+	  err = true;
 	}
 
       FOR_EACH_EDGE (e, ei, bb->succs)
@@ -175,7 +179,7 @@ verify_flow_info (void)
 	    {
 	      error ("verify_flow_info: Duplicate edge %i->%i",
 		     e->src->index, e->dest->index);
-	      err = 1;
+	      err = true;
 	    }
 	  /* FIXME: Graphite and SLJL and target code still tends to produce
 	     edges with no probability.  */
@@ -184,13 +188,13 @@ verify_flow_info (void)
 	    {
 	      error ("Uninitialized probability of edge %i->%i", e->src->index,
 		     e->dest->index);
-	      err = 1;
+	      err = true;
 	    }
 	  if (!e->probability.verify ())
 	    {
 	      error ("verify_flow_info: Wrong probability of edge %i->%i",
 		     e->src->index, e->dest->index);
-	      err = 1;
+	      err = true;
 	    }
 
 	  last_visited [e->dest->index] = bb;
@@ -207,14 +211,14 @@ verify_flow_info (void)
 	      fprintf (stderr, "\nSuccessor: ");
 	      dump_edge_info (stderr, e, TDF_DETAILS, 1);
 	      fprintf (stderr, "\n");
-	      err = 1;
+	      err = true;
 	    }
 
 	  if (e->flags & ~cfun->cfg->edge_flags_allocated)
 	    {
 	      error ("verify_flow_info: unallocated edge flag set on %d -> %d",
 		     e->src->index, e->dest->index);
-	      err = 1;
+	      err = true;
 	    }
 
 	  edge_checksum[e->dest->index] += (size_t) e;
@@ -222,7 +226,7 @@ verify_flow_info (void)
       if (n_fallthru > 1)
 	{
 	  error ("wrong amount of branch edges after unconditional jump %i", bb->index);
-	  err = 1;
+	  err = true;
 	}
 
       FOR_EACH_EDGE (e, ei, bb->preds)
@@ -235,7 +239,7 @@ verify_flow_info (void)
 	      fputs ("\nSuccessor: ", stderr);
 	      dump_edge_info (stderr, e, TDF_DETAILS, 1);
 	      fputc ('\n', stderr);
-	      err = 1;
+	      err = true;
 	    }
 
 	  if (ei.index != e->dest_idx)
@@ -248,7 +252,7 @@ verify_flow_info (void)
 	      fputs ("\nSuccessor: ", stderr);
 	      dump_edge_info (stderr, e, TDF_DETAILS, 1);
 	      fputc ('\n', stderr);
-	      err = 1;
+	      err = true;
 	    }
 
 	  edge_checksum[e->dest->index] -= (size_t) e;
@@ -271,7 +275,7 @@ verify_flow_info (void)
     if (edge_checksum[bb->index])
       {
 	error ("basic block %i edge lists are corrupted", bb->index);
-	err = 1;
+	err = true;
       }
 
   /* Clean up.  */
@@ -279,7 +283,9 @@ verify_flow_info (void)
   free (edge_checksum);
 
   if (cfg_hooks->verify_flow_info)
-    err |= cfg_hooks->verify_flow_info ();
+    if (cfg_hooks->verify_flow_info ())
+      err = true;
+
   if (err)
     internal_error ("verify_flow_info failed");
   timevar_pop (TV_CFG_VERIFY);
@@ -347,6 +353,33 @@ dump_bb_for_graph (pretty_printer *pp, basic_block bb)
   pp_write_text_to_stream (pp);
   if (!(dump_flags & TDF_SLIM))
     cfg_hooks->dump_bb_for_graph (pp, bb);
+}
+
+void
+dump_bb_as_sarif_properties (diagnostics::sarif_builder *builder,
+			     json::object &output_bag,
+			     basic_block bb)
+{
+  if (!cfg_hooks->dump_bb_for_graph)
+    internal_error ("%s does not support dump_bb_as_sarif_properties",
+		    cfg_hooks->name);
+  namespace bb_property_names = custom_sarif_properties::cfg::basic_block;
+  if (bb->index == ENTRY_BLOCK)
+    output_bag.set_string (bb_property_names::kind, "entry");
+  else if (bb->index == EXIT_BLOCK)
+    output_bag.set_string (bb_property_names::kind, "exit");
+  else if (BB_PARTITION (bb) == BB_HOT_PARTITION)
+    output_bag.set_string (bb_property_names::kind, "hot");
+  else if (BB_PARTITION (bb) == BB_COLD_PARTITION)
+    output_bag.set_string (bb_property_names::kind, "cold");
+  if (bb->count.initialized_p ())
+    {
+      pretty_printer pp;
+      pp_printf (&pp, "%" PRId64, bb->count.to_gcov_type ());
+      output_bag.set_string (bb_property_names::count,
+			     pp_formatted_text (&pp));
+    }
+  cfg_hooks->dump_bb_as_sarif_properties (builder, output_bag, bb);
 }
 
 /* Dump the complete CFG to FILE.  FLAGS are the TDF_* flags in dumpfile.h.  */
@@ -541,7 +574,6 @@ split_block_1 (basic_block bb, void *i)
     return NULL;
 
   new_bb->count = bb->count;
-  new_bb->discriminator = bb->discriminator;
 
   if (dom_info_available_p (CDI_DOMINATORS))
     {
@@ -815,6 +847,15 @@ merge_blocks (basic_block a, basic_block b)
   if (!cfg_hooks->merge_blocks)
     internal_error ("%s does not support merge_blocks", cfg_hooks->name);
 
+  /* Pick the more reliable count.  If both qualities agrees, pick the larger
+     one since turning mistakely hot code to cold is more harmful.  */
+  if (!a->count.initialized_p ())
+    a->count = b->count;
+  else if (a->count.quality () < b->count.quality ())
+    a->count = b->count;
+  else if (a->count.quality () == b->count.quality ())
+    a->count = profile_count::max_prefer_initialized (a->count, b->count);
+
   cfg_hooks->merge_blocks (a, b);
 
   if (current_loops != NULL)
@@ -1086,9 +1127,16 @@ can_duplicate_block_p (const_basic_block bb)
   return cfg_hooks->can_duplicate_block_p (bb);
 }
 
-/* Duplicates basic block BB and redirects edge E to it.  Returns the
-   new basic block.  The new basic block is placed after the basic block
-   AFTER.  */
+/* Duplicate basic block BB, place it after AFTER (if non-null) and redirect
+   edge E to it (if non-null).  Return the new basic block.
+
+   If BB contains a returns_twice call, the caller is responsible for recreating
+   incoming abnormal edges corresponding to the "second return" for the copy.
+   gimple_can_duplicate_bb_p rejects such blocks, while RTL likes to live
+   dangerously.
+
+   If BB has incoming abnormal edges for some other reason, their destinations
+   should be tied to label(s) of the original BB and not the copy.  */
 
 basic_block
 duplicate_block (basic_block bb, edge e, basic_block after, copy_bb_data *id)

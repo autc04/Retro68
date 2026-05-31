@@ -1,5 +1,5 @@
 /* LTO symbol table.
-   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+   Copyright (C) 2009-2026 Free Software Foundation, Inc.
    Contributed by CodeSourcery, Inc.
 
 This file is part of GCC.
@@ -61,6 +61,10 @@ lto_cgraph_replace_node (struct cgraph_node *node,
     prevailing_node->mark_force_output ();
   if (node->forced_by_abi)
     prevailing_node->forced_by_abi = true;
+  prevailing_node->ref_by_asm |= node->ref_by_asm;
+  prevailing_node->must_remain_in_tu_name |= node->must_remain_in_tu_name;
+  prevailing_node->must_remain_in_tu_body |= node->must_remain_in_tu_body;
+
   if (node->address_taken)
     {
       gcc_assert (!prevailing_node->inlined_to);
@@ -121,6 +125,9 @@ lto_varpool_replace_node (varpool_node *vnode,
     prevailing_node->force_output = true;
   if (vnode->forced_by_abi)
     prevailing_node->forced_by_abi = true;
+  prevailing_node->ref_by_asm |= vnode->ref_by_asm;
+  prevailing_node->must_remain_in_tu_name |= vnode->must_remain_in_tu_name;
+  prevailing_node->must_remain_in_tu_body |= vnode->must_remain_in_tu_body;
 
   /* Be sure we can garbage collect the initializer.  */
   if (DECL_INITIAL (vnode->decl)
@@ -214,7 +221,7 @@ warn_type_compatibility_p (tree prevailing_type, tree type,
 
   /* Function types needs special care, because types_compatible_p never
      thinks prototype is compatible to non-prototype.  */
-  if (TREE_CODE (type) == FUNCTION_TYPE || TREE_CODE (type) == METHOD_TYPE)
+  if (FUNC_OR_METHOD_TYPE_P (type))
     {
       if (TREE_CODE (type) != TREE_CODE (prevailing_type))
 	lev |= 1;
@@ -401,7 +408,7 @@ lto_symtab_resolve_replaceable_p (symtab_node *e)
       || DECL_WEAK (e->decl))
     return true;
 
-  if (TREE_CODE (e->decl) == VAR_DECL)
+  if (VAR_P (e->decl))
     return (DECL_COMMON (e->decl)
 	    || (!flag_no_common && !DECL_INITIAL (e->decl)));
 
@@ -551,7 +558,7 @@ lto_symtab_merge_p (tree prevailing, tree decl)
       return false;
     }
   gcc_checking_assert (TREE_CHAIN (prevailing) == TREE_CHAIN (decl));
-  
+
   if (TREE_CODE (prevailing) == FUNCTION_DECL)
     {
       if (fndecl_built_in_p (prevailing) != fndecl_built_in_p (decl))
@@ -713,7 +720,7 @@ lto_symtab_merge_decls_2 (symtab_node *first, bool diagnosed_p)
 		  || TREE_CODE (TREE_TYPE (decl)) != METHOD_TYPE
 		  || !TYPE_METHOD_BASETYPE (TREE_TYPE (decl))
 		  || !odr_type_p (TYPE_METHOD_BASETYPE (TREE_TYPE (decl)))
-		  || !odr_type_violation_reported_p 
+		  || !odr_type_violation_reported_p
 			(TYPE_METHOD_BASETYPE (TREE_TYPE (decl))))
 		diag = warning_at (DECL_SOURCE_LOCATION (decl),
 				   OPT_Wodr,
@@ -803,7 +810,7 @@ lto_symtab_merge_decls_1 (symtab_node *first)
 	 This is needed for C++ typeinfos, for example in
 	 lto/20081204-1 there are typeifos in both units, just
 	 one of them do have size.  */
-      if (TREE_CODE (prevailing->decl) == VAR_DECL)
+      if (VAR_P (prevailing->decl))
 	{
 	  for (e = prevailing->next_sharing_asm_name;
 	       e; e = e->next_sharing_asm_name)
@@ -848,7 +855,7 @@ lto_symtab_merge_decls_1 (symtab_node *first)
 	  break;
 
 	case FUNCTION_DECL:
-	  gcc_assert (TREE_CODE (e->decl) == VAR_DECL);
+	  gcc_assert (VAR_P (e->decl));
 	  error_at (DECL_SOURCE_LOCATION (e->decl),
 		    "function %qD redeclared as variable",
 		    prevailing->decl);
@@ -953,11 +960,7 @@ lto_symtab_merge_symbols_1 (symtab_node *prevailing)
 	  else
 	    {
 	      DECL_INITIAL (e->decl) = error_mark_node;
-	      if (e->lto_file_data)
-		{
-		  lto_free_function_in_decl_state_for_node (e);
-		  e->lto_file_data = NULL;
-		}
+	      lto_free_function_in_decl_state_for_node (e);
 	      symtab->call_varpool_removal_hooks (dyn_cast<varpool_node *> (e));
 	    }
 	  e->remove_all_references ();
@@ -982,7 +985,7 @@ lto_symtab_merge_symbols (void)
     {
       symtab->symtab_initialize_asm_name_hash ();
 
-      /* Do the actual merging.  
+      /* Do the actual merging.
 	 At this point we invalidate hash translating decls into symtab nodes
 	 because after removing one of duplicate decls the hash is not correcly
 	 updated to the other duplicate.  */
@@ -992,7 +995,7 @@ lto_symtab_merge_symbols (void)
 	    && !node->previous_sharing_asm_name)
 	  lto_symtab_merge_symbols_1 (node);
 
-      /* Resolve weakref aliases whose target are now in the compilation unit.  
+      /* Resolve weakref aliases whose target are now in the compilation unit.
 	 also re-populate the hash translating decls into symtab nodes*/
       FOR_EACH_SYMBOL (node)
 	{
@@ -1016,7 +1019,6 @@ lto_symtab_merge_symbols (void)
 		  || node->resolution == LDPR_RESOLVED_EXEC
 		  || node->resolution == LDPR_RESOLVED_DYN))
 	    {
-	      DECL_EXTERNAL (node->decl) = 1;
 	      /* If alias to local symbol was preempted by external definition,
 		 we know it is not pointing to the local symbol.  Remove it.  */
 	      if (node->alias
@@ -1041,7 +1043,9 @@ lto_symtab_merge_symbols (void)
 		      node->analyzed = node->definition = false;
 		      node->remove_all_references ();
 		    }
+		  node->body_removed = true;
 		}
+	      DECL_EXTERNAL (node->decl) = 1;
 	    }
 
 	  if (!(cnode = dyn_cast <cgraph_node *> (node))
@@ -1065,7 +1069,7 @@ lto_symtab_merge_symbols (void)
 		  && node2 != node)
 		lto_varpool_replace_node (dyn_cast <varpool_node *> (node2),
 					  vnode);
-	  
+
 
 	      /* Abstract functions may have duplicated cgraph nodes attached;
 		 remove them.  */

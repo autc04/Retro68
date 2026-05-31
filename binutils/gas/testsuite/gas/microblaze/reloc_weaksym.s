@@ -42,7 +42,8 @@ main:
 	addik	r1,r1,32
 	rtsd	r15,8
 	nop		# Unfilled delay slot
-
+	cmpu	r2,r2,r4
+	bneid	r2,reloc_none_test
 	.end	main
 $Lfe2:
 	.size	main,$Lfe2-main
@@ -50,3 +51,5 @@ $Lfe2:
 	test_start = __def_start
 	.globl	test_start_strong
 	test_start_strong = __def_start
+reloc_none_test:
+	ori	r3,r3,1

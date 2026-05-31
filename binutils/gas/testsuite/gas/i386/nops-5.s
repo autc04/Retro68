@@ -1,4 +1,5 @@
 	.text
+	.code32
 	.arch i386
 i386:
 	movsbl %al,%esi

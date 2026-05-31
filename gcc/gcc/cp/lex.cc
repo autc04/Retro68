@@ -1,5 +1,5 @@
 /* Separate lexical analyzer for GNU C++.
-   Copyright (C) 1987-2022 Free Software Foundation, Inc.
+   Copyright (C) 1987-2026 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GCC.
@@ -23,7 +23,6 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 /* For use with name_hint.  */
-#define INCLUDE_MEMORY
 #include "system.h"
 #include "coretypes.h"
 #include "cp-tree.h"
@@ -35,6 +34,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "langhooks.h"
 
 static int interface_strcmp (const char *);
+static void init_cp_traits (void);
 static void init_cp_pragma (void);
 
 static tree parse_strconst_pragma (const char *, int);
@@ -82,20 +82,33 @@ cxx_finish (void)
   c_common_finish ();
 }
 
-ovl_op_info_t ovl_op_info[2][OVL_OP_MAX] = 
+ovl_op_info_t ovl_op_info[2][OVL_OP_MAX] =
   {
     {
-      {NULL_TREE, NULL, NULL, ERROR_MARK, OVL_OP_ERROR_MARK, 0},
-      {NULL_TREE, NULL, NULL, NOP_EXPR, OVL_OP_NOP_EXPR, 0},
-#define DEF_OPERATOR(NAME, CODE, MANGLING, FLAGS) \
-      {NULL_TREE, NAME, MANGLING, CODE, OVL_OP_##CODE, FLAGS},
+      {NULL_TREE, NULL, NULL, NULL, ERROR_MARK, OVL_OP_ERROR_MARK, 0},
+      {NULL_TREE, NULL, NULL, NULL, NOP_EXPR, OVL_OP_NOP_EXPR, 0},
+#define DEF_OPERATOR(NAME, CODE, MANGLING, FLAGS, META) \
+      {NULL_TREE, NAME, MANGLING, META, CODE, OVL_OP_##CODE, FLAGS},
 #define OPERATOR_TRANSITION }, {			\
-      {NULL_TREE, NULL, NULL, ERROR_MARK, OVL_OP_ERROR_MARK, 0},
+      {NULL_TREE, NULL, NULL, NULL, ERROR_MARK, OVL_OP_ERROR_MARK, 0},
 #include "operators.def"
     }
   };
 unsigned char ovl_op_mapping[MAX_TREE_CODES];
 unsigned char ovl_op_alternate[OVL_OP_MAX];
+
+/* The trait table, declared in cp-tree.h.  */
+const cp_trait cp_traits[] =
+{
+#define DEFTRAIT(TCC, CODE, NAME, ARITY) \
+  { NAME, CPTK_##CODE, ARITY, (TCC == tcc_type) },
+#include "cp-trait.def"
+#undef DEFTRAIT
+};
+/* The trait table cannot have more than 255 (addr_space_t) entries since
+   the index is retrieved through IDENTIFIER_CP_INDEX.  */
+static_assert(ARRAY_SIZE (cp_traits) <= 255,
+	      "cp_traits array cannot have more than 255 entries");
 
 /* Get the name of the kind of identifier T.  */
 
@@ -159,7 +172,7 @@ init_operators (void)
   /* This loop iterates backwards because we need to move the
      assignment operators down to their correct slots.  I.e. morally
      equivalent to an overlapping memmove where dest > src.  Slot
-     zero is for error_mark, so hae no operator. */
+     zero is for error_mark, so has no operator.  */
   for (unsigned ix = OVL_OP_MAX; --ix;)
     {
       ovl_op_info_t *op_ptr = &ovl_op_info[false][ix];
@@ -230,6 +243,8 @@ init_reswords (void)
     mask |= D_CXX11;
   if (cxx_dialect < cxx20)
     mask |= D_CXX20;
+  if (cxx_dialect < cxx26)
+    mask |= D_CXX26;
   if (!flag_concepts)
     mask |= D_CXX_CONCEPTS;
   if (!flag_coroutines)
@@ -241,9 +256,9 @@ init_reswords (void)
   if (!flag_char8_t)
     mask |= D_CXX_CHAR8_T;
   if (flag_no_asm)
-    mask |= D_ASM | D_EXT;
+    mask |= D_ASM | D_EXT | D_EXT11;
   if (flag_no_gnu_keywords)
-    mask |= D_EXT;
+    mask |= D_EXT | D_EXT11;
 
   /* The Objective-C keywords are all context-dependent.  */
   mask |= D_OBJC;
@@ -273,6 +288,33 @@ init_reswords (void)
       C_SET_RID_CODE (id, RID_FIRST_INT_N + i);
       set_identifier_kind (id, cik_keyword);
     }
+
+  if (flag_openmp)
+    {
+      id = get_identifier ("omp_all_memory");
+      C_SET_RID_CODE (id, RID_OMP_ALL_MEMORY);
+      set_identifier_kind (id, cik_keyword);
+      ridpointers [RID_OMP_ALL_MEMORY] = id;
+    }
+}
+
+/* Initialize the C++ traits.  */
+static void
+init_cp_traits (void)
+{
+  tree id;
+
+  for (unsigned int i = 0; i < ARRAY_SIZE (cp_traits); ++i)
+    {
+      id = get_identifier (cp_traits[i].name);
+      IDENTIFIER_CP_INDEX (id) = cp_traits[i].kind;
+      set_identifier_kind (id, cik_trait);
+    }
+
+  /* An alias for __is_same.  */
+  id = get_identifier ("__is_same_as");
+  IDENTIFIER_CP_INDEX (id) = CPTK_IS_SAME;
+  set_identifier_kind (id, cik_trait);
 }
 
 static void
@@ -316,6 +358,7 @@ cxx_init (void)
   input_location = BUILTINS_LOCATION;
 
   init_reswords ();
+  init_cp_traits ();
   init_tree ();
   init_cp_semantics ();
   init_operators ();
@@ -326,6 +369,65 @@ cxx_init (void)
   class_type_node = ridpointers[(int) RID_CLASS];
 
   cxx_init_decl_processing ();
+
+  if (warn_keyword_macro)
+    {
+      for (unsigned int i = 0; i < num_c_common_reswords; ++i)
+	/* For C++ none of the keywords in [lex.key] starts with underscore,
+	   don't register anything like that.  Don't complain about
+	   ObjC or Transactional Memory keywords.  */
+	if (c_common_reswords[i].word[0] == '_')
+	  continue;
+	else if (c_common_reswords[i].disable & (D_TRANSMEM | D_OBJC))
+	  continue;
+	else
+	  {
+	    tree id = get_identifier (c_common_reswords[i].word);
+	    if (IDENTIFIER_KEYWORD_P (id)
+		/* Don't register keywords with spaces.  */
+		&& IDENTIFIER_POINTER (id)[IDENTIFIER_LENGTH (id) - 1] != ' ')
+	      cpp_warn (parse_in, IDENTIFIER_POINTER (id),
+			IDENTIFIER_LENGTH (id));
+	  }
+      if (cxx_dialect >= cxx11)
+	{
+	  cpp_warn (parse_in, "final");
+	  cpp_warn (parse_in, "override");
+	  cpp_warn (parse_in, "noreturn");
+	  if (cxx_dialect < cxx26)
+	    cpp_warn (parse_in, "carries_dependency");
+	}
+      if (cxx_dialect >= cxx14)
+	cpp_warn (parse_in, "deprecated");
+      if (cxx_dialect >= cxx17)
+	{
+	  cpp_warn (parse_in, "fallthrough");
+	  cpp_warn (parse_in, "maybe_unused");
+	  cpp_warn (parse_in, "nodiscard");
+	}
+      if (cxx_dialect >= cxx20)
+	{
+	  cpp_warn (parse_in, "likely");
+	  cpp_warn (parse_in, "unlikely");
+	  cpp_warn (parse_in, "no_unique_address");
+	}
+      if (flag_modules)
+	{
+	  cpp_warn (parse_in, "import");
+	  cpp_warn (parse_in, "module");
+	}
+      if (cxx_dialect >= cxx23)
+	cpp_warn (parse_in, "assume");
+      if (cxx_dialect >= cxx26)
+	{
+	  if (flag_contracts)
+	    {
+	      cpp_warn (parse_in, "pre");
+	      cpp_warn (parse_in, "post");
+	    }
+	  cpp_warn (parse_in, "indeterminate");
+	}
+    }
 
   if (c_common_init () == false)
     {
@@ -454,7 +556,7 @@ struct module_token_filter
 	    state = module_end;
 	    goto header_unit;
 	  }
-	
+
 	if (type == CPP_PADDING || type == CPP_COMMENT)
 	  break;
 
@@ -708,6 +810,9 @@ unqualified_name_lookup_error (tree name, location_t loc)
 
   if (IDENTIFIER_ANY_OP_P (name))
     error_at (loc, "%qD not defined", name);
+  else if (!flag_concepts && name == ridpointers[(int)RID_REQUIRES])
+    error_at (loc, "%<requires%> only available with %<-std=c++20%> or "
+	      "%<-fconcepts%>");
   else
     {
       if (!objc_diagnose_private_ivar (name))
@@ -765,6 +870,7 @@ unqualified_fn_lookup_error (cp_expr name_expr)
 	 Note that we have the exact wording of the following message in
 	 the manual (trouble.texi, node "Name lookup"), so they need to
 	 be kept in synch.  */
+      auto_diagnostic_group d;
       permerror (loc, "there are no arguments to %qD that depend on a template "
 		 "parameter, so a declaration of %qD must be available",
 		 name, name);
@@ -1008,8 +1114,8 @@ cxx_dup_lang_specific_decl (tree node)
      (module_purview_p still does).  */
   ld->u.base.module_entity_p = false;
   ld->u.base.module_import_p = false;
-  ld->u.base.module_attached_p = false;
-  
+  ld->u.base.module_keyed_decls_p = false;
+
   if (GATHER_STATISTICS)
     {
       tree_node_counts[(int)lang_decl] += 1;
@@ -1037,15 +1143,17 @@ copy_lang_type (tree node)
   if (! TYPE_LANG_SPECIFIC (node))
     return;
 
-  auto *lt = (struct lang_type *) ggc_internal_alloc (sizeof (struct lang_type));
+  size_t sz = (c_dialect_objc () ? sizeof (struct lang_type)
+	       : offsetof (struct lang_type, info));
+  auto *lt = (struct lang_type *) ggc_internal_alloc (sz);
 
-  memcpy (lt, TYPE_LANG_SPECIFIC (node), (sizeof (struct lang_type)));
+  memcpy (lt, TYPE_LANG_SPECIFIC (node), sz);
   TYPE_LANG_SPECIFIC (node) = lt;
 
   if (GATHER_STATISTICS)
     {
       tree_node_counts[(int)lang_type] += 1;
-      tree_node_sizes[(int)lang_type] += sizeof (struct lang_type);
+      tree_node_sizes[(int)lang_type] += sz;
     }
 }
 
@@ -1068,15 +1176,16 @@ maybe_add_lang_type_raw (tree t)
 {
   if (!RECORD_OR_UNION_CODE_P (TREE_CODE (t)))
     return false;
-  
-  auto *lt = (struct lang_type *) (ggc_internal_cleared_alloc
-				   (sizeof (struct lang_type)));
+
+  size_t sz = (c_dialect_objc () ? sizeof (struct lang_type)
+	       : offsetof (struct lang_type, info));
+  auto *lt = (struct lang_type *) (ggc_internal_cleared_alloc (sz));
   TYPE_LANG_SPECIFIC (t) = lt;
 
   if (GATHER_STATISTICS)
     {
       tree_node_counts[(int)lang_type] += 1;
-      tree_node_sizes[(int)lang_type] += sizeof (struct lang_type);
+      tree_node_sizes[(int)lang_type] += sz;
     }
 
   return true;
@@ -1090,8 +1199,8 @@ cxx_make_type (enum tree_code code MEM_STAT_DECL)
   if (maybe_add_lang_type_raw (t))
     {
       /* Set up some flags that give proper default behavior.  */
-      struct c_fileinfo *finfo =
-	get_fileinfo (LOCATION_FILE (input_location));
+      struct c_fileinfo *finfo
+	= get_fileinfo (LOCATION_FILE (input_location));
       SET_CLASSTYPE_INTERFACE_UNKNOWN_X (t, finfo->interface_unknown);
       CLASSTYPE_INTERFACE_ONLY (t) = finfo->interface_only;
     }

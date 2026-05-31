@@ -23,12 +23,12 @@ Disassembly of section \.text:
   3c:	d5033f5f 	clrex
   40:	d508001f 	sys	#0, C0, C0, #0
   44:	10000000 	adr	x0, 0 <sym>
-			44: R_AARCH64_(P32_|)ADR_PREL_LO21	sym
+			44: .*	sym
   48:	f9400001 	ldr	x1, \[x0\]
-			48: R_AARCH64_(P32_|)LDST64_ABS_LO12_NC	sym
+			48: .*	sym
   4c:	f9400001 	ldr	x1, \[x0\]
-			4c: R_AARCH64_(P32_|)LDST64_ABS_LO12_NC	sym
+			4c: .*	sym
   50:	f9000001 	str	x1, \[x0\]
-			50: R_AARCH64_(P32_|)LDST64_ABS_LO12_NC	sym
+			50: .*	sym
   54:	f9000001 	str	x1, \[x0\]
-			54: R_AARCH64_(P32_|)LDST64_ABS_LO12_NC	sym
+			54: .*	sym

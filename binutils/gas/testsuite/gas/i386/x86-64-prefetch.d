@@ -1,3 +1,4 @@
+#as: --divide
 #objdump: -dw
 #name: x86-64 prefetch
 #source: prefetch.s
@@ -21,7 +22,7 @@ Disassembly of section .text:
 \s*[a-f0-9]+:	0f 18 08             	prefetcht0 \(%rax\)
 \s*[a-f0-9]+:	0f 18 10             	prefetcht1 \(%rax\)
 \s*[a-f0-9]+:	0f 18 18             	prefetcht2 \(%rax\)
-\s*[a-f0-9]+:	0f 18 20             	nopl   \(%rax\)
+\s*[a-f0-9]+:	0f 18 20             	prefetchrst2 \(%rax\)
 \s*[a-f0-9]+:	0f 18 28             	nopl   \(%rax\)
 \s*[a-f0-9]+:	0f 18 30             	nopl   \(%rax\)
 \s*[a-f0-9]+:	0f 18 38             	nopl   \(%rax\)

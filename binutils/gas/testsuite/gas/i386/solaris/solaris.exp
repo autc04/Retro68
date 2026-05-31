@@ -1,4 +1,4 @@
-# Copyright (C) 2019-2022 Free Software Foundation, Inc.
+# Copyright (C) 2019-2026 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@ if [expr ([istarget "i*86-*-*"] || [istarget "x86_64-*-*"]) && [gas_64_check] &&
     set ASFLAGS "$ASFLAGS --64 --defsym x86_64=1 --strip-local-absolute"
 
     run_dump_test "reloc64"
+    run_dump_test "cmov"
+
     run_dump_test "x86-64-mpx-branch-1"
     run_dump_test "x86-64-mpx-branch-2"
 

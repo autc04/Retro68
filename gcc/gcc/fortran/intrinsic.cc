@@ -1,6 +1,6 @@
 /* Build up a list of intrinsic subroutines and functions for the
    name-resolution stage.
-   Copyright (C) 2000-2022 Free Software Foundation, Inc.
+   Copyright (C) 2000-2026 Free Software Foundation, Inc.
    Contributed by Andy Vaught & Katherine Holcomb
 
 This file is part of GCC.
@@ -25,6 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "options.h"
 #include "gfortran.h"
 #include "intrinsic.h"
+#include "diagnostic.h" /* For errorcount.  */
 
 /* Namespace to hold the resolved symbols for intrinsic subroutines.  */
 static gfc_namespace *gfc_intrinsic_namespace;
@@ -94,6 +95,12 @@ gfc_type_letter (bt type, bool logical_equals_int)
       c = 'h';
       break;
 
+      /* 'u' would be the logical choice, but it is used for
+	 "unknown", let's use m for "modulo".  */
+    case BT_UNSIGNED:
+      c = 'm';
+      break;
+
     default:
       c = 'u';
       break;
@@ -130,7 +137,7 @@ gfc_type_abi_kind (bt type, int kind)
 gfc_symbol *
 gfc_get_intrinsic_sub_symbol (const char *name)
 {
-  gfc_symbol *sym;
+  gfc_symbol *sym = NULL;
 
   gfc_get_symbol (name, gfc_intrinsic_namespace, &sym);
   sym->attr.always_explicit = 1;
@@ -164,6 +171,7 @@ gfc_get_intrinsic_function_symbol (gfc_expr *expr)
       sym->as = gfc_get_array_spec ();
       sym->as->type = AS_ASSUMED_SHAPE;
       sym->as->rank = expr->rank;
+      sym->as->corank = expr->corank;
     }
   return sym;
 }
@@ -285,11 +293,15 @@ do_ts29113_check (gfc_intrinsic_sym *specific, gfc_actual_arglist *arg)
 		     &a->expr->where, gfc_current_intrinsic);
 	  ok = false;
 	}
-      else if (a->expr->rank == -1 && !specific->inquiry)
+      else if (a->expr->rank == -1
+	       && !(specific->inquiry
+		    || (specific->id == GFC_ISYM_RESHAPE
+			&& (gfc_option.allow_std & GFC_STD_F202Y))))
 	{
 	  gfc_error ("Assumed-rank argument at %L is only permitted as actual "
-		     "argument to intrinsic inquiry functions",
-		     &a->expr->where);
+		     "argument to intrinsic inquiry functions or to RESHAPE. "
+		     "The latter is an experimental F202y feature. Use "
+		     "-std=f202y to enable", &a->expr->where);
 	  ok = false;
 	}
       else if (a->expr->rank == -1 && arg != a)
@@ -297,6 +309,13 @@ do_ts29113_check (gfc_intrinsic_sym *specific, gfc_actual_arglist *arg)
 	  gfc_error ("Assumed-rank argument at %L is only permitted as first "
 		     "actual argument to the intrinsic inquiry function %s",
 		     &a->expr->where, gfc_current_intrinsic);
+	  ok = false;
+	}
+      else if (a->expr->rank == -1 && specific->id == GFC_ISYM_RESHAPE
+	       && !gfc_is_simply_contiguous (a->expr, true, false))
+	{
+	  gfc_error ("Assumed rank argument to the RESHAPE intrinsic at %L "
+		     "must be contiguous", &a->expr->where);
 	  ok = false;
 	}
     }
@@ -312,7 +331,7 @@ do_ts29113_check (gfc_intrinsic_sym *specific, gfc_actual_arglist *arg)
 static bool
 do_check (gfc_intrinsic_sym *specific, gfc_actual_arglist *arg)
 {
-  gfc_expr *a1, *a2, *a3, *a4, *a5;
+  gfc_expr *a1, *a2, *a3, *a4, *a5, *a6;
 
   if (arg == NULL)
     return (*specific->check.f0) ();
@@ -342,6 +361,11 @@ do_check (gfc_intrinsic_sym *specific, gfc_actual_arglist *arg)
   if (arg == NULL)
     return (*specific->check.f5) (a1, a2, a3, a4, a5);
 
+  a6 = arg->expr;
+  arg = arg->next;
+  if (arg == NULL)
+    return (*specific->check.f6) (a1, a2, a3, a4, a5, a6);
+
   gfc_internal_error ("do_check(): too many args");
 }
 
@@ -352,11 +376,11 @@ do_check (gfc_intrinsic_sym *specific, gfc_actual_arglist *arg)
 
    Argument list:
       char *     name of function
-      int	whether function is elemental
-      int	If the function can be used as an actual argument [1]
-      bt	 return type of function
-      int	kind of return type of function
-      int	Fortran standard version
+      int        whether function is elemental
+      int        If the function can be used as an actual argument [1]
+      bt         return type of function
+      int        kind of return type of function
+      int        Fortran standard version
       check      pointer to check function
       simplify   pointer to simplification function
       resolve    pointer to resolution function
@@ -372,7 +396,7 @@ do_check (gfc_intrinsic_sym *specific, gfc_actual_arglist *arg)
 
 
  [1] Whether a function can or cannot be used as an actual argument is
-     determined by its presence on the 13.6 list in Fortran 2003.  The
+     determined by its presence in the 13.6 list in Fortran 2003.  The
      following intrinsics, which are GNU extensions, are considered allowed
      as actual arguments: ACOSH ATANH DACOSH DASINH DATANH DCONJG DIMAG
      ZABS ZCOS ZEXP ZLOG ZSIN ZSQRT.  */
@@ -819,6 +843,44 @@ add_sym_6fl (const char *name, gfc_isym_id id, enum klass cl, int actual_ok,
 }
 
 
+/* Add a symbol to the function list where the function takes
+   6 arguments.  */
+
+static void
+add_sym_6 (const char *name, gfc_isym_id id, enum klass cl, int actual_ok,
+	   bt type, int kind, int standard,
+	   bool (*check) (gfc_expr *, gfc_expr *, gfc_expr *,
+			  gfc_expr *, gfc_expr *, gfc_expr *),
+	   gfc_expr *(*simplify) (gfc_expr *, gfc_expr *, gfc_expr *,
+				  gfc_expr *, gfc_expr *, gfc_expr *),
+	   void (*resolve) (gfc_expr *, gfc_expr *, gfc_expr *, gfc_expr *,
+			    gfc_expr *, gfc_expr *, gfc_expr *),
+	   const char *a1, bt type1, int kind1, int optional1,
+	   const char *a2, bt type2, int kind2, int optional2,
+	   const char *a3, bt type3, int kind3, int optional3,
+	   const char *a4, bt type4, int kind4, int optional4,
+	   const char *a5, bt type5, int kind5, int optional5,
+	   const char *a6, bt type6, int kind6, int optional6)
+{
+  gfc_check_f cf;
+  gfc_simplify_f sf;
+  gfc_resolve_f rf;
+
+  cf.f6 = check;
+  sf.f6 = simplify;
+  rf.f6 = resolve;
+
+  add_sym (name, id, cl, actual_ok, type, kind, standard, cf, sf, rf,
+	   a1, type1, kind1, optional1, INTENT_IN,
+	   a2, type2, kind2, optional2, INTENT_IN,
+	   a3, type3, kind3, optional3, INTENT_IN,
+	   a4, type4, kind4, optional4, INTENT_IN,
+	   a5, type5, kind5, optional5, INTENT_IN,
+	   a6, type6, kind6, optional6, INTENT_IN,
+	   (void *) 0);
+}
+
+
 /* MINVAL, MAXVAL, PRODUCT, and SUM also get special treatment because
    their argument also might have to be reordered.  */
 
@@ -1106,7 +1168,7 @@ gfc_find_subroutine (const char *name)
 /* Given a string, figure out if it is the name of a generic intrinsic
    function or not.  */
 
-int
+bool
 gfc_generic_intrinsic (const char *name)
 {
   gfc_intrinsic_sym *sym;
@@ -1119,7 +1181,7 @@ gfc_generic_intrinsic (const char *name)
 /* Given a string, figure out if it is the name of a specific
    intrinsic function or not.  */
 
-int
+bool
 gfc_specific_intrinsic (const char *name)
 {
   gfc_intrinsic_sym *sym;
@@ -1131,7 +1193,7 @@ gfc_specific_intrinsic (const char *name)
 
 /* Given a string, figure out if it is the name of an intrinsic function
    or subroutine allowed as an actual argument or not.  */
-int
+bool
 gfc_intrinsic_actual_ok (const char *name, const bool subroutine_flag)
 {
   gfc_intrinsic_sym *sym;
@@ -1333,25 +1395,24 @@ add_functions (void)
 {
   /* Argument names.  These are used as argument keywords and so need to
     match the documentation.  Please keep this list in sorted order.  */
-  const char
-    *a = "a", *a1 = "a1", *a2 = "a2", *ar = "array", *b = "b",
-    *bck = "back", *bd = "boundary", *c = "c", *c_ptr_1 = "c_ptr_1",
-    *c_ptr_2 = "c_ptr_2", *ca = "coarray", *com = "command",
-    *dist = "distance", *dm = "dim", *f = "field", *failed="failed",
-    *fs = "fsource", *han = "handler", *i = "i",
-    *image = "image", *j = "j", *kind = "kind",
-    *l = "l", *ln = "len", *level = "level", *m = "matrix", *ma = "matrix_a",
-    *mb = "matrix_b", *md = "mode", *mo = "mold", *msk = "mask",
-    *n = "n", *ncopies= "ncopies", *nm = "name", *num = "number",
-    *ord = "order", *p = "p", *p1 = "path1", *p2 = "path2",
-    *pad = "pad", *pid = "pid", *pos = "pos", *pt = "pointer",
-    *r = "r", *s = "s", *set = "set", *sh = "shift", *shp = "shape",
-    *sig = "sig", *src = "source", *ssg = "substring",
-    *sta = "string_a", *stb = "string_b", *stg = "string",
-    *sub = "sub", *sz = "size", *tg = "target", *team = "team", *tm = "time",
-    *ts = "tsource", *ut = "unit", *v = "vector", *va = "vector_a",
-    *vb = "vector_b", *vl = "values", *val = "value", *x = "x", *y = "y",
-    *z = "z";
+  const char *a
+    = "a",
+    *a1 = "a1", *a2 = "a2", *ar = "array", *b = "b", *bck = "back",
+    *bd = "boundary", *c = "c", *c_ptr_1 = "c_ptr_1", *c_ptr_2 = "c_ptr_2",
+    *ca = "coarray", *com = "command", *dm = "dim", *f = "field",
+    *fs = "fsource", *han = "handler", *i = "i", *idy = "identity",
+    *image = "image", *j = "j", *kind = "kind", *l = "l", *ln = "len",
+    *level = "level", *m = "matrix", *ma = "matrix_a", *mb = "matrix_b",
+    *md = "mode", *mo = "mold", *msk = "mask", *n = "n", *ncopies = "ncopies",
+    *nm = "name", *num = "number", *op = "operation", *ord = "order",
+    *odd = "ordered", *p = "p", *p1 = "path1", *p2 = "path2", *pad = "pad",
+    *pid = "pid", *pos = "pos", *pt = "pointer", *r = "r", *rd = "round",
+    *s = "s", *set = "set", *sh = "shift", *shp = "shape", *sig = "sig",
+    *src = "source", *ssg = "substring", *sta = "string_a", *stb = "string_b",
+    *stg = "string", *sub = "sub", *sz = "size", *tg = "target", *team = "team",
+    *team_or_team_number = "team/team_number", *tm = "time", *ts = "tsource",
+    *ut = "unit", *v = "vector", *va = "vector_a", *vb = "vector_b",
+    *vl = "values", *val = "value", *x = "x", *y = "y", *z = "z";
 
   int di, dr, dd, dl, dc, dz, ii;
 
@@ -1654,7 +1715,7 @@ add_functions (void)
   make_generic ("bgt", GFC_ISYM_BGT, GFC_STD_F2008);
 
   add_sym_1 ("bit_size", GFC_ISYM_BIT_SIZE, CLASS_INQUIRY, ACTUAL_NO, BT_INTEGER, di, GFC_STD_F95,
-	     gfc_check_i, gfc_simplify_bit_size, NULL,
+	     gfc_check_iu, gfc_simplify_bit_size, NULL,
 	     i, BT_INTEGER, di, REQUIRED);
 
   make_generic ("bit_size", GFC_ISYM_BIT_SIZE, GFC_STD_F95);
@@ -1778,6 +1839,14 @@ add_functions (void)
 	     x, BT_REAL, dd, REQUIRED);
 
   make_generic ("cosh", GFC_ISYM_COSH, GFC_STD_F77);
+
+  add_sym_2 ("coshape", GFC_ISYM_COSHAPE, CLASS_INQUIRY, ACTUAL_NO,
+	     BT_INTEGER, di, GFC_STD_F2018,
+	     gfc_check_coshape, NULL , gfc_resolve_coshape,
+	     ca, BT_REAL, dr, REQUIRED,
+	     kind, BT_INTEGER, di, OPTIONAL);
+
+  make_generic ("coshape", GFC_ISYM_COSHAPE, GFC_STD_F2018);
 
   add_sym_3 ("count", GFC_ISYM_COUNT, CLASS_TRANSFORMATIONAL, ACTUAL_NO,
 	     BT_INTEGER, di, GFC_STD_F95,
@@ -2049,10 +2118,10 @@ add_functions (void)
 
   make_generic ("getpid", GFC_ISYM_GETPID, GFC_STD_GNU);
 
-  add_sym_1 ("get_team", GFC_ISYM_GET_TEAM, CLASS_TRANSFORMATIONAL,
-	     ACTUAL_NO, BT_INTEGER, di, GFC_STD_F2018,
-	     gfc_check_get_team, NULL, gfc_resolve_get_team,
-	     level, BT_INTEGER, di, OPTIONAL);
+  add_sym_1 ("get_team", GFC_ISYM_GET_TEAM, CLASS_TRANSFORMATIONAL, ACTUAL_NO,
+	     BT_DERIVED, di, GFC_STD_F2018, gfc_check_get_team,
+	     gfc_simplify_get_team, gfc_resolve_get_team, level, BT_INTEGER, di,
+	     OPTIONAL);
 
   add_sym_0 ("getuid", GFC_ISYM_GETUID, CLASS_IMPURE, ACTUAL_NO, BT_INTEGER,
 	     di, GFC_STD_GNU, NULL, NULL, gfc_resolve_getuid);
@@ -2202,9 +2271,11 @@ add_functions (void)
 
   make_generic ("ierrno", GFC_ISYM_IERRNO, GFC_STD_GNU);
 
-  add_sym_2 ("image_index", GFC_ISYM_IMAGE_INDEX, CLASS_INQUIRY, ACTUAL_NO, BT_INTEGER, di, GFC_STD_F2008,
-	     gfc_check_image_index, gfc_simplify_image_index, gfc_resolve_image_index,
-	     ca, BT_REAL, dr, REQUIRED, sub, BT_INTEGER, ii, REQUIRED);
+  add_sym_3 ("image_index", GFC_ISYM_IMAGE_INDEX, CLASS_TRANSFORMATIONAL,
+	     ACTUAL_NO, BT_INTEGER, di, GFC_STD_F2008, gfc_check_image_index,
+	     gfc_simplify_image_index, gfc_resolve_image_index, ca, BT_REAL, dr,
+	     REQUIRED, sub, BT_INTEGER, ii, REQUIRED, team_or_team_number,
+	     BT_VOID, di, OPTIONAL);
 
   add_sym_2 ("image_status", GFC_ISYM_IMAGE_STATUS, CLASS_ELEMENTAL, ACTUAL_NO,
 	     BT_INTEGER, di, GFC_STD_F2018, gfc_check_image_status,
@@ -2254,6 +2325,13 @@ add_functions (void)
 	     a, BT_REAL, dr, REQUIRED);
 
   make_generic ("long", GFC_ISYM_LONG, GFC_STD_GNU);
+
+  add_sym_2 ("uint", GFC_ISYM_UINT, CLASS_ELEMENTAL, ACTUAL_NO, BT_UNSIGNED,
+	     di, GFC_STD_UNSIGNED, gfc_check_uint, gfc_simplify_uint,
+	     gfc_resolve_uint, a, BT_REAL, dr, REQUIRED, kind, BT_INTEGER, di,
+	     OPTIONAL);
+
+  make_generic ("uint", GFC_ISYM_UINT, GFC_STD_GNU);
 
   add_sym_2 ("ior", GFC_ISYM_IOR, CLASS_ELEMENTAL, ACTUAL_NO, BT_INTEGER, di,
 	     GFC_STD_F95,
@@ -2541,6 +2619,22 @@ add_functions (void)
 
   make_generic ("maskr", GFC_ISYM_MASKR, GFC_STD_F2008);
 
+  add_sym_2 ("umaskl", GFC_ISYM_UMASKL, CLASS_ELEMENTAL, ACTUAL_NO,
+	     BT_INTEGER, di, GFC_STD_F2008,
+	     gfc_check_mask, gfc_simplify_umaskl, gfc_resolve_umasklr,
+	     i, BT_INTEGER, di, REQUIRED,
+	     kind, BT_INTEGER, di, OPTIONAL);
+
+  make_generic ("umaskl", GFC_ISYM_UMASKL, GFC_STD_F2008);
+
+  add_sym_2 ("umaskr", GFC_ISYM_UMASKR, CLASS_ELEMENTAL, ACTUAL_NO,
+	     BT_INTEGER, di, GFC_STD_F2008,
+	     gfc_check_mask, gfc_simplify_umaskr, gfc_resolve_umasklr,
+	     i, BT_INTEGER, di, REQUIRED,
+	     kind, BT_INTEGER, di, OPTIONAL);
+
+  make_generic ("umaskr", GFC_ISYM_UMASKR, GFC_STD_F2008);
+
   add_sym_2 ("matmul", GFC_ISYM_MATMUL, CLASS_TRANSFORMATIONAL, ACTUAL_NO, BT_REAL, dr, GFC_STD_F95,
 	     gfc_check_matmul, gfc_simplify_matmul, gfc_resolve_matmul,
 	     ma, BT_REAL, dr, REQUIRED, mb, BT_REAL, dr, REQUIRED);
@@ -2684,7 +2778,7 @@ add_functions (void)
   make_generic ("minval", GFC_ISYM_MINVAL, GFC_STD_F95);
 
   add_sym_2 ("mod", GFC_ISYM_MOD, CLASS_ELEMENTAL, ACTUAL_YES, BT_INTEGER, di, GFC_STD_F77,
-	     gfc_check_a_p, gfc_simplify_mod, gfc_resolve_mod,
+	     gfc_check_mod, gfc_simplify_mod, gfc_resolve_mod,
 	     a, BT_INTEGER, di, REQUIRED, p, BT_INTEGER, di, REQUIRED);
 
   if (flag_dec_intrinsic_ints)
@@ -2706,7 +2800,7 @@ add_functions (void)
   make_generic ("mod", GFC_ISYM_MOD, GFC_STD_F77);
 
   add_sym_2 ("modulo", GFC_ISYM_MODULO, CLASS_ELEMENTAL, ACTUAL_NO, BT_REAL, di, GFC_STD_F95,
-	     gfc_check_a_p, gfc_simplify_modulo, gfc_resolve_modulo,
+	     gfc_check_mod, gfc_simplify_modulo, gfc_resolve_modulo,
 	     a, BT_REAL, di, REQUIRED, p, BT_REAL, di, REQUIRED);
 
   make_generic ("modulo", GFC_ISYM_MODULO, GFC_STD_F95);
@@ -2734,7 +2828,7 @@ add_functions (void)
   make_generic ("nint", GFC_ISYM_NINT, GFC_STD_F77);
 
   add_sym_1 ("not", GFC_ISYM_NOT, CLASS_ELEMENTAL, ACTUAL_NO, BT_INTEGER, di, GFC_STD_F95,
-	     gfc_check_i, gfc_simplify_not, gfc_resolve_not,
+	     gfc_check_iu, gfc_simplify_not, gfc_resolve_not,
 	     i, BT_INTEGER, di, REQUIRED);
 
   if (flag_dec_intrinsic_ints)
@@ -2747,26 +2841,37 @@ add_functions (void)
 
   make_generic ("not", GFC_ISYM_NOT, GFC_STD_F95);
 
-  add_sym_2 ("norm2", GFC_ISYM_NORM2, CLASS_TRANSFORMATIONAL, ACTUAL_NO, BT_REAL, dr,
-	     GFC_STD_F2008, gfc_check_norm2, gfc_simplify_norm2, gfc_resolve_norm2,
+  add_sym_2 ("norm2", GFC_ISYM_NORM2, CLASS_TRANSFORMATIONAL, ACTUAL_NO,
+	     BT_REAL, dr, GFC_STD_F2008,
+	     gfc_check_norm2, gfc_simplify_norm2, gfc_resolve_norm2,
 	     x, BT_REAL, dr, REQUIRED,
 	     dm, BT_INTEGER, ii, OPTIONAL);
 
   make_generic ("norm2", GFC_ISYM_NORM2, GFC_STD_F2008);
 
-  add_sym_1 ("null", GFC_ISYM_NULL, CLASS_TRANSFORMATIONAL, ACTUAL_NO, BT_INTEGER, di, GFC_STD_F95,
+  add_sym_1 ("null", GFC_ISYM_NULL, CLASS_TRANSFORMATIONAL, ACTUAL_NO,
+	     BT_INTEGER, di, GFC_STD_F95,
 	     gfc_check_null, gfc_simplify_null, NULL,
 	     mo, BT_INTEGER, di, OPTIONAL);
 
   make_generic ("null", GFC_ISYM_NULL, GFC_STD_F95);
 
-  add_sym_2 ("num_images", GFC_ISYM_NUM_IMAGES, CLASS_TRANSFORMATIONAL,
-	     ACTUAL_NO, BT_INTEGER, di, GFC_STD_F2008,
-	     gfc_check_num_images, gfc_simplify_num_images, NULL,
-	     dist, BT_INTEGER, di, OPTIONAL,
-	     failed, BT_LOGICAL, dl, OPTIONAL);
+  add_sym_1 ("num_images", GFC_ISYM_NUM_IMAGES, CLASS_TRANSFORMATIONAL,
+	     ACTUAL_NO, BT_INTEGER, di, GFC_STD_F2008, gfc_check_num_images,
+	     gfc_simplify_num_images, NULL, team_or_team_number, BT_VOID, di,
+	     OPTIONAL);
 
-  add_sym_3 ("pack", GFC_ISYM_PACK, CLASS_TRANSFORMATIONAL, ACTUAL_NO, BT_REAL, dr, GFC_STD_F95,
+  add_sym_3 ("out_of_range", GFC_ISYM_OUT_OF_RANGE, CLASS_ELEMENTAL, ACTUAL_NO,
+	     BT_LOGICAL, dl, GFC_STD_F2018,
+	     gfc_check_out_of_range, gfc_simplify_out_of_range, NULL,
+	     x, BT_REAL, dr, REQUIRED,
+	     mo, BT_INTEGER, di, REQUIRED,
+	     rd, BT_LOGICAL, dl, OPTIONAL);
+
+  make_generic ("out_of_range", GFC_ISYM_OUT_OF_RANGE, GFC_STD_F2018);
+
+  add_sym_3 ("pack", GFC_ISYM_PACK, CLASS_TRANSFORMATIONAL, ACTUAL_NO,
+	     BT_REAL, dr, GFC_STD_F95,
 	     gfc_check_pack, gfc_simplify_pack, gfc_resolve_pack,
 	     ar, BT_REAL, dr, REQUIRED, msk, BT_LOGICAL, dl, REQUIRED,
 	     v, BT_REAL, dr, OPTIONAL);
@@ -2774,8 +2879,9 @@ add_functions (void)
   make_generic ("pack", GFC_ISYM_PACK, GFC_STD_F95);
 
 
-  add_sym_2 ("parity", GFC_ISYM_PARITY, CLASS_TRANSFORMATIONAL, ACTUAL_NO, BT_LOGICAL, dl,
-	     GFC_STD_F2008, gfc_check_parity, gfc_simplify_parity, gfc_resolve_parity,
+  add_sym_2 ("parity", GFC_ISYM_PARITY, CLASS_TRANSFORMATIONAL, ACTUAL_NO,
+	     BT_LOGICAL, dl, GFC_STD_F2008,
+	     gfc_check_parity, gfc_simplify_parity, gfc_resolve_parity,
 	     msk, BT_LOGICAL, dl, REQUIRED,
 	     dm, BT_INTEGER, ii, OPTIONAL);
 
@@ -2783,14 +2889,14 @@ add_functions (void)
 
   add_sym_1 ("popcnt", GFC_ISYM_POPCNT, CLASS_ELEMENTAL, ACTUAL_NO,
 	     BT_INTEGER, di, GFC_STD_F2008,
-	     gfc_check_i, gfc_simplify_popcnt, NULL,
+	     gfc_check_iu, gfc_simplify_popcnt, NULL,
 	     i, BT_INTEGER, di, REQUIRED);
 
   make_generic ("popcnt", GFC_ISYM_POPCNT, GFC_STD_F2008);
 
   add_sym_1 ("poppar", GFC_ISYM_POPPAR, CLASS_ELEMENTAL, ACTUAL_NO,
 	     BT_INTEGER, di, GFC_STD_F2008,
-	     gfc_check_i, gfc_simplify_poppar, NULL,
+	     gfc_check_iu, gfc_simplify_poppar, NULL,
 	     i, BT_INTEGER, di, REQUIRED);
 
   make_generic ("poppar", GFC_ISYM_POPPAR, GFC_STD_F2008);
@@ -2880,6 +2986,18 @@ add_functions (void)
 
   make_generic ("sngl", GFC_ISYM_SNGL, GFC_STD_F77);
 
+  add_sym_6 ("reduce", GFC_ISYM_REDUCE, CLASS_TRANSFORMATIONAL, ACTUAL_NO,
+	     BT_REAL, dr, GFC_STD_F2018,
+	     gfc_check_reduce, NULL, gfc_resolve_reduce,
+	     ar, BT_REAL, dr, REQUIRED,
+	     op, BT_REAL, dr, REQUIRED,
+	     dm, BT_INTEGER, di, OPTIONAL,
+	     msk, BT_LOGICAL, dl, OPTIONAL,
+	     idy, BT_REAL, dr, OPTIONAL,
+	     odd, BT_LOGICAL, dl, OPTIONAL);
+
+  make_generic ("reduce", GFC_ISYM_REDUCE, GFC_STD_F2018);
+
   add_sym_2 ("rename", GFC_ISYM_RENAME, CLASS_IMPURE, ACTUAL_NO, BT_INTEGER, di,
 	     GFC_STD_GNU, gfc_check_rename, NULL, gfc_resolve_rename,
 	     p1, BT_CHARACTER, dc, REQUIRED, p2, BT_CHARACTER, dc, REQUIRED);
@@ -2950,6 +3068,20 @@ add_functions (void)
 	     gfc_simplify_selected_int_kind, NULL, r, BT_INTEGER, di, REQUIRED);
 
   make_generic ("selected_int_kind", GFC_ISYM_SI_KIND, GFC_STD_F95);
+
+  add_sym_1 ("selected_unsigned_kind", GFC_ISYM_SU_KIND,
+	     CLASS_TRANSFORMATIONAL, ACTUAL_NO, BT_INTEGER, di,
+	     GFC_STD_UNSIGNED, gfc_check_selected_int_kind,
+	     gfc_simplify_selected_unsigned_kind, NULL, r, BT_INTEGER, di,
+	     REQUIRED);
+
+      make_generic ("selected_unsigned_kind", GFC_ISYM_SU_KIND, GFC_STD_GNU);
+
+  add_sym_1 ("selected_logical_kind", GFC_ISYM_SL_KIND, CLASS_TRANSFORMATIONAL, ACTUAL_NO, BT_INTEGER, di,
+	     GFC_STD_F2023, /* it has the same requirements */ gfc_check_selected_int_kind,
+	     gfc_simplify_selected_logical_kind, NULL, r, BT_INTEGER, di, REQUIRED);
+
+  make_generic ("selected_logical_kind", GFC_ISYM_SL_KIND, GFC_STD_F2023);
 
   add_sym_3 ("selected_real_kind", GFC_ISYM_SR_KIND, CLASS_TRANSFORMATIONAL, ACTUAL_NO, BT_INTEGER, di,
 	     GFC_STD_F95, gfc_check_selected_real_kind,
@@ -3089,6 +3221,14 @@ add_functions (void)
 	     x, BT_UNKNOWN, 0, REQUIRED);
   make_from_module();
 
+  add_sym_2 ("f_c_string", GFC_ISYM_F_C_STRING, CLASS_TRANSFORMATIONAL,
+	     ACTUAL_NO,
+	     BT_CHARACTER, dc, GFC_STD_F2023,
+	     gfc_check_f_c_string, NULL, NULL,
+	     stg, BT_CHARACTER, dc, REQUIRED,
+	     "asis", BT_CHARACTER, dc, OPTIONAL);
+  make_from_module();
+
   add_sym_1 ("c_sizeof", GFC_ISYM_C_SIZEOF, CLASS_INQUIRY, ACTUAL_NO,
 	     BT_INTEGER, gfc_index_integer_kind, GFC_STD_F2008,
 	     gfc_check_c_sizeof, gfc_simplify_sizeof, NULL,
@@ -3205,10 +3345,11 @@ add_functions (void)
 	     gfc_check_team_number, NULL, gfc_resolve_team_number,
 	     team, BT_DERIVED, di, OPTIONAL);
 
-  add_sym_3 ("this_image", GFC_ISYM_THIS_IMAGE, CLASS_INQUIRY, ACTUAL_NO, BT_INTEGER, di, GFC_STD_F2008,
-	     gfc_check_this_image, gfc_simplify_this_image, gfc_resolve_this_image,
-	     ca, BT_REAL, dr, OPTIONAL, dm, BT_INTEGER, ii, OPTIONAL,
-	     dist, BT_INTEGER, di, OPTIONAL);
+  add_sym_3red ("this_image", GFC_ISYM_THIS_IMAGE, CLASS_INQUIRY, ACTUAL_NO,
+		BT_INTEGER, di, GFC_STD_F2008, gfc_check_this_image,
+		gfc_simplify_this_image, gfc_resolve_this_image, ca, BT_REAL,
+		dr, OPTIONAL, dm, BT_INTEGER, ii, OPTIONAL, team, BT_DERIVED,
+		di, OPTIONAL);
 
   add_sym_0 ("time", GFC_ISYM_TIME, CLASS_IMPURE, ACTUAL_NO, BT_INTEGER,
 	     di, GFC_STD_GNU, NULL, NULL, gfc_resolve_time);
@@ -3245,7 +3386,8 @@ add_functions (void)
 
   make_generic ("transpose", GFC_ISYM_TRANSPOSE, GFC_STD_F95);
 
-  add_sym_1 ("trim", GFC_ISYM_TRIM, CLASS_TRANSFORMATIONAL, ACTUAL_NO, BT_CHARACTER, dc, GFC_STD_F95,
+  add_sym_1 ("trim", GFC_ISYM_TRIM, CLASS_TRANSFORMATIONAL, ACTUAL_NO,
+	     BT_CHARACTER, dc, GFC_STD_F95,
 	     gfc_check_trim, gfc_simplify_trim, gfc_resolve_trim,
 	     stg, BT_CHARACTER, dc, REQUIRED);
 
@@ -3309,129 +3451,139 @@ add_functions (void)
   make_generic ("loc", GFC_ISYM_LOC, GFC_STD_GNU);
 
 
-  /* The next of intrinsic subprogram are the degree trignometric functions.
-     These were hidden behind the -fdec-math option, but are now simply
-     included as extensions to the set of intrinsic subprograms.  */
+  /* The degree trigonometric functions were added as part of the DEC
+     Fortran compatibility effort, and were hidden behind a -fdec-math
+     option.  Fortran 2023 has added some of these functions to Fortran
+     standard as generic subprogram, e.g., acosd() is added while dacosd()
+     is not.  So, update GFC_STD_GNU to GFC_STD_F2023 for the generic
+     functions.  */
 
   add_sym_1 ("acosd", GFC_ISYM_ACOSD, CLASS_ELEMENTAL, ACTUAL_YES,
-	     BT_REAL, dr, GFC_STD_GNU,
-	     gfc_check_fn_r, gfc_simplify_acosd, gfc_resolve_trigd,
+	     BT_REAL, dr, GFC_STD_F2023,
+	     gfc_check_fn_r, gfc_simplify_acosd, gfc_resolve_trig,
 	     x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("acosd", GFC_ISYM_ACOSD, GFC_STD_F2023);
 
   add_sym_1 ("dacosd", GFC_ISYM_ACOSD, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_REAL, dd, GFC_STD_GNU,
-	     gfc_check_fn_d, gfc_simplify_acosd, gfc_resolve_trigd,
+	     gfc_check_fn_d, gfc_simplify_acosd, gfc_resolve_trig,
 	     x, BT_REAL, dd, REQUIRED);
 
-  make_generic ("acosd", GFC_ISYM_ACOSD, GFC_STD_GNU);
-
   add_sym_1 ("asind", GFC_ISYM_ASIND, CLASS_ELEMENTAL, ACTUAL_YES,
-	     BT_REAL, dr, GFC_STD_GNU,
-	     gfc_check_fn_r, gfc_simplify_asind, gfc_resolve_trigd,
+	     BT_REAL, dr, GFC_STD_F2023,
+	     gfc_check_fn_r, gfc_simplify_asind, gfc_resolve_trig,
 	     x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("asind", GFC_ISYM_ASIND, GFC_STD_F2023);
 
   add_sym_1 ("dasind", GFC_ISYM_ASIND, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_REAL, dd, GFC_STD_GNU,
-	     gfc_check_fn_d, gfc_simplify_asind, gfc_resolve_trigd,
+	     gfc_check_fn_d, gfc_simplify_asind, gfc_resolve_trig,
 	     x, BT_REAL, dd, REQUIRED);
-
-  make_generic ("asind", GFC_ISYM_ASIND, GFC_STD_GNU);
 
   add_sym_1 ("atand", GFC_ISYM_ATAND, CLASS_ELEMENTAL, ACTUAL_YES,
-	     BT_REAL, dr, GFC_STD_GNU,
-	     gfc_check_fn_r, gfc_simplify_atand, gfc_resolve_trigd,
+	     BT_REAL, dr, GFC_STD_F2023,
+	     gfc_check_fn_r, gfc_simplify_atand, gfc_resolve_trig,
 	     x, BT_REAL, dr, REQUIRED);
 
-  add_sym_1 ("datand", GFC_ISYM_ATAND, CLASS_ELEMENTAL, ACTUAL_YES,
-	     BT_REAL, dd, GFC_STD_GNU,
-	     gfc_check_fn_d, gfc_simplify_atand, gfc_resolve_trigd,
-	     x, BT_REAL, dd, REQUIRED);
-
-  make_generic ("atand", GFC_ISYM_ATAND, GFC_STD_GNU);
-
-  add_sym_2 ("atan2d", GFC_ISYM_ATAN2D, CLASS_ELEMENTAL, ACTUAL_YES,
-	     BT_REAL, dr, GFC_STD_GNU,
-	     gfc_check_atan2, gfc_simplify_atan2d, gfc_resolve_trigd2,
+  /* Two-argument version of atand, equivalent to atan2d.  */
+  add_sym_2 ("atand", GFC_ISYM_ATAN2D, CLASS_ELEMENTAL, ACTUAL_YES,
+	     BT_REAL, dr, GFC_STD_F2023,
+	     gfc_check_atan2, gfc_simplify_atan2d, gfc_resolve_trig2,
 	     y, BT_REAL, dr, REQUIRED,
 	     x, BT_REAL, dr, REQUIRED);
 
+  make_generic ("atand", GFC_ISYM_ATAND, GFC_STD_F2023);
+
+  add_sym_1 ("datand", GFC_ISYM_ATAND, CLASS_ELEMENTAL, ACTUAL_YES,
+	     BT_REAL, dd, GFC_STD_GNU,
+	     gfc_check_fn_d, gfc_simplify_atand, gfc_resolve_trig,
+	     x, BT_REAL, dd, REQUIRED);
+
+  add_sym_2 ("atan2d", GFC_ISYM_ATAN2D, CLASS_ELEMENTAL, ACTUAL_YES,
+	     BT_REAL, dr, GFC_STD_F2023,
+	     gfc_check_atan2, gfc_simplify_atan2d, gfc_resolve_trig2,
+	     y, BT_REAL, dr, REQUIRED,
+	     x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("atan2d", GFC_ISYM_ATAN2D, GFC_STD_F2023);
+
   add_sym_2 ("datan2d", GFC_ISYM_ATAN2D, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_REAL, dd, GFC_STD_GNU,
-	     gfc_check_datan2, gfc_simplify_atan2d, gfc_resolve_trigd2,
+	     gfc_check_datan2, gfc_simplify_atan2d, gfc_resolve_trig2,
 	     y, BT_REAL, dd, REQUIRED,
 	     x, BT_REAL, dd, REQUIRED);
 
-  make_generic ("atan2d", GFC_ISYM_ATAN2D, GFC_STD_GNU);
-
   add_sym_1 ("cosd", GFC_ISYM_COSD, CLASS_ELEMENTAL, ACTUAL_YES,
-	     BT_REAL, dr, GFC_STD_GNU,
-	     gfc_check_fn_r, gfc_simplify_cosd, gfc_resolve_trigd,
+	     BT_REAL, dr, GFC_STD_F2023,
+	     gfc_check_fn_r, gfc_simplify_cosd, gfc_resolve_trig,
 	     x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("cosd", GFC_ISYM_COSD, GFC_STD_F2023);
 
   add_sym_1 ("dcosd", GFC_ISYM_COSD, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_REAL, dd, GFC_STD_GNU,
-	     gfc_check_fn_d, gfc_simplify_cosd, gfc_resolve_trigd,
+	     gfc_check_fn_d, gfc_simplify_cosd, gfc_resolve_trig,
 	     x, BT_REAL, dd, REQUIRED);
-
-  make_generic ("cosd", GFC_ISYM_COSD, GFC_STD_GNU);
 
   add_sym_1 ("cotan", GFC_ISYM_COTAN, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_REAL, dr, GFC_STD_GNU,
-	     gfc_check_fn_rc2008, gfc_simplify_cotan, gfc_resolve_trigd,
+	     gfc_check_fn_rc2008, gfc_simplify_cotan, gfc_resolve_trig,
 	     x, BT_REAL, dr, REQUIRED);
 
   add_sym_1 ("dcotan", GFC_ISYM_COTAN, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_REAL, dd, GFC_STD_GNU,
-	     gfc_check_fn_d, gfc_simplify_cotan, gfc_resolve_trigd,
+	     gfc_check_fn_d, gfc_simplify_cotan, gfc_resolve_trig,
 	     x, BT_REAL, dd, REQUIRED);
 
   add_sym_1 ("ccotan", GFC_ISYM_COTAN, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_COMPLEX, dz, GFC_STD_GNU,
-	     NULL, gfc_simplify_cotan, gfc_resolve_trigd,
+	     NULL, gfc_simplify_cotan, gfc_resolve_trig,
 	     x, BT_COMPLEX, dz, REQUIRED);
 
   add_sym_1 ("zcotan", GFC_ISYM_COTAN, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_COMPLEX, dd, GFC_STD_GNU,
-	     NULL, gfc_simplify_cotan, gfc_resolve_trigd,
+	     NULL, gfc_simplify_cotan, gfc_resolve_trig,
 	     x, BT_COMPLEX, dd, REQUIRED);
 
   make_generic ("cotan", GFC_ISYM_COTAN, GFC_STD_GNU);
 
   add_sym_1 ("cotand", GFC_ISYM_COTAND, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_REAL, dr, GFC_STD_GNU,
-	     gfc_check_fn_r, gfc_simplify_cotand, gfc_resolve_trigd,
+	     gfc_check_fn_r, gfc_simplify_cotand, gfc_resolve_trig,
 	     x, BT_REAL, dr, REQUIRED);
 
   add_sym_1 ("dcotand", GFC_ISYM_COTAND, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_REAL, dd, GFC_STD_GNU,
-	     gfc_check_fn_d, gfc_simplify_cotand, gfc_resolve_trigd,
+	     gfc_check_fn_d, gfc_simplify_cotand, gfc_resolve_trig,
 	     x, BT_REAL, dd, REQUIRED);
 
   make_generic ("cotand", GFC_ISYM_COTAND, GFC_STD_GNU);
 
   add_sym_1 ("sind", GFC_ISYM_SIND, CLASS_ELEMENTAL, ACTUAL_YES,
-	     BT_REAL, dr, GFC_STD_GNU,
-	     gfc_check_fn_r, gfc_simplify_sind, gfc_resolve_trigd,
+	     BT_REAL, dr, GFC_STD_F2023,
+	     gfc_check_fn_r, gfc_simplify_sind, gfc_resolve_trig,
 	     x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("sind", GFC_ISYM_SIND, GFC_STD_F2023);
 
   add_sym_1 ("dsind", GFC_ISYM_SIND, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_REAL, dd, GFC_STD_GNU,
-	     gfc_check_fn_d, gfc_simplify_sind, gfc_resolve_trigd,
+	     gfc_check_fn_d, gfc_simplify_sind, gfc_resolve_trig,
 	     x, BT_REAL, dd, REQUIRED);
 
-  make_generic ("sind", GFC_ISYM_SIND, GFC_STD_GNU);
-
   add_sym_1 ("tand", GFC_ISYM_TAND, CLASS_ELEMENTAL, ACTUAL_YES,
-	     BT_REAL, dr, GFC_STD_GNU,
-	     gfc_check_fn_r, gfc_simplify_tand, gfc_resolve_trigd,
+	     BT_REAL, dr, GFC_STD_F2023,
+	     gfc_check_fn_r, gfc_simplify_tand, gfc_resolve_trig,
 	     x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("tand", GFC_ISYM_TAND, GFC_STD_F2023);
 
   add_sym_1 ("dtand", GFC_ISYM_TAND, CLASS_ELEMENTAL, ACTUAL_YES,
 	     BT_REAL, dd, GFC_STD_GNU,
-	     gfc_check_fn_d, gfc_simplify_tand, gfc_resolve_trigd,
+	     gfc_check_fn_d, gfc_simplify_tand, gfc_resolve_trig,
 	     x, BT_REAL, dd, REQUIRED);
-
-  make_generic ("tand", GFC_ISYM_TAND, GFC_STD_GNU);
 
   /* The following function is internally used for coarray libray functions.
      "make_from_module" makes it inaccessible for external users.  */
@@ -3439,6 +3591,64 @@ add_functions (void)
 	     BT_REAL, dr, GFC_STD_GNU, NULL, NULL, NULL,
 	     x, BT_REAL, dr, REQUIRED);
   make_from_module();
+
+  add_sym_3 (GFC_PREFIX ("caf_is_present_on_remote"),
+	     GFC_ISYM_CAF_IS_PRESENT_ON_REMOTE, CLASS_IMPURE, ACTUAL_NO,
+	     BT_LOGICAL, dl, GFC_STD_GNU, NULL, NULL, NULL, ca, BT_VOID, di,
+	     REQUIRED, val, BT_INTEGER, di, REQUIRED, i, BT_INTEGER, di,
+	     REQUIRED);
+  make_from_module ();
+
+  /* The half-cycle trigonometric functions were added by Fortran 2023.  */
+
+  add_sym_1 ("acospi", GFC_ISYM_ACOSPI, CLASS_ELEMENTAL, ACTUAL_NO, BT_REAL, dr,
+	     GFC_STD_F2023, gfc_check_fn_r, gfc_simplify_acospi,
+	     gfc_resolve_trig, x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("acospi", GFC_ISYM_ACOSPI, GFC_STD_F2023);
+
+  add_sym_1 ("asinpi", GFC_ISYM_ASINPI, CLASS_ELEMENTAL, ACTUAL_NO, BT_REAL, dr,
+	     GFC_STD_F2023, gfc_check_fn_r, gfc_simplify_asinpi,
+	     gfc_resolve_trig, x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("asinpi", GFC_ISYM_ASINPI, GFC_STD_F2023);
+
+  add_sym_1 ("atanpi", GFC_ISYM_ATANPI, CLASS_ELEMENTAL, ACTUAL_NO, BT_REAL, dr,
+	     GFC_STD_F2023, gfc_check_fn_r, gfc_simplify_atanpi,
+	     gfc_resolve_trig, x, BT_REAL, dr, REQUIRED);
+
+  /* Two-argument version of atanpi, equivalent to atan2pi.  */
+  add_sym_2 ("atanpi", GFC_ISYM_ATAN2PI, CLASS_ELEMENTAL, ACTUAL_YES, BT_REAL,
+	     dr, GFC_STD_F2023, gfc_check_atan2, gfc_simplify_atan2pi,
+	     gfc_resolve_trig2, y, BT_REAL, dr, REQUIRED, x, BT_REAL, dr,
+	     REQUIRED);
+
+  make_generic ("atanpi", GFC_ISYM_ATANPI, GFC_STD_F2023);
+
+  add_sym_2 ("atan2pi", GFC_ISYM_ATAN2PI, CLASS_ELEMENTAL, ACTUAL_NO, BT_REAL,
+	     dr, GFC_STD_F2023, gfc_check_atan2, gfc_simplify_atan2pi,
+	     gfc_resolve_trig2, y, BT_REAL, dr, REQUIRED, x, BT_REAL, dr,
+	     REQUIRED);
+
+  make_generic ("atan2pi", GFC_ISYM_ATAN2PI, GFC_STD_F2023);
+
+  add_sym_1 ("cospi", GFC_ISYM_COSPI, CLASS_ELEMENTAL, ACTUAL_NO, BT_REAL, dr,
+	     GFC_STD_F2023, gfc_check_fn_r, gfc_simplify_cospi,
+	     gfc_resolve_trig, x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("cospi", GFC_ISYM_COSPI, GFC_STD_F2023);
+
+  add_sym_1 ("sinpi", GFC_ISYM_SINPI, CLASS_ELEMENTAL, ACTUAL_NO, BT_REAL, dr,
+	     GFC_STD_F2023, gfc_check_fn_r, gfc_simplify_sinpi,
+	     gfc_resolve_trig, x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("sinpi", GFC_ISYM_SINPI, GFC_STD_F2023);
+
+  add_sym_1 ("tanpi", GFC_ISYM_TANPI, CLASS_ELEMENTAL, ACTUAL_NO, BT_REAL, dr,
+	     GFC_STD_F2023, gfc_check_fn_r, gfc_simplify_tanpi,
+	     gfc_resolve_trig, x, BT_REAL, dr, REQUIRED);
+
+  make_generic ("tanpi", GFC_ISYM_TANPI, GFC_STD_F2023);
 }
 
 
@@ -3691,11 +3901,11 @@ add_subroutines (void)
 	      st, BT_INTEGER, di, OPTIONAL, INTENT_OUT,
 	      trim_name, BT_LOGICAL, dl, OPTIONAL, INTENT_IN);
 
-  add_sym_2s ("move_alloc", GFC_ISYM_MOVE_ALLOC, CLASS_PURE, BT_UNKNOWN, 0,
-	      GFC_STD_F2003,
-	      gfc_check_move_alloc, NULL, NULL,
-	      f, BT_UNKNOWN, 0, REQUIRED, INTENT_INOUT,
-	      t, BT_UNKNOWN, 0, REQUIRED, INTENT_OUT);
+  add_sym_4s ("move_alloc", GFC_ISYM_MOVE_ALLOC, CLASS_PURE, BT_UNKNOWN, 0,
+	      GFC_STD_F2003, gfc_check_move_alloc, NULL, NULL, f, BT_UNKNOWN, 0,
+	      REQUIRED, INTENT_INOUT, t, BT_UNKNOWN, 0, REQUIRED, INTENT_OUT,
+	      stat, BT_INTEGER, di, OPTIONAL, INTENT_OUT, errmsg, BT_CHARACTER,
+	      dc, OPTIONAL, INTENT_INOUT);
 
   add_sym_5s ("mvbits", GFC_ISYM_MVBITS, CLASS_ELEMENTAL, BT_UNKNOWN, 0,
 	      GFC_STD_F95, gfc_check_mvbits, NULL, gfc_resolve_mvbits,
@@ -3731,13 +3941,22 @@ add_subroutines (void)
 	      pt, BT_INTEGER, di, OPTIONAL, INTENT_IN,
 	      gt, BT_INTEGER, di, OPTIONAL, INTENT_OUT);
 
+  add_sym_4s ("split", GFC_ISYM_SPLIT, CLASS_PURE,
+	      BT_UNKNOWN, 0, GFC_STD_F2023,
+	      gfc_check_split, NULL, gfc_resolve_split,
+	      "string", BT_CHARACTER, dc, REQUIRED, INTENT_IN,
+	      "set", BT_CHARACTER, dc, REQUIRED, INTENT_IN,
+	      "pos", BT_INTEGER, di, REQUIRED, INTENT_INOUT,
+	      "back", BT_LOGICAL, dl, OPTIONAL, INTENT_IN);
+
   /* The following subroutines are part of ISO_C_BINDING.  */
 
-  add_sym_3s ("c_f_pointer", GFC_ISYM_C_F_POINTER, CLASS_IMPURE, BT_UNKNOWN, 0,
+  add_sym_4s ("c_f_pointer", GFC_ISYM_C_F_POINTER, CLASS_IMPURE, BT_UNKNOWN, 0,
 	      GFC_STD_F2003, gfc_check_c_f_pointer, NULL, NULL,
 	      "cptr", BT_VOID, 0, REQUIRED, INTENT_IN,
 	      "fptr", BT_UNKNOWN, 0, REQUIRED, INTENT_OUT,
-	      "shape", BT_INTEGER, di, OPTIONAL, INTENT_IN);
+	      "shape", BT_INTEGER, di, OPTIONAL, INTENT_IN,
+	      "lower", BT_INTEGER, di, OPTIONAL, INTENT_IN);
   make_from_module();
 
   add_sym_2s ("c_f_procpointer", GFC_ISYM_C_F_PROCPOINTER, CLASS_IMPURE,
@@ -3809,6 +4028,10 @@ add_subroutines (void)
 	      "y", BT_REAL, dr, REQUIRED, INTENT_IN);
   make_from_module();
 
+  add_sym_2s (GFC_PREFIX ("caf_sendget"), GFC_ISYM_CAF_SENDGET, CLASS_IMPURE,
+	      BT_UNKNOWN, 0, GFC_STD_GNU, NULL, NULL, NULL, "x", BT_REAL, dr,
+	      REQUIRED, INTENT_OUT, "y", BT_REAL, dr, REQUIRED, INTENT_IN);
+  make_from_module ();
 
   /* More G77 compatibility garbage.  */
   add_sym_3s ("alarm", GFC_ISYM_ALARM, CLASS_IMPURE, BT_UNKNOWN, 0, GFC_STD_GNU,
@@ -4032,6 +4255,15 @@ add_conversions (void)
 	add_conv (BT_COMPLEX, gfc_real_kinds[j].kind,
 		  BT_INTEGER, gfc_integer_kinds[i].kind, GFC_STD_F77);
       }
+
+  if (flag_unsigned)
+    {
+      for (i = 0; gfc_unsigned_kinds[i].kind != 0; i++)
+	for (j = 0; gfc_unsigned_kinds[j].kind != 0; j++)
+	  if (i != j)
+	    add_conv (BT_UNSIGNED, gfc_unsigned_kinds[i].kind,
+		      BT_UNSIGNED, gfc_unsigned_kinds[j].kind, GFC_STD_GNU);
+    }
 
   if ((gfc_option.allow_std & GFC_STD_LEGACY) != 0)
     {
@@ -4259,15 +4491,15 @@ remove_nullargs (gfc_actual_arglist **ap)
 }
 
 
-static gfc_dummy_arg *
-get_intrinsic_dummy_arg (gfc_intrinsic_arg *intrinsic)
+static void
+set_intrinsic_dummy_arg (gfc_dummy_arg *&dummy_arg,
+			 gfc_intrinsic_arg *intrinsic)
 {
-  gfc_dummy_arg * const dummy_arg = gfc_get_dummy_arg ();
+  if (dummy_arg == NULL)
+    dummy_arg = gfc_get_dummy_arg ();
 
   dummy_arg->intrinsicness = GFC_INTRINSIC_DUMMY_ARG;
   dummy_arg->u.intrinsic = intrinsic;
-
-  return dummy_arg;
 }
 
 
@@ -4430,7 +4662,7 @@ do_sort:
       if (a == NULL)
 	a = gfc_get_actual_arglist ();
 
-      a->associated_dummy = get_intrinsic_dummy_arg (f);
+      set_intrinsic_dummy_arg (a->associated_dummy, f);
 
       if (actual == NULL)
 	*ap = a;
@@ -4620,6 +4852,7 @@ do_simplify (gfc_intrinsic_sym *specific, gfc_expr *e)
 {
   gfc_expr *result, *a1, *a2, *a3, *a4, *a5, *a6;
   gfc_actual_arglist *arg;
+  int old_errorcount = errorcount;
 
   /* Max and min require special handling due to the variable number
      of args.  */
@@ -4708,7 +4941,12 @@ do_simplify (gfc_intrinsic_sym *specific, gfc_expr *e)
 
 finish:
   if (result == &gfc_bad_expr)
-    return false;
+    {
+      if (errorcount == old_errorcount
+	  && (!gfc_buffered_p () || !gfc_error_flag_test ()))
+       gfc_error ("Cannot simplify expression at %L", &e->where);
+      return false;
+    }
 
   if (result == NULL)
     resolve_intrinsic (specific, e);	/* Must call at run-time */
@@ -4793,6 +5031,9 @@ check_specific (gfc_intrinsic_sym *specific, gfc_expr *expr, int error_flag)
   else if (specific->check.f3red == gfc_check_transf_bit_intrins)
     /* Same as for PRODUCT and SUM, but different checks.  */
     t = gfc_check_transf_bit_intrins (*ap);
+  else if (specific->check.f3red == gfc_check_this_image)
+    /* May need to reassign arguments.  */
+    t = gfc_check_this_image (*ap);
   else
      {
        if (specific->check.f1 == NULL)
@@ -4882,12 +5123,20 @@ gfc_check_intrinsic_standard (const gfc_intrinsic_sym* isym,
       symstd_msg = _("new in Fortran 2018");
       break;
 
+    case GFC_STD_F2023:
+      symstd_msg = _("new in Fortran 2023");
+      break;
+
     case GFC_STD_GNU:
       symstd_msg = _("a GNU Fortran extension");
       break;
 
     case GFC_STD_LEGACY:
       symstd_msg = _("for backward compatibility");
+      break;
+
+    case GFC_STD_UNSIGNED:
+      symstd_msg = _("unsigned");
       break;
 
     default:
@@ -4989,7 +5238,8 @@ gfc_intrinsic_func_interface (gfc_expr *expr, int error_flag)
       gfc_isym_id id = isym->id;
       if (id != GFC_ISYM_REPEAT && id != GFC_ISYM_RESHAPE
 	  && id != GFC_ISYM_SI_KIND && id != GFC_ISYM_SR_KIND
-	  && id != GFC_ISYM_TRANSFER && id != GFC_ISYM_TRIM
+	  && id != GFC_ISYM_SL_KIND && id != GFC_ISYM_TRANSFER
+	  && id != GFC_ISYM_TRIM
 	  && !gfc_notify_std (GFC_STD_F2003, "Transformational function %qs "
 			      "at %L is invalid in an initialization "
 			      "expression", sym->name, &expr->where))
@@ -5224,6 +5474,9 @@ gfc_convert_type_warn (gfc_expr *expr, gfc_typespec *ts, int eflag, int wflag,
   if (ts->type == BT_UNKNOWN)
     goto bad;
 
+  if (from_ts.type == BT_DERIVED && from_ts.u.derived->attr.pdt_type)
+    *ts = from_ts;
+
   expr->do_not_warn = ! wflag;
 
   /* NULL and zero size arrays get their type here, unless they already have a
@@ -5295,7 +5548,8 @@ gfc_convert_type_warn (gfc_expr *expr, gfc_typespec *ts, int eflag, int wflag,
       else if (from_ts.type == ts->type
 	       || (from_ts.type == BT_INTEGER && ts->type == BT_REAL)
 	       || (from_ts.type == BT_INTEGER && ts->type == BT_COMPLEX)
-	       || (from_ts.type == BT_REAL && ts->type == BT_COMPLEX))
+	       || (from_ts.type == BT_REAL && ts->type == BT_COMPLEX)
+	       || (from_ts.type == BT_UNSIGNED && ts->type == BT_UNSIGNED))
 	{
 	  /* Larger kinds can hold values of smaller kinds without problems.
 	     Hence, only warn if target kind is smaller than the source
@@ -5361,6 +5615,7 @@ gfc_convert_type_warn (gfc_expr *expr, gfc_typespec *ts, int eflag, int wflag,
   new_expr->where = old_where;
   new_expr->ts = *ts;
   new_expr->rank = rank;
+  new_expr->corank = expr->corank;
   new_expr->shape = gfc_copy_shape (shape, rank);
 
   gfc_get_ha_sym_tree (sym->name, &new_expr->symtree);
@@ -5419,7 +5674,8 @@ gfc_convert_chartype (gfc_expr *expr, gfc_typespec *ts)
   gcc_assert (expr->ts.type == BT_CHARACTER && ts->type == BT_CHARACTER);
 
   sym = find_char_conv (&expr->ts, ts);
-  gcc_assert (sym);
+  if (sym == NULL)
+    return false;
 
   /* Insert a pre-resolved function call to the right function.  */
   old_where = expr->where;
@@ -5435,6 +5691,7 @@ gfc_convert_chartype (gfc_expr *expr, gfc_typespec *ts)
   new_expr->where = old_where;
   new_expr->ts = *ts;
   new_expr->rank = rank;
+  new_expr->corank = expr->corank;
   new_expr->shape = gfc_copy_shape (shape, rank);
 
   gfc_get_ha_sym_tree (sym->name, &new_expr->symtree);

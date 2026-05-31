@@ -1,8 +1,10 @@
 #objdump: --dwarf=frames
+# This test is only valid on ELF based ports.
+#notarget: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
 
 .+:     file .+
 
-Contents of the .eh_frame section:
+Contents of the \.eh_frame section:
 
 0+ 0+10 0+ CIE
   Version:               1

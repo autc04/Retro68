@@ -1,5 +1,5 @@
 /* Out-of-line libgcc versions of __sync_* builtins.  */
-/* Copyright (C) 2008-2022 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -124,10 +124,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 /* Find an appropriate type TYPE for SIZE and invoke DEFINE (FN, SIZE, TYPE).
 
-   The types chosen here may be incorrect for some targets.
-   For example, targets with 16-byte atomicity support might not
-   support OImode.  We would need some kind of target-specific
-   override if that becomes a problem.  */
+   The types chosen here are based on standard GCC modes.
+   If a target supports atomic operations for a given SIZE but lacks
+   the corresponding mode, a target-specific override will be needed.  */
 
 #if SIZE == 1 && __GCC_HAVE_SYNC_COMPARE_AND_SWAP_1
 
@@ -151,8 +150,8 @@ DEFINE (FN, 8, UDItype)
 
 #elif SIZE == 16 && __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16
 
-typedef unsigned int UOItype __attribute__((mode (OI)));
-DEFINE (FN, 8, UOItype)
+typedef unsigned int UTItype __attribute__((mode (TI)));
+DEFINE (FN, 16, UTItype)
 
 #endif
 

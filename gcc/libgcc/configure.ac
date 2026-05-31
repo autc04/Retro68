@@ -258,6 +258,20 @@ AC_CACHE_CHECK([whether fixed-point is supported], [libgcc_cv_fixed_point],
 fixed_point=$libgcc_cv_fixed_point
 AC_SUBST(fixed_point)
 
+# Check whether the compiler defines __PIE__ by default, so -fno-PIE is needed.
+AC_CACHE_CHECK([whether the compiler defines __PIE__], [libgcc_cv_no_pie_cflags],
+  [AC_COMPILE_IFELSE(
+     [AC_LANG_PROGRAM([[
+#ifdef __PIE__
+#error __PIE__ defined
+#endif
+     ]], [[]])],
+     [libgcc_cv_no_pie_cflags=''],
+     [libgcc_cv_no_pie_cflags='-fno-PIE'])])
+
+NO_PIE_CFLAGS=$libgcc_cv_no_pie_cflags
+AC_SUBST([NO_PIE_CFLAGS])
+
 # For platforms with the unwind ABI which includes an unwind library,
 # libunwind, we can choose to use the system libunwind.
 # config.gcc also contains tests of with_system_libunwind.
@@ -305,9 +319,7 @@ AC_SUBST([use_tm_clone_registry])
 
 AC_LIB_PROG_LD_GNU
 
-AC_MSG_CHECKING([for thread model used by GCC])
-target_thread_file=`$CC -v 2>&1 | sed -n 's/^Thread model: //p'`
-AC_MSG_RESULT([$target_thread_file]) 
+GCC_AC_THREAD_MODEL
 
 # Check for assembler CFI support.
 AC_CACHE_CHECK([whether assembler supports CFI directives], [libgcc_cv_cfi],
@@ -344,31 +356,6 @@ mips*-*-*)
     ])],
     [libgcc_cv_mips_hard_float=yes],
     [libgcc_cv_mips_hard_float=no])])
-esac
-
-case ${host} in
-*-*-solaris2*)
-  # Check for system-provided CRTs on Solaris 11.4.
-  AC_CACHE_CHECK([system-provided CRTs on Solaris],
-    		 [libgcc_cv_solaris_crts],
-    [libgcc_cv_solaris_crts=no
-     libgcc_sysroot="`${CC} -print-sysroot`"
-     libgcc_libdir="$libgcc_sysroot/usr/lib"
-     # At the time they were added, gcrt1.o became a symlink for backwards
-     # compatibility on x86, while crt1.o was added on sparc, so check for that.
-     case ${host} in
-       i?86-*-solaris2* | x86_64-*-solaris2*)
-         if test -h "$libgcc_libdir/gcrt1.o"; then libgcc_cv_solaris_crts=yes; fi
-	 ;;
-       sparc*-*-solaris2*)
-         if test -f "$libgcc_libdir/crt1.o"; then libgcc_cv_solaris_crts=yes; fi
-	 ;;
-     esac])
-  if test $libgcc_cv_solaris_crts = yes; then
-    AC_DEFINE(HAVE_SOLARIS_CRTS, 1,
-      [Define if the system-provided CRTs are present on Solaris.])
-  fi
-  ;;
 esac
 
 # Determine the version of glibc, if any, used on the target.
@@ -442,7 +429,7 @@ powerpc*-*-linux*)
     [libgcc_cv_powerpc_float128=yes],
     [libgcc_cv_powerpc_float128=no])])
 
-  CFLAGS="$CFLAGS -mpower9-vector -mfloat128-hardware"
+  CFLAGS="$CFLAGS -mcpu=power9 -mfloat128-hardware"
   AC_CACHE_CHECK([for PowerPC ISA 3.0 to build hardware __float128 libraries],
 		 [libgcc_cv_powerpc_float128_hw],
 		 [AC_COMPILE_IFELSE(
@@ -492,6 +479,20 @@ powerpc*-*-linux*)
   CFLAGS="$saved_CFLAGS"
 esac
 
+case ${host} in
+s390*-*-linux*)
+  AC_CACHE_CHECK([Support float16 on s390],
+		 [libgcc_cv_s390_float16],
+		 [AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE([#if ! __s390x__ || __ARCH__ < 8
+     # error "HF not supported"
+     #endif
+     ])],
+    [libgcc_cv_s390_float16=yes],
+    [libgcc_cv_s390_float16=no])])
+  ;;
+esac
+
 # Collect host-machine-specific information.
 . ${srcdir}/config.host
 
@@ -506,7 +507,8 @@ AC_SUBST(accel_dir_suffix)
 AC_SUBST(real_host_noncanonical)
 
 if test x"$enable_offload_targets" != x; then
-  extra_parts="${extra_parts} crtoffloadbegin.o crtoffloadend.o crtoffloadtable.o"
+  extra_parts="${extra_parts} crtoffloadbegin.o crtoffloadend.o"
+  extra_parts="${extra_parts} crtoffloadtable.o crtoffloadtableS.o"
 fi
 
 # Check if Solaris/x86 linker supports ZERO terminator unwind entries.
@@ -541,6 +543,18 @@ case ${host} in
   ;;
 esac
 AC_SUBST(solaris_ld_v2_maps)
+
+case ${host} in
+loongarch32*-*-*)
+  tmake_file="${tmake_file} loongarch/t-crtstuff-la32"
+  ;;
+esac
+
+case ${host} in
+loongarch64*-*-*)
+  tmake_file="${tmake_file} loongarch/t-crtstuff-la64"
+  ;;
+esac
 
 # Check if xtensa target is configured for windowed ABI and thus needs to use
 # custom unwind code.
@@ -648,6 +662,42 @@ changequote([,])dnl
 esac])
 LIBGCC_CHECK_AS_LSE
 
+dnl Check if as supports .variant_pcs.
+AC_DEFUN([LIBGCC_CHECK_AS_VARIANT_PCS], [
+case "${target}" in
+aarch64*-*-*)
+  AC_CACHE_CHECK([if as supports .variant_pcs], libgcc_cv_as_variant_pcs, [
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(,
+      [[asm (".variant_pcs foobar");]])],
+      [libgcc_cv_as_variant_pcs=yes], [libgcc_cv_as_variant_pcs=no])
+  ])
+  if test x$libgcc_cv_as_variant_pcs = xyes; then
+    AC_DEFINE(HAVE_AS_VARIANT_PCS, 1,
+	      [Define to 1 if the assembler supports .variant_pcs.])
+  fi
+  ;;
+esac])
+LIBGCC_CHECK_AS_VARIANT_PCS
+
+# Check __getauxval ABI symbol for CPU feature detection.
+case ${target} in
+aarch64*-linux-*)
+  # No link check because the libc may not be present.
+  AC_CACHE_CHECK([for __getauxval],
+		 [libgcc_cv_have___getauxval],
+		 [case ${target} in
+		  *-linux-gnu*)
+		    libgcc_cv_have___getauxval=yes
+		    ;;
+		  *)
+		    libgcc_cv_have___getauxval=no
+		  esac])
+  if test x$libgcc_cv_have___getauxval = xyes; then
+    AC_DEFINE(HAVE___GETAUXVAL, 1,
+	      [Define to 1 if __getauxval is available.])
+  fi
+esac
+
 dnl Check if as supports RTM instructions.
 AC_CACHE_CHECK(for init priority support, libgcc_cv_init_priority, [
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM(,
@@ -694,6 +744,19 @@ AC_SUBST(tm_defines)
 # Map from thread model to thread header.
 GCC_AC_THREAD_HEADER([$target_thread_file])
 
+AC_CACHE_CHECK([for strub support],
+  [libgcc_cv_strub_support],
+  [AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE([void __attribute__ ((__strub__)) fn (void) {}])],
+    [libgcc_cv_strub_support=yes],
+    [libgcc_cv_strub_support=no])])
+if test "x$libgcc_cv_strub_support" != xno; then
+  HAVE_STRUB_SUPPORT=
+else
+  HAVE_STRUB_SUPPORT='# '
+fi
+AC_SUBST(HAVE_STRUB_SUPPORT)
+
 # Determine what GCC version number to use in filesystem paths.
 GCC_BASE_VER
 
@@ -703,9 +766,24 @@ AC_SUBST(extra_parts)
 AC_SUBST(asm_hidden_op)
 AC_SUBST(enable_execute_stack)
 AC_SUBST(unwind_header)
+AC_SUBST(md_unwind_def_header)
 AC_SUBST(md_unwind_header)
 AC_SUBST(sfp_machine_header)
 AC_SUBST(thread_header)
+
+AC_ARG_ENABLE(werror,
+[AS_HELP_STRING([--enable-werror],
+		[build with -Werror for selected targets])],
+[
+case ${enable_werror} in
+  no) WERROR="" ;;
+  *) WERROR="-Werror" ;;
+esac
+],
+[
+WERROR="-Werror"
+])
+AC_SUBST(WERROR)
 
 # We need multilib support.
 AC_CONFIG_FILES([Makefile])

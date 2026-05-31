@@ -1,6 +1,5 @@
 # Check SHA instructions
 
-	.allow_index_reg
 	.text
 _start:
 	sha1rnds4 $9, %xmm2, %xmm1

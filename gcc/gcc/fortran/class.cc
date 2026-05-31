@@ -1,5 +1,5 @@
 /* Implementation of Fortran 2003 Polymorphism.
-   Copyright (C) 2009-2022 Free Software Foundation, Inc.
+   Copyright (C) 2009-2026 Free Software Foundation, Inc.
    Contributed by Paul Richard Thomas <pault@gcc.gnu.org>
    and Janus Weil <janus@gcc.gnu.org>
 
@@ -264,14 +264,16 @@ void
 gfc_add_class_array_ref (gfc_expr *e)
 {
   int rank = CLASS_DATA (e)->as->rank;
+  int corank = CLASS_DATA (e)->as->corank;
   gfc_array_spec *as = CLASS_DATA (e)->as;
   gfc_ref *ref = NULL;
   gfc_add_data_component (e);
   e->rank = rank;
+  e->corank = corank;
   for (ref = e->ref; ref; ref = ref->next)
     if (!ref->next)
       break;
-  if (ref->type != REF_ARRAY)
+  if (ref && ref->type != REF_ARRAY)
     {
       ref->next = gfc_get_ref ();
       ref = ref->next;
@@ -377,27 +379,33 @@ gfc_is_class_scalar_expr (gfc_expr *e)
     return false;
 
   /* Is this a class object?  */
-  if (e->symtree
-	&& e->symtree->n.sym->ts.type == BT_CLASS
-	&& CLASS_DATA (e->symtree->n.sym)
-	&& !CLASS_DATA (e->symtree->n.sym)->attr.dimension
-	&& (e->ref == NULL
-	    || (e->ref->type == REF_COMPONENT
-		&& strcmp (e->ref->u.c.component->name, "_data") == 0
-		&& e->ref->next == NULL)))
+  if (e->symtree && e->symtree->n.sym->ts.type == BT_CLASS
+      && CLASS_DATA (e->symtree->n.sym)
+      && !CLASS_DATA (e->symtree->n.sym)->attr.dimension
+      && (e->ref == NULL
+	  || (e->ref->type == REF_COMPONENT
+	      && strcmp (e->ref->u.c.component->name, "_data") == 0
+	      && (e->ref->next == NULL
+		  || (e->ref->next->type == REF_ARRAY
+		      && e->ref->next->u.ar.codimen > 0
+		      && e->ref->next->u.ar.dimen == 0
+		      && e->ref->next->next == NULL)))))
     return true;
 
   /* Or is the final reference BT_CLASS or _data?  */
   for (ref = e->ref; ref; ref = ref->next)
     {
-      if (ref->type == REF_COMPONENT
-	    && ref->u.c.component->ts.type == BT_CLASS
-	    && CLASS_DATA (ref->u.c.component)
-	    && !CLASS_DATA (ref->u.c.component)->attr.dimension
-	    && (ref->next == NULL
-		|| (ref->next->type == REF_COMPONENT
-		    && strcmp (ref->next->u.c.component->name, "_data") == 0
-		    && ref->next->next == NULL)))
+      if (ref->type == REF_COMPONENT && ref->u.c.component->ts.type == BT_CLASS
+	  && CLASS_DATA (ref->u.c.component)
+	  && !CLASS_DATA (ref->u.c.component)->attr.dimension
+	  && (ref->next == NULL
+	      || (ref->next->type == REF_COMPONENT
+		  && strcmp (ref->next->u.c.component->name, "_data") == 0
+		  && (ref->next->next == NULL
+		      || (ref->next->next->type == REF_ARRAY
+			  && ref->next->next->u.ar.codimen > 0
+			  && ref->next->next->u.ar.dimen == 0
+			  && ref->next->next->next == NULL)))))
 	return true;
     }
 
@@ -638,6 +646,7 @@ gfc_build_class_symbol (gfc_typespec *ts, symbol_attribute *attr,
 {
   char tname[GFC_MAX_SYMBOL_LEN+1];
   char *name;
+  gfc_typespec *orig_ts = ts;
   gfc_symbol *fclass;
   gfc_symbol *vtab;
   gfc_component *c;
@@ -646,9 +655,25 @@ gfc_build_class_symbol (gfc_typespec *ts, symbol_attribute *attr,
 
   gcc_assert (as);
 
-  if (attr->class_ok)
-    /* Class container has already been built.  */
+  /* We cannot build the class container now.  */
+  if (attr->class_ok && (!ts->u.derived || !ts->u.derived->components))
+    return false;
+
+  /* Class container has already been built with same name.  */
+  if (attr->class_ok
+      && ts->u.derived->components->attr.dimension >= attr->dimension
+      && ts->u.derived->components->attr.codimension >= attr->codimension
+      && ts->u.derived->components->attr.class_pointer >= attr->pointer
+      && ts->u.derived->components->attr.allocatable >= attr->allocatable)
     return true;
+  if (attr->class_ok)
+    {
+      attr->dimension |= ts->u.derived->components->attr.dimension;
+      attr->codimension |= ts->u.derived->components->attr.codimension;
+      attr->pointer |= ts->u.derived->components->attr.class_pointer;
+      attr->allocatable |= ts->u.derived->components->attr.allocatable;
+      ts = &ts->u.derived->components->ts;
+    }
 
   attr->class_ok = attr->dummy || attr->pointer || attr->allocatable
 		   || attr->select_type_temporary || attr->associate_var;
@@ -692,8 +717,12 @@ gfc_build_class_symbol (gfc_typespec *ts, symbol_attribute *attr,
      work on the declared type. All array type other than deferred shape or
      assumed rank are added to the function namespace to ensure that they
      are properly distinguished.  */
-  if (attr->dummy && !attr->codimension && (*as)
-      && !((*as)->type == AS_DEFERRED || (*as)->type == AS_ASSUMED_RANK))
+  if (attr->dummy && (*as)
+      && ((!attr->codimension
+	   && !((*as)->type == AS_DEFERRED || (*as)->type == AS_ASSUMED_RANK))
+	  || (attr->codimension
+	      && !((*as)->cotype == AS_DEFERRED
+		   || (*as)->cotype == AS_ASSUMED_RANK))))
     {
       char *sname;
       ns = gfc_current_ns;
@@ -790,11 +819,61 @@ gfc_build_class_symbol (gfc_typespec *ts, symbol_attribute *attr,
     }
 
   fclass->attr.is_class = 1;
-  ts->u.derived = fclass;
+  orig_ts->u.derived = fclass;
   attr->allocatable = attr->pointer = attr->dimension = attr->codimension = 0;
   (*as) = NULL;
   free (name);
   return true;
+}
+
+
+/* Change class, using gfc_build_class_symbol. This is needed for associate
+   names, when rank changes or a derived type is produced by resolution.  */
+
+void
+gfc_change_class (gfc_typespec *ts, symbol_attribute *sym_attr,
+		  gfc_array_spec *sym_as, int rank, int corank)
+{
+  symbol_attribute attr;
+  gfc_component *c;
+  gfc_array_spec *as = NULL;
+  gfc_symbol *der = ts->u.derived;
+
+  ts->type = BT_CLASS;
+  attr = *sym_attr;
+  attr.class_ok = 0;
+  attr.associate_var = 1;
+  attr.class_pointer = 1;
+  attr.allocatable = 0;
+  attr.pointer = 1;
+  attr.dimension = rank ? 1 : 0;
+  if (rank)
+    {
+      if (sym_as)
+	as = gfc_copy_array_spec (sym_as);
+      else
+	{
+	  as = gfc_get_array_spec ();
+	  as->rank = rank;
+	  as->type = AS_DEFERRED;
+	  as->corank = corank;
+	}
+    }
+  if (as && as->corank != 0)
+    attr.codimension = 1;
+
+  if (!gfc_build_class_symbol (ts, &attr, &as))
+    gcc_unreachable ();
+
+  gfc_set_sym_referenced (ts->u.derived);
+
+  /* Make sure the _vptr is set.  */
+  c = gfc_find_component (ts->u.derived, "_vptr", true, true, NULL);
+  if (c->ts.u.derived == NULL)
+    c->ts.u.derived = gfc_find_derived_vtab (der);
+  /* _vptr now has the _vtab in it, change it to the _vtype.  */
+  if (c->ts.u.derived->attr.vtab)
+    c->ts.u.derived = c->ts.u.derived->ts.u.derived;
 }
 
 
@@ -805,11 +884,22 @@ static void
 add_proc_comp (gfc_symbol *vtype, const char *name, gfc_typebound_proc *tb)
 {
   gfc_component *c;
-
-  if (tb->non_overridable && !tb->overridden)
-    return;
+  bool is_abstract = false;
 
   c = gfc_find_component (vtype, name, true, true, NULL);
+
+  /* If the present component typebound proc is abstract, the new version
+     should unconditionally be tested if it is a suitable replacement.  */
+  if (c && c->tb && c->tb->u.specific
+      && c->tb->u.specific->n.sym->attr.abstract)
+    is_abstract = true;
+
+  /* Pass on the new tb being not overridable if a component is found and
+     either there is not an overridden specific or the present component
+     tb is abstract. This ensures that possible, viable replacements are
+     loaded.  */
+  if (tb->non_overridable && !tb->overridden && !is_abstract && c)
+    return;
 
   if (c == NULL)
     {
@@ -896,7 +986,8 @@ has_finalizer_component (gfc_symbol *derived)
    gfc_component *c;
 
   for (c = derived->components; c; c = c->next)
-    if (c->ts.type == BT_DERIVED && !c->attr.pointer && !c->attr.allocatable)
+    if (c->ts.type == BT_DERIVED && !c->attr.pointer && !c->attr.allocatable
+	&& c->attr.flavor != FL_PROCEDURE)
       {
 	if (c->ts.u.derived->f2k_derived
 	    && c->ts.u.derived->f2k_derived->finalizers)
@@ -943,7 +1034,7 @@ comp_is_finalizable (gfc_component *comp)
    of calling the appropriate finalizers, coarray deregistering, and
    deallocation of allocatable subcomponents.  */
 
-static void
+static bool
 finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
 		    gfc_symbol *stat, gfc_symbol *fini_coarray, gfc_code **code,
 		    gfc_namespace *sub_ns)
@@ -953,14 +1044,14 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
   gfc_was_finalized *f;
 
   if (!comp_is_finalizable (comp))
-    return;
+    return false;
 
   /* If this expression with this component has been finalized
      already in this namespace, there is nothing to do.  */
   for (f = sub_ns->was_finalized; f; f = f->next)
     {
       if (f->e == expr && f->c == comp)
-	return;
+	return false;
     }
 
   e = gfc_copy_expr (expr);
@@ -989,6 +1080,7 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
       ref->next->u.ar.as = comp->ts.type == BT_CLASS ? CLASS_DATA (comp)->as
 							: comp->as;
       e->rank = ref->next->u.ar.as->rank;
+      e->corank = ref->next->u.ar.as->corank;
       ref->next->u.ar.type = e->rank ? AR_FULL : AR_ELEMENT;
     }
 
@@ -1059,7 +1151,8 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
     {
       /* Call FINAL_WRAPPER (comp);  */
       gfc_code *final_wrap;
-      gfc_symbol *vtab;
+      gfc_symbol *vtab, *byte_stride;
+      gfc_expr *scalar, *size_expr, *fini_coarray_expr;
       gfc_component *c;
 
       vtab = gfc_find_derived_vtab (comp->ts.u.derived);
@@ -1068,11 +1161,52 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
 	  break;
 
       gcc_assert (c);
+
+      /* Set scalar argument for storage_size. A leading underscore in
+	 the name prevents an unwanted finalization.  */
+      gfc_get_symbol ("_comp_byte_stride", sub_ns, &byte_stride);
+      byte_stride->ts = e->ts;
+      byte_stride->attr.flavor = FL_VARIABLE;
+      byte_stride->attr.value = 1;
+      byte_stride->attr.artificial = 1;
+      gfc_set_sym_referenced (byte_stride);
+      gfc_commit_symbol (byte_stride);
+      scalar = gfc_lval_expr_from_sym (byte_stride);
+
       final_wrap = gfc_get_code (EXEC_CALL);
       final_wrap->symtree = c->initializer->symtree;
       final_wrap->resolved_sym = c->initializer->symtree->n.sym;
       final_wrap->ext.actual = gfc_get_actual_arglist ();
       final_wrap->ext.actual->expr = e;
+
+      /* size_expr = STORAGE_SIZE (...) / NUMERIC_STORAGE_SIZE.  */
+      size_expr = gfc_get_expr ();
+      size_expr->where = gfc_current_locus;
+      size_expr->expr_type = EXPR_OP;
+      size_expr->value.op.op = INTRINSIC_DIVIDE;
+
+      /* STORAGE_SIZE (array,kind=c_intptr_t).  */
+      size_expr->value.op.op1
+	= gfc_build_intrinsic_call (sub_ns, GFC_ISYM_STORAGE_SIZE,
+				    "storage_size", gfc_current_locus, 2,
+				    scalar,
+				    gfc_get_int_expr (gfc_index_integer_kind,
+						      NULL, 0));
+
+      /* NUMERIC_STORAGE_SIZE.  */
+      size_expr->value.op.op2 = gfc_get_int_expr (gfc_index_integer_kind, NULL,
+						  gfc_character_storage_size);
+      size_expr->value.op.op1->ts = size_expr->value.op.op2->ts;
+      size_expr->ts = size_expr->value.op.op1->ts;
+
+      /* Which provides the argument 'byte_stride'.....  */
+      final_wrap->ext.actual->next = gfc_get_actual_arglist ();
+      final_wrap->ext.actual->next->expr = size_expr;
+
+      /* ...and last of all the 'fini_coarray' argument.  */
+      fini_coarray_expr = gfc_lval_expr_from_sym (fini_coarray);
+      final_wrap->ext.actual->next->next = gfc_get_actual_arglist ();
+      final_wrap->ext.actual->next->next->expr = fini_coarray_expr;
 
       if (*code)
 	{
@@ -1085,11 +1219,14 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
   else
     {
       gfc_component *c;
+      bool ret = false;
 
       for (c = comp->ts.u.derived->components; c; c = c->next)
-	finalize_component (e, comp->ts.u.derived, c, stat, fini_coarray, code,
-			    sub_ns);
-      gfc_free_expr (e);
+	ret |= finalize_component (e, comp->ts.u.derived, c, stat, fini_coarray,
+				   code, sub_ns);
+      /* Only free the expression, if it has never been used.  */
+      if (!ret)
+	gfc_free_expr (e);
     }
 
   /* Record that this was finalized already in this namespace.  */
@@ -1098,6 +1235,7 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
   sub_ns->was_finalized->e = expr;
   sub_ns->was_finalized->c = comp;
   sub_ns->was_finalized->next = f;
+  return true;
 }
 
 
@@ -1430,8 +1568,6 @@ finalizer_insert_packed_call (gfc_code *block, gfc_finalizer *fini,
   block->next->resolved_sym = fini->proc_tree->n.sym;
   block->next->ext.actual = gfc_get_actual_arglist ();
   block->next->ext.actual->expr = gfc_lval_expr_from_sym (array);
-  block->next->ext.actual->next = gfc_get_actual_arglist ();
-  block->next->ext.actual->next->expr = gfc_copy_expr (size_expr);
 
   /* ELSE.  */
 
@@ -1576,7 +1712,7 @@ finalizer_insert_packed_call (gfc_code *block, gfc_finalizer *fini,
 
 
 /* Generate the finalization/polymorphic freeing wrapper subroutine for the
-   derived type "derived". The function first calls the approriate FINAL
+   derived type "derived". The function first calls the appropriate FINAL
    subroutine, then it DEALLOCATEs (finalizes/frees) the allocatable
    components (but not the inherited ones). Last, it calls the wrapper
    subroutine of the parent. The generated wrapper procedure takes as argument
@@ -1597,15 +1733,17 @@ generate_finalization_wrapper (gfc_symbol *derived, gfc_namespace *ns,
 {
   gfc_symbol *final, *array, *fini_coarray, *byte_stride, *sizes, *strides;
   gfc_symbol *ptr = NULL, *idx, *idx2, *is_contiguous, *offset, *nelem;
+  gfc_symbol *result = NULL;
   gfc_component *comp;
   gfc_namespace *sub_ns;
   gfc_code *last_code, *block;
   char *name;
+  char *result_name;
   bool finalizable_comp = false;
   gfc_expr *ancestor_wrapper = NULL, *rank;
   gfc_iterator *iter;
 
-  if (derived->attr.unlimited_polymorphic)
+  if (derived->attr.unlimited_polymorphic || derived->error)
     {
       vtab_final->initializer = gfc_get_null_expr (NULL);
       return;
@@ -1688,7 +1826,6 @@ generate_finalization_wrapper (gfc_symbol *derived, gfc_namespace *ns,
   final->attr.function = 1;
   final->attr.pure = 0;
   final->attr.recursive = 1;
-  final->result = final;
   final->ts.type = BT_INTEGER;
   final->ts.kind = 4;
   final->attr.artificial = 1;
@@ -1696,6 +1833,26 @@ generate_finalization_wrapper (gfc_symbol *derived, gfc_namespace *ns,
   final->attr.if_source = IFSRC_DECL;
   if (ns->proc_name->attr.flavor == FL_MODULE)
     final->module = ns->proc_name->name;
+
+  /* Create a separate result symbol instead of using final->result = final.
+     Self-referencing result symbols (final->result = final) create a cycle
+     in the symbol structure that causes an ICE in gimplify_call_expr when
+     the finalizer wrapper is used as a procedure pointer initializer.  */
+  result_name = xasprintf ("__result_%s", tname);
+  if (gfc_get_symbol (result_name, sub_ns, &result) != 0)
+    gfc_internal_error ("Failed to create finalizer result symbol");
+  free (result_name);
+
+  if (!gfc_add_flavor (&result->attr, FL_VARIABLE, result->name,
+		       &gfc_current_locus)
+      || !gfc_add_result (&result->attr, result->name, &gfc_current_locus))
+    gfc_internal_error ("Failed to set finalizer result attributes");
+
+  result->ts = final->ts;
+  result->attr.artificial = 1;
+  gfc_set_sym_referenced (result);
+  gfc_commit_symbol (result);
+  final->result = result;
   gfc_set_sym_referenced (final);
   gfc_commit_symbol (final);
 
@@ -1823,7 +1980,7 @@ generate_finalization_wrapper (gfc_symbol *derived, gfc_namespace *ns,
 
   /* Set return value to 0.  */
   last_code = gfc_get_code (EXEC_ASSIGN);
-  last_code->expr1 = gfc_lval_expr_from_sym (final);
+  last_code->expr1 = gfc_lval_expr_from_sym (result);
   last_code->expr2 = gfc_get_int_expr (4, NULL, 0);
   sub_ns->code = last_code;
 
@@ -2047,13 +2204,32 @@ generate_finalization_wrapper (gfc_symbol *derived, gfc_namespace *ns,
       gfc_set_sym_referenced (ptr);
       gfc_commit_symbol (ptr);
 
+      fini = derived->f2k_derived->finalizers;
+
+      /* Assumed rank finalizers can be called directly. The call takes care
+	 of setting up the descriptor.  resolve_finalizers has already checked
+	 that this is the only finalizer for this kind/type (F2018: C790).  */
+      if (fini->proc_tree && fini->proc_tree->n.sym->formal->sym->as
+	  && fini->proc_tree->n.sym->formal->sym->as->type == AS_ASSUMED_RANK)
+	{
+	  last_code->next = gfc_get_code (EXEC_CALL);
+	  last_code->next->symtree = fini->proc_tree;
+	  last_code->next->resolved_sym = fini->proc_tree->n.sym;
+	  last_code->next->ext.actual = gfc_get_actual_arglist ();
+	  last_code->next->ext.actual->expr = gfc_lval_expr_from_sym (array);
+
+	  last_code = last_code->next;
+	  goto finish_assumed_rank;
+	}
+
       /* SELECT CASE (RANK (array)).  */
       last_code->next = gfc_get_code (EXEC_SELECT);
       last_code = last_code->next;
       last_code->expr1 = gfc_copy_expr (rank);
       block = NULL;
 
-      for (fini = derived->f2k_derived->finalizers; fini; fini = fini->next)
+
+      for (; fini; fini = fini->next)
 	{
 	  gcc_assert (fini->proc_tree);   /* Should have been set in gfc_resolve_finalizers.  */
 	  if (fini->proc_tree->n.sym->attr.elemental)
@@ -2152,6 +2328,8 @@ generate_finalization_wrapper (gfc_symbol *derived, gfc_namespace *ns,
 	}
     }
 
+finish_assumed_rank:
+
   /* Finalize and deallocate allocatable components. The same manual
      scalarization is used as above.  */
 
@@ -2159,6 +2337,7 @@ generate_finalization_wrapper (gfc_symbol *derived, gfc_namespace *ns,
     {
       gfc_symbol *stat;
       gfc_code *block = NULL;
+      gfc_expr *ptr_expr;
 
       if (!ptr)
 	{
@@ -2204,14 +2383,15 @@ generate_finalization_wrapper (gfc_symbol *derived, gfc_namespace *ns,
 					     sub_ns);
       block = block->next;
 
+      ptr_expr = gfc_lval_expr_from_sym (ptr);
       for (comp = derived->components; comp; comp = comp->next)
 	{
 	  if (comp == derived->components && derived->attr.extension
 	      && ancestor_wrapper && ancestor_wrapper->expr_type != EXPR_NULL)
 	    continue;
 
-	  finalize_component (gfc_lval_expr_from_sym (ptr), derived, comp,
-			      stat, fini_coarray, &block, sub_ns);
+	  finalize_component (ptr_expr, derived, comp, stat, fini_coarray,
+			      &block, sub_ns);
 	  if (!last_code->block->next)
 	    last_code->block->next = block;
 	}
@@ -2343,7 +2523,9 @@ gfc_find_derived_vtab (gfc_symbol *derived)
 	  vtab->attr.save = SAVE_IMPLICIT;
 	  vtab->attr.vtab = 1;
 	  vtab->attr.access = ACCESS_PUBLIC;
+	  vtab->attr.artificial = 1;
 	  gfc_set_sym_referenced (vtab);
+	  free (name);
 	  name = xasprintf ("__vtype_%s", tname);
 
 	  gfc_find_symbol (name, ns, 0, &vtype);
@@ -2351,20 +2533,6 @@ gfc_find_derived_vtab (gfc_symbol *derived)
 	    {
 	      gfc_component *c;
 	      gfc_symbol *parent = NULL, *parent_vtab = NULL;
-	      bool rdt = false;
-
-	      /* Is this a derived type with recursive allocatable
-		 components?  */
-	      c = (derived->attr.unlimited_polymorphic
-		   || derived->attr.abstract) ?
-		  NULL : derived->components;
-	      for (; c; c= c->next)
-		if (c->ts.type == BT_DERIVED
-		    && c->ts.u.derived == derived)
-		  {
-		    rdt = true;
-		    break;
-		  }
 
 	      gfc_get_symbol (name, ns, &vtype);
 	      if (!gfc_add_flavor (&vtype->attr, FL_DERIVED, NULL,
@@ -2447,6 +2615,7 @@ gfc_find_derived_vtab (gfc_symbol *derived)
 	      else
 		{
 		  /* Construct default initialization variable.  */
+		  free (name);
 		  name = xasprintf ("__def_init_%s", tname);
 		  gfc_get_symbol (name, ns, &def_init);
 		  def_init->attr.target = 1;
@@ -2467,6 +2636,7 @@ gfc_find_derived_vtab (gfc_symbol *derived)
 		goto cleanup;
 	      c->attr.proc_pointer = 1;
 	      c->attr.access = ACCESS_PRIVATE;
+	      c->attr.artificial = 1;
 	      c->tb = XCNEW (gfc_typebound_proc);
 	      c->tb->ppc = 1;
 	      if (derived->attr.unlimited_polymorphic
@@ -2480,6 +2650,7 @@ gfc_find_derived_vtab (gfc_symbol *derived)
 		  ns->contained = sub_ns;
 		  sub_ns->resolved = 1;
 		  /* Set up procedure symbol.  */
+		  free (name);
 		  name = xasprintf ("__copy_%s", tname);
 		  gfc_get_symbol (name, sub_ns, &copy);
 		  sub_ns->proc_name = copy;
@@ -2543,11 +2714,11 @@ gfc_find_derived_vtab (gfc_symbol *derived)
 		goto cleanup;
 	      c->attr.proc_pointer = 1;
 	      c->attr.access = ACCESS_PRIVATE;
+	      c->attr.artificial = 1;
 	      c->tb = XCNEW (gfc_typebound_proc);
 	      c->tb->ppc = 1;
-	      if (derived->attr.unlimited_polymorphic
-		  || derived->attr.abstract
-		  || !rdt)
+	      if (derived->attr.unlimited_polymorphic || derived->attr.abstract
+		  || !derived->attr.recursive)
 		c->initializer = gfc_get_null_expr (NULL);
 	      else
 		{
@@ -2558,6 +2729,7 @@ gfc_find_derived_vtab (gfc_symbol *derived)
 		  ns->contained = sub_ns;
 		  sub_ns->resolved = 1;
 		  /* Set up procedure symbol.  */
+		  free (name);
 		  name = xasprintf ("__deallocate_%s", tname);
 		  gfc_get_symbol (name, sub_ns, &dealloc);
 		  sub_ns->proc_name = dealloc;
@@ -2682,6 +2854,14 @@ yes:
 }
 
 
+bool
+gfc_may_be_finalized (gfc_typespec ts)
+{
+  return (ts.type == BT_CLASS || (ts.type == BT_DERIVED
+	  && ts.u.derived && gfc_is_finalizable (ts.u.derived, NULL)));
+}
+
+
 /* Find (or generate) the symbol for an intrinsic type's vtab.  This is
    needed to support unlimited polymorphism.  */
 
@@ -2723,6 +2903,7 @@ find_intrinsic_vtab (gfc_typespec *ts)
 	  vtab->attr.vtab = 1;
 	  vtab->attr.access = ACCESS_PUBLIC;
 	  gfc_set_sym_referenced (vtab);
+	  free (name);
 	  name = xasprintf ("__vtype_%s", tname);
 
 	  gfc_find_symbol (name, ns, 0, &vtype);
@@ -2798,9 +2979,11 @@ find_intrinsic_vtab (gfc_typespec *ts)
 		goto cleanup;
 	      c->attr.proc_pointer = 1;
 	      c->attr.access = ACCESS_PRIVATE;
+	      c->attr.artificial = 1;
 	      c->tb = XCNEW (gfc_typebound_proc);
 	      c->tb->ppc = 1;
 
+	      free (name);
 	      if (ts->type != BT_CHARACTER)
 		name = xasprintf ("__copy_%s", tname);
 	      else

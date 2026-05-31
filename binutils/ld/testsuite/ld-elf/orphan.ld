@@ -6,5 +6,5 @@ SECTIONS
   .bss : { *(.bss) *(COMMON) }
   .sbss : { *(.sbss) }
   .note : { *(.note) }
-  /DISCARD/ : { *(.reginfo) *(.MIPS.abiflags) *(.trampolines) }
+  /DISCARD/ : { *(.reginfo) *(.MIPS.abiflags) *(.MIPS.options) *(.trampolines) }
 }

@@ -1,4 +1,3 @@
-#as:
 #objdump: -dw -Mintel
 #name: i386 GFNI insns (Intel disassembly)
 #source: gfni.s

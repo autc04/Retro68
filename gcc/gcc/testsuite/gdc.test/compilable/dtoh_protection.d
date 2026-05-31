@@ -9,36 +9,9 @@ TEST_OUTPUT:
 #pragma once
 
 #include <assert.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <math.h>
-
-#ifdef CUSTOM_D_ARRAY_TYPE
-#define _d_dynamicArray CUSTOM_D_ARRAY_TYPE
-#else
-/// Represents a D [] array
-template<typename T>
-struct _d_dynamicArray final
-{
-    size_t length;
-    T *ptr;
-
-    _d_dynamicArray() : length(0), ptr(NULL) { }
-
-    _d_dynamicArray(size_t length_in, T *ptr_in)
-        : length(length_in), ptr(ptr_in) { }
-
-    T& operator[](const size_t idx) {
-        assert(idx < length);
-        return ptr[idx];
-    }
-
-    const T& operator[](const size_t idx) const {
-        assert(idx < length);
-        return ptr[idx];
-    }
-};
-#endif
 
 struct S1 final
 {
@@ -50,9 +23,21 @@ protected:
 private:
     int32_t e;
 public:
-    S1()
+    S1() :
+        a(),
+        b(),
+        c(),
+        d(),
+        e()
     {
     }
+    S1(int32_t a, int32_t b = 0, int32_t c = 0, int32_t d = 0, int32_t e = 0) :
+        a(a),
+        b(b),
+        c(c),
+        d(d),
+        e(e)
+        {}
 };
 
 class S2 final
@@ -102,10 +87,12 @@ public:
     public:
         int32_t publicInner;
         PublicInnerStruct() :
+            privateInner(),
             publicInner()
         {
         }
-        PublicInnerStruct(int32_t publicInner) :
+        PublicInnerStruct(int32_t privateInner, int32_t publicInner = 0) :
+            privateInner(privateInner),
             publicInner(publicInner)
             {}
     };
@@ -118,10 +105,12 @@ private:
     public:
         int32_t publicInner;
         PrivateInnerClass() :
+            privateInner(),
             publicInner()
         {
         }
-        PrivateInnerClass(int32_t publicInner) :
+        PrivateInnerClass(int32_t privateInner, int32_t publicInner = 0) :
+            privateInner(privateInner),
             publicInner(publicInner)
             {}
     };
@@ -142,9 +131,13 @@ private:
 
 public:
     typedef PrivateInnerEnum PublicAlias;
-    Outer()
+    Outer() :
+        privateOuter()
     {
     }
+    Outer(int32_t privateOuter) :
+        privateOuter(privateOuter)
+        {}
 };
 ---
 */

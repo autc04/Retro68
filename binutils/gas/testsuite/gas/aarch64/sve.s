@@ -7244,6 +7244,36 @@
 	DECP      Z0.D, P2
 	decp      z0.d, p15
 	DECP      Z0.D, P15
+	decp      z0.h, p0.h
+	DECP      Z0.H, P0.H
+	decp      z1.h, p0.h
+	DECP      Z1.H, P0.H
+	decp      z31.h, p0.h
+	DECP      Z31.H, P0.H
+	decp      z0.h, p2.h
+	DECP      Z0.H, P2.H
+	decp      z0.h, p15.h
+	DECP      Z0.H, P15.H
+	decp      z0.s, p0.s
+	DECP      Z0.S, P0.S
+	decp      z1.s, p0.s
+	DECP      Z1.S, P0.S
+	decp      z31.s, p0.s
+	DECP      Z31.S, P0.S
+	decp      z0.s, p2.s
+	DECP      Z0.S, P2.S
+	decp      z0.s, p15.s
+	DECP      Z0.S, P15.S
+	decp      z0.d, p0.d
+	DECP      Z0.D, P0.D
+	decp      z1.d, p0.d
+	DECP      Z1.D, P0.D
+	decp      z31.d, p0.d
+	DECP      Z31.D, P0.D
+	decp      z0.d, p2.d
+	DECP      Z0.D, P2.D
+	decp      z0.d, p15.d
+	DECP      Z0.D, P15.D
 	decp      x0, p0.b
 	DECP      X0, P0.B
 	decp      x1, p0.b
@@ -13070,6 +13100,36 @@
 	INCP      Z0.D, P2
 	incp      z0.d, p15
 	INCP      Z0.D, P15
+	incp      z0.h, p0.h
+	INCP      Z0.H, P0.H
+	incp      z1.h, p0.h
+	INCP      Z1.H, P0.H
+	incp      z31.h, p0.h
+	INCP      Z31.H, P0.H
+	incp      z0.h, p2.h
+	INCP      Z0.H, P2.H
+	incp      z0.h, p15.h
+	INCP      Z0.H, P15.H
+	incp      z0.s, p0.s
+	INCP      Z0.S, P0.S
+	incp      z1.s, p0.s
+	INCP      Z1.S, P0.S
+	incp      z31.s, p0.s
+	INCP      Z31.S, P0.S
+	incp      z0.s, p2.s
+	INCP      Z0.S, P2.S
+	incp      z0.s, p15.s
+	INCP      Z0.S, P15.S
+	incp      z0.d, p0.d
+	INCP      Z0.D, P0.D
+	incp      z1.d, p0.d
+	INCP      Z1.D, P0.D
+	incp      z31.d, p0.d
+	INCP      Z31.D, P0.D
+	incp      z0.d, p2.d
+	INCP      Z0.D, P2.D
+	incp      z0.d, p15.d
+	INCP      Z0.D, P15.D
 	incp      x0, p0.b
 	INCP      X0, P0.B
 	incp      x1, p0.b
@@ -28839,6 +28899,36 @@
 	SQDECP    Z0.D, P2
 	sqdecp    z0.d, p15
 	SQDECP    Z0.D, P15
+	sqdecp    z0.h, p0.h
+	SQDECP    Z0.H, P0.H
+	sqdecp    z1.h, p0.h
+	SQDECP    Z1.H, P0.H
+	sqdecp    z31.h, p0.h
+	SQDECP    Z31.H, P0.H
+	sqdecp    z0.h, p2.h
+	SQDECP    Z0.H, P2.H
+	sqdecp    z0.h, p15.h
+	SQDECP    Z0.H, P15.H
+	sqdecp    z0.s, p0.s
+	SQDECP    Z0.S, P0.S
+	sqdecp    z1.s, p0.s
+	SQDECP    Z1.S, P0.S
+	sqdecp    z31.s, p0.s
+	SQDECP    Z31.S, P0.S
+	sqdecp    z0.s, p2.s
+	SQDECP    Z0.S, P2.S
+	sqdecp    z0.s, p15.s
+	SQDECP    Z0.S, P15.S
+	sqdecp    z0.d, p0.d
+	SQDECP    Z0.D, P0.D
+	sqdecp    z1.d, p0.d
+	SQDECP    Z1.D, P0.D
+	sqdecp    z31.d, p0.d
+	SQDECP    Z31.D, P0.D
+	sqdecp    z0.d, p2.d
+	SQDECP    Z0.D, P2.D
+	sqdecp    z0.d, p15.d
+	SQDECP    Z0.D, P15.D
 	sqdecp    x0, p0.b
 	SQDECP    X0, P0.B
 	sqdecp    x1, p0.b
@@ -30190,6 +30280,37 @@
 	SQINCP    Z0.D, P2
 	sqincp    z0.d, p15
 	SQINCP    Z0.D, P15
+	sqincp    z0.h, p0.h
+	SQINCP    Z0.H, P0.H
+	sqincp    z1.h, p0.h
+	SQINCP    Z1.H, P0.H
+	sqincp    z31.h, p0.h
+	SQINCP    Z31.H, P0.H
+	sqincp    z0.h, p2.h
+	SQINCP    Z0.H, P2.H
+	sqincp    z0.h, p15.h
+	SQINCP    Z0.H, P15.H
+	sqincp    z0.s, p0.s
+	SQINCP    Z0.S, P0.S
+	sqincp    z1.s, p0.s
+	SQINCP    Z1.S, P0.S
+	sqincp    z31.s, p0.s
+	SQINCP    Z31.S, P0.S
+	sqincp    z0.s, p2.s
+	SQINCP    Z0.S, P2.S
+	sqincp    z0.s, p15.s
+	SQINCP    Z0.S, P15.S
+	sqincp    z0.d, p0.d
+	SQINCP    Z0.D, P0.D
+	sqincp    z1.d, p0.d
+	SQINCP    Z1.D, P0.D
+	sqincp    z31.d, p0.d
+	SQINCP    Z31.D, P0.D
+	sqincp    z0.d, p2.d
+	SQINCP    Z0.D, P2.D
+	sqincp    z0.d, p15.d
+	SQINCP    Z0.D, P15.D
+
 	sqincp    x0, p0.b
 	SQINCP    X0, P0.B
 	sqincp    x1, p0.b
@@ -36685,6 +36806,36 @@
 	UQDECP    Z0.D, P2
 	uqdecp    z0.d, p15
 	UQDECP    Z0.D, P15
+	uqdecp    z0.h, p0.h
+	UQDECP    Z0.H, P0.H
+	uqdecp    z1.h, p0.h
+	UQDECP    Z1.H, P0.H
+	uqdecp    z31.h, p0.h
+	UQDECP    Z31.H, P0.H
+	uqdecp    z0.h, p2.h
+	UQDECP    Z0.H, P2.H
+	uqdecp    z0.h, p15.h
+	UQDECP    Z0.H, P15.H
+	uqdecp    z0.s, p0.s
+	UQDECP    Z0.S, P0.S
+	uqdecp    z1.s, p0.s
+	UQDECP    Z1.S, P0.S
+	uqdecp    z31.s, p0.s
+	UQDECP    Z31.S, P0.S
+	uqdecp    z0.s, p2.s
+	UQDECP    Z0.S, P2.S
+	uqdecp    z0.s, p15.s
+	UQDECP    Z0.S, P15.S
+	uqdecp    z0.d, p0.d
+	UQDECP    Z0.D, P0.D
+	uqdecp    z1.d, p0.d
+	UQDECP    Z1.D, P0.D
+	uqdecp    z31.d, p0.d
+	UQDECP    Z31.D, P0.D
+	uqdecp    z0.d, p2.d
+	UQDECP    Z0.D, P2.D
+	uqdecp    z0.d, p15.d
+	UQDECP    Z0.D, P15.D
 	uqdecp    w0, p0.b
 	UQDECP    W0, P0.B
 	uqdecp    w1, p0.b
@@ -38016,6 +38167,36 @@
 	UQINCP    Z0.D, P2
 	uqincp    z0.d, p15
 	UQINCP    Z0.D, P15
+	uqincp    z0.h, p0.h
+	UQINCP    Z0.H, P0.H
+	uqincp    z1.h, p0.h
+	UQINCP    Z1.H, P0.H
+	uqincp    z31.h, p0.h
+	UQINCP    Z31.H, P0.H
+	uqincp    z0.h, p2.h
+	UQINCP    Z0.H, P2.H
+	uqincp    z0.h, p15.h
+	UQINCP    Z0.H, P15.H
+	uqincp    z0.s, p0.s
+	UQINCP    Z0.S, P0.S
+	uqincp    z1.s, p0.s
+	UQINCP    Z1.S, P0.S
+	uqincp    z31.s, p0.s
+	UQINCP    Z31.S, P0.S
+	uqincp    z0.s, p2.s
+	UQINCP    Z0.S, P2.S
+	uqincp    z0.s, p15.s
+	UQINCP    Z0.S, P15.S
+	uqincp    z0.d, p0.d
+	UQINCP    Z0.D, P0.D
+	uqincp    z1.d, p0.d
+	UQINCP    Z1.D, P0.D
+	uqincp    z31.d, p0.d
+	UQINCP    Z31.D, P0.D
+	uqincp    z0.d, p2.d
+	UQINCP    Z0.D, P2.D
+	uqincp    z0.d, p15.d
+	UQINCP    Z0.D, P15.D
 	uqincp    w0, p0.b
 	UQINCP    W0, P0.B
 	uqincp    w1, p0.b

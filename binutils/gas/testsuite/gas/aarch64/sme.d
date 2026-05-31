@@ -39,10 +39,10 @@ Disassembly of section \.text:
   74:	80833851 	fmops	za1.s, p6/m, p1/m, z2.s, z3.s
   78:	80825472 	fmops	za2.s, p5/m, p2/m, z3.s, z2.s
   7c:	80817093 	fmops	za3.s, p4/m, p3/m, z4.s, z1.s
-  80:	80842030 	fmops	za0.s, p0/m, p1/m, z1.s, z4.s
-  84:	80836851 	fmops	za1.s, p2/m, p3/m, z2.s, z3.s
-  88:	8082b072 	fmops	za2.s, p4/m, p5/m, z3.s, z2.s
-  8c:	8081f893 	fmops	za3.s, p6/m, p7/m, z4.s, z1.s
+  80:	81a42030 	fmops	za0.s, p0/m, p1/m, z1.h, z4.h
+  84:	81a36851 	fmops	za1.s, p2/m, p3/m, z2.h, z3.h
+  88:	81a2b072 	fmops	za2.s, p4/m, p5/m, z3.h, z2.h
+  8c:	81a1f893 	fmops	za3.s, p6/m, p7/m, z4.h, z1.h
   90:	a0842020 	smopa	za0.s, p0/m, p1/m, z1.b, z4.b
   94:	a0836841 	smopa	za1.s, p2/m, p3/m, z2.b, z3.b
   98:	a082b062 	smopa	za2.s, p4/m, p5/m, z3.b, z2.b

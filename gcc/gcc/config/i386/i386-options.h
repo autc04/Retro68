@@ -1,4 +1,4 @@
-/* Copyright (C) 1988-2022 Free Software Foundation, Inc.
+/* Copyright (C) 1988-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -28,7 +28,6 @@ char *ix86_target_string (HOST_WIDE_INT isa, HOST_WIDE_INT isa2,
 			  enum fpmath_unit fpmath,
 			  enum prefer_vector_width pvw,
 			  enum prefer_vector_width move_max,
-			  enum prefer_vector_width store_max,
 			  bool add_nl_p, bool add_abi_p);
 
 extern enum attr_cpu ix86_schedule;
@@ -60,6 +59,7 @@ void ix86_simd_clone_adjust (struct cgraph_node *node);
 extern tree (*ix86_veclib_handler) (combined_fn, tree, tree);
 extern tree ix86_veclibabi_svml (combined_fn, tree, tree);
 extern tree ix86_veclibabi_acml (combined_fn, tree, tree);
+extern tree ix86_veclibabi_aocl (combined_fn, tree, tree);
 
 enum ix86_function_specific_strings
 {
@@ -82,7 +82,7 @@ void ix86_function_specific_print (FILE *, int,
 				   struct cl_target_option *);
 bool ix86_valid_target_attribute_p (tree, tree, tree, int);
 
-extern const struct attribute_spec ix86_attribute_table[];
+extern const struct scoped_attribute_specs ix86_gnu_attribute_table;
 
 
 #endif  /* GCC_I386_OPTIONS_H */

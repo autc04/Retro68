@@ -1,5 +1,5 @@
 /* Specific flags and argument handling of the C++ front end.
-   Copyright (C) 1996-2022 Free Software Foundation, Inc.
+   Copyright (C) 1996-2026 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -31,6 +31,8 @@ along with GCC; see the file COPYING3.  If not see
 #define WITHLIBC	(1<<3)
 /* Skip this option.  */
 #define SKIPOPT		(1<<4)
+/* Add -lstdc++exp for experimental features that need library support.  */
+#define EXPERIMENTAL	(1<<5)
 
 #ifndef MATH_LIBRARY
 #define MATH_LIBRARY "m"
@@ -126,6 +128,12 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
   /* By default, we throw on the math library if we have one.  */
   int need_math = (MATH_LIBRARY[0] != '\0');
 
+  /* By default, we don't add -lstdc++exp.  */
+  bool need_experimental = false;
+
+  /* Whether to also compile module std.  */
+  bool std_module = false;
+
   /* True if we saw -static.  */
   int static_link = 0;
 
@@ -158,6 +166,13 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
 
       switch (decoded_options[i].opt_index)
 	{
+	case OPT_fcontracts:
+	  need_experimental = true;
+	  break;
+
+	case OPT_nostdlib__:
+	  args[i] |= SKIPOPT;
+	  /* FALLTHRU */
 	case OPT_nostdlib:
 	case OPT_nodefaultlibs:
 	  library = -1;
@@ -188,7 +203,7 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
 		  || strcmp (arg, "objective-c++") == 0
 		  || strcmp (arg, "objective-c++-cpp-output") == 0))
 	    library = 1;
-		
+
 	  saw_speclang = 1;
 	  break;
 
@@ -222,11 +237,20 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
 
 	case OPT_static_libstdc__:
 	  library = library >= 0 ? 2 : library;
+#ifdef HAVE_LD_STATIC_DYNAMIC
+	  /* Remove -static-libstdc++ from the command only if target supports
+	     LD_STATIC_DYNAMIC.  When not supported, it is left in so that a
+	     back-end target can use outfile substitution.  */
 	  args[i] |= SKIPOPT;
+#endif
 	  break;
 
 	case OPT_stdlib_:
 	  which_library = (stdcxxlib_kind) decoded_options[i].value;
+	  break;
+
+	case OPT__compile_std_module:
+	  std_module = true;
 	  break;
 
 	case OPT_SPECIAL_input_file:
@@ -284,7 +308,9 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
 #endif
 
   /* Add one for shared_libgcc or extra static library.  */
-  num_args = argc + added + need_math + (library > 0) * 4 + 1;
+  num_args = (argc + added + need_math + need_experimental
+	      + (std_module * 5)
+	      + (library > 0) * 4 + 1);
   /* For libc++, on most platforms, the ABI library (usually called libc++abi)
      is provided as a separate DSO, which we must also append.
      However, a platform might have the ability to forward the ABI library
@@ -318,6 +344,35 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
 	  --j;
 	  saw_libc = &decoded_options[i];
 	}
+
+      /* Insert --compile-std-module options before any -x or source files.  */
+      size_t opt = decoded_options[i].opt_index;
+      if (std_module
+	  && (opt == OPT__compile_std_module
+	      || opt == OPT_SPECIAL_input_file
+	      || opt == OPT_x))
+	{
+	  generate_option (OPT_x, "c++-system-header", 1, CL_DRIVER,
+			   &new_decoded_options[j++]);
+	  generate_option_input_file ("bits/stdc++.h",
+				      &new_decoded_options[j]);
+	  /* Tell process_command that this file was added by the driver.  */
+	  new_decoded_options[j++].mask = CL_DRIVER;
+	  generate_option (OPT_x, "c++-system-module", 1, CL_DRIVER,
+			   &new_decoded_options[j++]);
+	  generate_option_input_file ("bits/std.cc",
+				      &new_decoded_options[j]);
+	  new_decoded_options[j++].mask = CL_DRIVER;
+	  generate_option_input_file ("bits/std.compat.cc",
+				      &new_decoded_options[j]);
+	  new_decoded_options[j++].mask = CL_DRIVER;
+	  generate_option (OPT_x, "none", 1, CL_DRIVER,
+			   &new_decoded_options[j++]);
+	  new_decoded_options[j] = decoded_options[i];
+	  std_module = false;
+	}
+      if (opt == OPT__compile_std_module)
+	--j;
 
       /* Wrap foo.[chi] files in a language specification to
 	 force the gcc compiler driver to run cc1plus on them.  */
@@ -357,6 +412,12 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
   /* Add `-lstdc++' if we haven't already done so.  */
   if (library > 0)
     {
+      if (need_experimental && which_library == USE_LIBSTDCXX)
+	{
+	  generate_option (OPT_l, "stdc++exp", 1, CL_DRIVER,
+			   &new_decoded_options[j++]);
+	  ++added_libraries;
+	}
 #ifdef HAVE_LD_STATIC_DYNAMIC
       if (library > 1 && !static_link)
 	{

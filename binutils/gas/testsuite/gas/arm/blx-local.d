@@ -1,6 +1,6 @@
 #name: Local BLX instructions
 #objdump: -drw --prefix-addresses --show-raw-insn
-#target: *-*-*eabi* *-*-nacl*
+#target: *-*-*eabi*
 #as:
 #warning_output: blx-local.l
 # Test assembler resolution of blx and bl instructions in ARM mode.
@@ -15,15 +15,15 @@ Disassembly of section .text:
 0+14 <[^>]*> eb00000a 	bl	00000044 <fooundefarm>
 0+18 <[^>]*> fa000001 	blx	00000024 <fooundefthumb>
 0+1c <[^>]*> eb000000 	bl	00000024 <fooundefthumb>
-0+20 <[^>]*> 46c0      	nop			; \(mov r8, r8\)
-0+22 <[^>]*> 46c0      	nop			; \(mov r8, r8\)
-0+24 <[^>]*> 46c0      	nop			; \(mov r8, r8\)
-0+26 <[^>]*> 46c0      	nop			; \(mov r8, r8\)
+0+20 <[^>]*> 46c0      	nop			@ \(mov r8, r8\)
+0+22 <[^>]*> 46c0      	nop			@ \(mov r8, r8\)
+0+24 <[^>]*> 46c0      	nop			@ \(mov r8, r8\)
+0+26 <[^>]*> 46c0      	nop			@ \(mov r8, r8\)
 0+28 <[^>]*> 0bfffffd 	bleq	00000024 <fooundefthumb>
 0+2c <[^>]*> 0afffffc 	beq	00000024 <fooundefthumb>
 0+30 <[^>]*> eafffffb 	b	00000024 <fooundefthumb>
 0+34 <[^>]*> 0bfffffe 	bleq	00000020 <foo>	34: R_ARM_JUMP24	foo
 0+38 <[^>]*> 0afffffe 	beq	00000020 <foo>	38: R_ARM_JUMP24	foo
 0+3c <[^>]*> eafffffe 	b	00000020 <foo>	3c: R_ARM_JUMP24	foo
-0+40 <[^>]*> e1a00000 	nop			; \(mov r0, r0\)
-0+44 <[^>]*> e1a00000 	nop			; \(mov r0, r0\)
+0+40 <[^>]*> e1a00000 	nop			@ \(mov r0, r0\)
+0+44 <[^>]*> e1a00000 	nop			@ \(mov r0, r0\)

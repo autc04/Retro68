@@ -1,5 +1,5 @@
 /* Target Code for OpenRISC
-   Copyright (C) 2018-2022 Free Software Foundation, Inc.
+   Copyright (C) 2018-2026 Free Software Foundation, Inc.
    Contributed by Stafford Horne based on other ports.
 
    This file is part of GCC.
@@ -44,6 +44,8 @@
 #include "explow.h"
 #include "cfgrtl.h"
 #include "alias.h"
+#include "targhooks.h"
+#include "case-cfn-macros.h"
 
 /* These 4 are needed to allow using satisfies_constraint_J.  */
 #include "insn-config.h"
@@ -458,8 +460,7 @@ or1k_init_pic_reg (void)
       cfun->machine->set_got_insn =
 	emit_insn (gen_set_got_tmp (pic_offset_table_rtx));
 
-      rtx_insn *seq = get_insns ();
-      end_sequence ();
+      rtx_insn *seq = end_sequence ();
 
       edge entry_edge = single_succ_edge (ENTRY_BLOCK_PTR_FOR_FN (cfun));
       insert_insn_on_edge (seq, entry_edge);
@@ -573,7 +574,8 @@ or1k_initial_elimination_offset (int from, int to)
    Returns true if X is a legitimate address RTX on OpenRISC.  */
 
 static bool
-or1k_legitimate_address_p (machine_mode, rtx x, bool strict_p)
+or1k_legitimate_address_p (machine_mode, rtx x, bool strict_p,
+			   code_helper = ERROR_MARK)
 {
   rtx base, addend;
 
@@ -1406,8 +1408,9 @@ static bool
 or1k_can_change_mode_class (machine_mode from, machine_mode to,
 			    reg_class_t rclass)
 {
+  /* Allow cnoverting special flags to SI mode subregs.  */
   if (rclass == FLAG_REGS)
-    return from == to;
+    return from == to || (from == BImode && to == SImode);
   return true;
 }
 
@@ -1651,6 +1654,63 @@ or1k_rtx_costs (rtx x, machine_mode mode, int outer_code, int /* opno */,
 #undef TARGET_RTX_COSTS
 #define TARGET_RTX_COSTS or1k_rtx_costs
 
+static bool
+or1k_is_cmov_insn (rtx_insn *seq)
+{
+  rtx_insn *curr_insn = seq;
+  rtx set = NULL_RTX;
+
+  /* The pattern may start with a simple set with register operands.  Skip
+     through any of those.  */
+  while (curr_insn)
+    {
+      set = single_set (curr_insn);
+      if (!set
+	  || !REG_P (SET_DEST (set)))
+	return false;
+
+      /* If it's not a simple reg or immediate break.  */
+      if (REG_P (SET_SRC (set)) || CONST_INT_P (SET_SRC (set)))
+	curr_insn = NEXT_INSN (curr_insn);
+      else
+	break;
+    }
+
+  if (!curr_insn)
+    return false;
+
+  /* The next instruction should be a compare.  OpenRISC has many operators used
+     for comparison so skip and confirm the next is IF_THEN_ELSE.  */
+  curr_insn = NEXT_INSN (curr_insn);
+  if (!curr_insn)
+    return false;
+
+  /* And the last instruction should be an IF_THEN_ELSE.  */
+  set = single_set (curr_insn);
+  if (!set
+      || !REG_P (SET_DEST (set))
+      || GET_CODE (SET_SRC (set)) != IF_THEN_ELSE)
+    return false;
+
+  return !NEXT_INSN (curr_insn);
+}
+
+/* Implement TARGET_NOCE_CONVERSION_PROFITABLE_P.  We detect if the conversion
+   resulted in a l.cmov instruction and if so we consider it more profitable than
+   branch instructions.  */
+
+static bool
+or1k_noce_conversion_profitable_p (rtx_insn *seq,
+				    struct noce_if_info *if_info)
+{
+  if (TARGET_CMOV)
+    return or1k_is_cmov_insn (seq);
+
+  return default_noce_conversion_profitable_p (seq, if_info);
+}
+
+#undef TARGET_NOCE_CONVERSION_PROFITABLE_P
+#define TARGET_NOCE_CONVERSION_PROFITABLE_P or1k_noce_conversion_profitable_p
 
 /* A subroutine of the atomic operation splitters.  Jump to LABEL if
    COND is true.  Mark the jump as unlikely to be taken.  */
@@ -2191,6 +2251,32 @@ or1k_output_mi_thunk (FILE *file, tree thunk_fndecl,
   epilogue_completed = 0;
 }
 
+static unsigned
+or1k_libm_function_max_error (unsigned cfn, machine_mode mode,
+			      bool boundary_p)
+{
+#ifdef OPTION_GLIBC
+  bool glibc_p = OPTION_GLIBC;
+#else
+  bool glibc_p = false;
+#endif
+  if (glibc_p)
+    {
+      switch (cfn)
+	{
+	CASE_CFN_SIN:
+	CASE_CFN_SIN_FN:
+	  if (!boundary_p && mode == DFmode && flag_rounding_math)
+	    return 7;
+	  break;
+	default:
+	  break;
+	}
+      return glibc_linux_libm_function_max_error (cfn, mode, boundary_p);
+    }
+  return default_libm_function_max_error (cfn, mode, boundary_p);
+}
+
 #undef  TARGET_ASM_OUTPUT_MI_THUNK
 #define TARGET_ASM_OUTPUT_MI_THUNK or1k_output_mi_thunk
 #undef  TARGET_ASM_CAN_OUTPUT_MI_THUNK
@@ -2206,11 +2292,16 @@ or1k_output_mi_thunk (FILE *file, tree thunk_fndecl,
 #undef  TARGET_LEGITIMATE_ADDRESS_P
 #define TARGET_LEGITIMATE_ADDRESS_P or1k_legitimate_address_p
 
+#ifdef HAVE_AS_TLS
 #undef  TARGET_HAVE_TLS
 #define TARGET_HAVE_TLS true
+#endif
 
 #undef  TARGET_HAVE_SPECULATION_SAFE_VALUE
 #define TARGET_HAVE_SPECULATION_SAFE_VALUE speculation_safe_value_not_needed
+
+#undef  TARGET_LIBM_FUNCTION_MAX_ERROR
+#define TARGET_LIBM_FUNCTION_MAX_ERROR or1k_libm_function_max_error
 
 /* Calling Conventions.  */
 #undef  TARGET_FUNCTION_VALUE

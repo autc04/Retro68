@@ -15,10 +15,10 @@ Disassembly of section .text:
    7:	66 48 ef             	data16 rex.W outl %eax,\(%dx\)
 
 0+00a <_ins>:
-   a:	48 6d                	rex.W insl \(%dx\),%es:\(%rdi\)
-   c:	66 48 6d             	data16 rex.W insl \(%dx\),%es:\(%rdi\)
+   a:	48 6d                	rex.W insl \(%dx\),\(%rdi\)
+   c:	66 48 6d             	data16 rex.W insl \(%dx\),\(%rdi\)
 
 0+00f <_outs>:
-   f:	48 6f                	rex.W outsl %ds:\(%rsi\),\(%dx\)
-  11:	66 48 6f             	data16 rex.W outsl %ds:\(%rsi\),\(%dx\)
+   f:	48 6f                	rex.W outsl \(%rsi\),\(%dx\)
+  11:	66 48 6f             	data16 rex.W outsl \(%rsi\),\(%dx\)
 #pass

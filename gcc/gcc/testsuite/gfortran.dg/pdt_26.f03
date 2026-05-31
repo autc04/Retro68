@@ -13,7 +13,7 @@ module pdt_m
   implicit none
   type :: vec(k)
      integer, len :: k=3
-     integer :: foo(k)=[1,2,3]
+     integer :: foo(k)
   end type vec
 contains
   elemental function addvv(a,b) result(c)

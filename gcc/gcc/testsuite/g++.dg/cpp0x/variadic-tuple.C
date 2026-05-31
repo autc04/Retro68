@@ -1,4 +1,6 @@
 // { dg-do run { target c++11 } }
+// { dg-additional-options "-fexcess-precision=fast" }
+// { dg-skip-if "requires hosted libstdc++ for string" { ! hostedlib } }
 // An implementation of TR1's <tuple> using variadic teplates
 // Contributed by Douglas Gregor <doug.gregor@gmail.com>
 
@@ -272,7 +274,7 @@ int main()
   //  t3a = t3b; DPG: triggers an error, as it should.
 
   tuple<int, float, std::string> t3c = 
-    make_tuple(17, 2.718281828, std::string("Fun"));
+    ::make_tuple(17, 2.718281828, std::string("Fun"));
 
   int seventeen = 17;
   double pi = 3.14159;

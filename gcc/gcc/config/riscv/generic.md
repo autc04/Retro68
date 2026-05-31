@@ -1,5 +1,5 @@
 ;; Generic DFA-based pipeline description for RISC-V targets.
-;; Copyright (C) 2011-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2026 Free Software Foundation, Inc.
 ;; Contributed by Andrew Waterman (andrew@sifive.com).
 ;; Based on MIPS target for GNU compiler.
 
@@ -27,7 +27,9 @@
 
 (define_insn_reservation "generic_alu" 1
   (and (eq_attr "tune" "generic")
-       (eq_attr "type" "unknown,const,arith,shift,slt,multi,auipc,nop,logical,move"))
+       (eq_attr "type" "unknown,const,arith,shift,slt,multi,auipc,nop,logical,\
+			move,bitmanip,min,max,minu,maxu,clz,ctz,rotate,atomic,\
+			condmove,crypto,mvpair,zicond"))
   "alu")
 
 (define_insn_reservation "generic_load" 3
@@ -42,30 +44,41 @@
 
 (define_insn_reservation "generic_xfer" 3
   (and (eq_attr "tune" "generic")
-       (eq_attr "type" "mfc,mtc,fcvt,fmove,fcmp"))
+       (eq_attr "type" "mfc,mtc,fcvt,fcvt_i2f,fcvt_f2i,fmove,fcmp"))
   "alu")
 
 (define_insn_reservation "generic_branch" 1
   (and (eq_attr "tune" "generic")
-       (eq_attr "type" "branch,jump,call"))
+       (eq_attr "type" "branch,jump,call,jalr,ret,trap"))
+  "alu")
+
+(define_insn_reservation "generic_sfb_alu" 2
+  (and (eq_attr "tune" "generic")
+       (eq_attr "type" "sfb_alu"))
   "alu")
 
 (define_insn_reservation "generic_imul" 10
   (and (eq_attr "tune" "generic")
-       (eq_attr "type" "imul"))
-  "imuldiv*10")
+       (eq_attr "type" "imul,clmul,cpop"))
+  "imuldiv*7")
 
 (define_insn_reservation "generic_idivsi" 34
   (and (eq_attr "tune" "generic")
        (and (eq_attr "type" "idiv")
 	    (eq_attr "mode" "SI")))
-  "imuldiv*34")
+  "imuldiv*7")
 
 (define_insn_reservation "generic_idivdi" 66
   (and (eq_attr "tune" "generic")
        (and (eq_attr "type" "idiv")
 	    (eq_attr "mode" "DI")))
-  "imuldiv*66")
+  "imuldiv*7")
+
+(define_insn_reservation "generic_fmul_half" 5
+  (and (eq_attr "tune" "generic")
+       (and (eq_attr "type" "fadd,fmul,fmadd")
+	    (eq_attr "mode" "HF")))
+  "alu")
 
 (define_insn_reservation "generic_fmul_single" 5
   (and (eq_attr "tune" "generic")
@@ -82,9 +95,10 @@
 (define_insn_reservation "generic_fdiv" 20
   (and (eq_attr "tune" "generic")
        (eq_attr "type" "fdiv"))
-  "fdivsqrt*20")
+  "fdivsqrt*7")
 
 (define_insn_reservation "generic_fsqrt" 25
   (and (eq_attr "tune" "generic")
        (eq_attr "type" "fsqrt"))
-  "fdivsqrt*25")
+  "fdivsqrt*7")
+

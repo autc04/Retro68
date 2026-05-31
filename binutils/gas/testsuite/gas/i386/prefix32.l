@@ -10,6 +10,13 @@
 .*:20: Error: data size .* `vaddps'
 .*:21: Error: data size .* `vaddpd'
 .*:25: Error: same type of prefix .*
+.*:31: Error: `xacquire' is not supported on `i386'
+.*:32: Error: `notrack' is not supported on `i386'
+.*:33: Error: `bnd' is not supported on `i386'
+.*:38: Error: `gs' is not supported on `i286'
+.*:39: Error: `data32' is not supported on `i286'
+.*:40: Error: `addr32' is not supported on `i286'
+.*:41: Error: .*disp32.* is not supported on `i286'
 GAS LISTING .*
 #...
 [ 	]*1[ 	]+\.text
@@ -40,4 +47,18 @@ GAS LISTING .*
 [ 	]*26[ 	]+\?\?\?\? 3E8B4500[ 	]+ds mov		%ss:\(%ebp\), %eax
 [ 	]*27[ 	]+\?\?\?\? 3E8B4500[ 	]+ds mov		%ds:\(%ebp\), %eax
 [ 	]*28[ 	]*
+[ 	]*[0-9]+[ 	]+\.L386:
+[ 	]*[0-9]+[ 	]+\.arch i386
+[ 	]*[0-9]+[ 	]+xacquire lock add \[esi\], eax
+[ 	]*[0-9]+[ 	]+notrack call eax
+[ 	]*[0-9]+[ 	]+bnd call eax
+[ 	]*[0-9]+[ 	]*
+[ 	]*[0-9]+[ 	]+\.L286:
+[ 	]*[0-9]+[ 	]+\.code16
+[ 	]*[0-9]+[ 	]+\.arch i286
+[ 	]*[0-9]+[ 	]+gs inc word ptr \[si\]
+[ 	]*[0-9]+[ 	]+data32 nop
+[ 	]*[0-9]+[ 	]+addr32 nop
+[ 	]*[0-9]+[ 	]+\{disp32\} nop
+[ 	]*[0-9]+[ 	]*
 #pass

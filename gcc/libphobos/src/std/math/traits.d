@@ -21,6 +21,7 @@ module std.math.traits;
 
 import std.traits : isFloatingPoint, isIntegral, isNumeric, isSigned;
 
+
 /*********************************
  * Determines if $(D_PARAM x) is NaN.
  * Params:
@@ -137,7 +138,7 @@ if (isFloatingPoint!(X))
  */
 bool isFinite(X)(X x) @trusted pure nothrow @nogc
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     static if (__traits(isFloating, X))
         if (__ctfe)
@@ -202,7 +203,7 @@ bool isFinite(X)(X x) @trusted pure nothrow @nogc
  */
 bool isNormal(X)(X x) @trusted pure nothrow @nogc
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     static if (__traits(isFloating, X))
         if (__ctfe)
@@ -264,7 +265,7 @@ bool isNormal(X)(X x) @trusted pure nothrow @nogc
  */
 bool isSubnormal(X)(X x) @trusted pure nothrow @nogc
 {
-    import std.math : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
+    import std.math.traits : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
 
     static if (__traits(isFloating, X))
         if (__ctfe)
@@ -344,7 +345,7 @@ bool isSubnormal(X)(X x) @trusted pure nothrow @nogc
 bool isInfinity(X)(X x) @nogc @trusted pure nothrow
 if (isFloatingPoint!(X))
 {
-    import std.math : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
+    import std.math.traits : floatTraits, RealFormat, MANTISSA_MSB, MANTISSA_LSB;
 
     alias F = floatTraits!(X);
     static if (F.realFormat == RealFormat.ieeeSingle)
@@ -466,8 +467,27 @@ if (isFloatingPoint!(X))
  */
 bool isIdentical(real x, real y) @trusted pure nothrow @nogc
 {
-    import std.math : floatTraits, RealFormat;
-
+    if (__ctfe)
+    {
+        if (x !is y) return false;
+        if (x == x) return true; // If not NaN `is` implies identical representation.
+        static if (double.mant_dig != real.mant_dig)
+        {
+            // Works because we are in CTFE and there is no way in CTFE to set more
+            // bits of NaN payload than can fit in a double, and since 2.087
+            // changed real.init to be non-signaling I *think* there is no way in
+            // CTFE for a real to be a signaling NaN unless real and double have
+            // the same representation so real's bits can be manipulated directly.
+            double d1 = x, d2 = y;
+        }
+        else
+        {
+            // Alias to avoid converting signaling to quiet.
+            alias d1 = x;
+            alias d2 = y;
+        }
+        return *cast(long*) &d1 == *cast(long*) &d2;
+    }
     // We're doing a bitwise comparison so the endianness is irrelevant.
     long*   pxs = cast(long *)&x;
     long*   pys = cast(long *)&y;
@@ -491,26 +511,50 @@ bool isIdentical(real x, real y) @trusted pure nothrow @nogc
         assert(0, "isIdentical not implemented");
     }
 }
-
 ///
 @safe @nogc pure nothrow unittest
 {
+    // We're forcing the CTFE to run by assigning the result of the function to an enum
+    enum test1 = isIdentical(1.0,1.0);
+    enum test2 = isIdentical(real.nan,real.nan);
+    enum test3 = isIdentical(real.infinity, real.infinity);
+    enum test4 = isIdentical(real.infinity, real.infinity);
+    enum test5 = isIdentical(0.0, 0.0);
+
+    assert(test1);
+    assert(test2);
+    assert(test3);
+    assert(test4);
+    assert(test5);
+
+    enum test6 = !isIdentical(0.0, -0.0);
+    enum test7 = !isIdentical(real.nan, -real.nan);
+    enum test8 = !isIdentical(real.infinity, -real.infinity);
+
+    assert(test6);
+    assert(test7);
+    assert(test8);
+}
+
+@safe @nogc pure nothrow unittest
+{
+    assert( !isIdentical(1.2,1.3));
     assert( isIdentical(0.0, 0.0));
     assert( isIdentical(1.0, 1.0));
     assert( isIdentical(real.infinity, real.infinity));
     assert( isIdentical(-real.infinity, -real.infinity));
+    assert( isIdentical(real.nan, real.nan));
 
     assert(!isIdentical(0.0, -0.0));
     assert(!isIdentical(real.nan, -real.nan));
     assert(!isIdentical(real.infinity, -real.infinity));
 }
-
 /*********************************
  * Return 1 if sign bit of e is set, 0 if not.
  */
 int signbit(X)(X x) @nogc @trusted pure nothrow
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     if (__ctfe)
     {
@@ -594,7 +638,7 @@ Returns:
 R copysign(R, X)(R to, X from) @trusted pure nothrow @nogc
 if (isFloatingPoint!(R) && isFloatingPoint!(X))
 {
-    import std.math : floatTraits, RealFormat;
+    import std.math.traits : floatTraits, RealFormat;
 
     if (__ctfe)
     {
@@ -851,3 +895,168 @@ if (isNumeric!X)
     }}
 }
 
+// Underlying format exposed through floatTraits
+enum RealFormat
+{
+    ieeeHalf,
+    ieeeSingle,
+    ieeeDouble,
+    ieeeExtended,   // x87 80-bit real
+    ieeeExtended53, // x87 real rounded to precision of double.
+    ibmExtended,    // IBM 128-bit extended
+    ieeeQuadruple,
+}
+
+// Constants used for extracting the components of the representation.
+// They supplement the built-in floating point properties.
+template floatTraits(T)
+{
+    import std.traits : Unqual;
+
+    // EXPMASK is a ushort mask to select the exponent portion (without sign)
+    // EXPSHIFT is the number of bits the exponent is left-shifted by in its ushort
+    // EXPBIAS is the exponent bias - 1 (exp == EXPBIAS yields ×2^-1).
+    // EXPPOS_SHORT is the index of the exponent when represented as a ushort array.
+    // SIGNPOS_BYTE is the index of the sign when represented as a ubyte array.
+    // RECIP_EPSILON is the value such that (smallest_subnormal) * RECIP_EPSILON == T.min_normal
+    enum Unqual!T RECIP_EPSILON = (1/T.epsilon);
+    static if (T.mant_dig == 24)
+    {
+        // Single precision float
+        enum ushort EXPMASK = 0x7F80;
+        enum ushort EXPSHIFT = 7;
+        enum ushort EXPBIAS = 0x3F00;
+        enum uint EXPMASK_INT = 0x7F80_0000;
+        enum uint MANTISSAMASK_INT = 0x007F_FFFF;
+        enum realFormat = RealFormat.ieeeSingle;
+        version (LittleEndian)
+        {
+            enum EXPPOS_SHORT = 1;
+            enum SIGNPOS_BYTE = 3;
+        }
+        else
+        {
+            enum EXPPOS_SHORT = 0;
+            enum SIGNPOS_BYTE = 0;
+        }
+    }
+    else static if (T.mant_dig == 53)
+    {
+        static if (T.sizeof == 8)
+        {
+            // Double precision float, or real == double
+            enum ushort EXPMASK = 0x7FF0;
+            enum ushort EXPSHIFT = 4;
+            enum ushort EXPBIAS = 0x3FE0;
+            enum uint EXPMASK_INT = 0x7FF0_0000;
+            enum uint MANTISSAMASK_INT = 0x000F_FFFF; // for the MSB only
+            enum ulong MANTISSAMASK_LONG = 0x000F_FFFF_FFFF_FFFF;
+            enum realFormat = RealFormat.ieeeDouble;
+            version (LittleEndian)
+            {
+                enum EXPPOS_SHORT = 3;
+                enum SIGNPOS_BYTE = 7;
+            }
+            else
+            {
+                enum EXPPOS_SHORT = 0;
+                enum SIGNPOS_BYTE = 0;
+            }
+        }
+        else static if (T.sizeof == 12)
+        {
+            // Intel extended real80 rounded to double
+            enum ushort EXPMASK = 0x7FFF;
+            enum ushort EXPSHIFT = 0;
+            enum ushort EXPBIAS = 0x3FFE;
+            enum realFormat = RealFormat.ieeeExtended53;
+            version (LittleEndian)
+            {
+                enum EXPPOS_SHORT = 4;
+                enum SIGNPOS_BYTE = 9;
+            }
+            else
+            {
+                enum EXPPOS_SHORT = 0;
+                enum SIGNPOS_BYTE = 0;
+            }
+        }
+        else
+            static assert(false, "No traits support for " ~ T.stringof);
+    }
+    else static if (T.mant_dig == 64)
+    {
+        // Intel extended real80
+        enum ushort EXPMASK = 0x7FFF;
+        enum ushort EXPSHIFT = 0;
+        enum ushort EXPBIAS = 0x3FFE;
+        enum realFormat = RealFormat.ieeeExtended;
+        version (LittleEndian)
+        {
+            enum EXPPOS_SHORT = 4;
+            enum SIGNPOS_BYTE = 9;
+        }
+        else
+        {
+            enum EXPPOS_SHORT = 0;
+            enum SIGNPOS_BYTE = 0;
+        }
+    }
+    else static if (T.mant_dig == 113)
+    {
+        // Quadruple precision float
+        enum ushort EXPMASK = 0x7FFF;
+        enum ushort EXPSHIFT = 0;
+        enum ushort EXPBIAS = 0x3FFE;
+        enum realFormat = RealFormat.ieeeQuadruple;
+        version (LittleEndian)
+        {
+            enum EXPPOS_SHORT = 7;
+            enum SIGNPOS_BYTE = 15;
+        }
+        else
+        {
+            enum EXPPOS_SHORT = 0;
+            enum SIGNPOS_BYTE = 0;
+        }
+    }
+    else static if (T.mant_dig == 106)
+    {
+        // IBM Extended doubledouble
+        enum ushort EXPMASK = 0x7FF0;
+        enum ushort EXPSHIFT = 4;
+        enum realFormat = RealFormat.ibmExtended;
+
+        // For IBM doubledouble the larger magnitude double comes first.
+        // It's really a double[2] and arrays don't index differently
+        // between little and big-endian targets.
+        enum DOUBLEPAIR_MSB = 0;
+        enum DOUBLEPAIR_LSB = 1;
+
+        // The exponent/sign byte is for most significant part.
+        version (LittleEndian)
+        {
+            enum EXPPOS_SHORT = 3;
+            enum SIGNPOS_BYTE = 7;
+        }
+        else
+        {
+            enum EXPPOS_SHORT = 0;
+            enum SIGNPOS_BYTE = 0;
+        }
+    }
+    else
+        static assert(false, "No traits support for " ~ T.stringof);
+}
+
+// These apply to all floating-point types
+version (LittleEndian)
+{
+    enum MANTISSA_LSB = 0;
+    enum MANTISSA_MSB = 1;
+}
+else
+{
+    enum MANTISSA_LSB = 1;
+    enum MANTISSA_MSB = 0;
+}

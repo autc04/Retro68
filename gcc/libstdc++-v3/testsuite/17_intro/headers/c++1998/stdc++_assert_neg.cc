@@ -1,11 +1,9 @@
 // { dg-do compile }
-// { dg-options "-D_GLIBCXX_NO_ASSERT" }
-// NB: This is done to force any generated and possibly included PCH
-// to be invalid, and also to remove cassert from the include set.
+// { dg-require-effective-target hosted }
 
 // 2005-05-24 bkoz
 
-// Copyright (C) 2005-2022 Free Software Foundation, Inc.
+// Copyright (C) 2005-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the

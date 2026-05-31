@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---            Copyright (C) 2020-2022, Free Software Foundation, Inc.       --
+--            Copyright (C) 2020-2026, Free Software Foundation, Inc.       --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,9 +29,18 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with System.Image_I;
 with System.Img_Util; use System.Img_Util;
 
 package body System.Image_D is
+
+   package Image_I is new System.Image_I (Int);
+
+   procedure Set_Image_Integer
+     (V : Int;
+      S : in out String;
+      P : in out Natural)
+     renames Image_I.Set_Image_Integer;
 
    -------------------
    -- Image_Decimal --
@@ -44,7 +53,6 @@ package body System.Image_D is
       Scale : Integer)
    is
       pragma Assert (S'First = 1);
-
    begin
       --  Add space at start for non-negative numbers
 
@@ -71,11 +79,28 @@ package body System.Image_D is
       Aft   : Natural;
       Exp   : Natural)
    is
-      Digs : String := Int'Image (V);
-      --  Sign and digits of decimal value
+      Maxdigs : constant Natural := Int'Width;
+      --  Maximum length needed for Image of an Int
+
+      Digs  : String (1 .. Maxdigs);
+      Ndigs : Natural;
+      --  Buffer for the image of the integer value
 
    begin
-      Set_Decimal_Digits (Digs, Digs'Length, S, P, Scale, Fore, Aft, Exp);
+      --  Set the first character like Image
+
+      if V >= 0 then
+         Digs (1) := ' ';
+         Ndigs := 1;
+      else
+         Ndigs := 0;
+      end if;
+
+      Set_Image_Integer (V, Digs, Ndigs);
+
+      pragma Assert (1 <= Ndigs and then Ndigs <= Maxdigs);
+
+      Set_Decimal_Digits (Digs, Ndigs, S, P, Scale, Fore, Aft, Exp);
    end Set_Image_Decimal;
 
 end System.Image_D;

@@ -1,4 +1,4 @@
-#as: -I${srcdir}/$subdir
+#as: -I${srcdir}/$subdir -march=+mpx
 #objdump: -drw -Mi8086
 #name: i386 MPX (16-bit)
 

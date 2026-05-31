@@ -1,7 +1,7 @@
 /* Test for attribute sentinel.  */
 /* Origin: Kaveh Ghazi <ghazi@caip.rutgers.edu> */
 /* { dg-do compile } */
-/* { dg-options "-Wformat" } */
+/* { dg-options "-std=gnu17 -Wformat" } */
 
 #include <stddef.h> /* For NULL, which must be (ptr)0.  */
 
@@ -15,7 +15,7 @@ extern char *envp[];
 extern int a ATTR; /* { dg-warning "applies to function types" "sentinel" } */
 
 extern void foo1 (const char *, ...) ATTR; /* { dg-message "note: declared here" } */
-extern void foo2 (...) ATTR; /* { dg-error "ISO C requires|named arguments" "sentinel" } */
+extern void foo2 (...) ATTR;
 extern void foo3 () ATTR; /* { dg-warning "named arguments" "sentinel" } */
 extern void foo4 (const char *, int) ATTR; /* { dg-warning "variadic functions" "sentinel" } */
 extern void foo5 (const char *, ...) __attribute__ ((__sentinel__(1)));

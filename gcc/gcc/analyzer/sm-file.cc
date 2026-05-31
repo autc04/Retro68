@@ -1,5 +1,5 @@
 /* A state machine for detecting misuses of <stdio.h>'s FILE * API.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -18,31 +18,22 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "function.h"
-#include "basic-block.h"
-#include "gimple.h"
-#include "options.h"
-#include "diagnostic-path.h"
-#include "diagnostic-metadata.h"
-#include "function.h"
-#include "json.h"
-#include "analyzer/analyzer.h"
-#include "diagnostic-event-id.h"
+#include "analyzer/common.h"
+
+#include "diagnostics/event-id.h"
+#include "selftest.h"
+
 #include "analyzer/analyzer-logging.h"
 #include "analyzer/sm.h"
 #include "analyzer/pending-diagnostic.h"
 #include "analyzer/function-set.h"
 #include "analyzer/analyzer-selftests.h"
-#include "tristate.h"
-#include "selftest.h"
 #include "analyzer/call-string.h"
 #include "analyzer/program-point.h"
+#include "analyzer/program-state.h"
 #include "analyzer/store.h"
 #include "analyzer/region-model.h"
+#include "analyzer/call-details.h"
 
 #if ENABLE_ANALYZER
 
@@ -57,10 +48,10 @@ class fileptr_state_machine : public state_machine
 public:
   fileptr_state_machine (logger *logger);
 
-  bool inherited_state_p () const FINAL OVERRIDE { return false; }
+  bool inherited_state_p () const final override { return false; }
 
   state_machine::state_t
-  get_default_state (const svalue *sval) const FINAL OVERRIDE
+  get_default_state (const svalue *sval) const final override
   {
     if (tree cst = sval->maybe_get_constant ())
       {
@@ -70,19 +61,20 @@ public:
     return m_start;
   }
 
-  bool on_stmt (sm_context *sm_ctxt,
-		const supernode *node,
-		const gimple *stmt) const FINAL OVERRIDE;
+  bool on_stmt (sm_context &sm_ctxt,
+		const gimple *stmt) const final override;
 
-  void on_condition (sm_context *sm_ctxt,
-		     const supernode *node,
-		     const gimple *stmt,
+  void on_condition (sm_context &sm_ctxt,
 		     const svalue *lhs,
 		     enum tree_code op,
-		     const svalue *rhs) const FINAL OVERRIDE;
+		     const svalue *rhs) const final override;
 
-  bool can_purge_p (state_t s) const FINAL OVERRIDE;
-  pending_diagnostic *on_leak (tree var) const FINAL OVERRIDE;
+  bool can_purge_p (state_t s) const final override;
+
+  std::unique_ptr<pending_diagnostic>
+  on_leak (tree var,
+	   const program_state *old_state,
+	   const program_state *new_state) const final override;
 
   /* State for a FILE * returned from fopen that hasn't been checked for
      NULL.
@@ -111,36 +103,69 @@ public:
   : m_sm (sm), m_arg (arg)
   {}
 
-  bool subclass_equal_p (const pending_diagnostic &base_other) const OVERRIDE
+  bool subclass_equal_p (const pending_diagnostic &base_other) const override
   {
     return same_tree_p (m_arg, ((const file_diagnostic &)base_other).m_arg);
   }
 
-  label_text describe_state_change (const evdesc::state_change &change)
-    OVERRIDE
+  bool
+  describe_state_change (pretty_printer &pp,
+			 const evdesc::state_change &change) override
   {
     if (change.m_old_state == m_sm.get_start_state ()
 	&& change.m_new_state == m_sm.m_unchecked)
       // TODO: verify that it's the fopen stmt, not a copy
-      return label_text::borrow ("opened here");
+      {
+	pp_string (&pp, "opened here");
+	return true;
+      }
     if (change.m_old_state == m_sm.m_unchecked
 	&& change.m_new_state == m_sm.m_nonnull)
       {
 	if (change.m_expr)
-	  return change.formatted_print ("assuming %qE is non-NULL",
-					 change.m_expr);
+	  {
+	    pp_printf (&pp,
+		       "assuming %qE is non-NULL",
+		       change.m_expr);
+	    return true;
+	  }
 	else
-	  return change.formatted_print ("assuming FILE * is non-NULL");
+	  {
+	    pp_printf (&pp, "assuming FILE * is non-NULL");
+	    return true;
+	  }
       }
     if (change.m_new_state == m_sm.m_null)
       {
 	if (change.m_expr)
-	  return change.formatted_print ("assuming %qE is NULL",
-					 change.m_expr);
+	  {
+	    pp_printf (&pp, "assuming %qE is NULL",
+		       change.m_expr);
+	    return true;
+	  }
 	else
-	  return change.formatted_print ("assuming FILE * is NULL");
+	  {
+	    pp_printf (&pp, "assuming FILE * is NULL");
+	    return true;
+	  }
       }
-    return label_text ();
+    return false;
+  }
+
+  diagnostics::paths::event::meaning
+  get_meaning_for_state_change (const evdesc::state_change &change)
+    const final override
+  {
+    using event = diagnostics::paths::event;
+
+    if (change.m_old_state == m_sm.get_start_state ()
+	&& change.m_new_state == m_sm.m_unchecked)
+      return event::meaning (event::verb::acquire,
+			     event::noun::resource);
+    if (change.m_new_state == m_sm.m_closed)
+      return event::meaning (event::verb::release,
+			     event::noun::resource);
+    return event::meaning ();
   }
 
 protected:
@@ -155,118 +180,142 @@ public:
     : file_diagnostic (sm, arg)
   {}
 
-  const char *get_kind () const FINAL OVERRIDE { return "double_fclose"; }
+  const char *get_kind () const final override { return "double_fclose"; }
 
-  int get_controlling_option () const FINAL OVERRIDE
+  int get_controlling_option () const final override
   {
     return OPT_Wanalyzer_double_fclose;
   }
 
-  bool emit (rich_location *rich_loc) FINAL OVERRIDE
+  bool emit (diagnostic_emission_context &ctxt) final override
   {
-    return warning_at (rich_loc, get_controlling_option (),
-		       "double %<fclose%> of FILE %qE",
-		       m_arg);
+    /* CWE-1341: Multiple Releases of Same Resource or Handle.  */
+    ctxt.add_cwe (1341);
+    return ctxt.warn ("double %<fclose%> of FILE %qE",
+		      m_arg);
   }
 
-  label_text describe_state_change (const evdesc::state_change &change)
-    OVERRIDE
+  bool
+  describe_state_change (pretty_printer &pp,
+			 const evdesc::state_change &change) override
   {
     if (change.m_new_state == m_sm.m_closed)
       {
 	m_first_fclose_event = change.m_event_id;
-	return change.formatted_print ("first %qs here", "fclose");
+	pp_printf (&pp, "first %qs here", "fclose");
+	return true;
       }
-    return file_diagnostic::describe_state_change (change);
+    return file_diagnostic::describe_state_change (pp, change);
   }
 
-  label_text describe_final_event (const evdesc::final_event &ev) FINAL OVERRIDE
+  bool
+  describe_final_event (pretty_printer &pp,
+			const evdesc::final_event &) final override
   {
     if (m_first_fclose_event.known_p ())
-      return ev.formatted_print ("second %qs here; first %qs was at %@",
-				 "fclose", "fclose",
-				 &m_first_fclose_event);
-    return ev.formatted_print ("second %qs here", "fclose");
+      pp_printf (&pp,
+		 "second %qs here; first %qs was at %@",
+		 "fclose", "fclose",
+		 &m_first_fclose_event);
+    else
+      pp_printf (&pp,
+		 "second %qs here", "fclose");
+    return true;
   }
 
 private:
-  diagnostic_event_id_t m_first_fclose_event;
+  diagnostics::paths::event_id_t m_first_fclose_event;
 };
 
 class file_leak : public file_diagnostic
 {
 public:
-  file_leak (const fileptr_state_machine &sm, tree arg)
-    : file_diagnostic (sm, arg)
-  {}
+  file_leak (const fileptr_state_machine &sm, tree arg,
+	     const program_state *final_state)
+  : file_diagnostic (sm, arg),
+    m_final_state ()
+  {
+    if (final_state)
+      m_final_state = std::make_unique<program_state> (*final_state);
+  }
 
-  const char *get_kind () const FINAL OVERRIDE { return "file_leak"; }
+  const char *get_kind () const final override { return "file_leak"; }
 
-  int get_controlling_option () const FINAL OVERRIDE
+  int get_controlling_option () const final override
   {
     return OPT_Wanalyzer_file_leak;
   }
 
-  bool emit (rich_location *rich_loc) FINAL OVERRIDE
+  bool emit (diagnostic_emission_context &ctxt) final override
   {
-    diagnostic_metadata m;
     /* CWE-775: "Missing Release of File Descriptor or Handle after
        Effective Lifetime". */
-    m.add_cwe (775);
+    ctxt.add_cwe (775);
     if (m_arg)
-      return warning_meta (rich_loc, m, get_controlling_option (),
-			   "leak of FILE %qE",
-			   m_arg);
+      return ctxt.warn ("leak of FILE %qE", m_arg);
     else
-      return warning_meta (rich_loc, m, get_controlling_option (),
-			   "leak of FILE");
+      return ctxt.warn ("leak of FILE");
   }
 
-  label_text describe_state_change (const evdesc::state_change &change)
-    FINAL OVERRIDE
+  bool
+  describe_state_change (pretty_printer &pp,
+			 const evdesc::state_change &change) final override
   {
     if (change.m_new_state == m_sm.m_unchecked)
       {
 	m_fopen_event = change.m_event_id;
-	return label_text::borrow ("opened here");
+	pp_string (&pp, "opened here");
+	return true;
       }
-    return file_diagnostic::describe_state_change (change);
+    return file_diagnostic::describe_state_change (pp, change);
   }
 
-  label_text describe_final_event (const evdesc::final_event &ev) FINAL OVERRIDE
+  bool
+  describe_final_event (pretty_printer &pp,
+			const evdesc::final_event &ev) final override
   {
     if (m_fopen_event.known_p ())
       {
 	if (ev.m_expr)
-	  return ev.formatted_print ("%qE leaks here; was opened at %@",
-				     ev.m_expr, &m_fopen_event);
+	  pp_printf (&pp,
+		     "%qE leaks here; was opened at %@",
+		     ev.m_expr, &m_fopen_event);
 	else
-	  return ev.formatted_print ("leaks here; was opened at %@",
-				     &m_fopen_event);
+	  pp_printf (&pp,
+		     "leaks here; was opened at %@",
+		     &m_fopen_event);
       }
     else
       {
 	if (ev.m_expr)
-	  return ev.formatted_print ("%qE leaks here", ev.m_expr);
+	  pp_printf (&pp, "%qE leaks here", ev.m_expr);
 	else
-	  return ev.formatted_print ("leaks here");
+	  pp_printf (&pp, "leaks here");
       }
+    return true;
+  }
+
+  const program_state *
+  get_final_state () const final override
+  {
+    return m_final_state.get ();
   }
 
 private:
-  diagnostic_event_id_t m_fopen_event;
+  diagnostics::paths::event_id_t m_fopen_event;
+  std::unique_ptr<program_state> m_final_state;
 };
 
 /* fileptr_state_machine's ctor.  */
 
 fileptr_state_machine::fileptr_state_machine (logger *logger)
-: state_machine ("file", logger)
+: state_machine ("file", logger),
+  m_unchecked (add_state ("unchecked")),
+  m_null (add_state ("null")),
+  m_nonnull (add_state ("nonnull")),
+  m_closed (add_state ("closed")),
+  m_stop (add_state ("stop"))
 {
-  m_unchecked = add_state ("unchecked");
-  m_null = add_state ("null");
-  m_nonnull = add_state ("nonnull");
-  m_closed = add_state ("closed");
-  m_stop = add_state ("stop");
 }
 
 /* Get a set of functions that are known to take a FILE * that must be open,
@@ -329,8 +378,7 @@ get_file_using_fns ()
     "ungetc",
     "vfprintf"
   };
-  const size_t count
-    = sizeof(funcnames) / sizeof (funcnames[0]);
+  const size_t count = ARRAY_SIZE (funcnames);
   function_set fs (funcnames, count);
   return fs;
 }
@@ -356,18 +404,17 @@ is_file_using_fn_p (tree fndecl)
 /* Implementation of state_machine::on_stmt vfunc for fileptr_state_machine.  */
 
 bool
-fileptr_state_machine::on_stmt (sm_context *sm_ctxt,
-				const supernode *node,
+fileptr_state_machine::on_stmt (sm_context &sm_ctxt,
 				const gimple *stmt) const
 {
   if (const gcall *call = dyn_cast <const gcall *> (stmt))
-    if (tree callee_fndecl = sm_ctxt->get_fndecl_for_call (call))
+    if (tree callee_fndecl = sm_ctxt.get_fndecl_for_call (*call))
       {
-	if (is_named_call_p (callee_fndecl, "fopen", call, 2))
+	if (is_named_call_p (callee_fndecl, "fopen", *call, 2))
 	  {
 	    tree lhs = gimple_call_lhs (call);
 	    if (lhs)
-	      sm_ctxt->on_transition (node, stmt, lhs, m_start, m_unchecked);
+	      sm_ctxt.on_transition (lhs, m_start, m_unchecked);
 	    else
 	      {
 		/* TODO: report leak.  */
@@ -375,24 +422,25 @@ fileptr_state_machine::on_stmt (sm_context *sm_ctxt,
 	    return true;
 	  }
 
-	if (is_named_call_p (callee_fndecl, "fclose", call, 1))
+	if (is_named_call_p (callee_fndecl, "fclose", *call, 1))
 	  {
 	    tree arg = gimple_call_arg (call, 0);
 
-	    sm_ctxt->on_transition (node, stmt, arg, m_start, m_closed);
+	    sm_ctxt.on_transition (arg, m_start, m_closed);
 
 	    // TODO: is it safe to call fclose (NULL) ?
-	    sm_ctxt->on_transition (node, stmt, arg, m_unchecked, m_closed);
-	    sm_ctxt->on_transition (node, stmt, arg, m_null, m_closed);
+	    sm_ctxt.on_transition (arg, m_unchecked, m_closed);
+	    sm_ctxt.on_transition (arg, m_null, m_closed);
 
-	    sm_ctxt->on_transition (node, stmt , arg, m_nonnull, m_closed);
+	    sm_ctxt.on_transition (arg, m_nonnull, m_closed);
 
-	    if (sm_ctxt->get_state (stmt, arg) == m_closed)
+	    if (sm_ctxt.get_state (arg) == m_closed)
 	      {
-		tree diag_arg = sm_ctxt->get_diagnostic_tree (arg);
-		sm_ctxt->warn (node, stmt, arg,
-			       new double_fclose (*this, diag_arg));
-		sm_ctxt->set_next_state (stmt, arg, m_stop);
+		tree diag_arg = sm_ctxt.get_diagnostic_tree (arg);
+		sm_ctxt.warn (arg,
+			      std::make_unique<double_fclose> (*this,
+							       diag_arg));
+		sm_ctxt.set_next_state (arg, m_stop);
 	      }
 	    return true;
 	  }
@@ -413,9 +461,7 @@ fileptr_state_machine::on_stmt (sm_context *sm_ctxt,
    Potentially transition state 'unchecked' to 'nonnull' or to 'null'.  */
 
 void
-fileptr_state_machine::on_condition (sm_context *sm_ctxt,
-				     const supernode *node,
-				     const gimple *stmt,
+fileptr_state_machine::on_condition (sm_context &sm_ctxt,
 				     const svalue *lhs,
 				     enum tree_code op,
 				     const svalue *rhs) const
@@ -433,14 +479,12 @@ fileptr_state_machine::on_condition (sm_context *sm_ctxt,
   if (op == NE_EXPR)
     {
       log ("got 'ARG != 0' match");
-      sm_ctxt->on_transition (node, stmt,
-			      lhs, m_unchecked, m_nonnull);
+      sm_ctxt.on_transition (lhs, m_unchecked, m_nonnull);
     }
   else if (op == EQ_EXPR)
     {
       log ("got 'ARG == 0' match");
-      sm_ctxt->on_transition (node, stmt,
-			      lhs, m_unchecked, m_null);
+      sm_ctxt.on_transition (lhs, m_unchecked, m_null);
     }
 }
 
@@ -458,20 +502,202 @@ fileptr_state_machine::can_purge_p (state_t s) const
    fileptr_state_machine, for complaining about leaks of FILE * in
    state 'unchecked' and 'nonnull'.  */
 
-pending_diagnostic *
-fileptr_state_machine::on_leak (tree var) const
+std::unique_ptr<pending_diagnostic>
+fileptr_state_machine::on_leak (tree var,
+				const program_state *,
+				const program_state *new_state) const
 {
-  return new file_leak (*this, var);
+  return std::make_unique<file_leak> (*this, var, new_state);
 }
 
 } // anonymous namespace
 
 /* Internal interface to this file. */
 
-state_machine *
+std::unique_ptr<state_machine>
 make_fileptr_state_machine (logger *logger)
 {
-  return new fileptr_state_machine (logger);
+  return std::make_unique<fileptr_state_machine> (logger);
+}
+
+/* Handler for various stdio-related builtins that merely have external
+   effects that are out of scope for the analyzer: we only want to model
+   the effects on the return value.  */
+
+class kf_stdio_output_fn : public pure_known_function_with_default_return
+{
+public:
+  bool matches_call_types_p (const call_details &) const final override
+  {
+    return true;
+  }
+
+  /* A no-op; we just want the conjured return value.  */
+};
+
+/* Handler for "ferror"".  */
+
+class kf_ferror : public pure_known_function_with_default_return
+{
+public:
+  bool matches_call_types_p (const call_details &cd) const final override
+  {
+    return (cd.num_args () == 1
+	    && cd.arg_is_pointer_p (0));
+  }
+
+  /* No side effects.  */
+};
+
+/* Handler for "fileno"".  */
+
+class kf_fileno : public pure_known_function_with_default_return
+{
+public:
+  bool matches_call_types_p (const call_details &cd) const final override
+  {
+    return (cd.num_args () == 1
+	    && cd.arg_is_pointer_p (0));
+  }
+
+  /* No side effects.  */
+};
+
+/* Handler for "fgets" and "fgets_unlocked".  */
+
+class kf_fgets : public known_function
+{
+public:
+  bool matches_call_types_p (const call_details &cd) const final override
+  {
+    return (cd.num_args () == 3
+	    && cd.arg_is_pointer_p (0)
+	    && cd.arg_is_pointer_p (2));
+  }
+
+  void impl_call_pre (const call_details &cd) const final override
+  {
+    /* Ideally we would bifurcate state here between the
+       error vs no error cases.  */
+    region_model *model = cd.get_model ();
+    const svalue *ptr_sval = cd.get_arg_svalue (0);
+    if (const region *reg = ptr_sval->maybe_get_region ())
+      {
+	const region *base_reg = reg->get_base_region ();
+	const svalue *new_sval = cd.get_or_create_conjured_svalue (base_reg);
+	model->set_value (base_reg, new_sval, cd.get_ctxt ());
+      }
+    cd.set_any_lhs_with_defaults ();
+  }
+};
+
+/* Handler for "fread".
+     size_t fread(void *restrict buffer, size_t size, size_t count,
+		  FILE *restrict stream);
+   See e.g. https://en.cppreference.com/w/c/io/fread
+   and https://www.man7.org/linux/man-pages/man3/fread.3.html */
+
+class kf_fread : public known_function
+{
+public:
+  bool matches_call_types_p (const call_details &cd) const final override
+  {
+    return (cd.num_args () == 4
+	    && cd.arg_is_pointer_p (0)
+	    && cd.arg_is_size_p (1)
+	    && cd.arg_is_size_p (2)
+	    && cd.arg_is_pointer_p (3));
+  }
+
+  /* For now, assume that any call to "fread" fully clobbers the buffer
+     passed in.  This isn't quite correct (e.g. errors, partial reads;
+     see PR analyzer/108689), but at least stops us falsely complaining
+     about the buffer being uninitialized.  */
+  void impl_call_pre (const call_details &cd) const final override
+  {
+    region_model *model = cd.get_model ();
+    const svalue *ptr_sval = cd.get_arg_svalue (0);
+    if (const region *reg = ptr_sval->maybe_get_region ())
+      {
+	const region *base_reg = reg->get_base_region ();
+	const svalue *new_sval = cd.get_or_create_conjured_svalue (base_reg);
+	model->set_value (base_reg, new_sval, cd.get_ctxt ());
+      }
+    cd.set_any_lhs_with_defaults ();
+  }
+};
+
+/* Handler for "getc"".  */
+
+class kf_getc : public pure_known_function_with_default_return
+{
+public:
+  bool matches_call_types_p (const call_details &cd) const final override
+  {
+    return (cd.num_args () == 1
+	    && cd.arg_is_pointer_p (0));
+  }
+};
+
+/* Handler for "getchar"".  */
+
+class kf_getchar : public pure_known_function_with_default_return
+{
+public:
+  bool matches_call_types_p (const call_details &cd) const final override
+  {
+    return cd.num_args () == 0;
+  }
+
+  /* Empty.  No side-effects (tracking stream state is out-of-scope
+     for the analyzer).  */
+};
+
+/* Populate KFM with instances of known functions relating to
+   stdio streams.  */
+
+void
+register_known_file_functions (known_function_manager &kfm)
+{
+  kfm.add (BUILT_IN_FPRINTF, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPRINTF_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPUTC, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPUTC_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPUTS, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FPUTS_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FWRITE, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_FWRITE_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PRINTF, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PRINTF_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTC, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTCHAR, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTCHAR_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTC_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTS, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_PUTS_UNLOCKED, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_VFPRINTF, std::make_unique<kf_stdio_output_fn> ());
+  kfm.add (BUILT_IN_VPRINTF, std::make_unique<kf_stdio_output_fn> ());
+
+  kfm.add ("ferror", std::make_unique<kf_ferror> ());
+  kfm.add ("ferror_unlocked", std::make_unique<kf_ferror> ());
+  kfm.add ("fgets", std::make_unique<kf_fgets> ());
+  kfm.add ("fgets_unlocked", std::make_unique<kf_fgets> ()); // non-standard
+  kfm.add ("fileno", std::make_unique<kf_fileno> ());
+  kfm.add ("fileno_unlocked", std::make_unique<kf_fileno> ());
+  kfm.add ("fread", std::make_unique<kf_fread> ());
+  kfm.add ("fread_unlocked", std::make_unique<kf_fread> ());
+  kfm.add ("getc", std::make_unique<kf_getc> ());
+  kfm.add ("getc_unlocked", std::make_unique<kf_getc> ());
+  kfm.add ("getchar", std::make_unique<kf_getchar> ());
+  kfm.add ("getchar_unlocked", std::make_unique<kf_getchar> ());
+
+  /* Some C++ implementations use the std:: copies of these functions
+     from <cstdio> for <stdio.h>, so we must match against these too.  */
+  kfm.add_std_ns ("ferror", std::make_unique<kf_ferror> ());
+  kfm.add_std_ns ("fgets", std::make_unique<kf_fgets> ());
+  kfm.add_std_ns ("fread", std::make_unique<kf_fread> ());
+  kfm.add_std_ns ("getc", std::make_unique<kf_getc> ());
+  kfm.add_std_ns ("getchar", std::make_unique<kf_getchar> ());
 }
 
 #if CHECKING_P

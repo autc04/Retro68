@@ -1,5 +1,5 @@
 /* Modeling API uses and misuses via state machines.
-   Copyright (C) 2019-2022 Free Software Foundation, Inc.
+   Copyright (C) 2019-2026 Free Software Foundation, Inc.
    Contributed by David Malcolm <dmalcolm@redhat.com>.
 
 This file is part of GCC.
@@ -21,6 +21,8 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_ANALYZER_SM_H
 #define GCC_ANALYZER_SM_H
 
+#include "analyzer/analyzer-logging.h"
+
 /* Utility functions for use by state machines.  */
 
 namespace ana {
@@ -28,6 +30,7 @@ namespace ana {
 class state_machine;
 class sm_context;
 class pending_diagnostic;
+class analyzer_state_graph;
 
 extern bool any_pointer_p (tree expr);
 extern bool any_pointer_p (const svalue *sval);
@@ -49,7 +52,7 @@ public:
 
     const char *get_name () const { return m_name; }
     virtual void dump_to_pp (pretty_printer *pp) const;
-    virtual json::value *to_json () const;
+    virtual std::unique_ptr<json::value> to_json () const;
 
     unsigned get_id () const { return m_id; }
 
@@ -75,7 +78,13 @@ public:
 			   const svalue *,
 			   const extrinsic_state &) const
   {
-    return NULL;
+    return nullptr;
+  }
+
+  virtual bool
+  has_alt_get_inherited_state_p () const
+  {
+    return false;
   }
 
   virtual state_machine::state_t get_default_state (const svalue *) const
@@ -88,23 +97,38 @@ public:
   state_t get_state_by_name (const char *name) const;
 
   /* Return true if STMT is a function call recognized by this sm.  */
-  virtual bool on_stmt (sm_context *sm_ctxt,
-			const supernode *node,
+  virtual bool on_stmt (sm_context &sm_ctxt,
 			const gimple *stmt) const = 0;
 
-  virtual void on_phi (sm_context *sm_ctxt ATTRIBUTE_UNUSED,
-		       const supernode *node ATTRIBUTE_UNUSED,
+  virtual void on_phi (sm_context &sm_ctxt ATTRIBUTE_UNUSED,
 		       const gphi *phi ATTRIBUTE_UNUSED,
 		       tree rhs ATTRIBUTE_UNUSED) const
   {
   }
 
-  virtual void on_condition (sm_context *sm_ctxt ATTRIBUTE_UNUSED,
-			     const supernode *node ATTRIBUTE_UNUSED,
-			     const gimple *stmt ATTRIBUTE_UNUSED,
+  virtual void
+  check_call_preconditions (sm_context &sm_ctxt ATTRIBUTE_UNUSED,
+			    const call_details &cd ATTRIBUTE_UNUSED) const
+  {
+  }
+
+  virtual void on_condition (sm_context &sm_ctxt ATTRIBUTE_UNUSED,
 			     const svalue *lhs ATTRIBUTE_UNUSED,
 			     enum tree_code op ATTRIBUTE_UNUSED,
 			     const svalue *rhs ATTRIBUTE_UNUSED) const
+  {
+  }
+
+  virtual void
+  on_bounded_ranges (sm_context &sm_ctxt ATTRIBUTE_UNUSED,
+		     const svalue &sval ATTRIBUTE_UNUSED,
+		     const bounded_ranges &ranges ATTRIBUTE_UNUSED) const
+  {
+  }
+
+  virtual void
+  on_pop_frame (sm_state_map *smap ATTRIBUTE_UNUSED,
+		const frame_region *frame_reg ATTRIBUTE_UNUSED) const
   {
   }
 
@@ -114,10 +138,10 @@ public:
   virtual bool can_purge_p (state_t s) const = 0;
 
   /* Called when VAR leaks (and !can_purge_p).  */
-  virtual pending_diagnostic *on_leak (tree var ATTRIBUTE_UNUSED) const
-  {
-    return NULL;
-  }
+  virtual std::unique_ptr<pending_diagnostic>
+  on_leak (tree var ATTRIBUTE_UNUSED,
+	   const program_state *old_state,
+	   const program_state *new_state) const;
 
   /* Return true if S should be reset to "start" for values passed (or reachable
      from) calls to unknown functions.  IS_MUTABLE is true for pointers as
@@ -132,13 +156,47 @@ public:
     return is_mutable;
   }
 
+  /* Attempt to get a state for the merger of STATE_A and STATE_B,
+     or return nullptr if merging shouldn't occur, so that differences
+     between sm-state will lead to separate exploded nodes.
+
+     Most state machines will only merge equal states, but can
+     override maybe_get_merged_states_nonequal to support mergers
+     of certain non-equal states.  */
+  state_t maybe_get_merged_state (state_t state_a,
+				  state_t state_b) const
+  {
+    if (state_a == state_b)
+      return state_a;
+    return maybe_get_merged_states_nonequal (state_a, state_b);
+  }
+
+  /* Base implementation of hook for maybe_get_merged_state on non-equal
+     states.  */
+  virtual state_t
+  maybe_get_merged_states_nonequal (state_t state_a ATTRIBUTE_UNUSED,
+				    state_t state_b ATTRIBUTE_UNUSED) const
+  {
+    /* By default, non-equal sm states should inhibit merger of enodes.  */
+    return nullptr;
+  }
+
   void validate (state_t s) const;
 
   void dump_to_pp (pretty_printer *pp) const;
 
-  json::object *to_json () const;
+  std::unique_ptr<json::object> to_json () const;
 
   state_t get_start_state () const { return m_start; }
+
+  virtual void
+  add_state_to_state_graph (analyzer_state_graph &out_state_graph,
+			    const svalue &sval,
+			    state_machine::state_t state) const;
+
+  virtual void
+  add_global_state_to_state_graph (analyzer_state_graph &out_state_graph,
+				   state_machine::state_t state) const;
 
 protected:
   state_t add_state (const char *name);
@@ -180,7 +238,7 @@ public:
 };
 
 /* Abstract base class giving an interface for the state machine to call
-   the checker engine, at a particular stmt.  */
+   the checker engine, at a particular code location.  */
 
 class sm_context
 {
@@ -191,57 +249,50 @@ public:
      Use in preference to gimple_call_fndecl (and gimple_call_addr_fndecl),
      since it can look through function pointer assignments and
      other callback handling.  */
-  virtual tree get_fndecl_for_call (const gcall *call) = 0;
+  virtual tree get_fndecl_for_call (const gcall &call) = 0;
 
-  /* Get the old state of VAR at STMT.  */
-  virtual state_machine::state_t get_state (const gimple *stmt,
-					    tree var) = 0;
-  virtual state_machine::state_t get_state (const gimple *stmt,
-					    const svalue *) = 0;
+  /* Get the old state of VAR.  */
+  virtual state_machine::state_t get_state (tree var) = 0;
+  virtual state_machine::state_t get_state (const svalue *) = 0;
+
   /* Set the next state of VAR to be TO, recording the "origin" of the
-     state as ORIGIN.
-     Use STMT for location information.  */
-  virtual void set_next_state (const gimple *stmt,
-			       tree var,
+     state as ORIGIN.  */
+  virtual void set_next_state (tree var,
 			       state_machine::state_t to,
 			       tree origin = NULL_TREE) = 0;
-  virtual void set_next_state (const gimple *stmt,
-			       const svalue *var,
+  virtual void set_next_state (const svalue *var,
 			       state_machine::state_t to,
 			       tree origin = NULL_TREE) = 0;
 
   /* Called by state_machine in response to pattern matches:
      if VAR is in state FROM, transition it to state TO, potentially
-     recording the "origin" of the state as ORIGIN.
-     Use NODE and STMT for location information.  */
-  void on_transition (const supernode *node ATTRIBUTE_UNUSED,
-		      const gimple *stmt,
-		      tree var,
+     recording the "origin" of the state as ORIGIN.  */
+  void on_transition (tree var,
 		      state_machine::state_t from,
 		      state_machine::state_t to,
 		      tree origin = NULL_TREE)
   {
-    state_machine::state_t current = get_state (stmt, var);
+    state_machine::state_t current = get_state (var);
     if (current == from)
-      set_next_state (stmt, var, to, origin);
+      set_next_state (var, to, origin);
   }
 
-  void on_transition (const supernode *node ATTRIBUTE_UNUSED,
-		      const gimple *stmt,
-		      const svalue *var,
+  void on_transition (const svalue *var,
 		      state_machine::state_t from,
 		      state_machine::state_t to,
 		      tree origin = NULL_TREE)
   {
-    state_machine::state_t current = get_state (stmt, var);
+    state_machine::state_t current = get_state (var);
     if (current == from)
-      set_next_state (stmt, var, to, origin);
+      set_next_state (var, to, origin);
   }
 
   /* Called by state_machine in response to pattern matches:
-     issue a diagnostic D using NODE and STMT for location information.  */
-  virtual void warn (const supernode *node, const gimple *stmt,
-		     tree var, pending_diagnostic *d) = 0;
+     issue a diagnostic D about VAR.  */
+  virtual void warn (tree var,
+		     std::unique_ptr<pending_diagnostic> d) = 0;
+  virtual void warn (const svalue *var,
+		     std::unique_ptr<pending_diagnostic> d) = 0;
 
   /* For use when generating trees when creating pending_diagnostics, so that
      rather than e.g.
@@ -257,6 +308,8 @@ public:
   virtual state_machine::state_t get_global_state () const = 0;
   virtual void set_global_state (state_machine::state_t) = 0;
 
+  virtual void clear_all_per_svalue_state () = 0;
+
   /* A vfunc for handling custom transitions, such as when registering
      a signal handler.  */
   virtual void on_custom_transition (custom_transition *transition) = 0;
@@ -268,17 +321,19 @@ public:
 
   virtual path_context *get_path_context () const
   {
-    return NULL;
+    return nullptr;
   }
 
   /* Are we handling an external function with unknown side effects?  */
   virtual bool unknown_side_effects_p () const { return false; }
 
   virtual const program_state *get_old_program_state () const = 0;
-
-  const svalue *get_old_svalue (tree expr) const;
+  virtual const program_state *get_new_program_state () const = 0;
 
   const region_model *get_old_region_model () const;
+
+  /* Get the location a diagnostic would be emitted at.  */
+  virtual location_t get_emission_location () const = 0;
 
 protected:
   sm_context (int sm_idx, const state_machine &sm)
@@ -292,15 +347,17 @@ protected:
 /* The various state_machine subclasses are hidden in their respective
    implementation files.  */
 
-extern void make_checkers (auto_delete_vec <state_machine> &out,
-			   logger *logger);
+extern std::vector<std::unique_ptr<state_machine>>
+make_checkers (logger *logger);
 
-extern state_machine *make_malloc_state_machine (logger *logger);
-extern state_machine *make_fileptr_state_machine (logger *logger);
-extern state_machine *make_taint_state_machine (logger *logger);
-extern state_machine *make_sensitive_state_machine (logger *logger);
-extern state_machine *make_signal_state_machine (logger *logger);
-extern state_machine *make_pattern_test_state_machine (logger *logger);
+extern std::unique_ptr<state_machine> make_malloc_state_machine (logger *);
+extern std::unique_ptr<state_machine> make_fileptr_state_machine (logger *);
+extern std::unique_ptr<state_machine> make_taint_state_machine (logger *);
+extern std::unique_ptr<state_machine> make_sensitive_state_machine (logger *);
+extern std::unique_ptr<state_machine> make_signal_state_machine (logger *);
+extern std::unique_ptr<state_machine> make_pattern_test_state_machine (logger *);
+extern std::unique_ptr<state_machine> make_va_list_state_machine (logger *);
+extern std::unique_ptr<state_machine> make_fd_state_machine (logger *);
 
 } // namespace ana
 

@@ -1,5 +1,5 @@
 /* ldlang.h - linker command language support
-   Copyright (C) 1991-2022 Free Software Foundation, Inc.
+   Copyright (C) 1991-2026 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -76,6 +76,7 @@ enum statement_enum
   lang_fill_statement_enum,
   lang_group_statement_enum,
   lang_input_section_enum,
+  lang_input_matcher_enum,
   lang_input_statement_enum,
   lang_insert_statement_enum,
   lang_output_section_statement_enum,
@@ -140,7 +141,12 @@ typedef struct lang_output_section_phdr_list
 typedef struct lang_output_section_statement_struct
 {
   lang_statement_header_type header;
+  /* Input sections to be mapped to this output section.  */
   lang_statement_list_type children;
+  /* Input sections to be mapped to the start of this output section.
+     These sections are provided by the --section-ordering file, if used.  */
+  lang_statement_list_type sort_children;
+
   struct lang_output_section_statement_struct *next;
   struct lang_output_section_statement_struct *prev;
   const char *name;
@@ -281,7 +287,6 @@ struct lang_input_statement_flags
   /* Set if reloading an archive or --as-needed lib.  */
   unsigned int reload : 1;
 
-#if BFD_SUPPORTS_PLUGINS
   /* Set if the file was claimed by a plugin.  */
   unsigned int claimed : 1;
 
@@ -290,7 +295,6 @@ struct lang_input_statement_flags
 
   /* Set if added by the lto plugin add_input_file callback.  */
   unsigned int lto_output : 1;
-#endif /* BFD_SUPPORTS_PLUGINS */
 
   /* Head of list of pushed flags.  */
   struct lang_input_statement_flags *pushed;
@@ -305,6 +309,8 @@ typedef struct lang_input_statement_struct
      Usually the same as filename, but for a file spec'd with
      -l this is the -l switch itself rather than the filename.  */
   const char *local_sym_name;
+  /* Name to use when sorting.  */
+  const char *sort_key;
   /* Extra search path. Used to find a file relative to the
      directory of the current linker script.  */
   const char *extra_search_path;
@@ -333,6 +339,14 @@ typedef struct
   void *pattern;
 } lang_input_section_type;
 
+typedef struct
+{
+  lang_statement_header_type header;
+  asection *section;
+  void *pattern;
+  lang_input_statement_type *input_stmt;
+} lang_input_matcher_type;
+
 struct map_symbol_def {
   struct bfd_link_hash_entry *entry;
   struct map_symbol_def *next;
@@ -346,13 +360,6 @@ typedef struct input_section_userdata_struct
   struct map_symbol_def **map_symbol_def_tail;
   unsigned long map_symbol_def_count;
 } input_section_userdata_type;
-
-static inline bool
-bfd_input_just_syms (const bfd *abfd)
-{
-  lang_input_statement_type *is = bfd_usrdata (abfd);
-  return is != NULL && is->flags.just_syms;
-}
 
 typedef struct lang_wild_statement_struct lang_wild_statement_type;
 
@@ -379,18 +386,19 @@ typedef struct lang_section_bst
 
 struct lang_wild_statement_struct
 {
-  lang_statement_header_type header;
-  const char *filename;
-  bool filenames_sorted;
-  struct wildcard_list *section_list;
-  bool keep_sections;
-  lang_statement_list_type children;
-  struct name_list *exclude_name_list;
-
-  walk_wild_section_handler_t walk_wild_section_handler;
-  struct wildcard_list *handler_data[4];
-  lang_section_bst_type *tree;
-  struct flag_info *section_flag_list;
+  lang_statement_header_type  header;
+  lang_statement_list_type    children;
+  lang_statement_list_type    matching_sections;
+  lang_section_bst_type *     tree;
+  lang_section_bst_type **    rightmost;
+  struct wildcard_list *      section_list;
+  struct name_list *          exclude_name_list;
+  struct flag_info *          section_flag_list;
+  const char *                filename;
+  bool                        filenames_sorted;
+  bool                        filenames_reversed;
+  bool                        any_specs_sorted;
+  bool                        keep_sections;
 };
 
 typedef struct lang_address_statement_struct
@@ -437,6 +445,7 @@ typedef union lang_statement_union
   lang_fill_statement_type fill_statement;
   lang_group_statement_type group_statement;
   lang_input_section_type input_section;
+  lang_input_matcher_type input_matcher;
   lang_input_statement_type input_statement;
   lang_insert_statement_type insert_statement;
   lang_output_section_statement_type output_section_statement;
@@ -518,6 +527,7 @@ extern bool lang_has_input_file;
 extern lang_statement_list_type statement_list;
 extern lang_statement_list_type *stat_ptr;
 extern bool delete_output_file_on_failure;
+extern bool enable_linker_version;
 
 extern struct bfd_sym_chain entry_symbol;
 extern const char *entry_section;
@@ -533,7 +543,7 @@ extern struct asneeded_minfo **asneeded_list_tail;
 extern void (*output_bfd_hash_table_free_fn) (struct bfd_link_hash_table *);
 
 extern void lang_init
-  (void);
+  (bool);
 extern void lang_finish
   (void);
 extern lang_memory_region_type * lang_memory_region_lookup
@@ -590,6 +600,8 @@ extern void lang_do_assignments
   (lang_phase_type);
 extern asection *section_for_dot
   (void);
+extern asection *ldlang_nearby_section
+  (bfd *, asection *, bfd_vma);
 
 #define LANG_FOR_EACH_INPUT_STATEMENT(statement)			\
   lang_input_statement_type *statement;					\
@@ -614,8 +626,6 @@ extern lang_input_statement_type *lang_add_input_file
   (const char *, lang_input_file_enum_type, const char *);
 extern void lang_add_keepsyms_file
   (const char *);
-extern lang_output_section_statement_type *lang_output_section_get
-  (const asection *);
 extern lang_output_section_statement_type *lang_output_section_statement_lookup
   (const char *, int, int);
 extern lang_output_section_statement_type *next_matching_output_section_statement
@@ -626,23 +636,29 @@ extern void ldlang_add_require_defined
   (const char *const);
 extern void lang_add_output_format
   (const char *, const char *, const char *, int);
-extern void lang_list_init
-  (lang_statement_list_type *);
 extern void push_stat_ptr
   (lang_statement_list_type *);
 extern void pop_stat_ptr
   (void);
 extern void lang_add_data
-  (int type, union etree_union *);
+  (int, union etree_union *);
+extern void lang_add_string
+  (const char *);
 extern void lang_add_reloc
   (bfd_reloc_code_real_type, reloc_howto_type *, asection *, const char *,
    union etree_union *);
-extern void lang_for_each_statement
-  (void (*) (lang_statement_union_type *));
 extern void lang_for_each_statement_worker
-  (void (*) (lang_statement_union_type *), lang_statement_union_type *);
+  (void (*) (lang_statement_union_type *), lang_statement_union_type *, bool);
 extern void *stat_alloc
   (size_t);
+extern void stat_free
+  (void *);
+extern void *stat_memdup
+  (const void *, size_t, size_t);
+extern char *stat_strdup
+  (const char *);
+extern char *stat_concat
+  (const char *, ...);
 extern void strip_excluded_output_sections
   (void);
 extern void lang_clear_os_map
@@ -721,6 +737,87 @@ extern void
 lang_add_gc_name (const char *);
 
 extern bool
-print_one_symbol (struct bfd_link_hash_entry *hash_entry, void *ptr);
+print_one_symbol (struct bfd_link_hash_entry *, void *);
+
+extern void lang_add_version_string
+  (void);
+
+typedef enum
+{
+  cmdline_is_file_enum,
+  cmdline_is_bfd_enum
+} cmdline_enum_type;
+
+typedef struct cmdline_header_struct
+{
+  union cmdline_union *next;
+  cmdline_enum_type type;
+} cmdline_header_type;
+
+typedef struct cmdline_file_struct
+{
+  cmdline_header_type header;
+  const char *filename;
+} cmdline_file_type;
+
+typedef struct cmdline_bfd_struct
+{
+  cmdline_header_type header;
+  bfd *abfd;
+} cmdline_bfd_type;
+
+typedef union cmdline_union
+{
+  cmdline_header_type header;
+  cmdline_file_type file;
+  cmdline_bfd_type abfd;
+} cmdline_union_type;
+
+typedef struct cmdline_list
+{
+  cmdline_union_type *head;
+  cmdline_union_type **tail;
+} cmdline_list_type;
+
+extern void cmdline_emit_object_only_section (void);
+extern void cmdline_check_object_only_section (bfd *, bool);
+extern void cmdline_remove_object_only_files (void);
+
+static inline bool
+bfd_input_just_syms (const bfd *abfd)
+{
+  lang_input_statement_type *is = bfd_usrdata (abfd);
+  return is != NULL && is->flags.just_syms;
+}
+
+static inline void
+lang_for_each_statement (void (*func) (lang_statement_union_type *))
+{
+  lang_for_each_statement_worker (func, statement_list.head, true);
+}
+
+static inline void
+lang_list_init (lang_statement_list_type *list)
+{
+  list->head = NULL;
+  list->tail = &list->head;
+}
+
+static inline void
+lang_statement_append (lang_statement_list_type *list,
+		       void *element,
+		       void *field)
+{
+  *(list->tail) = element;
+  list->tail = field;
+}
+
+/* Get the output section statement from section userdata.  */
+
+static inline lang_output_section_statement_type *
+lang_output_section_get (const asection *output_section)
+{
+  return bfd_section_userdata (output_section);
+}
 
 #endif

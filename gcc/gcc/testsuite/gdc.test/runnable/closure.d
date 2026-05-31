@@ -922,7 +922,10 @@ void test14730()
 
 // This is questionable case. Currently it works without any errors,
 // but not sure it's really intentional
-
+// It showed up again in https://issues.dlang.org/show_bug.cgi?id=23112
+// where it's an @safe issue so it's a bug.
+static if (0)
+{
 struct S14730x(alias f)
 {
     auto foo()() { return f(0); }
@@ -946,6 +949,50 @@ void test14730x()
     // instantiationg foo outside of makeS will place the variable x in closure
     // *after* the semantic3 completion of makeS() function.
     assert(s.foo() == 10);
+}
+}
+
+/************************************/
+// https://github.com/dlang/dmd/issues/20917
+
+auto test20917a(int a) @nogc
+{
+    int foo() @nogc { return a + 3; }
+    enum yes = __traits(compiles, { return a; });
+    assert(foo() == a + 3);
+    return 1;
+}
+
+void test20917b() @nogc
+{
+    int i;
+    static if (is(typeof(() @safe @nogc
+    {
+        i++;
+    })))
+    {
+        () @safe @nogc {
+            i++;
+        }();
+    }
+    assert(i == 1);
+}
+
+void test20917c() @nogc
+{
+    int i;
+    static if (is(typeof(() @safe @nogc
+    {
+        return (){
+            i++;
+        };
+    })))
+    {
+        () @safe @nogc {
+            i++;
+        }();
+    }
+    assert(i == 1);
 }
 
 /************************************/
@@ -981,7 +1028,10 @@ int main()
     test9685b();
     test12406();
     test14730();
-    test14730x();
+    //test14730x();
+    test20917a(1);
+    test20917b();
+    test20917c();
 
     printf("Success\n");
     return 0;

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,12 +36,12 @@
 with System.Image_U;
 with System.Unsigned_Types;
 
-package System.Img_LLLU is
-   pragma Pure;
-
+package System.Img_LLLU
+  with SPARK_Mode
+is
    subtype Long_Long_Long_Unsigned is Unsigned_Types.Long_Long_Long_Unsigned;
 
-   package Impl is new Image_U (Long_Long_Long_Unsigned);
+   package Impl is new Image_U (Uns => Long_Long_Long_Unsigned);
 
    procedure Image_Long_Long_Long_Unsigned
      (V : Long_Long_Long_Unsigned;

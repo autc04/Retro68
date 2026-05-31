@@ -1,6 +1,6 @@
 // Class filesystem::path -*- C++ -*-
 
-// Copyright (C) 2014-2022 Free Software Foundation, Inc.
+// Copyright (C) 2014-2026 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,9 @@
 #include <filesystem>
 #include <algorithm>
 #include <array>
+#include <new>
 #include <bits/stl_uninitialized.h>
+#include <ext/numeric_traits.h> // __gnu_cxx::__int_traits
 
 namespace fs = std::filesystem;
 using fs::path;
@@ -187,12 +189,29 @@ struct path::_Parser
   { return origin + c.str.data() - input.data(); }
 };
 
+inline
+path::path(basic_string_view<value_type> __str, _Type __type)
+: _M_pathname(__str)
+{
+  __glibcxx_assert(__type != _Type::_Multi);
+  _M_cmpts.type(__type);
+}
+
+inline
+path::_Cmpt::_Cmpt(basic_string_view<value_type> __s, _Type __t, size_t __pos)
+: path(__s, __t), _M_pos(__pos)
+{ }
+
 struct path::_List::_Impl
 {
   using value_type = _Cmpt;
 
   _Impl(int cap) : _M_size(0), _M_capacity(cap) { }
 
+  ~_Impl() { clear(); }
+
+  // Align the first member like the value_type so that we can store one or
+  // more objects of that type immediately after the memory occupied by *this.
   alignas(value_type) int _M_size;
   int _M_capacity;
 
@@ -232,12 +251,21 @@ struct path::_List::_Impl
   unique_ptr<_Impl, _Impl_deleter> copy() const
   {
     const auto n = size();
-    void* p = ::operator new(sizeof(_Impl) + n * sizeof(value_type));
-    unique_ptr<_Impl, _Impl_deleter> newptr(::new (p) _Impl{n});
+    // *this already has n elements so don't need to check if n overflows:
+    auto newptr = create_unchecked(n);
     std::uninitialized_copy_n(begin(), n, newptr->begin());
     newptr->_M_size = n;
     return newptr;
   }
+
+  // We use the two least significant bits to store a _Type value so
+  // require memory aligned to at least 4 bytes:
+  static constexpr size_t required_alignment
+    = std::max(size_t(4), alignof(value_type));
+
+  // Only use aligned new if needed, because it might be less efficient.
+  static constexpr bool use_aligned_new
+    = __STDCPP_DEFAULT_NEW_ALIGNMENT__ < required_alignment;
 
   // Clear the lowest two bits from the pointer (i.e. remove the _Type value)
   static _Impl* notype(_Impl* p)
@@ -245,16 +273,60 @@ struct path::_List::_Impl
     constexpr uintptr_t mask = ~(uintptr_t)0x3;
     return reinterpret_cast<_Impl*>(reinterpret_cast<uintptr_t>(p) & mask);
   }
+
+  // Create a new _Impl with capacity for n components.
+  static unique_ptr<_Impl, _Impl_deleter>
+  create(int n)
+  {
+    using __gnu_cxx::__int_traits;
+    // Nobody should need paths with this many components.
+    if (n >= __int_traits<int>::__max / 4)
+      std::__throw_bad_alloc();
+
+    if constexpr (__int_traits<int>::__max >= __int_traits<size_t>::__max)
+      {
+	// Check that the calculation in create_unchecked(n) won't overflow.
+	size_t bytes;
+	if (__builtin_mul_overflow(n, sizeof(value_type), &bytes)
+	      || __builtin_add_overflow(sizeof(_Impl), bytes, &bytes))
+	  std::__throw_bad_alloc();
+      }
+    // Otherwise, it can't overflow, even for 20-bit size_t on msp430.
+
+    return create_unchecked(n);
+  }
+
+  // pre: no overflow in Si + n * Sv
+  static unique_ptr<_Impl, _Impl_deleter>
+  create_unchecked(int n)
+  {
+    const auto bytes = alloc_size(n);
+    void* p;
+    if constexpr (use_aligned_new)
+      p = ::operator new(bytes, align_val_t{required_alignment});
+    else
+      p = ::operator new(bytes);
+    return std::unique_ptr<_Impl, _Impl_deleter>(::new(p) _Impl{n});
+  }
+
+  // The number of bytes that must be allocated for _Impl with capacity n.
+  static size_t
+  alloc_size(int n) { return sizeof(_Impl) + n * sizeof(value_type); }
 };
 
-void path::_List::_Impl_deleter::operator()(_Impl* p) const noexcept
+// Destroy and deallocate an _Impl.
+void
+path::_List::_Impl_deleter::operator()(_Impl* p) const noexcept
 {
   p = _Impl::notype(p);
   if (p)
     {
-      __glibcxx_assert(p->_M_size <= p->_M_capacity);
-      p->clear();
-      ::operator delete(p, sizeof(*p) + p->_M_capacity * sizeof(value_type));
+      const auto bytes = _Impl::alloc_size(p->_M_capacity);
+      p->~_Impl();
+      if constexpr (_Impl::use_aligned_new)
+	::operator delete(p, bytes, align_val_t{_Impl::required_alignment});
+      else
+	::operator delete(p, bytes);
     }
 }
 
@@ -434,11 +506,14 @@ path::_List::reserve(int newcap, bool exact = false)
 
   if (curcap < newcap)
     {
-      if (!exact && newcap < int(1.5 * curcap))
-	newcap = 1.5 * curcap;
+      if (!exact)
+	{
+	  const int nextcap = curcap + curcap / 2;
+	  if (newcap < nextcap)
+	    newcap = nextcap;
+	}
 
-      void* p = ::operator new(sizeof(_Impl) + newcap * sizeof(value_type));
-      std::unique_ptr<_Impl, _Impl_deleter> newptr(::new(p) _Impl{newcap});
+      auto newptr = _Impl::create(newcap);
       const int cursize = curptr ? curptr->size() : 0;
       if (cursize)
 	{
@@ -573,13 +648,6 @@ path::operator/=(const path& __p)
   if (orig_type == _Type::_Root_name)
     ++capacity; // Need to insert root-directory after root-name
 #endif
-
-  if (orig_type == _Type::_Multi)
-    {
-      const int curcap = _M_cmpts._M_impl->capacity();
-      if (capacity > curcap)
-	capacity = std::max(capacity, (int) (curcap * 1.5));
-    }
 
   _M_pathname.reserve(_M_pathname.length() + sep.length()
 		      + __p._M_pathname.length());
@@ -851,6 +919,18 @@ path::operator+=(const path& p)
     {
       operator=(p);
       return *this;
+    }
+
+  // Handle p += p which would otherwise access dangling pointers after
+  // reallocating _M_cmpts and _M_pathname.
+  if (&p == this) [[unlikely]]
+    return *this += p.native();
+  // Handle p += *i where i is in [p.begin(),p.end()), for the same reason.
+  if (_M_type() == _Type::_Multi && p._M_type() != _Type::_Multi)
+    {
+      const auto first = _M_cmpts.begin(), last = first + _M_cmpts.size();
+      if (!std::less<>()(&p, first) && std::less<>()(&p, last)) [[unlikely]]
+	return *this += p.native();
     }
 
 #if _GLIBCXX_FILESYSTEM_IS_WINDOWS
@@ -1934,7 +2014,7 @@ path::_M_split_cmpts()
 
 path::string_type
 path::_S_convert_loc(const char* __first, const char* __last,
-		     const std::locale& __loc)
+		     [[maybe_unused]] const std::locale& __loc)
 {
 #if _GLIBCXX_USE_WCHAR_T
   auto& __cvt = std::use_facet<codecvt<wchar_t, char, mbstate_t>>(__loc);

@@ -1,4 +1,5 @@
 //  { dg-do run }
+//  { dg-skip-if "requires hosted libstdc++ for cstdlib abort" { ! hostedlib } }
 
 // Check that we correctly operate when the coroutine object is templated.
 
@@ -127,6 +128,6 @@ int main ()
       PRINTF ("main: y is wrong : %d, should be 42\n", y);
       abort ();
     }
-  puts ("main: done");
+  PRINT ("main: done");
   return 0;
 }

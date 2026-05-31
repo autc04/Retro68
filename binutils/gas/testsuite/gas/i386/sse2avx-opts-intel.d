@@ -1,4 +1,4 @@
-#as: -msse2avx
+#as: -msse2avx -march=+mpx
 #objdump: -drwMintel,suffix
 #name: encoding option with -msse2avx (Intel mode)
 #source: opts.s

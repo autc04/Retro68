@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -30,13 +30,13 @@
 with Atree;          use Atree;
 with Debug;          use Debug;
 with Errout;         use Errout;
+with Generate_Minimal_Reproducer;
 with Gnatvsn;        use Gnatvsn;
 with Lib;            use Lib;
 with Namet;          use Namet;
 with Opt;            use Opt;
 with Osint;          use Osint;
 with Output;         use Output;
-with Sinfo;          use Sinfo;
 with Sinfo.Nodes;    use Sinfo.Nodes;
 with Sinput;         use Sinput;
 with Sprint;         use Sprint;
@@ -145,7 +145,7 @@ package body Comperr is
 
       if Serious_Errors_Detected /= 0 and then not Debug_Flag_K then
          Errout.Finalize (Last_Call => True);
-         Errout.Output_Messages;
+         Errout.Output_Messages (E_Errors);
 
          Set_Standard_Error;
          Write_Str ("compilation abandoned due to previous error");
@@ -177,10 +177,8 @@ package body Comperr is
 
          --  Output target name, deleting junk final reverse slash
 
-         if Target_Name.all (Target_Name.all'Last) = '\'
-           or else Target_Name.all (Target_Name.all'Last) = '/'
-         then
-            Write_Str (Target_Name.all (1 .. Target_Name.all'Last - 1));
+         if Target_Name (Target_Name'Last) in '/' | '\' then
+            Write_Str (Target_Name (1 .. Target_Name'Last - 1));
          else
             Write_Str (Target_Name.all);
          end if;
@@ -265,7 +263,7 @@ package body Comperr is
             Src : Source_Buffer_Ptr;
 
          begin
-            Namet.Unlock;
+            Namet.Unlock_If_Locked;
             Name_Buffer (1 .. 12) := "gnat_bug.box";
             Name_Len := 12;
             Read_Source_File (Name_Enter, 0, Hi, Src, FD);
@@ -308,16 +306,16 @@ package body Comperr is
 
                   Write_Str
                     ("| Please submit a bug report by email " &
-                     "to report@adacore.com.");
+                     "to support@adacore.com.");
                   End_Line;
 
                   Write_Str
-                    ("| GAP members can alternatively use GNAT Tracker:");
+                    ("| GAP members can alternatively use GNATtracker:");
                   End_Line;
 
                   Write_Str
-                    ("| https://www.adacore.com/login?mode=gap " &
-                     "section 'Create New Ticket'.");
+                    ("| https://support.adacore.com/csm " &
+                     "by using the button 'Create A New Case'.");
                   End_Line;
 
                   Write_Str
@@ -327,17 +325,17 @@ package body Comperr is
 
                else
                   Write_Str
-                    ("| Please submit a bug report using GNAT Tracker:");
+                    ("| Please submit a bug report using GNATtracker at");
                   End_Line;
 
                   Write_Str
-                    ("| https://www.adacore.com/login " &
-                     "section 'Create New Ticket'.");
+                    ("| https://support.adacore.com/csm " &
+                     "by using the button 'Create New Case'.");
                   End_Line;
 
                   Write_Str
                     ("| Or submit a bug report by email " &
-                     "to report@adacore.com");
+                     "to support@adacore.com");
                   End_Line;
 
                   Write_Str
@@ -403,6 +401,15 @@ package body Comperr is
          exception
             when others =>
                Write_Str ("list may be incomplete");
+         end;
+
+         begin
+            if Debug_Flag_Underscore_M then
+               Generate_Minimal_Reproducer;
+            end if;
+         exception
+            when others =>
+               Write_Str ("failed to generate reproducer");
          end;
 
          Write_Eol;
@@ -541,5 +548,4 @@ package body Comperr is
 
       Write_Char (After);
    end Repeat_Char;
-
 end Comperr;

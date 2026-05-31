@@ -1,4 +1,7 @@
 	.text
+.ifdef __ia16__
+	.code16
+.endif
 common:
 	clgi
 	invlpga

@@ -1,0 +1,255 @@
+# Test for archive handling.
+# Copyright (C) 2025-2026 Free Software Foundation, Inc.
+#
+# This file is part of the GNU Binutils.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING3. If not,
+# see <http://www.gnu.org/licenses/>.
+#
+
+remote_file host delete \
+    "tmpdir/ab.a" "tmpdir/cd.a" "tmpdir/abt.a" "tmpdir/cdt.a" \
+    "tmpdir/abn.a" "tmpdir/abnt.a" "tmpdir/abc.a" "tmpdir/abct.a" \
+    "tmpdir/abcn.a" "tmpdir/abcnt.a"
+
+run_ld_link_tests {
+    {"First regular archive create"     ""   "" "" {a.s b.s x.s} {} "ab.a"   }
+    {"Second regular archive create"    ""   "" "" {c.s d.s y.s} {} "cd.a"   }
+    {"First thin archive create"        "T"  "" "" {a.s b.s x.s} {} "abt.a"  }
+    {"Second thin archive create"       "T"  "" "" {c.s d.s y.s} {} "cdt.a"  }
+    {"Regular archive w/o index create" "S"  "" "" {a.s b.s x.s} {} "abn.a"  }
+    {"Thin archive w/o index create"    "ST" "" "" {a.s b.s x.s} {} "abnt.a" }
+    {"Other regular archive create"           ""   "" "" {abc.s} {} "abc.a"  }
+    {"Other thin archive create"              "T"  "" "" {abc.s} {} "abct.a" }
+    {"Other regular archive w/o index create" "S"  "" "" {abc.s} {} "abcn.a" }
+    {"Other thin archive w/o index create"    "ST" "" "" {abc.s} {} "abcnt.a"}
+}
+
+set old_ldflags $LDFLAGS
+
+# Prevent our otherwise unused data symbols from being GC'd on XCOFF targets.
+if { [is_xcoff_format] } {
+    append LDFLAGS " -unix"
+}
+
+# With Alpha/VMS NM doesn't handle executables and for MS-DOS there's no way
+# to keep symbols, so filter out any NM tests.
+proc ld_archive_filter_tests { arg } {
+    if { ![istarget "*-*-msdos"] && ![istarget "alpha*-*-*vms*"] } {
+	return $arg
+    } else {
+	set tests {}
+	foreach test $arg {
+	    if { [lindex $test 0] != "nm" } {
+		lappend tests $test
+	    }
+	}
+	return $tests
+    }
+}
+
+# Single archive tests.
+run_ld_link_tests [list \
+    [list "Regular archive link" \
+	"-e ff" "tmpdir/ab.a --verbose --print-map" \
+	"" {abc.s} \
+	[ld_archive_filter_tests {{ld abc.vd} \
+				  {nm "" abc.nd} \
+				  {nm "" nx.nd}}] \
+	"abc" \
+    ] \
+]
+setup_xfail "binutils/33484" "alpha*-*-linux*ecoff*" "alpha*-*-osf*"
+setup_xfail "binutils/33485" "cris-*-*aout*" "i\[3-7\]86-*-bsd*" \
+    "i\[3-7\]86-*-msdos*" "ns32k-*-*" "pdp11-*-*"
+setup_xfail "binutils/33600" "alpha*-*-*vms*"
+if { [is_xcoff_format] } {
+    setup_xfail "binutils/33600" "*-*-*"
+}
+run_ld_link_tests [list \
+    [list "Thin archive link" \
+	"-e ff" "tmpdir/abt.a --verbose --print-map" \
+	"" {abc.s} \
+	[ld_archive_filter_tests {{ld abtc.vd} \
+				  {nm "" abc.nd} \
+				  {nm "" nx.nd}}] \
+	"abtc" \
+    ] \
+]
+
+# Single whole archive tests.
+run_ld_link_tests [list \
+    [list "Regular whole archive link" \
+	"-e ff" "--whole-archive tmpdir/ab.a --verbose --print-map" \
+	"" {abc.s} \
+	[ld_archive_filter_tests {{ld abwc.vd} \
+				  {nm "" abc.nd} \
+				  {nm "" x.nd}}] \
+	"abwc" \
+    ] \
+]
+setup_xfail "binutils/33484" "alpha*-*-linux*ecoff*" "alpha*-*-osf*"
+setup_xfail "binutils/33600" "alpha*-*-*vms*"
+if { [is_xcoff_format] } {
+    setup_xfail "binutils/33600" "*-*-*"
+}
+run_ld_link_tests [list \
+    [list "Thin whole archive link" \
+	"-e ff" "--whole-archive tmpdir/abt.a --verbose --print-map" \
+	"" {abc.s} \
+	[ld_archive_filter_tests {{ld abwtc.vd} \
+				  {nm "" abc.nd} \
+				  {nm "" x.nd}}] \
+	"abwtc" \
+    ] \
+]
+
+# Group archive tests.
+run_ld_link_tests [list \
+    [list "Regular non-group archive link reject" \
+	"-e ff tmpdir/ab.a" "tmpdir/abc.a" \
+	"" {} \
+	{{ld abcn.ed}} \
+	"abcn" \
+    ] \
+    [list "Thin non-group archive link reject" \
+	"-e ff tmpdir/abt.a" "tmpdir/abct.a" \
+	"" {} \
+	{{ld abcn.ed}} \
+	"abtctn" \
+    ] \
+    [list "Regular group archive link accept" \
+	"-e ff -\\( tmpdir/ab.a" "tmpdir/abc.a -\\) --verbose --print-map" \
+	"" {} \
+	[ld_archive_filter_tests {{ld abcg.vd} \
+				  {nm "" abc.nd} \
+				  {nm "" nx.nd}}] \
+	"abcg" \
+    ] \
+]
+setup_xfail "binutils/33484" "alpha*-*-linux*ecoff*" "alpha*-*-osf*"
+setup_xfail "binutils/33485" "cris-*-*aout*" "i\[3-7\]86-*-bsd*" \
+    "i\[3-7\]86-*-msdos*" "ns32k-*-*" "pdp11-*-*"
+setup_xfail "binutils/33600" "alpha*-*-*vms*"
+if { [is_xcoff_format] } {
+    setup_xfail "binutils/33600" "*-*-*"
+}
+run_ld_link_tests [list \
+    [list "Thin group archive link accept" \
+	"-e ff -\\( tmpdir/abt.a" "tmpdir/abct.a -\\) --verbose --print-map" \
+	"" {} \
+	[ld_archive_filter_tests {{ld abtctg.vd} \
+				  {nm "" abc.nd} \
+				  {nm "" nx.nd}}] \
+	"abtctg" \
+    ] \
+]
+
+# Dual archive tests.
+run_ld_link_tests [list \
+    [list "Regular archive plus regular link" \
+	"-e ff" "tmpdir/ab.a tmpdir/cd.a" \
+	"" {abcde.s} \
+	[ld_archive_filter_tests {{nm "" abcde.nd} \
+				  {nm "" nx.nd} \
+				  {nm "" ny.nd}}] \
+	"abcde" \
+    ] \
+]
+setup_xfail "binutils/33484" "alpha*-*-linux*ecoff*" "alpha*-*-osf*"
+setup_xfail "binutils/33485" "cris-*-*aout*" "i\[3-7\]86-*-bsd*" \
+    "i\[3-7\]86-*-msdos*" "ns32k-*-*" "pdp11-*-*"
+run_ld_link_tests [list \
+    [list "Regular archive plus thin link" \
+	"-e ff" "tmpdir/ab.a tmpdir/cdt.a" \
+	"" {abcde.s} \
+	[ld_archive_filter_tests {{nm "" abcde.nd} \
+				  {nm "" nx.nd} \
+				  {nm "" ny.nd}}] \
+	"abcdte" \
+    ] \
+]
+setup_xfail "binutils/33484" "alpha*-*-linux*ecoff*" "alpha*-*-osf*"
+setup_xfail "binutils/33485" "cris-*-*aout*" "i\[3-7\]86-*-bsd*" \
+    "i\[3-7\]86-*-msdos*" "ns32k-*-*" "pdp11-*-*"
+run_ld_link_tests [list \
+    [list "Thin archive plus regular link" \
+	"-e ff" "tmpdir/abt.a tmpdir/cd.a" \
+	"" {abcde.s} \
+	[ld_archive_filter_tests {{nm "" abcde.nd} \
+				  {nm "" nx.nd} \
+				  {nm "" ny.nd}}] \
+	"abtcde" \
+    ] \
+]
+setup_xfail "binutils/33484" "alpha*-*-linux*ecoff*" "alpha*-*-osf*"
+setup_xfail "binutils/33485" "cris-*-*aout*" "i\[3-7\]86-*-bsd*" \
+    "i\[3-7\]86-*-msdos*" "ns32k-*-*" "pdp11-*-*"
+run_ld_link_tests [list \
+    [list "Thin archive plus thin link" \
+	"-e ff" "tmpdir/abt.a tmpdir/cdt.a" \
+	"" {abcde.s} \
+	[ld_archive_filter_tests {{nm "" abcde.nd} \
+				  {nm "" nx.nd} \
+				  {nm "" ny.nd}}] \
+	"abtcdte" \
+    ] \
+]
+
+# Dual whole archive tests.
+run_ld_link_tests [list \
+    [list "Regular archive plus whole regular link" \
+	"-e ff" "tmpdir/ab.a --whole-archive tmpdir/cd.a" \
+	"" {abcde.s} \
+	[ld_archive_filter_tests {{nm "" abcde.nd} \
+				  {nm "" nx.nd} \
+				  {nm "" y.nd}}] \
+	"abcdwe" \
+    ] \
+]
+setup_xfail "binutils/33484" "alpha*-*-linux*ecoff*" "alpha*-*-osf*"
+run_ld_link_tests [list \
+    [list "Regular archive plus whole thin link" \
+	"-e ff" "tmpdir/ab.a --whole-archive tmpdir/cdt.a" \
+	"" {abcde.s} \
+	[ld_archive_filter_tests {{nm "" abcde.nd} \
+				  {nm "" nx.nd} \
+				  {nm "" y.nd}}] \
+	"abcdwte" \
+    ] \
+]
+
+set LDFLAGS $old_ldflags
+
+# Alpha/VMS archives always have an index and XCOFF targets currently
+# accept archives without one.
+if { [istarget "alpha*-*-*vms*"] || [is_xcoff_format] } {
+    return
+}
+
+# Single non-index archive tests.
+run_ld_link_tests [list \
+    [list "Regular archive w/o index link" \
+	"-e ff" "tmpdir/abn.a" \
+	"" {abc.s} \
+	{{ld abc.ed}} \
+	"abnc" \
+    ] \
+    [list "Thin archive w/o index link" \
+	"-e ff" "tmpdir/abnt.a" \
+	"" {abc.s} \
+	{{ld abct.ed}} \
+	"abnct" \
+    ] \
+]

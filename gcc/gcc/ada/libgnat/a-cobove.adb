@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2004-2022, Free Software Foundation, Inc.         --
+--          Copyright (C) 2004-2026, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -363,7 +363,15 @@ package body Ada.Containers.Bounded_Vectors is
                      New_Item  :        Element_Type)
    is
    begin
-      Insert (Container, Last_Index (Container) + 1, New_Item, 1);
+      if T_Check then
+         --  handle the general case
+         Insert (Container, Last_Index (Container) + 1, New_Item, 1);
+      else
+         --  The fast path.
+         --  The first (but not the second) statement may fail a check.
+         Container.Elements (To_Array_Index (Container.Last) + 1) := New_Item;
+         Container.Last := Container.Last + 1;
+      end if;
    end Append;
 
    --------------
