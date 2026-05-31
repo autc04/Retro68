@@ -337,6 +337,22 @@ archive_iterator_next (struct archive_iterator *iterator)
 /* We use our own tdata type.  Its first field is the COFF tdata type,
    so the COFF routines are compatible.  */
 
+/* Override the generic free_cached_info to keep xcoff_obj_data accessible
+   after the cache is freed.  xcoff_write_armap_big calls archive_iterator_begin
+   after _bfd_compute_and_write_armap has freed cached info on each member;
+   archive_iterator_begin needs xcoff_obj_data->text_align_power to compute
+   leading_padding.  The xcoff_tdata memory lives in the BFD's objalloc and
+   is released when the BFD is closed, so restoring the pointer is safe.  */
+static bool
+xcoff_bfd_free_cached_info (bfd *abfd)
+{
+  struct xcoff_tdata *xcoff = xcoff_data (abfd);
+  bool result = _bfd_coff_free_cached_info (abfd);
+  if (xcoff != NULL)
+    abfd->tdata.xcoff_obj_data = xcoff;
+  return result;
+}
+
 bool
 _bfd_xcoff_mkobject (bfd *abfd)
 {
@@ -4468,7 +4484,7 @@ const struct xcoff_dwsect_name xcoff_dwsect_names[] = {
 
 /* For generic entry points.  */
 #define _bfd_xcoff_close_and_cleanup coff_close_and_cleanup
-#define _bfd_xcoff_bfd_free_cached_info coff_bfd_free_cached_info
+#define _bfd_xcoff_bfd_free_cached_info xcoff_bfd_free_cached_info
 #define _bfd_xcoff_new_section_hook coff_new_section_hook
 #define _bfd_xcoff_get_section_contents _bfd_generic_get_section_contents
 

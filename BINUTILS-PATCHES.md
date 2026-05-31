@@ -1,8 +1,8 @@
 # Binutils Patches for Retro68
 
-This document describes the changes applied to binutils 2.39 (tracked via
-`binutils-2.39-diff.patch`) to support the Retro68 toolchain targeting
-classic Mac OS (m68k and PowerPC/XCOFF).
+This document describes the changes applied to binutils (currently 2.46, tracked
+via `binutils-2.39-diff.patch` for the older 2.39 reference diff) to support the
+Retro68 toolchain targeting classic Mac OS (m68k and PowerPC/XCOFF).
 
 ---
 
@@ -265,6 +265,42 @@ Locate the `#if defined(MACOS) || defined(TARGET_OS_MAC)` block in
 
 ---
 
+## 11. BFD/XCOFF: restore `xcoff_obj_data` after `bfd_free_cached_info`
+
+### What it does
+In binutils 2.46, `xcoff_write_armap_big` calls `archive_iterator_begin` which
+calls `member_layout_init`.  `member_layout_init` reads
+`xcoff_data(member)->text_align_power` for dynamic XCOFF members to compute
+page-alignment padding.
+
+However, by the time `xcoff_write_armap_big` is called, `_bfd_compute_and_write_armap`
+has already called `bfd_free_cached_info` on every archive member to free symbol
+tables.  `_bfd_free_cached_info` sets `abfd->tdata.any = NULL` (via
+`_bfd_generic_bfd_free_cached_info`), which zeroes `xcoff_obj_data` because
+`tdata` is a union.  This causes a NULL-pointer dereference in
+`member_layout_init` → segfault.
+
+The fix adds `xcoff_bfd_free_cached_info` in `bfd/coff-rs6000.c` that saves
+`xcoff_data(abfd)` before calling `_bfd_coff_free_cached_info` and restores
+the pointer afterwards.  The underlying `xcoff_tdata` memory lives in the
+BFD's `objalloc` and is only released when the BFD is closed, so restoring
+the pointer is safe.
+
+This bug did not exist in binutils 2.39 because `xcoff_write_armap_big`
+did not call `archive_iterator_begin` in that version.
+
+### Files changed
+| File | Change |
+|------|--------|
+| `binutils/bfd/coff-rs6000.c` | Adds `xcoff_bfd_free_cached_info`; changes `#define _bfd_xcoff_bfd_free_cached_info` to use it instead of `coff_bfd_free_cached_info`. |
+
+### Re-applying to a newer binutils
+In `bfd/coff-rs6000.c`, find the `#define _bfd_xcoff_bfd_free_cached_info`
+line and the `_bfd_xcoff_mkobject` function.  Insert `xcoff_bfd_free_cached_info`
+immediately before `_bfd_xcoff_mkobject` and update the `#define` to reference it.
+
+---
+
 ## Summary of patches to re-apply when upgrading binutils
 
 | Priority | Area | Files | Complexity |
@@ -274,6 +310,7 @@ Locate the `#if defined(MACOS) || defined(TARGET_OS_MAC)` block in
 | Essential | Custom `ppcmacos` linker script | `ld/emulparams/ppcmacos.sh`, `ld/scripttempl/ppcmacos.sc` | Low (new file) |
 | Essential | XCOFF weak symbol fixes | `bfd/coff-rs6000.c`, `bfd/xcofflink.c` | Medium |
 | Essential | Keep constructor/EH sections | `bfd/xcofflink.c` | Low |
+| Essential | Restore xcoff_obj_data after free_cached_info | `bfd/coff-rs6000.c` | Low |
 | Important | ELF GC: keep `.macsbug` sections | `bfd/elflink.c` | Low |
 | Important | AIX_WEAK_SUPPORT for objdump | `binutils/configure.ac` | Trivial |
 | Quality | Long filename in XCOFF aux records | `bfd/coff-rs6000.c` | Low |

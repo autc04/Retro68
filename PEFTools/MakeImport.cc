@@ -60,6 +60,12 @@ void RunCommand(const char *command, std::vector<std::string> args)
     for(auto& s : args)
         ptrs.push_back(s.c_str());
     ptrs.push_back(NULL);
+#if 0
+    std::cerr << command;
+    for (auto& a : args)
+        std::cerr << " " << a;
+    std::cerr << std::endl;
+#endif
 
     pid_t pid = fork();
     if(pid == -1)
