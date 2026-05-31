@@ -45,6 +45,7 @@ void *_sbrk_r(struct _reent *reent, ptrdiff_t increment)
     return NewPtrClear(increment);
 }
 
+__attribute__((weak))
 void _exit(int status)
 {
     //if(status != 0)
