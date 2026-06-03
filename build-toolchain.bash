@@ -228,7 +228,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		# Build binutils for 68K
 		mkdir -p binutils-build
 		cd binutils-build
-		$SRC/binutils/configure --target=m68k-apple-macos --prefix=$PREFIX --disable-doc
+		$SRC/binutils/configure --target=m68k-apple-macos --prefix=$PREFIX --disable-doc --disable-werror
 		make -j$BUILD_JOBS
 		make install
 		cd ..
@@ -271,7 +271,7 @@ if [ $SKIP_THIRDPARTY != true ]; then
 		# Build binutils for PPC
 		mkdir -p binutils-build-ppc
 		cd binutils-build-ppc
-		$SRC/binutils/configure --disable-plugins --target=powerpc-apple-macos --prefix=$PREFIX --disable-doc
+		$SRC/binutils/configure --disable-plugins --target=powerpc-apple-macos --prefix=$PREFIX --disable-doc --disable-werror
 		make -j$BUILD_JOBS
 		make install
 		cd ..

@@ -73,7 +73,7 @@ pkgs: prevPkgs: {
           buildInputs = [ texinfo ];
 
           configureFlags =
-            [ "--target=${stdenv.targetPlatform.config}" "--disable-doc" ]
+            [ "--target=${stdenv.targetPlatform.config}" "--disable-doc" "--disable-werror" ]
             ++ stdenv.targetPlatform.retro68BinutilsConfig or [ ];
           enableParallelBuilding = true;
 
@@ -116,7 +116,7 @@ pkgs: prevPkgs: {
             mkdir -p $out/${stdenv.targetPlatform.config}/bin
             ln -s ${retro68.binutils_unwrapped}/${stdenv.targetPlatform.config}/bin/* $out/${stdenv.targetPlatform.config}/bin/
 
-            export target_configargs="--disable-nls --enable-libstdcxx-dual-abi=no --disable-libstdcxx-verbose"
+            export target_configargs="--disable-nls --disable-libstdcxx-verbose"
             $src/configure ${builtins.toString configureFlags} --prefix=$out
             make -j$NIX_BUILD_CORES
             make install
