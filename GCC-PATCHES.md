@@ -1,12 +1,11 @@
 # GCC Patches for Retro68
 
-This document describes the changes applied to GCC 12.2.0 (and tracked via
-`gcc-12.2.0-diff.patch`) to produce the Retro68 cross-compiler targeting
-classic Mac OS (m68k and PowerPC).  The patch is large, but the functional
-changes fall into a handful of clearly-scoped areas.  Build-system boilerplate
-updates (automake 1.15→1.16, autoconf copyright bumps, `aclocal.m4` churn,
-`Makefile.in` regeneration) are noted briefly but not detailed, because they
-need to be re-generated rather than re-applied by hand.
+This (AI-generated) document describes the changes applied to GCC 16.1.0
+to produce the Retro68 cross-compiler targeting classic Mac OS (m68k and PowerPC).
+The patch is large, but the functional changes fall into a handful of clearly-scoped
+areas.  Build-system boilerplate updates (automake 1.15→1.16, autoconf copyright
+bumps, `aclocal.m4` churn, `Makefile.in` regeneration) are noted briefly but not
+detailed, because they need to be re-generated rather than re-applied by hand.
 
 ---
 

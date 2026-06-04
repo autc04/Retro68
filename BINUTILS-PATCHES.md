@@ -1,7 +1,6 @@
 # Binutils Patches for Retro68
 
-This document describes the changes applied to binutils (currently 2.46, tracked
-via `binutils-2.39-diff.patch` for the older 2.39 reference diff) to support the
+This (AI-generated) document describes the changes applied to binutils (currently 2.46) to support the
 Retro68 toolchain targeting classic Mac OS (m68k and PowerPC/XCOFF).
 
 ---
