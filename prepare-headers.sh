@@ -77,7 +77,7 @@ cat > "$OUT/ConditionalMacros.h" <<END_MARKER
 #define PRAGMA_STRUCT_PACKPUSH 1
 #define FUNCTION_PASCAL 1
 #define TYPE_LONGLONG 1
-#ifdef __cplusplus
+#if defined(__cplusplus) || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L)
 #define TYPE_BOOL 1
 #endif
 
