@@ -4,7 +4,7 @@ let
   elaborate = systemDict:
     systemDict // lib.mapAttrs (n: v: v systemDict) inspect.predicates
     // { 
-      uname = { system = "MacOS"; processor = systemDict.parsed.cpu.name; release = null; }; 
+      uname = { system = systemDict.cmakeSystemName or "MacOS"; processor = systemDict.parsed.cpu.name; release = null; }; 
       rust = {rustcTarget = systemDict.config; rustcTargetSpec = systemDict.config; };
       go = {};
       node = {};
