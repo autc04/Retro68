@@ -122,7 +122,7 @@ jobs:
           nix build .#samples-${{ matrix.target }} --out-link CompiledSamples
 
       - name: Upload samples
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: samples-${{ matrix.target }}-${{ matrix.os }}
           path: CompiledSamples/
