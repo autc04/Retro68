@@ -93,6 +93,8 @@ jobs:
   nix:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    env:
+      HAS_CACHIX_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN != '' }}
     strategy:
       matrix:
         os:
@@ -112,7 +114,7 @@ jobs:
           extra-conf: trusted-users = root runner
 
       - name: Setup Cachix
-        if: secrets.CACHIX_AUTH_TOKEN != ''
+        if: env.HAS_CACHIX_TOKEN == 'true'
         uses: cachix/cachix-action@v17
         with:
           name: autc04
