@@ -15,7 +15,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with Retro68.  If not, see <http://www.gnu.org/licenses/>.
 
-find_package(Boost CONFIG COMPONENTS filesystem system REQUIRED)
+find_package(Boost CONFIG COMPONENTS filesystem REQUIRED)
 
 add_library(ResourceFiles
     ResourceFork.h ResourceFork.cc
