@@ -1,0 +1,158 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Build Docker images
+        run: |
+          docker build --target build -t ghcr.io/autc04/retro68-build:latest .
+          docker build --target release -t ghcr.io/autc04/retro68:latest .
+
+      - name: Run tests with Executor 2000
+        run: |
+          docker run --name retro68-build --rm -i -d ghcr.io/autc04/retro68-build:latest
+          docker exec -i retro68-build /bin/bash <<"EOF"
+            cd /Retro68-build
+            curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Linux.tar.bz2
+            tar xfvj Executor2000-0.1.0-Linux.tar.bz2 Executor2000-0.1.0-Linux/bin/executor-headless
+            echo "executor-path=`pwd`/Executor2000-0.1.0-Linux/bin/executor-headless" > ~/.LaunchAPPL.cfg
+            echo "emulator=executor" >> ~/.LaunchAPPL.cfg
+            ctest --no-compress-output -T test -E Carbon || true
+          EOF
+          mkdir -p build && docker cp retro68-build:/Retro68-build/Testing build
+          docker stop retro68-build
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-linux
+          path: build/Testing/
+
+      - name: Login to GHCR
+        if: github.ref == 'refs/heads/master'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push release image
+        if: github.ref == 'refs/heads/master'
+        run: docker push ghcr.io/autc04/retro68:latest
+
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Install prerequisites
+        run: brew install boost cmake gmp mpfr libmpc bison texinfo
+
+      - name: Build toolchain
+        run: |
+          mkdir -p build
+          cd build
+          ../build-toolchain.bash
+
+      - name: Run tests with Executor 2000
+        run: |
+          cd build
+          curl -L -O https://github.com/autc04/executor/releases/download/v0.1.0/Executor2000-0.1.0-Darwin.tar.bz2
+          tar xfvj Executor2000-0.1.0-Darwin.tar.bz2 Executor2000-0.1.0-Darwin/bin/executor-headless
+          echo "executor-path=`pwd`/Executor2000-0.1.0-Darwin/bin/executor-headless" > ~/.LaunchAPPL.cfg
+          echo "emulator=executor" >> ~/.LaunchAPPL.cfg
+          ctest --no-compress-output -T test -E Carbon || true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-macos
+          path: build/Testing/
+
+  nix-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - m68k
+          - powerpc
+          - carbon
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: false
+
+      - uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: trusted-users = root runner
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: autc04
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build
+        run: |
+          nix develop .#${{ matrix.target }} --profile dev-profile -c true
+          nix build .#samples-${{ matrix.target }} --out-link CompiledSamples
+
+      - name: Upload samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: samples-${{ matrix.target }}-linux
+          path: CompiledSamples/
+
+  nix-macos:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    strategy:
+      matrix:
+        target:
+          - m68k
+          - powerpc
+          - carbon
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: false
+
+      - uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: trusted-users = root runner
+
+      - uses: cachix/cachix-action@v17
+        with:
+          name: autc04
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build
+        run: |
+          nix develop .#${{ matrix.target }} --profile dev-profile -c true
+          nix build .#samples-${{ matrix.target }} --out-link CompiledSamples
+
+      - name: Upload samples
+        uses: actions/upload-artifact@v7
+        with:
+          name: samples-${{ matrix.target }}-macos
+          path: CompiledSamples/
