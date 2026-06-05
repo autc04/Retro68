@@ -90,10 +90,14 @@ jobs:
           name: test-results-macos
           path: build/Testing/
 
-  nix-linux:
-    runs-on: ubuntu-latest
+  nix:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
         target:
           - m68k
           - powerpc
@@ -107,52 +111,20 @@ jobs:
         with:
           extra-conf: trusted-users = root runner
 
-      - uses: cachix/cachix-action@v15
+      - name: Setup Cachix
+        if: secrets.CACHIX_AUTH_TOKEN != ''
+        uses: cachix/cachix-action@v17
         with:
           name: autc04
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Build
         run: |
-          nix develop .#${{ matrix.target }} --profile dev-profile -c true
+          nix develop .#${{ matrix.target }} -c true
           nix build .#samples-${{ matrix.target }} --out-link CompiledSamples
 
       - name: Upload samples
         uses: actions/upload-artifact@v4
         with:
-          name: samples-${{ matrix.target }}-linux
-          path: CompiledSamples/
-
-  nix-macos:
-    runs-on: macos-latest
-    timeout-minutes: 90
-    strategy:
-      matrix:
-        target:
-          - m68k
-          - powerpc
-          - carbon
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: false
-
-      - uses: DeterminateSystems/nix-installer-action@main
-        with:
-          extra-conf: trusted-users = root runner
-
-      - uses: cachix/cachix-action@v17
-        with:
-          name: autc04
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-
-      - name: Build
-        run: |
-          nix develop .#${{ matrix.target }} --profile dev-profile -c true
-          nix build .#samples-${{ matrix.target }} --out-link CompiledSamples
-
-      - name: Upload samples
-        uses: actions/upload-artifact@v7
-        with:
-          name: samples-${{ matrix.target }}-macos
+          name: samples-${{ matrix.target }}-${{ matrix.os }}
           path: CompiledSamples/
