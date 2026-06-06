@@ -219,6 +219,21 @@ if [ $SKIP_THIRDPARTY != true ]; then
 			export LDFLAGS="$LDFLAGS -L/opt/local/lib"
 		fi
 	fi
+
+	# Workaround a specific problem with the nix development shell on macOS.
+    # On macOS, nix's bison has a hardcoded path to nix's GNU m4 (which
+	# supports --gnu). However, binutils' configure finds /usr/bin/gm4
+	# (Apple's, slightly older version,which lacks --gnu) and records M4=gm4 in its Makefiles.
+	# At runtime, M4=gm4 overrides bison's hardcoded path, so bison calls
+	# Apple's gm4 with --gnu → failure. Work around by pointing M4 to the
+	# GNU m4 that nix provides in PATH as "m4" (no "g" prefix).
+	if [ `uname` = Darwin ] && [ -z "$M4" ]; then
+		if command -v gm4 >/dev/null 2>&1 && gm4 --help 2>&1 | grep -q -- '--gnu'; then
+			: # gm4 already supports --gnu
+		elif command -v m4 >/dev/null 2>&1; then
+			export M4="$(command -v m4)"
+		fi
+	fi
 		
 	# Components needed for targeting 68K: binutils, gcc
 	if [ $BUILD_68K != false ]; then

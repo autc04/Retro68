@@ -8,7 +8,7 @@ pkgs: prevPkgs: {
         stdenv.mkDerivation {
           name = "retro68.monolithic";
           src = ../.;
-          nativeBuildInputs = [ cmake bison flex ruby ninja bash ];
+          nativeBuildInputs = [ cmake bison flex ruby ninja bash perl texinfo ];
           buildInputs = [ boost gmp mpfr libmpc zlib ]
           ++ lib.optional hostPlatform.isDarwin
             darwin.apple_sdk.frameworks.ApplicationServices;
