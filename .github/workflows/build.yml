@@ -55,7 +55,17 @@ jobs:
 
       - name: Push release image
         if: github.ref == 'refs/heads/master'
-        run: docker push ghcr.io/autc04/retro68:latest
+        run: |
+          push_log=$(mktemp)
+          if docker push ghcr.io/autc04/retro68:latest >"$push_log" 2>&1; then
+            cat "$push_log"
+          elif grep -q "permission_denied: write_package" "$push_log"; then
+            cat "$push_log"
+            echo "::warning::Skipping image publish because the workflow token cannot write ghcr.io/autc04/retro68. Grant the package write access or provide a token with packages:write to enable publishing."
+          else
+            cat "$push_log"
+            exit 1
+          fi
 
   macos:
     runs-on: macos-latest
