@@ -300,3 +300,26 @@ extern int _getentropy_r (struct _reent *, void *, size_t)
     errno = ENOSYS;
     return -1;
 }
+
+int creat(const char *name, mode_t mode)
+{
+    // TODO: handle the mode argument
+    Str255 pname;
+#if TARGET_API_MAC_CARBON
+    // Carbon has the new, sane version.
+    c2pstrcpy(pname,name);
+#else
+    // It is also available in various glue code libraries and
+    // in some versions of InterfaceLib, but it's confusing.
+    // Using the inplace variant, c2pstr, isn't much better than
+    // doing things by hand:
+    strncpy(&pname[1],name,255);
+    pname[0] = strlen(name);
+#endif
+
+    short err = HCreate(0,0,pname,'????','TEXT');
+    if (err < 0)
+        return -1;
+    else
+        return 0;
+}
