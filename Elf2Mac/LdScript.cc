@@ -59,7 +59,6 @@ const char * textSection = R"ld(/* ld script for Elf2Mac */
         */libretrocrt.a:*(.text*)
         */libInterface.a:*(.text*)
         *(.text*)
-
         *(.stub)
         *(.gnu.linkonce.t*)
         *(.glue_7t)
@@ -88,6 +87,15 @@ const char * textSection = R"ld(/* ld script for Elf2Mac */
     }
 )ld";
 
+const char * rodataSection = R"ld(/* ld script for Elf2Mac */
+    .rodata : {
+        *(.rodata)
+        *(.rodata1)
+        *(.rodata.*)
+        *(.gnu.linkonce.r*)
+    }
+)ld";
+
 const char * scriptEnd = R"ld(
     .data : {
         _sdata = . ;
@@ -97,10 +105,6 @@ const char * scriptEnd = R"ld(
         . = ALIGN(0x20) ;
         LONG(-1)
         . = ALIGN(0x20) ;
-        *(.rodata)
-        *(.rodata1)
-        *(.rodata.*)
-        *(.gnu.linkonce.r*)
         *(.data)
         *(.data1)
         *(.data.*)
@@ -193,7 +197,9 @@ void CreateFlatLdScript(std::ostream& out, string entryPoint, bool stripMacsbug)
         out << "\t.strippedmacsbugnames 0 (NOLOAD) : { *(.text.*.macsbug) }\n";
         out << "\t. = 0;\n";
     }
-    out << boost::replace_all_copy<string>(textSection, "@entryPoint@", entryPoint) << scriptEnd;
+    out << boost::replace_all_copy<string>(textSection, "@entryPoint@", entryPoint)
+        << rodataSection
+        << scriptEnd;
 }
 
 
@@ -243,7 +249,7 @@ void SegmentInfo::CreateLdScript(std::ostream &out, string entryPoint)
 )ld", "@entryPoint@", entryPoint);
     }
     WriteFilters(out, ".text");
-
+    WriteFilters(out, ".rodata");
     if(id == 2)
     {
         out << "\t\t*(.gnu.linkonce.t*)\n";

@@ -132,12 +132,23 @@ Object::Object(string input)
 
 void Object::FlatCode(std::ostream& out)
 {
+    // Compute flat binary offsets for each section so FixRelocs
+    // can adjust PC-relative relocations from ELF addresses.
+    uint32_t flatOff = 0;
+    for(auto sec : codeSections)
+    {
+        sec->flatBase = flatOff - sec->shdr.sh_addr;
+        flatOff += sec->GetSize();
+    }
+    dataSection->flatBase = flatOff - dataSection->shdr.sh_addr;
+    flatOff += dataSection->GetSize();
+
     for(auto sec : codeSections)
     {
         sec->FixRelocs(true);
         out << sec->GetData();
     }
-        
+
     dataSection->FixRelocs(true);
     out << dataSection->GetData();
 

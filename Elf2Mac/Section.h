@@ -51,9 +51,9 @@ public:
     GElf_Shdr shdr;
     uint32_t outputBase;
     uint32_t exceptionInfoStart;
+    int32_t flatBase;  // flat binary offset - ELF address
 
     int codeID;
-
     std::vector<Reloc> relocs;
     std::vector<Symbol*> jtEntries;
     int firstJTEntryIndex;

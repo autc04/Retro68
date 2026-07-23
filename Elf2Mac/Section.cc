@@ -46,6 +46,7 @@ Section::Section(Object& theObject, string name, int idx, SectionKind kind, Elf_
     data = elf_getdata(elfsec, NULL);
     gelf_getshdr(elfsec, &shdr);
     outputBase = shdr.sh_addr;
+    flatBase = 0;
 }
 
 
@@ -157,9 +158,6 @@ void Section::FixRelocs(bool allowDirectCodeRefs)
 {
     for(Reloc& rela : relocs)
     {
-        if(GELF_R_TYPE(rela.r_info) != R_68K_32 && GELF_R_TYPE(rela.r_info) != R_68K_PC32)
-            continue;
-
         int symidx = GELF_R_SYM(rela.r_info);
         if(symidx == 0)
             continue;
@@ -168,7 +166,18 @@ void Section::FixRelocs(bool allowDirectCodeRefs)
         if(sym.sectionKind == SectionKind::undefined)
             continue;
 
-        if(GELF_R_TYPE(rela.r_info) == R_68K_PC32 && sym.st_shndx == idx)
+        // R_68K_PC16: adjust PC-relative displacement for flat layout
+        if(GELF_R_TYPE(rela.r_info) == R_68K_PC16 && sym.st_shndx != idx)
+        {
+            int32_t delta = sym.section->flatBase - flatBase;
+            uint8_t *relocand = ((uint8_t*) data->d_buf + rela.r_offset - shdr.sh_addr);
+            int16_t oldDisp = (relocand[0] << 8) | relocand[1];
+            int16_t newDisp = oldDisp + delta;
+            relocand[0] = newDisp >> 8;
+            relocand[1] = newDisp;
+            continue;
+        }
+        if(GELF_R_TYPE(rela.r_info) != R_68K_32 && GELF_R_TYPE(rela.r_info) != R_68K_PC32)
             continue;
 
         RelocBase relocBase;
