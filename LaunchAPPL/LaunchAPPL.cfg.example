@@ -101,6 +101,13 @@
     # Or, for System 7 or later, AutQuit7:
 # autquit7-image = ./autquit7-1.4.1.dsk
 
+    # Optionally, additional files to copy from the system disk onto the
+    # generated boot disk (which otherwise carries only the System file,
+    # the debugger and a few extensions). Repeat the option for each file;
+    # a file that is not on the system disk is skipped.
+    # For example, the AppleTalk file carries the .XPP and .DSP drivers:
+# system-extra-file = AppleTalk
+
 # ########### Executor
 
     # No ROM files needed - an opensource reimplementation of classic Mac OS.
