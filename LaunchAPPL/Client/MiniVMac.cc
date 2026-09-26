@@ -342,6 +342,16 @@ MiniVMacLauncher::MiniVMacLauncher(po::variables_map &options)
     string debuggerFileName(bootblock1.begin() + 0x2B, bootblock1.begin() + 0x2B + bootblock1[0x2A]);
     CopySystemFile(debuggerFileName, false);
 
+    // Extra files from the system disk's blessed folder, copied by name
+    // when present (--system-extra-file, repeatable). The stripped boot
+    // disk otherwise carries only the System, the debugger and the
+    // handful of files below; anything else a program needs -- the
+    // 'AppleTalk' file with the .XPP/.DSP drivers, a font, a driver --
+    // has to be named here.
+    if(options.count("system-extra-file"))
+        for(const std::string& fn : options["system-extra-file"].as<std::vector<std::string>>())
+            CopySystemFile(fn, false);
+
     if (usesAutQuit7)
     {
         string finderFileName(bootblock1.begin() + 0x1B, bootblock1.begin() + 0x1B + bootblock1[0x1A]);
@@ -580,6 +590,7 @@ void MiniVMac::GetOptions(options_description &desc)
             ("system-image", po::value<std::string>(),"path to disk image with system")
             ("autoquit-image", po::value<std::string>(),"path to autoquit disk image, available from the minivmac web site")
             ("autquit7-image", po::value<std::string>(),"path to autquit7 disk image, available from the minivmac web site")
+            ("system-extra-file", po::value<std::vector<std::string>>(),"name of an additional file to copy from the system disk onto the boot disk, if present (may be repeated)")
             ;
 }
 
