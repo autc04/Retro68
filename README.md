@@ -462,6 +462,23 @@ The binary is in Retro68-build/build-target/Samples/Dialog/.
 On the one hand, this is an example for a very basic multi window application with menus and desk accessories.
 On the other hand, it shows how to write code resources like WDEF window definition procedures.
 
+### Sample Program: NDRV
+
+A PowerPC native driver that does nothing, built with the `add_ndrv` CMake function:
+
+    add_ndrv(SampleDriver KIND GENERIC driver.c)
+
+`KIND` sets what the driver exports: `GENERIC` for a Device Manager driver
+(`DoDriverIO`), `AIM` for an ATA Manager ATA Interface Module
+(`ThePluginDispatchTable`), or `SIM` for a SCSI Manager 4.3 SCSI Interface Module
+(`LoadSIM`), each besides `TheDriverDescription`. Anything else takes an export
+list, as `EXPORTS file.exp`.
+
+The result, `SampleDriver.bin`, is a MacBinary file of type `ndrv`. Decode it into
+the Extensions folder: the Driver Loader finds the driver through the `cfrg`
+resource in its resource fork, and silently skips a copy that lost it.
+The binary is in Retro68-build/build-target-ppc/Samples/NDRV/.
+
 License
 -------
 
