@@ -34,7 +34,7 @@ include(add_application)
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} SYSLOWER)
 configure_file(cmake/${SYSLOWER}.toolchain.cmake.in cmake/${SYSLOWER}.toolchain.cmake @ONLY)
-install(DIRECTORY cmake/ DESTINATION cmake FILES_MATCHING PATTERN "*.cmake")
+install(DIRECTORY cmake/ DESTINATION cmake FILES_MATCHING PATTERN "*.cmake" PATTERN "*.lds")
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/${SYSLOWER}.toolchain.cmake DESTINATION cmake)
 
 add_subdirectory(libretro)
