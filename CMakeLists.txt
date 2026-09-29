@@ -57,6 +57,10 @@ else()
 add_subdirectory(Samples/SharedLibrary)
 endif()
 
+if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+add_subdirectory(Samples/NDRV)
+endif()
+
 if(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
 else()
 add_subdirectory(Samples/MPWTool)
