@@ -18,8 +18,9 @@
 */
 
 #include "Reloc.h"
-#include <sstream>
 #include "BinaryIO.h"
+#include <iostream>
+#include <sstream>
 
 Reloc::Reloc()
 {
@@ -56,6 +57,12 @@ std::string SerializeRelocs(std::vector<RuntimeReloc> relocs)
                 uint32_t delta = r.offset - offset;
                 offset = r.offset;
 
+                if (delta == 0)
+                {
+                    std::cerr << "Duplicate Relocation present at " << delta << std::endl;
+                    exit(1);
+                    continue;
+                }
                 uint32_t base = (uint32_t) r.base;
 
                 uint32_t encoded = (delta << 2) | base;
