@@ -1,5 +1,5 @@
 # path to RETRO68
-RETRO68=../../../Retro68-build/toolchain
+RETRO68=../../build/toolchain
 
 PREFIX=$(RETRO68)/m68k-apple-macos
 CC=$(RETRO68)/bin/m68k-apple-macos-gcc
