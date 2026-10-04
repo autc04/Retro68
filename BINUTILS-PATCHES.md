@@ -300,6 +300,51 @@ immediately before `_bfd_xcoff_mkobject` and update the `#define` to reference i
 
 ---
 
+## 12. BFD/ELF: don't corrupt relocations for `.eh_frame` inputs in custom output sections
+
+### What it does
+When `--gc-sections` is used, `bfd_elf_gc_sections` parses each input
+`.eh_frame` section with `_bfd_elf_parse_eh_frame`, which sets
+`SEC_INFO_TYPE_EH_FRAME`.  `_bfd_elf_discard_section_eh_frame` (which
+normally removes dead FDEs and initialises `sec->rawsize`) only runs for input
+sections mapped to an output section named `.eh_frame` — the Retro68 linker
+script instead places `KEEP(*(.eh_frame))` inside each `.codeNNNNN` output
+section, so the discard pass is skipped.
+
+With `sec->rawsize == 0`, `_bfd_elf_eh_frame_section_offset` took its
+`offset >= sec->rawsize` branch and returned `offset - 0 + sec->size`, i.e. it
+added the whole section size to every relocation offset.  Because each
+`.eh_frame` input was shifted by its own size, relocations from different
+inputs collided at the same output offset.  With `--emit-relocs` this produced
+duplicate `.rela.codeNNNNN` entries with conflicting addends; Retro68's
+`Elf2Mac` then produced a corrupt binary (crash at startup).
+
+The fix treats `rawsize == 0` as "this `.eh_frame` section has not been
+edited": `_bfd_elf_eh_frame_section_offset` returns the offset unchanged.
+This is correct because the section contents and entry offsets are untouched
+when the discard pass does not run.  Links where the discard pass does run
+have `rawsize != 0`, so their behaviour is unchanged.
+
+Reproducer: an Executor/gtest app linked with `-Wl,-gc-sections` produced 50
+duplicate offsets in `.rela.code00003`; with the fix it produces 0 and the app
+starts up instead of trapping at `pc 0x0`.
+
+### Files changed
+| File | Change |
+|------|--------|
+| `binutils/bfd/elf-eh-frame.c` | In `_bfd_elf_eh_frame_section_offset`, return `offset` early when `sec->rawsize == 0`. |
+
+### Re-applying to a newer binutils
+In `_bfd_elf_eh_frame_section_offset`, immediately after `sec_info = sec->sec_info;`
+and before the `if (offset >= sec->rawsize)` test, add:
+
+```c
+if (sec->rawsize == 0)
+  return offset;
+```
+
+---
+
 ## Summary of patches to re-apply when upgrading binutils
 
 | Priority | Area | Files | Complexity |
@@ -311,6 +356,7 @@ immediately before `_bfd_xcoff_mkobject` and update the `#define` to reference i
 | Essential | Keep constructor/EH sections | `bfd/xcofflink.c` | Low |
 | Essential | Restore xcoff_obj_data after free_cached_info | `bfd/coff-rs6000.c` | Low |
 | Important | ELF GC: keep `.macsbug` sections | `bfd/elflink.c` | Low |
+| Important | ELF GC: `.eh_frame` relocs in custom output sections | `bfd/elf-eh-frame.c` | Trivial |
 | Important | AIX_WEAK_SUPPORT for objdump | `binutils/configure.ac` | Trivial |
 | Quality | Long filename in XCOFF aux records | `bfd/coff-rs6000.c` | Low |
 | Quality | objdump C_FILE pretty-print | `bfd/coffcode.h` | Low |

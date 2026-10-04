@@ -1795,6 +1795,18 @@ _bfd_elf_eh_frame_section_offset (bfd *output_bfd ATTRIBUTE_UNUSED,
     return offset;
   sec_info = sec->sec_info;
 
+  if (sec->rawsize == 0)
+    /* The .eh_frame section was parsed (which happens with --gc-sections
+       in bfd_elf_gc_sections) but has not been edited by
+       _bfd_elf_discard_section_eh_frame.  That function is only called
+       for input sections mapped to an output section named .eh_frame;
+       a custom linker script may place .eh_frame input sections in some
+       other output section.  In that case the contents and the offsets
+       of the entries are unchanged, so the offset needs no adjustment.
+       Without this the branch below would add the whole section size to
+       every relocation offset, corrupting the relocation list.  */
+    return offset;
+
   if (offset >= sec->rawsize)
     return offset - sec->rawsize + sec->size;
 
