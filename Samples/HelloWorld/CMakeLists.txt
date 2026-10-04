@@ -19,3 +19,15 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
 else()
     set_target_properties(HelloWorld PROPERTIES LINK_FLAGS "-Wl,-gc-sections")
 endif()
+
+add_application(HelloWorldCpp
+    hello.cc
+    CONSOLE
+   )
+target_compile_features(HelloWorldCpp PUBLIC cxx_std_23)
+set_target_properties(HelloWorldCpp PROPERTIES COMPILE_OPTIONS -ffunction-sections)
+if(CMAKE_SYSTEM_NAME MATCHES Retro68)
+    set_target_properties(HelloWorldCpp PROPERTIES LINK_FLAGS "-Wl,-gc-sections -Wl,--mac-strip-macsbug")
+else()
+    set_target_properties(HelloWorldCpp PROPERTIES LINK_FLAGS "-Wl,-gc-sections")
+endif()
