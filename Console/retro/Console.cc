@@ -112,6 +112,7 @@ namespace
             GetPort(&port);
             saveFont = GetPortTextFont(port);
             saveSize = GetPortTextSize(port);
+            saveFace = GetPortTextFace(port);
 #else
             saveFont = qd.thePort->txFont;
             saveSize = qd.thePort->txSize;
