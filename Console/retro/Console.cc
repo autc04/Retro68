@@ -261,6 +261,7 @@ void Console::Draw(Rect r)
 
 void Console::ScrollUp(short n)
 {
+    PortSetter setport(consolePort);
     cursorY--;
     std::copy(chars.begin() + cols, chars.end(), chars.begin());
     std::fill(chars.end() - cols, chars.end(), AttributedChar(' ', currentAttr));
@@ -481,6 +482,7 @@ void Console::InvalidateCursor()
     if(cursorDrawn)
     {
         PortSetter setport(consolePort);
+        FontSetup fontSetup;
         DrawCell(cursorX, cursorY, true);
         cursorDrawn = false;
     }
@@ -502,6 +504,7 @@ void Console::Reshape(Rect newBounds)
     if(!consolePort)
         return;
 
+    PortSetter setport(consolePort);
 
     bounds = newBounds;
     InsetRect(&bounds, 2,2);
@@ -667,6 +670,8 @@ void Console::SetDisplayAttributes(std::string args)
 // Clears the window of all text
 void Console::ClearWindow()
 {
+    PortSetter setport(consolePort);
+
     // Fill the buffer with blank spaces
     std::fill(chars.begin(), chars.end(), AttributedChar(' ', currentAttr));
     std::fill(onscreen.begin(), onscreen.end(), AttributedChar(' ', currentAttr));
@@ -680,7 +685,9 @@ void Console::ClearWindow()
 // Clears the window of text from the current cursor position to the bottom of the window
 void Console::ClearFromCursorToEndOfWindow()
 {
-    int newPosition = GetCursorY() * cols + GetCursorX() - 1;
+    PortSetter setport(consolePort);
+
+    int newPosition = (GetCursorY() - 1) * cols + GetCursorX() - 1;
     
     // Fill the buffer with blank spaces
     std::fill(chars.begin() + newPosition, chars.end(), AttributedChar(' ', currentAttr));
@@ -695,7 +702,9 @@ void Console::ClearFromCursorToEndOfWindow()
 // Clears the window from the top to the current cursor position
 void Console::ClearFromTopOfWindowToCursor()
 {
-    int newPosition = GetCursorY() * cols + GetCursorX();
+    PortSetter setport(consolePort);
+
+    int newPosition = (GetCursorY() - 1) * cols + GetCursorX();
     
     // Fill the buffer with blank spaces
     std::fill(chars.begin(), chars.begin() + newPosition, AttributedChar(' ', currentAttr));
@@ -883,6 +892,8 @@ void Console::EraseInLine(std::string args)
 // Erases from the current cursor position to the end of the line
 void Console::ClearFromCursorToEndOfLine()
 {
+    PortSetter setport(consolePort);
+
     int currentPosition = (GetCursorY() - 1) * cols + GetCursorX() - 1;
     int endOfLinePosition = GetCursorY() * cols;
 
@@ -895,13 +906,15 @@ void Console::ClearFromCursorToEndOfLine()
     // Erase only on the line the cursor is on
     Rect rect;
     rect = CellRect(cursorX, cursorY);
-    rect.right = cols * cellSizeX;
+    rect.right = bounds.left + cols * cellSizeX;
     EraseRect(&rect);
 }
 
 // Erases from the beginning of the line to the cursor's position
 void Console::ClearFromBeginningOfLineToCursor()
 {
+    PortSetter setport(consolePort);
+
     int currentPosition = (GetCursorY() - 1) * cols + GetCursorX();
     int beginningOfLinePosition = (GetCursorY() - 1) * cols;
 
@@ -914,13 +927,15 @@ void Console::ClearFromBeginningOfLineToCursor()
     // Erase only on the line the cursor is on
     Rect rect;
     rect = CellRect(0, cursorY);
-    rect.right = GetCursorX() * cellSizeX;
+    rect.right = bounds.left + GetCursorX() * cellSizeX;
     EraseRect(&rect);
 }
 
 // Erases the entire line the cursor is on
 void Console::ClearEntireLine()
 {
+    PortSetter setport(consolePort);
+
     int beginningOfLinePosition = (GetCursorY() - 1) * cols;
     int endOfLinePosition = GetCursorY() * cols;
 
@@ -933,7 +948,7 @@ void Console::ClearEntireLine()
     // Erase only the line the cursor is on
     Rect rect;
     rect = CellRect(0, cursorY);
-    rect.right = cols * cellSizeX;
+    rect.right = bounds.left + cols * cellSizeX;
     EraseRect(&rect);
 }
 

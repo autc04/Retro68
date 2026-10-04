@@ -22,6 +22,7 @@
 */
 
 #include "ConsoleWindow.h"
+#include "MacUtils.h"
 #include "Events.h"
 #include <unordered_map>
 #include <cstring>
@@ -122,6 +123,11 @@ char ConsoleWindow::WaitNextChar()
                 if(realConsole)
                 {
                     Rect updateRect;
+#if TARGET_API_MAC_CARBON
+                    PortSetter setport(GetWindowPort(eventWin));
+#else
+                    PortSetter setport((GrafPtr)eventWin);
+#endif
                     BeginUpdate(eventWin);
 #if TARGET_API_MAC_CARBON
                     RgnHandle rgn = NewRgn();
