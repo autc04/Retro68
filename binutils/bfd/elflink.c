@@ -15205,6 +15205,61 @@ bfd_elf_reloc_symbol_deleted_p (bfd_vma offset, void *cookie)
   return false;
 }
 
+/* Finish the .eh_frame discard pass for the input sections mapped to
+   output section O that were not already handled by the .eh_frame case in
+   bfd_elf_discard_info, because O is not named .eh_frame (a custom linker
+   script may place .eh_frame inputs in some other output section).  Such
+   sections are still parsed by bfd_elf_gc_sections when --gc-sections is
+   used, so that FDE relocations are marked; only already-parsed inputs are
+   processed here, leaving the non-.eh_frame contents of O alone.
+
+   The caller clears the CIE merge table between calls: in layouts where
+   one output section becomes one separately loadable segment, an FDE must
+   not reference a CIE that lives in another segment.
+
+   Returns -1 on error, 0 if nothing changed, 1 if an input section's size
+   changed.  *EH_CHANGED is set if any input was edited at all.  */
+
+static int
+discard_eh_frame_inputs (struct bfd_link_info *info, asection *o,
+			 bool *eh_changed)
+{
+  struct elf_reloc_cookie cookie;
+  asection *i;
+  int changed = 0;
+
+  *eh_changed = false;
+  for (i = o->map_head.s; i != NULL; i = i->map_head.s)
+    {
+      bfd *abfd;
+      int r;
+
+      if (i->sec_info_type != SEC_INFO_TYPE_EH_FRAME)
+	continue;
+
+      abfd = i->owner;
+      if (bfd_get_flavour (abfd) != bfd_target_elf_flavour)
+	continue;
+
+      if (!init_reloc_cookie_for_section (&cookie, info, i, false))
+	return -1;
+
+      r = _bfd_elf_discard_section_eh_frame (abfd, info, i,
+					     bfd_elf_reloc_symbol_deleted_p,
+					     &cookie);
+      if (r)
+	{
+	  *eh_changed = true;
+	  if (r >= 2)
+	    changed = 1;
+	}
+
+      fini_reloc_cookie_for_section (&cookie, i);
+    }
+
+  return changed;
+}
+
 /* Discard unneeded references to discarded sections.
    Returns -1 on error, 1 if any section's size was changed, 0 if
    nothing changed.  This function assumes that the relocations are in
@@ -15215,8 +15270,10 @@ bfd_elf_discard_info (bfd *output_bfd, struct bfd_link_info *info)
 {
   struct elf_reloc_cookie cookie;
   asection *o;
+  asection *eh_frame_out;
   bfd *abfd;
   int changed = 0;
+  bool any_eh_changed = false;
 
   if (info->traditional_format
       || !is_elf_hash_table (info->hash))
@@ -15253,6 +15310,7 @@ bfd_elf_discard_info (bfd *output_bfd, struct bfd_link_info *info)
   o = NULL;
   if (info->eh_frame_hdr_type != COMPACT_EH_HDR)
     o = bfd_get_section_by_name (output_bfd, ".eh_frame");
+  eh_frame_out = o;
   if (o != NULL)
     {
       asection *i;
@@ -15318,9 +15376,64 @@ bfd_elf_discard_info (bfd *output_bfd, struct bfd_link_info *info)
 	      }
 	  }
       if (eh_changed)
-	elf_link_hash_traverse (elf_hash_table (info),
-				_bfd_elf_adjust_eh_frame_global_symbol, NULL);
+	any_eh_changed = true;
     }
+
+  /* A custom linker script may place .eh_frame input sections into an
+     output section that is not named .eh_frame, for example one output
+     section per code segment.  With --gc-sections those inputs are parsed
+     by bfd_elf_gc_sections so that FDE relocations are marked, but they do
+     not reach the discard pass above; without this they would keep FDEs
+     for discarded functions in the output.  Process them here, one output
+     section at a time.  */
+  if (info->gc_sections)
+    for (o = output_bfd->sections; o != NULL; o = o->next)
+      {
+	asection *i;
+	bool eh_changed = false;
+	bool has_eh_frame = false;
+	int r;
+
+	if (o == eh_frame_out
+	    || (o->flags & SEC_EXCLUDE) != 0
+	    || o->map_head.s == NULL)
+	  continue;
+
+	for (i = o->map_head.s; i != NULL; i = i->map_head.s)
+	  if (i->sec_info_type == SEC_INFO_TYPE_EH_FRAME)
+	    {
+	      has_eh_frame = true;
+	      break;
+	    }
+	if (!has_eh_frame)
+	  continue;
+
+	/* Only merge CIEs within this output section: where each output
+	   section becomes one separately loadable segment, an FDE must not
+	   reference a CIE in a different segment.  */
+	if (elf_hash_table (info)->eh_info.u.dwarf.cies != NULL)
+	  {
+	    htab_delete (elf_hash_table (info)->eh_info.u.dwarf.cies);
+	    elf_hash_table (info)->eh_info.u.dwarf.cies = NULL;
+	  }
+
+	r = discard_eh_frame_inputs (info, o, &eh_changed);
+	if (r < 0)
+	  return -1;
+	if (r > 0)
+	  changed = 1;
+
+	if (eh_changed)
+	  any_eh_changed = true;
+      }
+
+  /* Adjust global symbols defined in .eh_frame for the moved entries.
+     This walks the whole symbol table and uses each symbol's own section,
+     so it must run exactly once, after every .eh_frame input has been
+     discarded (running it per output section would apply the delta twice).  */
+  if (any_eh_changed)
+    elf_link_hash_traverse (elf_hash_table (info),
+			    _bfd_elf_adjust_eh_frame_global_symbol, NULL);
 
   o = bfd_get_section_by_name (output_bfd, ".sframe");
   if (o != NULL)

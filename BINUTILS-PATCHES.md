@@ -345,6 +345,49 @@ if (sec->rawsize == 0)
 
 ---
 
+## 13. BFD/ELF: garbage-collect `.eh_frame` FDEs in custom output sections
+
+### What it does
+Companion to §12.  With `--gc-sections`, FDEs for discarded functions are meant
+to be removed by `_bfd_elf_discard_section_eh_frame`, but
+`bfd_elf_discard_info` only invoked it for the inputs of an output section
+named `.eh_frame`.  Retro68 maps `KEEP(*(.eh_frame))` into each `.codeNNNNN`
+output section, so dead FDEs (and their relocations) were kept.
+
+`bfd_elf_discard_info` now also runs the discard pass, one output section at a
+time, for `.eh_frame` inputs that were already parsed by
+`bfd_elf_gc_sections` (`sec_info_type == SEC_INFO_TYPE_EH_FRAME`) but are not
+mapped to the `.eh_frame` output section.  It is gated on `--gc-sections`, so
+non-GC links are unchanged.  The CIE merge table (`eh_info.u.dwarf.cies`) is
+cleared before each output section, so CIEs are only merged within one output
+section — in Retro68 each `.codeNNNNN` is a separately loadable segment and an
+FDE must not reference a CIE in another segment.
+
+The section contents and relocations are then edited by the existing
+`_bfd_elf_write_section_eh_frame` / `_bfd_elf_eh_frame_section_offset`
+machinery, which already dispatch on the input section's `sec_info_type` and
+need no changes.
+
+Reproducer: the Executor gtest app linked with `-Wl,-gc-sections` shrinks
+`.code00003` from 0x8da54 to 0x815d8 (1480 FDEs and 128 CIEs removed), keeps
+zero duplicate relocations, and still starts up.
+
+### Files changed
+| File | Change |
+|------|--------|
+| `binutils/bfd/elflink.c` | New `discard_eh_frame_inputs`; `bfd_elf_discard_info` processes parsed `.eh_frame` inputs of non-`.eh_frame` output sections when `info->gc_sections`. |
+
+### Re-applying to a newer binutils
+In `bfd_elf_discard_info`, after the block that handles the output section named
+`.eh_frame` and before the `.sframe` block, add a loop over
+`output_bfd->sections` that, for each output section other than the `.eh_frame`
+one, runs `_bfd_elf_discard_section_eh_frame` (with a reloc cookie from
+`init_reloc_cookie_for_section`) on its `SEC_INFO_TYPE_EH_FRAME` inputs.  Clear
+`elf_hash_table (info)->eh_info.u.dwarf.cies` before each such section.  A
+reference implementation is `discard_eh_frame_inputs` in this tree.
+
+---
+
 ## Summary of patches to re-apply when upgrading binutils
 
 | Priority | Area | Files | Complexity |
@@ -357,6 +400,7 @@ if (sec->rawsize == 0)
 | Essential | Restore xcoff_obj_data after free_cached_info | `bfd/coff-rs6000.c` | Low |
 | Important | ELF GC: keep `.macsbug` sections | `bfd/elflink.c` | Low |
 | Important | ELF GC: `.eh_frame` relocs in custom output sections | `bfd/elf-eh-frame.c` | Trivial |
+| Important | ELF GC: `.eh_frame` FDEs in custom output sections | `bfd/elflink.c` | Low |
 | Important | AIX_WEAK_SUPPORT for objdump | `binutils/configure.ac` | Trivial |
 | Quality | Long filename in XCOFF aux records | `bfd/coff-rs6000.c` | Low |
 | Quality | objdump C_FILE pretty-print | `bfd/coffcode.h` | Low |
