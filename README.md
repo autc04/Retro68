@@ -180,6 +180,20 @@ Likewise, use
 
 ... to get an environment targeting PowerPC Macs.
 
+These development shells use the open-source Multiversal Interfaces by default. If you
+would rather build against Apple's Universal Interfaces, each target also has a
+`-universal` variant that is set up to use them:
+
+    nix develop github:autc04/Retro68#m68k-universal
+    nix develop github:autc04/Retro68#powerpc-universal
+    nix develop github:autc04/Retro68#carbon-universal
+
+These shells behave exactly like the ones above, except that the compiler searches Apple's
+Universal Interfaces for headers and libraries, so `cmake` and `make` will use them without
+any extra flags. The first time you enter one of these shells, Nix downloads Apple's MPW 3.5
+"Golden Master" disk image (which contains the Universal Interfaces) and converts it into
+the usual header files and libraries; the result is cached for subsequent invocations.
+
 If you have a local checkout of Retro68, you can replace `github:autc04/Retro68` by the path
 to that local checkout, e.g., run `nix develop .#m68k` from inside the Retro68 directory.
 
