@@ -59,6 +59,7 @@ add_library(retrocrt
     malloc.c
     syscalls.c
     consolehooks.c
+    atomic.c
     ${ARCH_FILES}
 )
 set_target_properties(retrocrt
