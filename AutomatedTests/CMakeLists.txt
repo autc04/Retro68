@@ -78,6 +78,15 @@ if(CMAKE_SYSTEM_NAME MATCHES Retro68)
     add_test(NAME ${TESTCASE_PREFIX}Segments COMMAND ${LAUNCH_APPL}
         ${LAUNCH_METHOD_FLAG} ${RETRO68_TEST_CONFIG} Segments.bin)
 
+    # Exceptions thrown across a segment boundary, including after the
+    # segment holding the "throw" has been unloaded.
+    add_application(MultiSegExceptions MultiSegExceptions.cc MultiSegExceptions2.cc Test.h Test.c)
+    target_compile_options(MultiSegExceptions PRIVATE -ffunction-sections -fdata-sections)
+    set_target_properties(MultiSegExceptions PROPERTIES
+        LINK_FLAGS "-Wl,-gc-sections -Wl,--mac-segments -Wl,${CMAKE_CURRENT_SOURCE_DIR}/MultiSegExceptions.segmap")
+    add_test(NAME ${TESTCASE_PREFIX}MultiSegExceptions COMMAND ${LAUNCH_APPL}
+        ${LAUNCH_METHOD_FLAG} ${RETRO68_TEST_CONFIG} MultiSegExceptions.bin)
+    set_tests_properties(${TESTCASE_PREFIX}MultiSegExceptions PROPERTIES PASS_REGULAR_EXPRESSION "OK")
 
     test(PCRel32.c PROPERTIES PASS_REGULAR_EXPRESSION "OK")
     target_compile_options(PCRel32 PRIVATE -march=68020)
