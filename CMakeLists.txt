@@ -34,7 +34,7 @@ include(add_application)
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} SYSLOWER)
 configure_file(cmake/${SYSLOWER}.toolchain.cmake.in cmake/${SYSLOWER}.toolchain.cmake @ONLY)
-install(DIRECTORY cmake/ DESTINATION cmake FILES_MATCHING PATTERN "*.cmake")
+install(DIRECTORY cmake/ DESTINATION cmake FILES_MATCHING PATTERN "*.cmake" PATTERN "*.lds")
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/${SYSLOWER}.toolchain.cmake DESTINATION cmake)
 
 add_subdirectory(libretro)
@@ -55,6 +55,10 @@ add_subdirectory(Samples/Launcher)
 add_subdirectory(Samples/SystemExtension)
 else()
 add_subdirectory(Samples/SharedLibrary)
+endif()
+
+if(CMAKE_SYSTEM_NAME MATCHES RetroPPC)
+add_subdirectory(Samples/NDRV)
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES RetroCarbon)
