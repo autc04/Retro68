@@ -26,13 +26,22 @@
     is called "retro68,sample". A real driver for a PCI card puts the name
     Open Firmware gave the card here, e.g. "pci1234,5678".
 
-    Retro68's headers do not declare the native driver interfaces yet, so
-    the declarations this driver needs are below. The layouts are from
-    Apple's "Designing PCI Cards and Drivers for Power Macintosh Computers".
+    Apple's Universal Interfaces declare the native driver interfaces.
+    The Multiversal Interfaces do not, so for those the declarations
+    this driver needs are below. The layouts are from Apple's "Designing
+    PCI Cards and Drivers for Power Macintosh Computers".
 */
 
 #include <MacTypes.h>
 #include <Devices.h>
+
+#if __has_include(<DriverServices.h>)
+
+#include <DriverServices.h>
+
+#define kDriverVersion { .majorRev = 0x01, .stage = finalStage }   /* 1.0 */
+
+#else
 
 /* ---- DriverDescription ---- */
 
@@ -112,15 +121,19 @@ enum
 
 OSErr IOCommandIsComplete(IOCommandID theID, OSErr theResult);   /* DriverServicesLib */
 
+#define kDriverVersion 0x01008000   /* 1.0 */
+
+#endif
+
 /* ---- The driver ---- */
 
 DriverDescription TheDriverDescription =
 {
     kTheDescriptionSignature,
     kInitialDriverDescriptor,
-    { "\pretro68,sample", 0x01008000 },     /* version 1.0 */
+    { "\pretro68,sample", kDriverVersion },
     { kDriverIsLoadedUponDiscovery | kDriverIsOpenedUponLoad, "\p.Retro68Sample" },
-    { 1, { { kServiceCategoryNdrvDriver, kNdrvTypeIsGeneric, 0x01008000 } } }
+    { 1, { { kServiceCategoryNdrvDriver, kNdrvTypeIsGeneric, kDriverVersion } } }
 };
 
 OSErr DoDriverIO(AddressSpaceID spaceID, IOCommandID ID, IOCommandContents contents,
