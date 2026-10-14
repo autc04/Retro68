@@ -24,8 +24,12 @@ add_library(ResourceFiles
     ResourceFile.h ResourceFile.cc
     )
 
-find_path(HFS_INCLUDE_DIR NAMES hfs.h)
-find_library(HFS_LIBRARY NAMES hfs)
+# Prefer Retro68's own hfsutils (built with --enable-devlibs and installed into
+# the toolchain prefix) over any incompatible libhfs in system locations (e.g.
+# from cdrtools). The default search is kept as a fallback, so an hfsutils
+# provided elsewhere (e.g. as a Nix buildInput) is still found.
+find_path(HFS_INCLUDE_DIR NAMES hfs.h HINTS ${CMAKE_INSTALL_PREFIX}/include)
+find_library(HFS_LIBRARY NAMES hfs HINTS ${CMAKE_INSTALL_PREFIX}/lib)
 
 target_link_libraries(ResourceFiles Boost::filesystem ${HFS_LIBRARY})
 target_include_directories(ResourceFiles PUBLIC .
