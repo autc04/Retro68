@@ -27,66 +27,28 @@
     Open Firmware gave the card here, e.g. "pci1234,5678".
 
     Apple's Universal Interfaces declare the native driver interfaces.
-    The Multiversal Interfaces do not, so for those the declarations
-    this driver needs are below. The layouts are from Apple's "Designing
-    PCI Cards and Drivers for Power Macintosh Computers".
+    The Multiversal Interfaces declare DriverDescription in
+    <DriverServices.h>, but not DoDriverIO's types, so for those the
+    declarations this driver needs are below.
 */
 
 #include <MacTypes.h>
 #include <Devices.h>
-
-#if __has_include(<DriverServices.h>)
-
 #include <DriverServices.h>
+
+#ifdef UNIVERSAL_INTERFACES_VERSION
 
 #define kDriverVersion { .majorRev = 0x01, .stage = finalStage }   /* 1.0 */
 
 #else
 
-/* ---- DriverDescription ---- */
+/* ---- DoDriverIO ---- */
 
 enum
 {
-    kTheDescriptionSignature = 'mtej',
-    kInitialDriverDescriptor = 0,
-
-    kDriverIsLoadedUponDiscovery = 1 << 0,
-    kDriverIsOpenedUponLoad = 1 << 1,
-
-    kServiceCategoryNdrvDriver = 'ndrv',
     kNdrvTypeIsGeneric = 'genr'
 };
 
-typedef struct DriverDescription
-{
-    OSType driverDescSignature;
-    UInt32 driverDescVersion;
-    struct
-    {
-        unsigned char nameInfoStr[32];      /* Str31 */
-        NumVersion version;
-    } driverType;
-    struct
-    {
-        UInt32 driverRuntime;
-        unsigned char driverName[32];       /* Str31 */
-        UInt32 driverDescReserved[8];
-    } driverOSRuntimeInfo;
-    struct
-    {
-        UInt32 nServices;
-        struct
-        {
-            OSType serviceCategory;
-            OSType serviceType;
-            NumVersion serviceVersion;
-        } service[1];
-    } driverServices;
-} DriverDescription;
-
-/* ---- DoDriverIO ---- */
-
-typedef UInt32 AddressSpaceID;
 typedef struct OpaqueIOCommandID *IOCommandID;
 typedef union
 {
