@@ -15,7 +15,7 @@
 
 #include "m68kasm.h"
 
-#if defined (__mcoldfire__) || defined (__mc68030__) || defined (__mc68040__) || defined (__mc68060__)
+#if defined (__mcoldfire__) || defined (__mc68020__) || defined (__mc68030__) || defined (__mc68040__) || defined (__mc68060__)
 # define MISALIGNED_OK 1
 #else
 # define MISALIGNED_OK 0
@@ -49,10 +49,10 @@ SYM(memcpy):
 #if !MISALIGNED_OK
 	/* Goto .Lresidue if either dest or src is not 4-byte aligned */
 	move.l	a0,d0
-	and.l	#3,d0
+	and.l	#1,d0
 	bne	.Lresidue
 	move.l	a1,d0
-	and.l	#3,d0
+	and.l	#1,d0
 	bne	.Lresidue
 #else /* MISALIGNED_OK */
 	/* align dest */
@@ -95,7 +95,7 @@ SYM(memcpy):
 #else
 	subq.l	#1,d0
 #endif
-	bpl	1b
+	bcc	1b
 	bra	.Lresidue
 
 1:
@@ -104,9 +104,13 @@ SYM(memcpy):
 .Lresidue:
 #if !defined (__mcoldfire__)
 	dbra	d1,1b		| loop until done
+#if !MISALIGNED_OK
+	sub.l	#0x10000,d1
+	bcc	1b
+#endif /* !MISALIGNED_OK */
 #else
 	subq.l	#1,d1
-	bpl	1b
+	bcc	1b
 #endif
 	move.l	4(sp),d0	| return value
 	rts
