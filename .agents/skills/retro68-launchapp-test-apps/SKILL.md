@@ -19,9 +19,12 @@ convention (see `LaunchAPPL/Client/Launcher.cc` and
 
 Consequences:
 
-- A test app must **terminate**. An app that opens a window and sits in a
-  `GetNextEvent` loop will just hit the timeout. A plain (non-CONSOLE) app that
-  returns from `main` after writing `out` is ideal.
+- A test app must **terminate**. Classic Mac OS is cooperatively multitasked,
+  so a runaway app cannot be preempted from outside: an app that sits in a
+  `GetNextEvent` loop (or any cycle that never returns) hangs the launch
+  indefinitely. Whether `--timeout` rescues you depends on the transport — see
+  *Config and invocation* below. A plain (non-CONSOLE) app that returns from
+  `main` after writing `out` is ideal.
 - Write results the same way `AutomatedTests/Test.h` does: open `out` with
   `PBHOpenSync` (`ioVRefNum = 0`, `ioDirID = 0`), `PBWriteSync` from EOF, close,
   and `PBFlushVolSync`. Note that `PBWriteSync`/`PBCloseSync`/`PBFlushVolSync`
@@ -42,9 +45,10 @@ So, before running anything:
 - **Honour the user's preference**: run `LaunchAPPL <app>` without `-e` and let
   the configured default decide. Only pass `-e <name>` when you have a specific
   reason to override it.
-- If no emulator is configured/available, if the run cannot connect or times
-  out, or if you are simply unsure which emulator/environment is appropriate,
-  **ask the user** — don't pick one yourself or silently switch connections.
+- If no emulator is configured/available, if the run cannot connect, times out
+  or hangs, or if you are simply unsure which emulator/environment is
+  appropriate, **ask the user** — don't pick one yourself or silently switch
+  connections.
 
 ```
 LaunchAPPL --list-emulators               # what is configured on this machine
@@ -52,12 +56,30 @@ LaunchAPPL --timeout=60 path/to/App.bin   # uses the configured default
 LaunchAPPL -e <name> --timeout=60 path/to/App.bin   # override, only if intended
 ```
 
-- `--timeout=60` matters on slow emulators and real hardware.
+- `--timeout=N` is **not** a per-app watchdog, and what it does depends on the
+  transport:
+  - **Child-process launchers** (`classic`, `carbon`, `executor`, `minivmac`,
+    `ssh`) run the emulator/`ssh` through `ChildProcess()`
+    (`LaunchAPPL/Client/Utilities.cc`), which `SIGKILL`s it after `N` seconds.
+    A hung app thus ends the run with a failure — but only by killing the
+    emulator, so the app never got to write `out`.
+  - **Stream-based launchers** (`tcp`, `serial`, `shared`) ignore the argument
+    entirely: `StreamBasedLauncher::Go()`
+    (`LaunchAPPL/Client/StreamBasedLauncher.cc`) just blocks until the app
+    reports a result. A hung app hangs the LaunchAPPL client forever.
+  For a test that may fail *by hanging*, prefer a child-process emulator (CI
+  uses `emulator=executor`, so the timeout kills it and the missing `OK` fails
+  the test cleanly). On tcp/serial/shared, bound such a run from the host
+  instead, e.g. `timeout 60 LaunchAPPL …`, and expect the client to be killed.
 - Resource requirements depend on the connection: a TCP launch needs a running
   `LaunchAPPLServer` on the far end (port 1984) and, in a network-restricted
   sandbox, raw-socket/unsandboxed access (HTTP-proxy host allowlists cannot
-  grant loopback or IP literals); a serial launch needs a port/cable; and so on.
-  Do not assume a particular transport — read `~/.LaunchAPPL.cfg`.
+  grant loopback or IP literals), so a loopback `tcp` server is unreachable
+  from inside the sandbox; a serial launch needs a port/cable; and so on. Do
+  not assume a particular transport — read `~/.LaunchAPPL.cfg`. When one is
+  available, a self-contained child-process emulator avoids all of this: if the
+  machine has an Executor build, `LaunchAPPL -e executor --executor-option
+  --headless <App.bin>` runs fully headless and needs no network.
 
 ## Building the test app
 
