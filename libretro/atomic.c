@@ -39,10 +39,12 @@
  * symbols are attached with asm labels.
  */
 
+/* string.h first: on case-insensitive file systems it can pull in Apple's
+   Strings.h -> MacTypes.h, whose true/false enum clashes with stdbool.h. */
+#include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 #ifndef __GCC_ATOMIC_TEST_AND_SET_TRUEVAL
 #define __GCC_ATOMIC_TEST_AND_SET_TRUEVAL 1
