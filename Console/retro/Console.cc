@@ -28,7 +28,6 @@
 #include <cctype>
 #include <algorithm>
 #include <stack>
-#include <sstream>
 
 using namespace retro;
 
@@ -570,19 +569,18 @@ void Console::InitEscapeSequenceMap()
 // turns an argument string into numbers
 // example: "12;13" would return a vector with numbers 12 and 13
 static std::vector<int> parseArguments(std::string str) {
-    std::istringstream iss(str);
-    std::string token;
     std::vector<int> numberVector;
-    while (getline(iss, token, ';'))
+    size_t start = 0;
+    while (start < str.size())
     {
-        if(token == "") 
-        {
+        size_t end = str.find(';', start);
+        if (end == std::string::npos)
+            end = str.size();
+        if (end == start)
             numberVector.push_back(1);
-        }
         else
-        {
-            numberVector.push_back(atoi(token.c_str()));
-        }
+            numberVector.push_back(atoi(str.substr(start, end - start).c_str()));
+        start = end + 1;
     }
 
     while (numberVector.size() < 2)
