@@ -26,6 +26,15 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror=return-type -Wno-multichar
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror=return-type -Werror=strict-prototypes -Wno-multichar")
 
 enable_testing()
+if(CMAKE_SYSTEM_NAME MATCHES "RetroCarbon")
+    set(TESTCASE_PREFIX "Carbon.")
+elseif(CMAKE_SYSTEM_NAME MATCHES "Retro68")
+    set(TESTCASE_PREFIX "M68K.")
+elseif(CMAKE_SYSTEM_NAME MATCHES "RetroPPC")
+    set(TESTCASE_PREFIX "PPC.")
+else()
+    set(TESTCASE_PREFIX)
+endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES Retro.*)
 
