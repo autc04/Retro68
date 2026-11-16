@@ -29,6 +29,7 @@ typedef char bfd_byte;
 #include "rs6000.h"
 
 bool verboseFlag = false;
+std::set<std::string> weakLibs;
 
 inline int getI16(const void *xx)
 {
@@ -158,6 +159,8 @@ public:
         }
 
         pefName = name;
+        if(weakLibs.count(pefName))
+            weak = true;
 
         nameOffset = stringTable.insert(pefName);
 
@@ -615,6 +618,16 @@ int main (int argc, char * const argv[]) {
         std::string arg = argv[i];
         if(arg == "-v")
             verboseFlag = true;
+        else if(arg == "-weak")
+        {
+            i++;
+            if(i >= argc)
+            {
+                std::cerr << "makepef: -weak requires an argument.\n";
+                return 1;
+            }
+            weakLibs.insert(argv[i]);
+        }
         else if(arg == "-o")
         {
             i++;
